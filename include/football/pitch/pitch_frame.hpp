@@ -58,17 +58,17 @@ class PitchFrameTransform {
 };
 
 // Actor processing frame -> fixed Home Pitch Frame. `home` is the caller's
-// TeamSide::Home membership (an identity, not a direction) and `dynamic_side`
+// TeamSide::Home membership (an identity, not a direction) and `execution_direction`
 // the runtime ±1 execution direction; the two disagree exactly when the
 // actor's processing frame is already mirrored relative to the canonical one.
 // The transform is its own inverse, so the same call also goes back.
-inline PitchFrameTransform ToHomePitchFrame(bool home, int dynamic_side) {
+inline PitchFrameTransform ToHomePitchFrame(bool home, int execution_direction) {
   const int home_pitch_side = home ? -1 : 1;
-  return PitchFrameTransform(dynamic_side != home_pitch_side);
+  return PitchFrameTransform(execution_direction != home_pitch_side);
 }
 
-inline PitchFrameTransform FromHomePitchFrame(bool home, int dynamic_side) {
-  return ToHomePitchFrame(home, dynamic_side);
+inline PitchFrameTransform FromHomePitchFrame(bool home, int execution_direction) {
+  return ToHomePitchFrame(home, execution_direction);
 }
 
 // Fixed Stadium/Home Pitch Frame -> the attacking frame of the team defending

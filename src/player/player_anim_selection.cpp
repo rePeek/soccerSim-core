@@ -1009,22 +1009,22 @@ void Player::ApplyGoalkeeperBoundaryClamps(
   if (tick.ball.state().position.coords[1] < -20.05f) {
     ApplyPositionCorrection(Vector3(0, clamp(-20.05f - tick.ball.state().position.coords[1], -0.5f, 0.5f), 0) * 0.3f);
   }
-  if (tick.ball.state().position.coords[0] * -GetDynamicSide() >
+  if (tick.ball.state().position.coords[0] * -GetExecutionDirection() >
       -tick.pitch.half_length() + 16.4f) {
     ApplyPositionCorrection(Vector3(clamp((-tick.pitch.half_length() + 16.4f) -
                                      tick.ball.state().position.coords[0] *
-                                         -GetDynamicSide(),
+                                         -GetExecutionDirection(),
                                  -0.5f, 0.5f),
                            0, 0) *
-                   -GetDynamicSide() * 0.3f);
+                   -GetExecutionDirection() * 0.3f);
   }
-  if (tick.ball.state().position.coords[0] * -GetDynamicSide() <
+  if (tick.ball.state().position.coords[0] * -GetExecutionDirection() <
       -tick.pitch.half_length() + 0.1f) {
     ApplyPositionCorrection(Vector3(clamp((-tick.pitch.half_length() + 0.1f) -
                                      tick.ball.state().position.coords[0] *
-                                         -GetDynamicSide(),
+                                         -GetExecutionDirection(),
                                  -0.5f, 0.5f),
                            0, 0) *
-                   -GetDynamicSide() * 0.4f);
+                   -GetExecutionDirection() * 0.4f);
   }
 }

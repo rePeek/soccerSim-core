@@ -233,7 +233,7 @@ void RestartController::ProcessRestart(const RuntimeTickFacts& facts, const Matc
     for (const auto& target : state.plan.players) {
       Player* actor = roster.Find(target.player);
       if (actor == nullptr) continue;
-      const auto frame = FromHomePitchFrame(actor->GetTeamSide() == football::sim::TeamSide::Home, actor->GetDynamicSide());
+      const auto frame = FromHomePitchFrame(actor->GetTeamSide() == football::sim::TeamSide::Home, actor->GetExecutionDirection());
       actor->ResetPosition(actor->GetPosition(), frame.Position(state.plan.ball_position));
     }
     context_.taker = roster.Find(state.plan.taker);

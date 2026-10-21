@@ -95,10 +95,10 @@ TEST_CASE("Runtime harness: half time swaps ends exactly once at the next tick",
 
     const football::team::Team& home_team = SimulationAccess::TeamOf(sim, 0);
     const football::team::Team& away_team = SimulationAccess::TeamOf(sim, 1);
-    const int home_static = SimulationAccess::TeamFrameOf(sim, 0).static_side;
-    const int away_static = SimulationAccess::TeamFrameOf(sim, 1).static_side;
-    const int home_dynamic = SimulationAccess::TeamFrameOf(sim, 0).dynamic_side;
-    const int away_dynamic = SimulationAccess::TeamFrameOf(sim, 1).dynamic_side;
+    const int home_static = SimulationAccess::TeamOrientationOf(sim, 0).defending_direction;
+    const int away_static = SimulationAccess::TeamOrientationOf(sim, 1).defending_direction;
+    const int home_dynamic = SimulationAccess::TeamOrientationOf(sim, 0).execution_direction;
+    const int away_dynamic = SimulationAccess::TeamOrientationOf(sim, 1).execution_direction;
     // Baseline: the persistent ends differ, both execution frames do not.
     REQUIRE(home_static == -1);
     REQUIRE(away_static == 1);
@@ -117,15 +117,15 @@ TEST_CASE("Runtime harness: half time swaps ends exactly once at the next tick",
     // kickoff, but the physical change is still pending at the next Step entry.
     REQUIRE(CountEvents<PeriodEndedEvent>(sim) == 1);
     REQUIRE(SimulationAccess::RestartContextOf(sim).kind == e_GameMode_KickOff);
-    CHECK(SimulationAccess::TeamFrameOf(sim, 0).static_side == home_static);
-    CHECK(SimulationAccess::TeamFrameOf(sim, 1).static_side == away_static);
+    CHECK(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction == home_static);
+    CHECK(SimulationAccess::TeamOrientationOf(sim, 1).defending_direction == away_static);
 
     // The next Step entry applies the change of ends before counting the tick.
     sim.Step(controls);
-    CHECK(SimulationAccess::TeamFrameOf(sim, 0).static_side == -home_static);
-    CHECK(SimulationAccess::TeamFrameOf(sim, 1).static_side == -away_static);
-    CHECK(SimulationAccess::TeamFrameOf(sim, 0).dynamic_side == -home_dynamic);
-    CHECK(SimulationAccess::TeamFrameOf(sim, 1).dynamic_side == -away_dynamic);
+    CHECK(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction == -home_static);
+    CHECK(SimulationAccess::TeamOrientationOf(sim, 1).defending_direction == -away_static);
+    CHECK(SimulationAccess::TeamOrientationOf(sim, 0).execution_direction == -home_dynamic);
+    CHECK(SimulationAccess::TeamOrientationOf(sim, 1).execution_direction == -away_dynamic);
     // Identity is a match fact, never a direction, so it does not flip.
     for (Player* player : home_team.Players()) {
       CHECK(player->GetTeamSide() == TeamSide::Home);
@@ -180,8 +180,8 @@ TEST_CASE("Runtime harness: a goal after the change of ends credits the new atta
   OpenHalf(sim, MatchPhase::SecondHalf);
   SimulationAccess::ApplyChangeOfEndsNow(sim);
   // Home now defends +X and attacks -X; Away is the mirror image.
-  REQUIRE(SimulationAccess::TeamFrameOf(sim, 0).static_side == 1);
-  REQUIRE(SimulationAccess::TeamFrameOf(sim, 1).static_side == -1);
+  REQUIRE(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction == 1);
+  REQUIRE(SimulationAccess::TeamOrientationOf(sim, 1).defending_direction == -1);
   REQUIRE(SimulationAccess::IsBallInPlayOf(sim));
 
   // Home's last touch, then the ball crosses the -X goal mouth it now attacks.
@@ -303,7 +303,7 @@ TEST_CASE("Runtime harness: the published stadium transform is the named defendi
       if (half == 0) SimulationAccess::ApplyChangeOfEndsNow(sim);
     }
     CHECK(SimulationAccess::TeamViewOf(sim, 0).defending_end() ==
-          DefendingEndOf(SimulationAccess::TeamFrameOf(sim, 0).static_side));
+          DefendingEndOf(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction));
     CHECK(sim.Stop());
   }
 }

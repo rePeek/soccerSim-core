@@ -28,7 +28,7 @@ Player* BestPossessionPlayer(std::span<Player* const> players) {
 }
 
 void PrepareTeamPossession(TeamSide side, std::span<Player* const> players,
-                          const TeamFrame& frame, TeamMatchState& state,
+                          const TeamOrientation& frame, TeamMatchState& state,
                           const TeamMatchState& opponent_state,
                           bool play_authorized, bool set_piece_active,
                           const Player* retainer,
@@ -53,7 +53,7 @@ void PrepareTeamPossession(TeamSide side, std::span<Player* const> players,
 }
 
 void FinishTeamPossession(std::span<Player* const> players,
-                          const TeamFrame& frame, TeamMatchState& state,
+                          const TeamOrientation& frame, TeamMatchState& state,
                           const TeamMatchState& opponent_state) {
   Player* designated = state.designated_player;
   int designatedPlayerTime_ms = designated->GetTimeNeededToGetToBall_ms();
@@ -77,7 +77,7 @@ void FinishTeamPossession(std::span<Player* const> players,
 }
 
 void RefreshTeamPossession(std::span<Player* const> players,
-                          const TeamFrame& frame, TeamMatchState& state,
+                          const TeamOrientation& frame, TeamMatchState& state,
                           const TeamMatchState& opponent_state, Ball& ball,
                           Tick now, const Player* retainer) {
   (void)frame;  // aggregation writes only estimates, which do not publish
@@ -99,7 +99,7 @@ void RefreshTeamPossession(std::span<Player* const> players,
 }
 
 void RefreshDesignatedTeamPossessionPlayer(std::span<Player* const> players,
-                                          const TeamFrame& frame,
+                                          const TeamOrientation& frame,
                                           TeamMatchState& state,
                                           const Ball& ball) {
   state.designated_player =

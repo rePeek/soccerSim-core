@@ -146,8 +146,8 @@ class SimulationAccess {
   }
   // The runtime-owned match state a team owns. Exposed so the harness can
   // exercise possession without going through a rules/observation view.
-  static football::sim::TeamFrame& TeamFrameOf(Simulation& s, int team_id) {
-    return s.team_frames_[team_id];
+  static football::sim::TeamOrientation& TeamOrientationOf(Simulation& s, int team_id) {
+    return s.team_orientations_[team_id];
   }
   static football::sim::TeamMatchState& TeamStateOf(Simulation& s, int team_id) {
     return s.team_states_[team_id];

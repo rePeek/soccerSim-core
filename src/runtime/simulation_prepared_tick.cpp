@@ -112,7 +112,7 @@ void Simulation::RunPreparedPlayerTick() {
 
     football::sim::PrepareTeamPossession(
         static_cast<football::sim::TeamSide>(id), TeamOf(id).Players(),
-        team_frames_[id],
+        team_orientations_[id],
         team_states_[id], team_states_[1 - id], play_authorized_,
         set_piece_active_, ball_retainer_, best_possession_team_);
     for (auto* actor : TeamOf(id).Players()) {
@@ -134,7 +134,7 @@ void Simulation::RunPreparedPlayerTick() {
       prepared.emplace_back(actor, distance);
       MeasureBodyShadowEndpoint(*actor);
     }
-    football::sim::FinishTeamPossession(TeamOf(id).Players(), team_frames_[id],
+    football::sim::FinishTeamPossession(TeamOf(id).Players(), team_orientations_[id],
         team_states_[id], team_states_[1 - id]);
   };
   Mirror(first_team_ == 1, first_team_ == 0, false);

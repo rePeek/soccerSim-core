@@ -194,12 +194,12 @@ TEST_CASE("the offside line is the one-but-deepest defender", "[unit][referee]")
 
 namespace {
 
-RefereeTeamFact TeamFact(int team_id, int static_side, int dynamic_side) {
+RefereeTeamFact TeamFact(int team_id, int defending_direction, int execution_direction) {
   RefereeTeamFact team;
   team.team_id = team_id;
   team.side = team_id == 0 ? TeamSide::Home : TeamSide::Away;
-  team.static_side = static_side;
-  team.dynamic_side = dynamic_side;
+  team.defending_direction = defending_direction;
+  team.execution_direction = execution_direction;
   team.fading_possession_amount = 1.0f;
   return team;
 }

@@ -68,8 +68,8 @@ TEST_CASE("Runtime separates static Team from Player and live team state",
             actors.data());
       CHECK(SimulationAccess::ActiveLineupOf(sim, side).slots ==
             team.lineup.starters);
-      CHECK(SimulationAccess::TeamViewOf(sim, side).frame ==
-            &SimulationAccess::TeamFrameOf(sim, side));
+      CHECK(SimulationAccess::TeamViewOf(sim, side).orientation ==
+            &SimulationAccess::TeamOrientationOf(sim, side));
       CHECK(SimulationAccess::TeamViewOf(sim, side).state ==
             &SimulationAccess::TeamStateOf(sim, side));
       for (std::size_t i = 0; i < actors.size(); ++i) {
@@ -259,12 +259,12 @@ TEST_CASE("Runtime owns live lineup, frame and match state separately from Team"
            football::pitch::Pitch{}, options);
   const auto& team = SimulationAccess::DefinitionOf(sim, TeamSide::Home);
   const auto players = SimulationAccess::TeamOf(sim, 0).Players();
-  auto& frame = SimulationAccess::TeamFrameOf(sim, 0);
+  auto& frame = SimulationAccess::TeamOrientationOf(sim, 0);
   auto& state = SimulationAccess::TeamStateOf(sim, 0);
   auto& active = SimulationAccess::ActiveLineupOf(sim, 0);
   const auto view = SimulationAccess::TeamViewOf(sim, 0);
   REQUIRE(players.size() == 2);
-  CHECK(view.frame == &frame);
+  CHECK(view.orientation == &frame);
   CHECK(view.state == &state);
   CHECK(view.players.data() == players.data());
   CHECK(active.slots == team.lineup.starters);
@@ -274,16 +274,15 @@ TEST_CASE("Runtime owns live lineup, frame and match state separately from Team"
   CHECK(players[0]->GetTeamDesignatedPossessionPlayer() == cached);
   SimulationAccess::MirrorTeam(sim, 0);
   CHECK(players[0]->GetTeamDesignatedPossessionPlayer() == players[1]);
-  CHECK(frame.dynamic_side == 1);
+  CHECK(frame.execution_direction == 1);
   SimulationAccess::MirrorTeam(sim, 0);
-  CHECK(frame.dynamic_side == -1);
+  CHECK(frame.execution_direction == -1);
   view.SetFadingPossessionAmount(.8f);
   CHECK(state.fading_possession_amount == .8f);
   CHECK(players[0]->GetTeamFadingPossessionAmount() == .8f);
   SimulationAccess::SwitchTeamEnds(sim, 0);
-  CHECK(frame.static_side == 1);
-  CHECK(frame.dynamic_side == 1);
-  CHECK_FALSE(frame.mirrored);
+  CHECK(frame.defending_direction == 1);
+  CHECK(frame.execution_direction == 1);
   CHECK(active.slots == team.lineup.starters);
   CHECK(sim.Stop());
 }

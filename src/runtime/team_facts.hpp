@@ -10,10 +10,11 @@ namespace football::sim {
 
 // Per-player cached projection of Team's live values. Simulation controls when
 // publication occurs; changing storage ownership must never delay or batch it.
-inline PlayerTeamFacts TeamFactsOf(const TeamFrame& frame,
+inline PlayerTeamFacts TeamFactsOf(const TeamOrientation& orientation,
                                    const TeamMatchState& state) {
-  return PlayerTeamFacts{frame.dynamic_side, frame.static_side,
-                         frame.dynamic_side == frame.static_side,
+  return PlayerTeamFacts{orientation.defending_direction,
+                         orientation.execution_direction,
+                         orientation.on_original_side(),
                          state.possession_amount,
                          state.fading_possession_amount,
                          state.designated_player};
@@ -21,12 +22,11 @@ inline PlayerTeamFacts TeamFactsOf(const TeamFrame& frame,
 
 // Publishes the current facts to every player of the slice, in declaration order.
 inline void PublishTeamFacts(std::span<Player* const> players,
-                             const TeamFrame& frame,
+                             const TeamOrientation& orientation,
                              const TeamMatchState& state) {
-  const PlayerTeamFacts facts = TeamFactsOf(frame, state);
+  const PlayerTeamFacts facts = TeamFactsOf(orientation, state);
   for (Player* player : players) player->SetTeamContext(facts);
 }
-
 
 }  // namespace football::sim
 

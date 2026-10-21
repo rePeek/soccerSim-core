@@ -176,12 +176,17 @@ class Player;
 // Facts Runtime publishes to each Player. This is a per-tick projection of its
 // team's match state; Player never stores or owns a Team object.
 struct PlayerTeamFacts {
-  int dynamic_side = -1;
-  int static_side = -1;
+  // The end this team defends in the Stadium Frame: -1 (-X) or +1 (+X).
+  int defending_direction = -1;
+  // The direction of the actor's current execution frame: -1 or +1.
+  int execution_direction = -1;
   bool on_original_side = true;
   float possession_amount = 1.0f;
   float fading_possession_amount = 1.0f;
   Player* designated_possession_player = nullptr;
+
+  // The direction this team attacks while executing in its execution frame.
+  int attack_direction() const { return -execution_direction; }
 };
 
 // ANIM-1 A7: a passive trip the Player accepted at contact time. It is applied
@@ -566,9 +571,12 @@ class Player final {
 
     int GetTeamID() const { return team_id_; }
     football::sim::TeamSide GetTeamSide() const { return side_; }
-    // Per-tick processing-frame direction (mirror counter), not persistent.
-    int GetDynamicSide() const { return team_facts_.dynamic_side; }
-    int GetStaticSide() const { return team_facts_.static_side; }
+    // The end this team defends in the Stadium Frame (persistent, -1 or +1).
+    int GetDefendingDirection() const { return team_facts_.defending_direction; }
+    // The direction of this actor's current execution frame (transient, -1 or +1).
+    int GetExecutionDirection() const { return team_facts_.execution_direction; }
+    // The direction this team attacks in its execution frame.
+    int GetAttackDirection() const { return team_facts_.attack_direction(); }
     bool OnOriginalSide() const { return team_facts_.on_original_side; }
     float GetTeamFadingPossessionAmount() const {
       return team_facts_.fading_possession_amount;

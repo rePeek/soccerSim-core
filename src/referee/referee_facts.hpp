@@ -15,8 +15,8 @@ namespace football::sim::rules {
 struct RefereeTeamFact {
   int team_id = -1;
   football::sim::TeamSide side = football::sim::TeamSide::Home;
-  int static_side = 0;
-  int dynamic_side = 0;
+  int defending_direction = 0;
+  int execution_direction = 0;
   // Live possession weight, sampled this instant (never frozen at a contact).
   float fading_possession_amount = 1.0f;
 };

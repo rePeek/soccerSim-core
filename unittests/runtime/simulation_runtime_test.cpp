@@ -205,20 +205,18 @@ TEST_CASE("Runtime harness: initial team orientation is Simulation-owned",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  const football::sim::TeamFrame& home_frame = SimulationAccess::TeamFrameOf(sim, 0);
-  const football::sim::TeamFrame& away_frame = SimulationAccess::TeamFrameOf(sim, 1);
+  const football::sim::TeamOrientation& home_frame = SimulationAccess::TeamOrientationOf(sim, 0);
+  const football::sim::TeamOrientation& away_frame = SimulationAccess::TeamOrientationOf(sim, 1);
 
   // Historical initial orientation: both teams start in the first processing
   // frame (dynamic -1); only the persistent direction differs by slot. Nothing
-  // keeps a copy of this -- Simulation owns the only TeamFrame.
-  CHECK(home_frame.dynamic_side == -1);
-  CHECK(away_frame.dynamic_side == -1);
-  CHECK(home_frame.static_side == -1);
-  CHECK(away_frame.static_side == 1);
-  CHECK_FALSE(home_frame.mirrored);
-  CHECK_FALSE(away_frame.mirrored);
-  CHECK(home_frame.dynamic_side == home_frame.static_side);
-  CHECK(away_frame.dynamic_side != away_frame.static_side);
+  // keeps a copy of this -- Simulation owns the only TeamOrientation.
+  CHECK(home_frame.execution_direction == -1);
+  CHECK(away_frame.execution_direction == -1);
+  CHECK(home_frame.defending_direction == -1);
+  CHECK(away_frame.defending_direction == 1);
+  CHECK(home_frame.execution_direction == home_frame.defending_direction);
+  CHECK(away_frame.execution_direction != away_frame.defending_direction);
   CHECK(sim.Stop());
 }
 
@@ -266,20 +264,20 @@ TEST_CASE("Runtime harness: Mirror twice restores players, sides and ball",
 
 
   const WorldState before = sim.Observe();
-  const football::sim::TeamFrame& home_frame = SimulationAccess::TeamFrameOf(sim, 0);
-  const int dynamic_before = home_frame.dynamic_side;
+  const football::sim::TeamOrientation& home_frame = SimulationAccess::TeamOrientationOf(sim, 0);
+  const int dynamic_before = home_frame.execution_direction;
   std::vector<int> player_sides;
-  for (Player* player : home_team.Players()) player_sides.push_back(player->GetDynamicSide());
+  for (Player* player : home_team.Players()) player_sides.push_back(player->GetExecutionDirection());
 
   // Mirror both teams but not the ball; mirroring is its own inverse.
   sim.Mirror(true, true, false);
-  CHECK(home_frame.dynamic_side == -dynamic_before);
+  CHECK(home_frame.execution_direction == -dynamic_before);
   for (Player* player : home_team.Players()) {
-    CHECK(player->GetDynamicSide() == -dynamic_before);
+    CHECK(player->GetExecutionDirection() == -dynamic_before);
   }
   sim.Mirror(true, true, false);
 
-  CHECK(home_frame.dynamic_side == dynamic_before);
+  CHECK(home_frame.execution_direction == dynamic_before);
   const WorldState after = sim.Observe();
   REQUIRE(after.players.size() == before.players.size());
   for (std::size_t i = 0; i < before.players.size(); ++i) {
@@ -300,28 +298,25 @@ TEST_CASE("Runtime harness: SwitchEnds flips both directions, not the tick frame
   const football::team::Team& away_team = SimulationAccess::TeamOf(sim, 1);
 
 
-  const football::sim::TeamFrame& home_frame = SimulationAccess::TeamFrameOf(sim, 0);
-  const int dynamic_before = home_frame.dynamic_side;
-  const int static_before = home_frame.static_side;
-  const bool mirrored_before = home_frame.mirrored;
+  const football::sim::TeamOrientation& home_frame = SimulationAccess::TeamOrientationOf(sim, 0);
+  const int dynamic_before = home_frame.execution_direction;
+  const int static_before = home_frame.defending_direction;
 
   // Half-time change of ends: both directions flip; the canonical between-tick
   // frame (mirrored) must not change.
   SimulationAccess::SwitchTeamEnds(sim, 0);
-  CHECK(home_frame.dynamic_side == -dynamic_before);
-  CHECK(home_frame.static_side == -static_before);
-  CHECK(home_frame.mirrored == mirrored_before);
+  CHECK(home_frame.execution_direction == -dynamic_before);
+  CHECK(home_frame.defending_direction == -static_before);
   // Publication is part of the behaviour: a switched end that skipped it would
   // leave every player reading the previous tick's team facts.
   for (Player* player : home_team.Players()) {
-    CHECK(player->GetDynamicSide() == -dynamic_before);
-    CHECK(player->GetStaticSide() == -static_before);
+    CHECK(player->GetExecutionDirection() == -dynamic_before);
+    CHECK(player->GetDefendingDirection() == -static_before);
   }
 
   SimulationAccess::SwitchTeamEnds(sim, 0);
-  CHECK(home_frame.dynamic_side == dynamic_before);
-  CHECK(home_frame.static_side == static_before);
-  CHECK(home_frame.mirrored == mirrored_before);
+  CHECK(home_frame.execution_direction == dynamic_before);
+  CHECK(home_frame.defending_direction == static_before);
   CHECK(sim.Stop());
 }
 
@@ -329,28 +324,24 @@ TEST_CASE("Runtime harness: transient mirror and permanent end change write disj
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  const football::sim::TeamFrame& home_frame = SimulationAccess::TeamFrameOf(sim, 0);
-  const int dynamic_before = home_frame.dynamic_side;
-  const int static_before = home_frame.static_side;
-  const bool mirrored_before = home_frame.mirrored;
+  const football::sim::TeamOrientation& home_frame = SimulationAccess::TeamOrientationOf(sim, 0);
+  const int dynamic_before = home_frame.execution_direction;
+  const int static_before = home_frame.defending_direction;
 
-  // The transient execution-frame toggle owns dynamic_side and mirrored; the
+  // The transient execution-frame toggle owns execution_direction and mirrored; the
   // persistent direction the team defends is not a frame concern.
   SimulationAccess::MirrorTeam(sim, 0);
-  CHECK(home_frame.dynamic_side == -dynamic_before);
-  CHECK(home_frame.mirrored == !mirrored_before);
-  CHECK(home_frame.static_side == static_before);
+  CHECK(home_frame.execution_direction == -dynamic_before);
+  CHECK(home_frame.defending_direction == static_before);
   SimulationAccess::MirrorTeam(sim, 0);
-  CHECK(home_frame.dynamic_side == dynamic_before);
-  CHECK(home_frame.mirrored == mirrored_before);
-  CHECK(home_frame.static_side == static_before);
+  CHECK(home_frame.execution_direction == dynamic_before);
+  CHECK(home_frame.defending_direction == static_before);
 
-  // The permanent change of ends owns static_side and dynamic_side together and
+  // The permanent change of ends owns defending_direction and execution_direction together and
   // must leave the between-tick mirror flag alone.
   SimulationAccess::SwitchTeamEnds(sim, 0);
-  CHECK(home_frame.static_side == -static_before);
-  CHECK(home_frame.dynamic_side == -dynamic_before);
-  CHECK(home_frame.mirrored == mirrored_before);
+  CHECK(home_frame.defending_direction == -static_before);
+  CHECK(home_frame.execution_direction == -dynamic_before);
   CHECK(sim.Stop());
 }
 
@@ -386,7 +377,7 @@ TEST_CASE("Runtime harness: possession arbitration is runtime-owned",
 
   // A send-off re-designation writes the runtime state and publishes it.
   football::sim::RefreshDesignatedTeamPossessionPlayer(
-      home_team.Players(), SimulationAccess::TeamFrameOf(sim, 0), home_state,
+      home_team.Players(), SimulationAccess::TeamOrientationOf(sim, 0), home_state,
       *SimulationAccess::BallOf(sim));
   CHECK(home_state.designated_player != nullptr);
   for (Player* player : home_team.Players()) {
@@ -503,7 +494,7 @@ TEST_CASE("Rules authorize movement, action and keeper hands separately",
     auto input = base;
     input.is_goalkeeper = true;
     input.half_length = 52.5f;
-    input.dynamic_side = -1;
+    input.execution_direction = -1;
     input.predicted_ball_x = -40.0f;
     input.predicted_ball_y = 5.0f;
     CHECK(EvaluateActionAuthorization(input).goalkeeper_hands_allowed);

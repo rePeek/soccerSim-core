@@ -28,7 +28,7 @@ struct PlayerActionAuthorizationInput {
   float predicted_ball_x = 0.0f;
   float predicted_ball_y = 0.0f;
   float half_length = 0.0f;
-  int dynamic_side = -1;
+  int execution_direction = -1;
 };
 
 // The permissions stay distinct on purpose: a pending restart keeps movement

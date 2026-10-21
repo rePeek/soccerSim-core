@@ -78,7 +78,7 @@ PlayerCommandQueue Player::BuildCommandQueueForRequest(
     const football::sim::PlayerTickContext& tick) {
   PlayerControl control;
   control.player = GetID();
-  const auto to_home = ToHomePitchFrame(GetTeamSide() == football::sim::TeamSide::Home, GetDynamicSide());
+  const auto to_home = ToHomePitchFrame(GetTeamSide() == football::sim::TeamSide::Home, GetExecutionDirection());
   control.move_direction = to_home.Direction(request.direction.Get2D());
   control.desired_speed = std::max(0.0f, request.speed);
   control.action = ToControlAction(request.kind);

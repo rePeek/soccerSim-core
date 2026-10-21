@@ -509,7 +509,7 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
                       spatial_state_.directionVec.coords[0], 0.0f)));
           Vector3 touchVec =
               (-currentBallMovement * 0.1f + playerMovement * 2.0f +
-               Vector3(-this->GetDynamicSide(), 0, 0) * 4.0f +
+               Vector3(-this->GetExecutionDirection(), 0, 0) * 4.0f +
                Vector3(0, scatterSide, 0))
                   .GetNormalized(0) *
               (currentBallMovement.GetLength() * 0.3f +

@@ -139,7 +139,7 @@ class Simulation {
   void HandlePlayerSentOff(Player& player);
   // One live team aggregate per side. It owns the static definition and the
   // actual Player objects; Runtime owns only the match execution state around
-  // it (active_lineups_/team_frames_/team_states_).
+  // it (active_lineups_/team_orientations_/team_states_).
   football::team::Team& TeamOf(int id);
   const football::team::Team& TeamOf(int id) const;
   football::sim::ActiveLineupState& ActiveLineupOf(int id) {
@@ -153,15 +153,15 @@ class Simulation {
   // runtime-owned Team/frame/state; no allocation, nothing retained.
   football::sim::TeamView TeamViewOf(int team_id) const;
   // Team orientation is runtime-owned behaviour: these mutate the borrowed
-  // TeamFrame and publish the resulting facts to that team's players, in
+  // TeamOrientation and publish the resulting facts to that team's players, in
   // declaration order. The two are deliberately not interchangeable:
   //
   // - MirrorTeam is the transient execution-frame toggle used by StepImpl. It
-  //   flips dynamic_side and mirrored; static_side is never touched.
+  //   flips execution_direction; defending_direction is never touched.
   // - SwitchTeamEnds is the permanent half-time change of ends. It flips both
-  //   dynamic_side and static_side; mirrored is never touched.
+  //   execution_direction and defending_direction.
   //
-  // Nothing else writes a TeamFrame. Pitch does not know the half, Referee
+  // Nothing else writes a TeamOrientation. Pitch does not know the half, Referee
   // does not change a direction, Team owns no live orientation and AI never
   // schedules a change of ends.
   void MirrorTeam(int team_id);
@@ -343,7 +343,7 @@ class Simulation {
   std::unique_ptr<football::ball::Ball> ball_;
   // Live match relationship state, separate from the owning Team.
   std::array<football::sim::ActiveLineupState, 2> active_lineups_;
-  mutable std::array<football::sim::TeamFrame, 2> team_frames_;
+  mutable std::array<football::sim::TeamOrientation, 2> team_orientations_;
   mutable std::array<football::sim::TeamMatchState, 2> team_states_;
   std::unique_ptr<Referee> referee_;
   football::sim::RestartController restarts_;

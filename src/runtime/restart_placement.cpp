@@ -32,7 +32,7 @@ Vector3 AdaptRestartFormation(
     float yFocus, float yFocusStrength, const Vector3 &microFocus,
     float microFocusStrength, float midfieldFocus, float midfieldFocusStrength,
     bool useDynamicFormationPosition) {
-  int side = player->GetDynamicSide();
+  int side = player->GetExecutionDirection();
 
   Vector3 position;
 
@@ -170,7 +170,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
         focus.coords[1] = 0;
       }
       (*iter)->ResetPosition(
-          Vector3(pitch.half_length() * team.dynamic_side * 0.98, 0, 0), focus);
+          Vector3(pitch.half_length() * team.execution_direction * 0.98, 0, 0), focus);
       iter = players.erase(iter);
     } else {
       iter++;
@@ -188,8 +188,8 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                   for (unsigned int i = 0; i < players.size(); i++) {
                     Vector3 basePos =
                         players[i]->GetFormationEntry().position *
-                        Vector3(-team.dynamic_side * pitch.half_length() * 0.6,
-                                -team.dynamic_side * pitch.half_width() * 0.6, 0);
+                        Vector3(-team.execution_direction * pitch.half_length() * 0.6,
+                                -team.execution_direction * pitch.half_width() * 0.6, 0);
                     // Deterministic stagger so kickoff players do not stand on
                     // top of each other; the direction alternates by slot.
                     basePos.coords[1] +=
@@ -197,14 +197,14 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                         (1.0f + 0.25f * static_cast<float>(i));
                     basePos.coords[0] *= 0.5;
                     basePos.coords[0] +=
-                        (pitch.half_length() * 0.2) * team.dynamic_side;
-                    if (basePos.coords[0] * team.dynamic_side < 0.5)
+                        (pitch.half_length() * 0.2) * team.execution_direction;
+                    if (basePos.coords[0] * team.execution_direction < 0.5)
                       basePos.coords[0] =
-                          0.5 * team.dynamic_side;  // not allowed to stand
+                          0.5 * team.execution_direction;  // not allowed to stand
                                                          // on opp side
                     if (basePos.GetLength() < 9.4) {
                         // not allowed to stand in center spot
-                      basePos.Normalize(Vector3(team.dynamic_side, 0, 0));
+                      basePos.Normalize(Vector3(team.execution_direction, 0, 0));
                       basePos *= 9.4;
                     }
                     players[i]->ResetPosition(
@@ -216,7 +216,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                       football::sim::player::FindClosestPlayers(team.players, Vector3(0), result, 2);
                       for (unsigned int i = 0; i < result.size(); i++) {
                         result[i]->ResetPosition(
-                            Vector3(0, i * 1.4 * team.dynamic_side, 0),
+                            Vector3(0, i * 1.4 * team.execution_direction, 0),
                             ball.state().position.Get2D());
                       }
                     }
@@ -227,11 +227,11 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                   for (unsigned int i = 0; i < players.size(); i++) {
                     float backXBound, frontXBound, lowYBound, highYBound;
                     if (isTakerTeam) {
-                      backXBound = team.dynamic_side * pitch.half_length() * 0.5;
-                      frontXBound = -team.dynamic_side * pitch.half_length() * 0.2;
+                      backXBound = team.execution_direction * pitch.half_length() * 0.5;
+                      frontXBound = -team.execution_direction * pitch.half_length() * 0.2;
                     } else {
-                      backXBound = team.dynamic_side * pitch.half_length() * 0.4;
-                      frontXBound = -team.dynamic_side * pitch.half_length() * 0.1;
+                      backXBound = team.execution_direction * pitch.half_length() * 0.4;
+                      frontXBound = -team.execution_direction * pitch.half_length() * 0.1;
                     }
                     lowYBound = -pitch.half_width() * 0.7;
                     highYBound = pitch.half_width() * 0.7;
@@ -250,8 +250,8 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                         midfieldFocus, midfieldFocusStrength;
                     Vector3 ballPos = ball.state().position.Get2D();
                     if (isTakerTeam) {
-                      backXBound = -team.dynamic_side * pitch.half_length() * 0.2;
-                      frontXBound = -team.dynamic_side * pitch.half_length() * 0.96;
+                      backXBound = -team.execution_direction * pitch.half_length() * 0.2;
+                      frontXBound = -team.execution_direction * pitch.half_length() * 0.96;
                       xFocus = frontXBound * 0.85;
                       xFocusStrength = 0.7f;
                       yFocus = ballPos.coords[1] * 0.1f;
@@ -259,8 +259,8 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                       midfieldFocus = 0.9f;
                       midfieldFocusStrength = 0.5f;
                     } else {
-                      backXBound = team.dynamic_side * pitch.half_length() * 0.98;
-                      frontXBound = team.dynamic_side * pitch.half_length() * 0.5;
+                      backXBound = team.execution_direction * pitch.half_length() * 0.98;
+                      frontXBound = team.execution_direction * pitch.half_length() * 0.5;
                       xFocus = backXBound * 0.94;
                       xFocusStrength = 0.8f;
                       yFocus = ballPos.coords[1] * 0.1f;
@@ -289,26 +289,26 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     Vector3 ballPos = ball.state().position.Get2D();
                     if (isTakerTeam) {
                       backXBound =
-                          clamp(ballPos.coords[0] + 30 * team.dynamic_side,
+                          clamp(ballPos.coords[0] + 30 * team.execution_direction,
                                 -pitch.half_length(), pitch.half_length());
                       frontXBound = clamp(
-                          ballPos.coords[0] + 20 * -team.dynamic_side,
+                          ballPos.coords[0] + 20 * -team.execution_direction,
                           -pitch.half_length(), pitch.half_length());
                       xFocus =
-                          clamp(ballPos.coords[0] + 4 * -team.dynamic_side,
+                          clamp(ballPos.coords[0] + 4 * -team.execution_direction,
                                 -pitch.half_length(), pitch.half_length());
                       xFocusStrength = 0.4;
                       yFocus = ballPos.coords[1] * 0.996;
                       yFocusStrength = 0.6;
                     } else {
                       backXBound =
-                          clamp(ballPos.coords[0] + 30 * team.dynamic_side,
+                          clamp(ballPos.coords[0] + 30 * team.execution_direction,
                                 -pitch.half_length(), pitch.half_length());
                       frontXBound = clamp(
-                          ballPos.coords[0] + 15 * -team.dynamic_side,
+                          ballPos.coords[0] + 15 * -team.execution_direction,
                           -pitch.half_length(), pitch.half_length());
                       xFocus =
-                          clamp(ballPos.coords[0] + 16 * team.dynamic_side,
+                          clamp(ballPos.coords[0] + 16 * team.execution_direction,
                                 -pitch.half_length(), pitch.half_length());
                       xFocusStrength = 0.2;
                       yFocus = ballPos.coords[1] * 0.95;
@@ -332,42 +332,42 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     Vector3 ballPos = ball.state().position.Get2D();
                     if (isTakerTeam) {
                       float xOffset =
-                          clamp((ballPos.coords[0] * -team.dynamic_side) /
+                          clamp((ballPos.coords[0] * -team.execution_direction) /
                                     pitch.half_length(),
                                 -1.0, 1.0) *
                               0.5 +
                           0.5;  // 0 == close to our goal, 1 == far from our
                                 // goal
-                      backXBound = clamp(team.dynamic_side * pitch.half_length() *
+                      backXBound = clamp(team.execution_direction * pitch.half_length() *
                                              (0.7 - xOffset * 0.7),
                                          -pitch.half_length(), pitch.half_length());
-                      frontXBound = clamp(team.dynamic_side * pitch.half_length() *
+                      frontXBound = clamp(team.execution_direction * pitch.half_length() *
                                               (-0.3 - xOffset * 0.7),
                                           -pitch.half_length(), pitch.half_length());
                       // printf("fb: %f %f\n", backXBound, frontXBound);
                       xFocus = clamp(
-                          ballPos.coords[0] + 10 * -team.dynamic_side,
+                          ballPos.coords[0] + 10 * -team.execution_direction,
                           -pitch.half_length(), pitch.half_length());
                       xFocusStrength = 0.5 + xOffset * 0.2;
                       yFocus = ballPos.coords[1] * 0.4;
                       yFocusStrength = 0.6 + xOffset * 0.2;
                     } else {
                       float xOffset =
-                          clamp((ballPos.coords[0] * -team.dynamic_side) /
+                          clamp((ballPos.coords[0] * -team.execution_direction) /
                                     pitch.half_length(),
                                 -1.0, 1.0) *
                               0.5 +
                           0.5;  // 0 == close to our goal, 1 == far from our
                                 // goal
                       // xOffset *= 40.0;
-                      backXBound = clamp(team.dynamic_side * pitch.half_length() *
+                      backXBound = clamp(team.execution_direction * pitch.half_length() *
                                              (1.0 - xOffset * 0.6),
                                          -pitch.half_length(), pitch.half_length());
-                      frontXBound = clamp(team.dynamic_side * pitch.half_length() *
+                      frontXBound = clamp(team.execution_direction * pitch.half_length() *
                                               (0.5 - xOffset * 0.8),
                                           -pitch.half_length(), pitch.half_length());
                       xFocus =
-                          clamp(ballPos.coords[0] + 20 * team.dynamic_side,
+                          clamp(ballPos.coords[0] + 20 * team.execution_direction,
                                 -pitch.half_length(), pitch.half_length());
                       xFocusStrength = 0.6 - xOffset * 0.4;
                       yFocus = ballPos.coords[1] * 0.2;
@@ -399,7 +399,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                   // wall
                   if (!isTakerTeam &&
                       (ball.state().position.Get2D() -
-                       Vector3(team.dynamic_side * pitch.half_length(), 0, 0))
+                       Vector3(team.execution_direction * pitch.half_length(), 0, 0))
                               .GetLength() < 40.0) {
                     std::vector<Player *> result;
                     football::sim::player::FindClosestPlayers(team.players,
@@ -407,7 +407,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                                          result, 3);
                     for (unsigned int i = 0; i < result.size(); i++) {
                       Vector3 toGoal =
-                          (Vector3(team.dynamic_side * pitch.half_length(), 0, 0) -
+                          (Vector3(team.execution_direction * pitch.half_length(), 0, 0) -
                            ball.state().position.Get2D())
                               .GetNormalized(0);
                       toGoal += Vector3(0, 1.0 - i, 0) * 0.07;
@@ -427,10 +427,10 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     Vector3 ballPos = ball.state().position.Get2D();
                     if (isTakerTeam) {
                       backXBound =
-                          clamp(ballPos.coords[0] + 50 * team.dynamic_side,
+                          clamp(ballPos.coords[0] + 50 * team.execution_direction,
                                 -pitch.half_length(), pitch.half_length());
                       frontXBound = clamp(
-                          ballPos.coords[0] + 10 * -team.dynamic_side,
+                          ballPos.coords[0] + 10 * -team.execution_direction,
                           -pitch.half_length(), pitch.half_length());
                       xFocus = ballPos.coords[0];
                       xFocusStrength = 0.6;
@@ -438,10 +438,10 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                       yFocusStrength = 0.8;
                     } else {
                       backXBound =
-                          clamp(ballPos.coords[0] + 11 * team.dynamic_side,
+                          clamp(ballPos.coords[0] + 11 * team.execution_direction,
                                 -pitch.half_length(), pitch.half_length());
                       frontXBound = clamp(
-                          ballPos.coords[0] + 20 * -team.dynamic_side,
+                          ballPos.coords[0] + 20 * -team.execution_direction,
                           -pitch.half_length(), pitch.half_length());
                       xFocus = ballPos.coords[0];
                       xFocusStrength = 1.0;
@@ -481,8 +481,8 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                   for (unsigned int i = 0; i < players.size(); i++) {
                     Vector3 basePos =
                         players[i]->GetFormationEntry().position *
-                        Vector3(-team.dynamic_side * pitch.half_length() * 0.7,
-                                -team.dynamic_side * pitch.half_width() * 0.7, 0);
+                        Vector3(-team.execution_direction * pitch.half_length() * 0.7,
+                                -team.execution_direction * pitch.half_width() * 0.7, 0);
 
                     players[i]->ResetPosition(
                         basePos, ball.state().position.Get2D());
@@ -507,8 +507,8 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                         formation_players[x]
                             ->GetFormationEntry()
                             .start_position *
-                        Vector3(-team.dynamic_side * pitch.half_length(),
-                                -team.dynamic_side * pitch.half_width(), 0);
+                        Vector3(-team.execution_direction * pitch.half_length(),
+                                -team.execution_direction * pitch.half_width(), 0);
                     players_to_position[x]->ResetPosition(
                         basePos, ball.state().position.Get2D());
                   }
@@ -527,18 +527,18 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                   players[0]->ResetPosition(
                       ball_pos +
                           ball.state().position.Get2D().GetNormalized(
-                              Vector3(0, -team.dynamic_side, 0)) *
+                              Vector3(0, -team.execution_direction, 0)) *
                               0.3f,
                       ball_pos);
                 } else if (setPiece == e_GameMode_FreeKick) {
                   taker->ResetPosition(
-                      ball_pos + Vector3(team.dynamic_side, 0, 0) * 2.3f,
+                      ball_pos + Vector3(team.execution_direction, 0, 0) * 2.3f,
                       ball_pos);
                 } else {
                   taker->ResetPosition(
                       ball_pos +
                           ball.state().position.Get2D().GetNormalized(
-                              Vector3(0, -team.dynamic_side, 0)) *
+                              Vector3(0, -team.execution_direction, 0)) *
                               2.3f,
                       ball_pos);
                 }
@@ -548,7 +548,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                 }
                 if (setPiece == e_GameMode_Penalty) {
                   taker->ResetPosition(
-                      ball_pos + Vector3(team.dynamic_side, 0, 0) * 3.0,
+                      ball_pos + Vector3(team.execution_direction, 0, 0) * 3.0,
                       ball_pos);
                 }
 

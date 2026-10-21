@@ -22,7 +22,7 @@ WorldState BuildWorldState(const WorldStateSource& s) {
       s.first_team == 0 ? s.home : s.away;
   const auto ball_frame =
       ToHomePitchFrame(first_team_view.side == football::sim::TeamSide::Home,
-                       first_team_view.dynamic_side);
+                       first_team_view.execution_direction);
   world.ball_position = ball_frame.Position(s.ball.state().position);
   world.ball_velocity = ball_frame.Direction(s.ball.state().velocity);
   // P21.2: the runtime Ball model owns the look-ahead; the AI only reads it.
@@ -56,7 +56,7 @@ WorldState BuildWorldState(const WorldStateSource& s) {
         team_views[team_id]->TimeNeededToGetToBall_ms();
     const auto player_frame =
         ToHomePitchFrame(team_views[team_id]->side == football::sim::TeamSide::Home,
-                         team_views[team_id]->dynamic_side);
+                         team_views[team_id]->execution_direction);
     for (Player* player : team_views[team_id]->players) {
       const PlayerKinematicState& state = player->GetKinematicState();
       WorldPlayerState observed{player->GetID(), player->GetTeamSide(),

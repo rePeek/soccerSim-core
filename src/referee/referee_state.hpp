@@ -32,7 +32,7 @@ struct Foul {
 // while the fouled team's possession recovers after the contact.
 struct FoulTeamFacts {
   int team_id = -1;
-  int static_side = 0;
+  int defending_direction = 0;
   float fading_possession_amount = 1.0f;
 };
 

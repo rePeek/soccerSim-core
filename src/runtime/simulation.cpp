@@ -64,8 +64,8 @@ football::sim::rules::RefereeTeamFact ToRefereeTeamFact(
   football::sim::rules::RefereeTeamFact fact;
   fact.team_id = team.team_id;
   fact.side = team.side;
-  fact.static_side = team.static_side;
-  fact.dynamic_side = team.dynamic_side;
+  fact.defending_direction = team.defending_direction;
+  fact.execution_direction = team.execution_direction;
   fact.fading_possession_amount = team.fading_possession_amount();
   return fact;
 }
@@ -147,8 +147,8 @@ football::sim::RuntimeTickFacts Simulation::RefereeFacts() const {
       GetLastTouchTeam(),
       last_goal_team_,
       ToHomePitchFrame(ball_frame_team == static_cast<int>(football::sim::TeamSide::Home),
-                       team_frames_[ball_frame_team].dynamic_side),
-      ToAttackingFrame(DefendingEndOf(team_frames_[0].static_side))};
+                       team_orientations_[ball_frame_team].execution_direction),
+      ToAttackingFrame(DefendingEndOf(team_orientations_[0].defending_direction))};
 }
 
 football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor) {
@@ -496,7 +496,7 @@ void Simulation::HandlePlayerSentOff(Player& player) {
     if (!active_players.empty()) active_players.front()->SetFormationEntry(entry);
   }
   football::sim::RefreshDesignatedTeamPossessionPlayer(
-      TeamOf(sent_off_team).Players(), team_frames_[sent_off_team],
+      TeamOf(sent_off_team).Players(), team_orientations_[sent_off_team],
       team_states_[sent_off_team], *ball_);
 }
 
@@ -540,20 +540,20 @@ football::sim::TeamView Simulation::TeamViewOf(int team_id) const {
   return football::sim::TeamView{
       team_id,
       static_cast<football::sim::TeamSide>(team_id),
-      team_frames_[team_id].dynamic_side,
-      team_frames_[team_id].static_side,
+      team_orientations_[team_id].defending_direction,
+      team_orientations_[team_id].execution_direction,
       TeamOf(team_id).Goalie(),
       TeamOf(team_id).Players(),
       &team_states_[team_id],
-      &team_frames_[team_id]};
+      &team_orientations_[team_id]};
 }
 
 PlayerTeamFacts Simulation::TeamFactsFor(int team_id) const {
-  return football::sim::TeamFactsOf(team_frames_[team_id], team_states_[team_id]);
+  return football::sim::TeamFactsOf(team_orientations_[team_id], team_states_[team_id]);
 }
 
 void Simulation::PublishTeamFacts(int team_id) {
-  football::sim::PublishTeamFacts(TeamOf(team_id).Players(), team_frames_[team_id],
+  football::sim::PublishTeamFacts(TeamOf(team_id).Players(), team_orientations_[team_id],
                                   team_states_[team_id]);
 }
 
@@ -582,9 +582,8 @@ void Simulation::RelaxTeamFatigue(int team_id, float amount) {
 }
 
 void Simulation::MirrorTeam(int team_id) {
-  football::sim::TeamFrame& frame = team_frames_[team_id];
-  frame.dynamic_side *= -1;
-  frame.mirrored = !frame.mirrored;
+  football::sim::TeamOrientation& frame = team_orientations_[team_id];
+  frame.execution_direction *= -1;
   const PlayerTeamFacts facts = TeamFactsFor(team_id);
   for (Player* player : TeamOf(team_id).Players()) {
     player->Mirror();
@@ -593,10 +592,10 @@ void Simulation::MirrorTeam(int team_id) {
 }
 
 void Simulation::SwitchTeamEnds(int team_id) {
-  football::sim::TeamFrame& frame = team_frames_[team_id];
+  football::sim::TeamOrientation& frame = team_orientations_[team_id];
   // Historical order: the persistent direction flips first, then the frame.
-  frame.static_side = -frame.static_side;
-  frame.dynamic_side = -frame.dynamic_side;
+  frame.defending_direction = -frame.defending_direction;
+  frame.execution_direction = -frame.execution_direction;
   const PlayerTeamFacts facts = TeamFactsFor(team_id);
   for (Player* player : TeamOf(team_id).Players()) {
     player->Mirror();
@@ -811,9 +810,8 @@ void Simulation::Init(
   teams_ = {};
   active_lineups_ = {};
   for (int i = 0; i < 2; ++i) {
-    team_frames_[i].dynamic_side = -1;
-    team_frames_[i].static_side = i == 0 ? -1 : 1;
-    team_frames_[i].mirrored = false;
+    team_orientations_[i].execution_direction = -1;
+    team_orientations_[i].defending_direction = i == 0 ? -1 : 1;
     team_states_[i] = football::sim::TeamMatchState{};
     team_states_[i].time_to_ball_ms = 100;
     team_states_[i].possession_amount = 1.0f;
@@ -1056,11 +1054,11 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   // UpdatePossession: retain both per-team refreshes before arbitration.
   Mirror(first_team_ == 1, first_team_ == 0, false);
   football::sim::RefreshTeamPossession(TeamOf(first_team_).Players(),
-      team_frames_[first_team_], team_states_[first_team_],
+      team_orientations_[first_team_], team_states_[first_team_],
       team_states_[second_team_], *ball_, GetTimelineTick(), ball_retainer_);
   Mirror(true, true, true);
   football::sim::RefreshTeamPossession(TeamOf(second_team_).Players(),
-      team_frames_[second_team_], team_states_[second_team_],
+      team_orientations_[second_team_], team_states_[second_team_],
       team_states_[first_team_], *ball_, GetTimelineTick(), ball_retainer_);
   Mirror(first_team_ == 0, first_team_ == 1, true);
 
@@ -1104,20 +1102,20 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
       return football::sim::CrossedGoalLine(
           pitch_, side, previous_ball_pos, ball_->state().position);
     };
-    first_team_goal = crossed_goal(team_frames_[first_team_].dynamic_side);
-    second_team_goal = crossed_goal(team_frames_[second_team_].dynamic_side);
+    first_team_goal = crossed_goal(team_orientations_[first_team_].execution_direction);
+    second_team_goal = crossed_goal(team_orientations_[second_team_].execution_direction);
   }
   bool goal = first_team_goal | second_team_goal;
   ball_in_goal_ |= goal;
   // The referee maps each crossed goal-mouth side to the scoring opponent and
   // submits an AwardGoalRuling; no goal-mouth fact travels through the buffer.
   if (first_team_goal) {
-    referee_->GoalMouthCrossed(team_frames_[first_team_].dynamic_side,
+    referee_->GoalMouthCrossed(team_orientations_[first_team_].execution_direction,
                                ToRefereeTickFacts(RefereeFacts()),
                                ruling_sink_.get());
   }
   if (second_team_goal) {
-    referee_->GoalMouthCrossed(team_frames_[second_team_].dynamic_side,
+    referee_->GoalMouthCrossed(team_orientations_[second_team_].execution_direction,
                                ToRefereeTickFacts(RefereeFacts()),
                                ruling_sink_.get());
   }
@@ -1283,7 +1281,7 @@ void Simulation::EndPeriod() {
 void Simulation::ApplyChangeOfEnds() {
   // The half-time transaction, applied as one unit: close the old physical
   // contact episodes, discard frame-local transients, swap both teams' ends
-  // (SwitchTeamEnds flips static_side and dynamic_side), then rotate the shared
+  // (SwitchTeamEnds flips defending_direction and execution_direction), then rotate the shared
   // ball and mental-image frames so the canonical between-tick frame and the
   // home-pitch observation still describe the same physical state.
   body_geometry_episodes_.Break();
@@ -1327,7 +1325,7 @@ void Simulation::CaptureSnapshot() {
   const auto state = ball_->state();
   const auto ball_frame = ToHomePitchFrame(
       first_team_ == static_cast<int>(football::sim::TeamSide::Home),
-      team_frames_[first_team_].dynamic_side);
+      team_orientations_[first_team_].execution_direction);
   auto& ball = snapshot_scratch_.ball;
   ball.position = ball_frame.Position(state.position);
   ball.velocity = ball_frame.Direction(state.velocity);
@@ -1338,7 +1336,7 @@ void Simulation::CaptureSnapshot() {
     Player& player = *snapshot_players_[i];
     auto& dst = snapshot_scratch_.players[i];
     const auto& kinematic = player.GetKinematicState();
-    const auto frame = ToHomePitchFrame(player.GetTeamSide() == football::sim::TeamSide::Home, player.GetDynamicSide());
+    const auto frame = ToHomePitchFrame(player.GetTeamSide() == football::sim::TeamSide::Home, player.GetExecutionDirection());
     dst.position = frame.Position(kinematic.position);
     dst.velocity = frame.Direction(kinematic.velocity);
     dst.facing = frame.Direction(kinematic.GetFacing());
@@ -1464,7 +1462,7 @@ void Simulation::ClearComposition() {
   teams_[0].reset();
   teams_[1].reset();
   active_lineups_ = {};
-  team_frames_ = {};
+  team_orientations_ = {};
   team_states_ = {};
   clock_.reset();
 }

@@ -49,7 +49,7 @@ FoulLiveFacts LiveFoulFacts(const RefereeTeamFact& a, const RefereeTeamFact& b) 
   for (const RefereeTeamFact* team : teams) {
     FoulTeamFacts facts;
     facts.team_id = team->team_id;
-    facts.static_side = team->static_side;
+    facts.defending_direction = team->defending_direction;
     facts.fading_possession_amount = team->fading_possession_amount;
     if (team->team_id == 0) live.home = facts;
     else live.away = facts;
@@ -144,7 +144,7 @@ void Referee::SettleGoalLine(const football::math::Vector3& ballPos,
   // corner, goal kick or kick off?
   int lastTouchTeam = facts.last_touch_team;
   if (lastTouchTeam < 0) lastTouchTeam = facts.first_team;
-  signed int lastSide = team(lastTouchTeam).static_side;
+  signed int lastSide = team(lastTouchTeam).defending_direction;
   e_GameMode kind = e_GameMode_Normal;
   int team_id = -1;
   football::math::Vector3 stadium_position;
@@ -197,8 +197,8 @@ void Referee::GoalMouthCrossed(int side, const RefereeTickFacts& facts,
                                football::sim::event::RulingSink* rulings) {
   // The opponent of the side whose goal mouth was crossed scores.
   std::optional<football::sim::TeamSide> scorer_side;
-  if (facts.home.dynamic_side == -side) scorer_side = facts.home.side;
-  else if (facts.away.dynamic_side == -side) scorer_side = facts.away.side;
+  if (facts.home.execution_direction == -side) scorer_side = facts.home.side;
+  else if (facts.away.execution_direction == -side) scorer_side = facts.away.side;
   if (scorer_side.has_value() && rulings != nullptr) {
     rulings->Submit(football::sim::event::AwardGoalRuling{*scorer_side, std::nullopt});
   }
@@ -295,8 +295,8 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
     // check for offside players at moment of touch
     const float offside = football::sim::rules::GetOffsideLine(
         facts.all_active_players, facts.ball.position, *facts.pitch,
-        defending_team_id, facts.defending_team.dynamic_side);
-    const signed int side = facts.touch_team.dynamic_side;
+        defending_team_id, facts.defending_team.execution_direction);
+    const signed int side = facts.touch_team.execution_direction;
     for (const football::sim::rules::RefereePlayerFact& player : facts.all_active_players) {
       if (player.team_id != lastTouchTeamID) continue;
       if (player.id != ball_owner_id) {
@@ -362,7 +362,7 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
   if (foul.foulType != 0) {
     if (fabs(foul.foulPosition.coords[1]) < 20.15f - pitch.line_half_width() &&
         foul.foulPosition.coords[0] *
-                -live.For(foul.victim_team_id).static_side >
+                -live.For(foul.victim_team_id).defending_direction >
             pitch.half_length() - pitch.penalty_area_depth() + pitch.line_half_width())
       penalty = true;
   }
@@ -392,7 +392,7 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
     const football::math::Vector3 stadium_position = penalty
         ? football::math::Vector3(
               (pitch.half_length() - pitch.penalty_mark_distance()) *
-                  live.For(foul.offender_team_id).static_side,
+                  live.For(foul.offender_team_id).defending_direction,
               0, 0)
         : foul.foulPosition;
     const football::sim::TeamSide team_side =

@@ -31,7 +31,7 @@ struct PlayerAuthorizationRequest {
   bool ball_retained = false;
   football::math::Vector3 predicted_ball;
   float half_length = 0.0f;
-  int dynamic_side = -1;
+  int execution_direction = -1;
 };
 
 class PlayerAuthorizationPort {

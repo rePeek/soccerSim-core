@@ -31,7 +31,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
   // Value controls use home pitch coordinates; convert at consumption, after
   // Simulation selects the actor's processing frame. Never mutate caller data.
   PlayerControl control = input;
-  const auto runtime_frame = FromHomePitchFrame(player.GetTeamSide() == football::sim::TeamSide::Home, player.GetDynamicSide());
+  const auto runtime_frame = FromHomePitchFrame(player.GetTeamSide() == football::sim::TeamSide::Home, player.GetExecutionDirection());
   control.move_direction = runtime_frame.Direction(control.move_direction);
   if (control.look_at) control.look_at = runtime_frame.Position(*control.look_at);
   if (control.target_position) control.target_position = runtime_frame.Position(*control.target_position);
@@ -58,7 +58,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     authorization_request.predicted_ball =
         inputs.ball.Predict(football::sim::TickSpan{16}).position;
     authorization_request.half_length = inputs.pitch.half_length();
-    authorization_request.dynamic_side = player.GetDynamicSide();
+    authorization_request.execution_direction = player.GetExecutionDirection();
   }
   football::sim::player::PlayerActionAuthorization authorization;
   if (inputs.authorization != nullptr) {
