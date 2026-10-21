@@ -149,7 +149,7 @@ TEST_CASE("Runtime harness: a change of ends preserves the home-pitch observatio
   football::ball::BallState ball_state = ball->state();
   ball_state.position = football::math::Vector3(3.0f, -4.0f, ball_state.position.coords[2]);
   ball_state.velocity = football::math::Vector3(2.0f, 5.0f, 0.0f);
-  ball->Reset(ball_state);
+  SimulationAccess::SetBallState(sim, ball_state);
 
   const WorldState before = sim.Observe();
   SimulationAccess::ApplyChangeOfEndsNow(sim);
@@ -190,7 +190,7 @@ TEST_CASE("Runtime harness: a goal after the change of ends credits the new atta
   football::ball::BallState state = ball->state();
   state.position = football::math::Vector3(-52.45f, 0.0f, 0.6f);
   state.velocity = football::math::Vector3(-40.0f, 0.0f, 0.0f);
-  ball->Reset(state);
+  SimulationAccess::SetBallState(sim, state);
   sim.Step(PlayerControlSet{});
 
   CHECK(SimulationAccess::ScoreOf(sim, 0) == 1);
@@ -260,4 +260,25 @@ TEST_CASE("Runtime harness: the published frame conversions compose to a fixed o
     }
     CHECK(sim.Stop());
   }
+}
+
+TEST_CASE("Runtime harness: processing mirrors move the ball view, never the authority",
+          "[runtime][sim]") {
+  Simulation sim;
+  // reverse=true makes the view differ from the fixed authority frame.
+  Init(sim, true, football::sim::Minutes(45));
+  SimulationAccess::ResetBall(sim, football::math::Vector3(3.5f, -2.5f, 0.0f));
+  const football::math::Vector3 authority =
+      SimulationAccess::BallAuthorityStateOf(sim).position;
+  const football::math::Vector3 view = SimulationAccess::BallOf(sim)->state().position;
+  REQUIRE(authority != view);
+
+  // A processing-order toggle moves only the derived view.
+  sim.Mirror(true, true, true);
+  CHECK(SimulationAccess::BallAuthorityStateOf(sim).position == authority);
+  CHECK(SimulationAccess::BallOf(sim)->state().position == football::math::Vector3(-view.coords[0], -view.coords[1], view.coords[2]));
+  sim.Mirror(true, true, true);
+  CHECK(SimulationAccess::BallAuthorityStateOf(sim).position == authority);
+  CHECK(SimulationAccess::BallOf(sim)->state().position == view);
+  CHECK(sim.Stop());
 }

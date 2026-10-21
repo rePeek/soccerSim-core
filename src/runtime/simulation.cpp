@@ -908,6 +908,11 @@ void Simulation::Init(
   // Commit. Pointer/reference borrows stay valid: the heap objects do not move
   // when their owning unique_ptrs are transferred.
   ball_ = std::move(ball);
+  // The authoritative ball is fixed-frame; the view above is derived from it.
+  ball_authority_ = std::make_unique<football::ball::Ball>(ball_config_, pitch_);
+  ball_view_mirrored_ = options.reverse_team_processing;
+  ball_authority_->Reset(ball_->state());
+  if (ball_view_mirrored_) ball_authority_->Mirror();
   referee_ = std::move(referee);
   player_runtime_sink_ = commands.get();
   rule_commands_ = std::move(commands);
@@ -1174,10 +1179,18 @@ WorldState Simulation::Observe() const {
 
 void Simulation::TouchBall(const Vector3& impulse) {
   if (!ball_) throw std::logic_error("simulation has no match");
-  // Diagnostic escape: a centre point impulse through the unified kernel.
+  // Diagnostic escape: a centre point impulse through the unified kernel. The
+  // impulse and contact point are expressed in the current view frame, so they
+  // are converted to the fixed authority frame before the step.
   football::ball::BallTickInput input{};
-  input.active_impulse = football::ball::BallImpulse{impulse, ball_->state().position};
-  ball_->Step(input);
+  input.active_impulse = football::ball::BallImpulse{
+      impulse, ball_->state().position};
+  if (ball_view_mirrored_) {
+    input.active_impulse->impulse.Mirror();
+    input.active_impulse->contact_point.Mirror();
+  }
+  ball_authority_->Step(input);
+  RefreshBallView();
 }
 void Simulation::Mirror(bool team_0, bool team_1, bool ball) {
   if (!ball_) throw std::logic_error("simulation has no match");
@@ -1185,6 +1198,8 @@ void Simulation::Mirror(bool team_0, bool team_1, bool ball) {
   if (team_1) MirrorTeam(1);
   if (ball) {
     ball_mirrored_ = !ball_mirrored_;
+    // A processing-frame toggle moves the view, not the authority.
+    ball_view_mirrored_ = !ball_view_mirrored_;
     ball_->Mirror();
   }
   for (auto& image : mental_images_) {
@@ -1195,9 +1210,18 @@ void Simulation::Mirror(bool team_0, bool team_1, bool ball) {
 void Simulation::PlaceBallAt(const Vector3& focus) {
   // Match semantics (kickoff/free-kick placement) live here, not in Ball.
   // Position is lifted by the ball radius so the sphere rests on the ground.
-  ball_->Reset(football::ball::BallState{
+  // Both the authority and its derived view are placed consistently.
+  const football::ball::BallState placed{
       focus + Vector3(0, 0, ball_config_.radius()), Vector3(0), Vector3(0),
-      football::math::Quaternion{}});
+      football::math::Quaternion{}};
+  ball_->Reset(placed);
+  ball_authority_->Reset(placed);
+  if (ball_view_mirrored_) ball_authority_->Mirror();
+}
+
+void Simulation::RefreshBallView() {
+  ball_->Reset(ball_authority_->state());
+  if (ball_view_mirrored_) ball_->Mirror();
 }
 
 void Simulation::ResetSituation(const Vector3& focus_position) {
@@ -1279,6 +1303,7 @@ void Simulation::ApplyChangeOfEnds() {
   SwitchTeamEnds(first_team_);
   SwitchTeamEnds(second_team_);
   ball_->Mirror();
+  ball_authority_->Mirror();
   for (auto& image : mental_images_) {
     image.Mirror(true, true, true);
   }
@@ -1439,6 +1464,8 @@ void Simulation::ClearComposition() {
   rule_commands_.reset();
   send_off_sink_.reset();
   ball_.reset();
+  ball_authority_.reset();
+  ball_view_mirrored_ = false;
   teams_[0].reset();
   teams_[1].reset();
   active_lineups_ = {};

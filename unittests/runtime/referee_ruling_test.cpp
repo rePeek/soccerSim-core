@@ -369,7 +369,7 @@ TEST_CASE("Rulings: a physical goal commits score scorer and event in the same s
   auto state = SimulationAccess::BallOf(sim)->state();
   state.position = Vector3(52.45f, 0, 0.6f);
   state.velocity = Vector3(40, 0, 0); // Cross the whole-ball goal plane this step.
-  SimulationAccess::BallOf(sim)->Reset(state);
+  SimulationAccess::SetBallState(sim, state);
   sim.Step(PlayerControlSet{});
   REQUIRE(SimulationAccess::ScoreOf(sim, 0) == 1);
   REQUIRE(SimulationAccess::MatchEventsOf(sim).size() == 1);
@@ -412,7 +412,7 @@ TEST_CASE("Rulings: goal lookahead without net damping preserves boundary verdic
   SECTION("continued flight after a goal cannot score twice") {
     check_duplicate = true;
   }
-  ball->Reset(state);
+  SimulationAccess::SetBallState(sim, state);
   // Exercise StepImpl's actual prediction gate and segment classification.
   sim.Step(PlayerControlSet{});
   REQUIRE(ball->state().position.coords[0] > 52.5f);
@@ -438,7 +438,7 @@ TEST_CASE("Rulings: goal lookahead without net damping preserves boundary verdic
     // Feed continued motion beyond the former rear net through the real Step
     // path while the kickoff is pending, rather than submitting a fake goal.
     state.position = Vector3(56.0f, 0.0f, 0.6f);
-    ball->Reset(state);
+  SimulationAccess::SetBallState(sim, state);
     sim.Step(PlayerControlSet{});
     // Restart preparation restores the ball to the centre, not to a net.
     REQUIRE(ball->state().position == Vector3(0, 0, ball->config().radius()));

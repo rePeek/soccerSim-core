@@ -93,10 +93,9 @@ void Simulation::RunPreparedPlayerTick() {
   // Const actor forecast: no force consumption or actor/action/RNG advance.
   // Baked mode later refreshes the passive preview against actual prepared
   // geometry; the normal physical write remains the single final Step.
-  Mirror(false, false, reverse);
-  auto passive = ball_->Predict(input);
-  Mirror(false, false, reverse);
-  if (reverse) MirrorResult(passive);
+  // The kernel runs in the fixed authority frame; the view is derived.
+  auto passive = ball_authority_->Predict(input);
+  if (ball_view_mirrored_) MirrorResult(passive);
   preparation_ball_->Reset(passive.state);
   CaptureMentalImage(preparation_ball_.get());
   // One borrowed read-only observation per preparation pass; the adapter must
@@ -150,10 +149,8 @@ void Simulation::RunPreparedPlayerTick() {
     CompleteBakedBodyPreparation();
     bodies = std::span<const ColliderMotion>{baked_body_colliders_};
     input.dynamic_colliders = bodies;
-    Mirror(false, false, reverse);
-    passive = ball_->Predict(input);
-    Mirror(false, false, reverse);
-    if (reverse) MirrorResult(passive);
+    passive = ball_authority_->Predict(input);
+    if (ball_view_mirrored_) MirrorResult(passive);
   }
 
   pending_active_impulse_.reset();
@@ -256,10 +253,9 @@ void Simulation::RunPreparedPlayerTick() {
     if (reverse) input.endpoint_constraint->position.Mirror();
   }
   tick_active_candidates_.clear();
-  Mirror(false, false, reverse);
-  auto result = ball_->Step(input); // the sole authoritative normal physical write
-  Mirror(false, false, reverse);
-  if (reverse) MirrorResult(result);
+  auto result = ball_authority_->Step(input); // the sole authoritative normal physical write
+  if (ball_view_mirrored_) MirrorResult(result);
+  RefreshBallView();
   committed_ball_tick_ = result;
   if (body_physics_shadow_tick_) {
     // This is the actual committed endpoint, including the accepted active input.

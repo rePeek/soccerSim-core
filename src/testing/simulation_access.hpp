@@ -124,6 +124,11 @@ class SimulationAccess {
   static const football::ball::Ball* BallOf(const Simulation& s) { return s.ball_.get(); }
   static void EnablePreparedTickProduction(Simulation& s, bool enabled) { s.EnablePreparedTickProduction(enabled); }
   static const auto& CommittedBallTickOf(const Simulation& s) { return s.committed_ball_tick_; }
+  // FRAME-2: the fixed-frame authoritative ball. Processing mirrors must never
+  // change it; they only move the derived view returned by BallOf().
+  static football::ball::BallState BallAuthorityStateOf(const Simulation& s) {
+    return s.ball_authority_->state();
+  }
   static const auto& RuleTouchesOf(const Simulation& s) { return s.rule_touches_; }
   // Borrowed view of one team, as rules/observation see it.
   static football::sim::TeamView TeamViewOf(Simulation& s, int team_id) {
@@ -284,6 +289,14 @@ class SimulationAccess {
   static void ApplyChangeOfEndsNow(Simulation& s) { s.ApplyChangeOfEnds(); }
   static void ResetBall(Simulation& s, const football::math::Vector3& position) {
     s.PlaceBallAt(position);
+  }
+  // Test-only: set the ball's processing-frame state while keeping the fixed
+  // authority in sync. A direct Ball::Reset on the view would desync the
+  // FRAME-2 authority/view split.
+  static void SetBallState(Simulation& s, const football::ball::BallState& state) {
+    s.ball_->Reset(state);
+    s.ball_authority_->Reset(state);
+    if (s.ball_view_mirrored_) s.ball_authority_->Mirror();
   }
   // Ground-resting placement for a standalone Ball under test. The removed
   // Ball::ResetSituation is expressed here through the stable Ball::Reset API;

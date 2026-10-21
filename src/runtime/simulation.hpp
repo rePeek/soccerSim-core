@@ -244,6 +244,10 @@ class Simulation {
   // Match restart semantics: place the ball at a kickoff/free-kick focus with
   // zero motion. Ball itself only exposes Reset(BallState).
   void PlaceBallAt(const football::math::Vector3& focus);
+  // Re-derives the processing-frame `ball_` view from `ball_authority_` and
+  // `ball_view_mirrored_`. The only authority mutations are the kernel step,
+  // a reset and the half-time change of ends; every other toggle is a view.
+  void RefreshBallView();
   void SetMatchPhase(MatchPhase newPhase);
   void StartPlay() { play_authorized_ = true; }
   void StopPlay() {
@@ -332,6 +336,13 @@ class Simulation {
 
   // Live team aggregates: definition plus the set of Players the Team owns.
   std::array<std::unique_ptr<football::team::Team>, 2> teams_;
+  // FRAME-2 authority/view split. `ball_authority_` is the fixed-frame
+  // authoritative ball; only the physics kernel steps it, and it is never
+  // mirrored for a processing order. `ball_` stays the current
+  // processing-frame view used by every consumer (view = rotated ?
+  // mirror(authority) : authority). `ball_view_mirrored_` is that relation.
+  std::unique_ptr<football::ball::Ball> ball_authority_;
+  bool ball_view_mirrored_ = false;
   std::unique_ptr<football::ball::Ball> ball_;
   // Live match relationship state, separate from the owning Team.
   std::array<football::sim::ActiveLineupState, 2> active_lineups_;
