@@ -282,3 +282,28 @@ TEST_CASE("Runtime harness: processing mirrors move the ball view, never the aut
   CHECK(SimulationAccess::BallOf(sim)->state().position == view);
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: the published stadium transform is the named defending-end value",
+          "[runtime][sim]") {
+  for (const bool reverse : {false, true}) {
+    CAPTURE(reverse);
+    Simulation sim;
+    Init(sim, reverse, football::sim::Minutes(45));
+    for (int half = 0; half < 2; ++half) {
+      const auto home_view = SimulationAccess::TeamViewOf(sim, 0);
+      const auto away_view = SimulationAccess::TeamViewOf(sim, 1);
+      // The runtime value API and the production Referee fact are the same
+      // rotation in both halves and both processing orders.
+      const auto expected = StadiumToHomePitch(home_view.defending_end());
+      const auto actual = SimulationAccess::RefereeFactsOf(sim).stadium_to_home;
+      const football::math::Vector3 probe(7.0f, -3.0f, 1.5f);
+      CHECK(actual.Position(probe) == expected.Position(probe));
+      // Away defends the opposite end in every state.
+      CHECK(away_view.defending_end() != home_view.defending_end());
+      if (half == 0) SimulationAccess::ApplyChangeOfEndsNow(sim);
+    }
+    CHECK(SimulationAccess::TeamViewOf(sim, 0).defending_end() ==
+          DefendingEndOf(SimulationAccess::TeamFrameOf(sim, 0).static_side));
+    CHECK(sim.Stop());
+  }
+}

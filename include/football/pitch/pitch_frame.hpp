@@ -83,4 +83,17 @@ constexpr PitchFrameTransform FromAttackingFrame(DefendingEnd defending_end) {
   return ToAttackingFrame(defending_end);
 }
 
+// Named Stadium <-> published Home Pitch Frame conversions. The published
+// frame is Home's attacking frame (Home always defends -X), so this is the
+// same rotation as ToAttackingFrame(home_defends). Self-inverse, so both
+// directions use the same factory; the two names exist so callers state which
+// way they mean. `home_defends` is the *home* team's end, never a side id.
+constexpr PitchFrameTransform StadiumToHomePitch(DefendingEnd home_defends) {
+  return ToAttackingFrame(home_defends);
+}
+
+constexpr PitchFrameTransform HomePitchToStadium(DefendingEnd home_defends) {
+  return ToAttackingFrame(home_defends);
+}
+
 #endif  // FOOTBALL_PITCH_PITCH_FRAME_HPP

@@ -4,7 +4,10 @@
 #include <algorithm>
 #include <span>
 
+#include "football/pitch/pitch_frame.hpp"
 #include "football/runtime/match_config.hpp"
+#include "runtime/team_facts.hpp"
+#include "runtime/team_state.hpp"
 #include "runtime/team_facts.hpp"
 #include "runtime/team_state.hpp"
 
@@ -21,6 +24,9 @@ struct TeamView {
   TeamSide side = TeamSide::Home;
   int dynamic_side = 0;
   int static_side = 0;
+  // MIR-1: the named defending end behind the ±1 static side, so consumers that
+  // need a value transform do not re-interpret the number.
+  DefendingEnd defending_end() const { return DefendingEndOf(static_side); }
   Player* goalie = nullptr;
   // Full player list in stable insertion order; callers filter IsActive() themselves.
   std::span<Player* const> players;

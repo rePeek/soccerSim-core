@@ -171,3 +171,19 @@ TEST_CASE("The runtime ±1 side convention maps to a defending end",
   CHECK(ToAttackingFrame(DefendingEndOf(1)).Position(Vector3(1, 2, 3)) ==
         Vector3(-1, -2, 3));
 }
+
+TEST_CASE("Stadium and home pitch transforms agree with the defending end",
+          "[unit][pitch]") {
+  const Vector3 stadium(7.0f, -3.0f, 0.0f);
+  // Home defending -X: the published home frame is the stadium frame.
+  CHECK(StadiumToHomePitch(DefendingEnd::NegativeX).Position(stadium) == stadium);
+  // Home defending +X (second half): 180-degree rotation.
+  CHECK(StadiumToHomePitch(DefendingEnd::PositiveX).Position(stadium) ==
+        Vector3(-7.0f, 3.0f, 0.0f));
+  // Same operation, opposite name; self-inverse round trip.
+  CHECK(HomePitchToStadium(DefendingEnd::PositiveX).Position(stadium) ==
+        Vector3(-7.0f, 3.0f, 0.0f));
+  CHECK(HomePitchToStadium(DefendingEnd::PositiveX)
+            .Position(StadiumToHomePitch(DefendingEnd::PositiveX).Position(stadium)) ==
+        stadium);
+}
