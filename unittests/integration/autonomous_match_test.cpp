@@ -228,10 +228,119 @@ football::sim::TeamSide SideOf(const WorldState& world,
   return football::sim::TeamSide::Home;
 }
 
+
+// MIR-0 A/B trace. One UTF-8 text line per record, fixed precision, stable
+// ordering (tick, player id, event sequence), so `diff` reports the first
+// divergence with its tick, entity and field.
+void TraceVector(FILE* out, const football::math::Vector3& v) {
+  std::fprintf(out, "%.9g %.9g %.9g", static_cast<double>(v.coords[0]),
+               static_cast<double>(v.coords[1]), static_cast<double>(v.coords[2]));
+}
+
+void TraceEvent(FILE* out, const football::sim::event::MatchEventRecord& record) {
+  using namespace football::sim::event;
+  std::fprintf(out, "E seq=%llu ", static_cast<unsigned long long>(record.sequence));
+  std::visit(
+      [&](const auto& e) {
+        using T = std::decay_t<decltype(e)>;
+        if constexpr (std::is_same_v<T, GoalScoredEvent>) {
+          std::fprintf(out, "Goal tick=%llu team=%d scorer=%d own=%d",
+                       static_cast<unsigned long long>(e.tick.value),
+                       static_cast<int>(e.team), static_cast<int>(e.scorer),
+                       e.own_goal ? 1 : 0);
+        } else if constexpr (std::is_same_v<T, CardShownEvent>) {
+          std::fprintf(out, "Card tick=%llu team=%d player=%d red=%d second=%d",
+                       static_cast<unsigned long long>(e.tick.value),
+                       static_cast<int>(e.team), static_cast<int>(e.player),
+                       e.red ? 1 : 0, e.second_yellow ? 1 : 0);
+        } else if constexpr (std::is_same_v<T, RestartAwardedEvent>) {
+          std::fprintf(out, "RestartAwarded tick=%llu team=%d kind=%d id=%llu pos=",
+                       static_cast<unsigned long long>(e.tick.value),
+                       static_cast<int>(e.team), static_cast<int>(e.kind),
+                       static_cast<unsigned long long>(e.restart_id));
+          TraceVector(out, e.position);
+        } else if constexpr (std::is_same_v<T, RestartTakenEvent>) {
+          std::fprintf(out, "RestartTaken tick=%llu team=%d kind=%d taker=%d id=%llu",
+                       static_cast<unsigned long long>(e.tick.value),
+                       static_cast<int>(e.team), static_cast<int>(e.kind),
+                       static_cast<int>(e.taker),
+                       static_cast<unsigned long long>(e.restart_id));
+        } else if constexpr (std::is_same_v<T, FoulConfirmedEvent>) {
+          std::fprintf(out, "Foul tick=%llu team=%d offender=%d victim=%d",
+                       static_cast<unsigned long long>(e.tick.value),
+                       static_cast<int>(e.team), static_cast<int>(e.offender),
+                       static_cast<int>(e.victim));
+        } else if constexpr (std::is_same_v<T, OffsideConfirmedEvent>) {
+          std::fprintf(out, "Offside tick=%llu team=%d player=%d",
+                       static_cast<unsigned long long>(e.tick.value),
+                       static_cast<int>(e.team), static_cast<int>(e.player));
+        } else if constexpr (std::is_same_v<T, PassCompletedEvent>) {
+          std::fprintf(out, "Pass tick=%llu team=%d passer=%d receiver=%d",
+                       static_cast<unsigned long long>(e.tick.value),
+                       static_cast<int>(e.team), static_cast<int>(e.passer),
+                       static_cast<int>(e.receiver));
+        } else if constexpr (std::is_same_v<T, ShotEndedEvent>) {
+          std::fprintf(out, "Shot tick=%llu team=%d shooter=%d status=%d goal=%d",
+                       static_cast<unsigned long long>(e.tick.value),
+                       static_cast<int>(e.team), static_cast<int>(e.shooter),
+                       static_cast<int>(e.status), e.goal ? 1 : 0);
+        } else if constexpr (std::is_same_v<T, PeriodEndedEvent>) {
+          std::fprintf(out, "Period tick=%llu phase=%d",
+                       static_cast<unsigned long long>(e.tick.value),
+                       static_cast<int>(e.phase));
+        }
+      },
+      record.event);
+  std::fprintf(out, "\n");
+}
+
+void TraceTick(FILE* trace, const WorldState& world,
+               const football::sim::observation::SnapshotRecord& snapshot,
+               const std::vector<football::sim::event::MatchEventRecord>& events) {
+  std::fprintf(trace, "T %llu phase=%d inplay=%d setpiece=%d pending=%d ballinplay=%d ",
+               static_cast<unsigned long long>(world.tick),
+               static_cast<int>(world.phase), world.in_play ? 1 : 0,
+               world.in_set_piece ? 1 : 0, world.restart_pending ? 1 : 0,
+               world.ball_in_play ? 1 : 0);
+  std::fprintf(trace, "restart=%d taker=%d retainer=%d score=%d,%d \n",
+               static_cast<int>(world.restart),
+               world.restart_taker ? static_cast<int>(*world.restart_taker) : -1,
+               world.ball_retainer ? static_cast<int>(*world.ball_retainer) : -1,
+               world.teams[0].score, world.teams[1].score);
+  std::fprintf(trace, "B %llu pos=", static_cast<unsigned long long>(world.tick));
+  TraceVector(trace, snapshot.snapshot.ball.position);
+  std::fprintf(trace, " vel=");
+  TraceVector(trace, snapshot.snapshot.ball.velocity);
+  std::fprintf(trace, " spin=");
+  TraceVector(trace, snapshot.snapshot.ball.angular_velocity);
+  std::fprintf(trace, " wvel=");
+  TraceVector(trace, world.ball_velocity);
+  std::fprintf(trace, "\n");
+  for (std::size_t i = 0; i < snapshot.snapshot.players.size(); ++i) {
+    const auto& p = snapshot.snapshot.players[i];
+    const auto& w = world.players[i];
+    std::fprintf(trace, "P %llu id=%d side=%d pos=",
+                 static_cast<unsigned long long>(world.tick),
+                 static_cast<int>(w.id),
+                 static_cast<int>(w.side));
+    TraceVector(trace, p.position);
+    std::fprintf(trace, " vel=");
+    TraceVector(trace, p.velocity);
+    std::fprintf(trace, " facing=");
+    TraceVector(trace, p.facing);
+    std::fprintf(trace, " bfacing=");
+    TraceVector(trace, p.body_facing);
+    std::fprintf(trace, " anim=%d frame=%u active=%d poss=%d\n",
+                 static_cast<int>(p.animation_id), p.frame, p.active ? 1 : 0,
+                 p.has_possession ? 1 : 0);
+  }
+  for (const auto& record : events) TraceEvent(trace, record);
+}
+
 Audit RunMatch(football::ai::PlayerPolicyKind policy,
                const football::sim::TeamSetup& home,
                const football::sim::TeamSetup& away, unsigned int seed,
-               bool coach = false, bool reverse = false) {
+               bool coach = false, bool reverse = false, FILE* trace = nullptr) {
   football::ai::AIConfig ai;
   ai.player_policy = policy;
   if (coach) {
@@ -259,7 +368,9 @@ Audit RunMatch(football::ai::PlayerPolicyKind policy,
     env.Step();
     ++audit.steps;
     // Product API: incrementally consume every event Runtime confirmed.
-    for (const auto& record : env.ReadEvents(event_cursor)) {
+    const std::vector<football::sim::event::MatchEventRecord> tick_events =
+        env.ReadEvents(event_cursor);
+    for (const auto& record : tick_events) {
       audit.event_digest = MixFormalEvent(audit.event_digest, record);
       std::visit(
           [&](const auto& event) {
@@ -276,6 +387,13 @@ Audit RunMatch(football::ai::PlayerPolicyKind policy,
     }
     const WorldState world = env.Observe();
     MixWorld(audit.digest, world);
+    if (trace != nullptr) {
+      football::sim::observation::SnapshotRecord snapshot;
+      env.CopyLatestSnapshot(snapshot);
+      if (snapshot.snapshot.players.size() == world.players.size()) {
+        TraceTick(trace, world, snapshot, tick_events);
+      }
+    }
 
     // Position/state sanity.
     if (!std::isfinite(world.ball_position.coords[0]) ||
@@ -482,4 +600,21 @@ TEST_CASE("Integration: heuristic coach loop runs a short autonomous match",
   RequireHealthyMatch(audit);
   Report(audit);
   REQUIRE(audit.coach_calls >= 1);  // the scheduler ran at least the opening turn
+}
+
+// MIR-0: opt-in normalized frame trace. Run the baseline binary and the
+// changed binary with the same FOOTBALL_TRACE_PATH/REVERSE, then diff the two
+// files: each line carries the tick, entity and field, so the first
+// divergence is located exactly. Hidden by default (`[.]`).
+TEST_CASE("Integration: frame trace", "[.trace]") {
+  const char* path = std::getenv("FOOTBALL_TRACE_PATH");
+  REQUIRE(path != nullptr);
+  const bool reverse = std::getenv("FOOTBALL_TRACE_REVERSE") != nullptr;
+  FILE* trace = std::fopen(path, "w");
+  REQUIRE(trace != nullptr);
+  const Audit audit = RunMatch(football::ai::PlayerPolicyKind::Default,
+                               MakeEleven("home", 0), MakeEleven("away", 11), 42,
+                               /*coach=*/false, reverse, trace);
+  std::fclose(trace);
+  RequireHealthyMatch(audit);
 }
