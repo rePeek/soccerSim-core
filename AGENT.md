@@ -110,7 +110,17 @@ observation, controls and stored physics are all the Stadium Frame.
   match execution state around it.
 - `Referee` consumes value facts and emits `RefereeRuling`; it does not write
   actors or runtime state directly. Runtime owns restart execution and event
-  publication.
+  publication. Its rule state is value-only: an `OffsideSnapshot` captured at
+  the last attacking touch, a `Foul` sanction, and an explicit advantage state.
+  Run-time samples the physical evidence (`BallPlayKind`, the ball radius and
+  previous centre, `denied_goal_opportunity`); the referee interprets it. The
+  ruling path is atomic: Runtime validates the whole batch before any
+  mutation, then commits each verdict exactly once.
+- Offside follows Law 11: a defender's `DeliberatePlay` resets the offside
+  position, a `Deflection` or `DeliberateSave` preserves it, and a goal kick,
+  corner or throw-in cannot create an offence. Fouls are classified
+  deterministically as careless/reckless/excessive (no probability, no RNG);
+  DOGSO and the Law 12 penalty double-jeopardy are explicit rules.
 - AI is a producer of `PlayerControl`; it owns no actor, match state or RNG.
 
 ## Physics and numerical conventions
