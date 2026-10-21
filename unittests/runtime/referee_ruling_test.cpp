@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <algorithm>
 #include <limits>
+#include <variant>
+#include <vector>
 
 #include "testing/simulation_access.hpp"
 
@@ -47,7 +49,23 @@ class OpenReferee final : public Referee {
  public:
   OpenReferee() : Referee() {}
   void FlagOffside(Player* player) {
-    offsidePlayers = {{player->GetID(), player->GetTeamID()}};
+    offside_.attacking_team_id = player->GetTeamID();
+    offside_.candidates = {{player->GetID(), player->GetTeamID()}};
+  }
+  // Stage a card-worthy foul whose advantage may be played out.
+  void StageAdvantageCard(Tick at) {
+    foul.foulType = 2;
+    foul.advantage = true;
+    foul.advantage_kept = false;
+    foul.dogso = false;
+    foul.attempted_to_play_ball = false;
+    foul.offender = 11;
+    foul.victim = 1;
+    foul.offender_team_id = 1;
+    foul.victim_team_id = 0;
+    foul.foul_tick = at;
+    foul.foulPosition = football::math::Vector3(-30.0f, 0.0f, 0.0f);
+    foul.hasBeenProcessed = false;
   }
 };
 OpenReferee& Open(Simulation& sim) {
@@ -890,4 +908,33 @@ TEST_CASE("Rulings: a goal never completes a receiver-less pass", "[runtime][rul
   REQUIRE(std::none_of(records.begin(), records.end(), [](const auto& record) {
     return std::holds_alternative<PassCompletedEvent>(record.event);
   }));
+}
+
+TEST_CASE("a kept advantage still shows a deferred card", "[runtime][ruling]") {
+  OpenReferee rules;
+  rules.StageAdvantageCard(Tick{100});
+  std::vector<RefereeRuling> rulings;
+  struct Sink final : RulingSink {
+    explicit Sink(std::vector<RefereeRuling>& output) : out(output) {}
+    std::vector<RefereeRuling>& out;
+    void Submit(const RefereeRuling& ruling) override { out.push_back(ruling); }
+  };
+  Sink sink(rulings);
+  FoulLiveFacts live;
+  live.home = {0, -1, 1.2f};
+  live.away = {1, 1, 1.0f};
+  // Still inside the recheck window: the foul stays pending.
+  rules.CheckFoul(Tick{120}, football::pitch::Pitch{}, live, sink);
+  CHECK(rulings.empty());
+  // The advantage played out: no restart, but the card is still shown.
+  rules.CheckFoul(Tick{500}, football::pitch::Pitch{}, live, sink);
+  int restarts = 0;
+  const CardRuling* card = nullptr;
+  for (const RefereeRuling& ruling : rulings) {
+    if (std::holds_alternative<AwardRestartRuling>(ruling)) ++restarts;
+    if (const auto* value = std::get_if<CardRuling>(&ruling)) card = value;
+  }
+  CHECK(restarts == 0);
+  REQUIRE(card != nullptr);
+  CHECK(card->type == 2);
 }

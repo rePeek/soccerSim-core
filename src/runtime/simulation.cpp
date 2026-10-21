@@ -103,6 +103,34 @@ football::sim::rules::RestartRuleFacts ToRestartRuleFacts(
   return facts;
 }
 
+// Law 11 play classification: a controlled kick/control is a deliberate play,
+// an uncontrolled contact is a deflection, and a keeper/save action is a
+// deliberate save. Runtime owns this classification; the rules only consume it.
+football::sim::rules::BallPlayKind PlayKindOf(const football::sim::event::AcceptedTouch& touch) {
+  using football::sim::rules::BallPlayKind;
+  if (touch.type == e_TouchType_Accidental) return BallPlayKind::Deflection;
+  switch (static_cast<e_FunctionType>(touch.action_type)) {
+    case e_FunctionType_Deflect:
+    case e_FunctionType_Catch:
+      return BallPlayKind::DeliberateSave;
+    case e_FunctionType_BallControl:
+    case e_FunctionType_Trap:
+    case e_FunctionType_ShortPass:
+    case e_FunctionType_LongPass:
+    case e_FunctionType_HighPass:
+    case e_FunctionType_Shot:
+      return BallPlayKind::DeliberatePlay;
+    default:
+      return BallPlayKind::Deflection;
+  }
+}
+
+// Law 12 obvious-goal-scoring-opportunity radius. Deterministic geometry, not
+// a probability: the victim must be close to the goal, close to the ball and
+// facing it, with no covering outfield opponent.
+constexpr float kDeniedGoalRange = 30.0f;
+constexpr float kDeniedGoalBallRange = 10.0f;
+
 }  // namespace
 
 // Only the composition root translates write-only rule commands to runtime state.
@@ -365,7 +393,7 @@ void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch)
     facts.all_active_players = active;
     const football::sim::RestartContext& restart = restarts_.context();
     facts.restart = ToRestartRuleFacts(restart);
-    facts.preserve_opponent_offside = touch.preserve_opponent_offside;
+    facts.play_kind = PlayKindOf(touch);
     // Release verdict inputs, sampled at this exact boundary (never earlier).
     if (restart.active && restart.state &&
         restart.state->phase == football::sim::RestartPhase::Ready &&
@@ -1039,7 +1067,8 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
       foul_assessments_);
   // Foul verdicts now come from the contact solver's frozen assessments, at
   // the same instant and in the same pair order the trip facts used to.
-  for (const football::sim::FoulAssessment& assessment : foul_assessments_) {
+  for (football::sim::FoulAssessment& assessment : foul_assessments_) {
+    assessment.denied_goal_opportunity = DeniedGoalOpportunity(assessment);
     referee_->AssessFoul(assessment, GetTimelineTick(),
                          restarts_.context().active);
   }
@@ -1083,6 +1112,32 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   // after their real Process calls, never by running animation a second time.
   CompleteBodyCollisionShadow();
   CommitPendingRulings();
+}
+
+
+bool Simulation::DeniedGoalOpportunity(
+    const football::sim::FoulAssessment& fact) const {
+  const int offender_team = fact.offender_team_id;
+  if (offender_team < 0 || offender_team > 1) return false;
+  // The goal the offender's team defends; the victim attacks it.
+  const int defending = team_orientations_[offender_team].defending_direction;
+  const Vector3 goal(defending * pitch_.half_length(), 0.0f, 0.0f);
+  const float range = (goal - fact.victim_position.Get2D()).GetLength();
+  if (range > kDeniedGoalRange) return false;
+  if ((fact.victim_position.Get2D() - fact.ball_position.Get2D()).GetLength() >
+      kDeniedGoalBallRange)
+    return false;
+  // The victim must be oriented toward the goal they are attacking.
+  if (fact.victim_direction.GetDotProduct((goal - fact.victim_position.Get2D())
+          .GetNormalized(0)) < 0.0f)
+    return false;
+  // No covering outfield opponent is closer to the goal than the victim.
+  for (Player* opponent : TeamOf(offender_team).Players()) {
+    if (!opponent->IsActive() || opponent->GetID() == fact.offender) continue;
+    if (opponent->GetFormationEntry().role == e_PlayerRole_GK) continue;
+    if ((goal - opponent->GetPosition().Get2D()).GetLength() < range) return false;
+  }
+  return true;
 }
 
 bool Simulation::IsInPlay() const {

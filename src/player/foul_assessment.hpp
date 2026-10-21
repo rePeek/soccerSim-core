@@ -50,6 +50,9 @@ struct FoulAssessment {
   football::math::Vector3 offender_contact_position;
   Tick offender_last_touch_tick{};
   float victim_team_fading_possession = 0.0f;
+  // Solver-supplied: this foul denied an obvious goal-scoring opportunity.
+  // The referee classifies the sanction from it; it is evidence, not a card.
+  bool denied_goal_opportunity = false;
 };
 
 }  // namespace football::sim

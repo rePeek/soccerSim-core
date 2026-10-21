@@ -11,6 +11,7 @@ add_library(football_referee STATIC
   ball_rules.cpp
   goal.cpp
   offside.cpp
+  foul_sanction.cpp
   period.cpp
   referee.cpp)
 add_library(football::referee ALIAS football_referee)

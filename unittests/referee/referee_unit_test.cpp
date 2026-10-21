@@ -11,6 +11,7 @@
 #include "football/animation/types.hpp"
 #include "referee/ball_rules.hpp"
 #include "referee/goal.hpp"
+#include "referee/foul_sanction.hpp"
 #include "referee/offside.hpp"
 #include "referee/referee.hpp"
 #include "referee/ruling.hpp"
@@ -267,19 +268,38 @@ TEST_CASE("an offside reference is kept until the flagged player plays it",
   REQUIRE(award->cause.offender == 40);
 }
 
-TEST_CASE("a reviewed opponent deflection keeps an earlier offside reference",
+TEST_CASE("a deflected or saved ball keeps an earlier offside position",
+          "[unit][referee]") {
+  for (const auto kind :
+       {football::sim::rules::BallPlayKind::Deflection,
+        football::sim::rules::BallPlayKind::DeliberateSave}) {
+    CAPTURE(static_cast<int>(kind));
+    const OffsideScene scene;
+    Referee rules;
+    Collect sink;
+    rules.ConsumeBallTouch(MakeTouch(scene, 41, 0), sink);  // flag 40
+    BallTouchFacts deflection = MakeTouch(scene, 11, 1);
+    deflection.play_kind = kind;
+    rules.ConsumeBallTouch(deflection, sink);
+    REQUIRE(FirstRestart(sink.rulings) == nullptr);
+    // The still-flagged attacker plays it.
+    rules.ConsumeBallTouch(MakeTouch(scene, 40, 0), sink);
+    REQUIRE(FirstRestart(sink.rulings) != nullptr);
+  }
+}
+
+TEST_CASE("a defender's deliberate play resets the offside position",
           "[unit][referee]") {
   const OffsideScene scene;
   Referee rules;
   Collect sink;
   rules.ConsumeBallTouch(MakeTouch(scene, 41, 0), sink);  // flag 40
-  BallTouchFacts deflection = MakeTouch(scene, 11, 1);
-  deflection.preserve_opponent_offside = true;
-  rules.ConsumeBallTouch(deflection, sink);
-  REQUIRE(FirstRestart(sink.rulings) == nullptr);
-  // The still-flagged attacker plays it.
+  // A defender deliberately plays the ball: the reference is reset.
+  BallTouchFacts deliberate = MakeTouch(scene, 11, 1);
+  deliberate.play_kind = football::sim::rules::BallPlayKind::DeliberatePlay;
+  rules.ConsumeBallTouch(deliberate, sink);
   rules.ConsumeBallTouch(MakeTouch(scene, 40, 0), sink);
-  REQUIRE(FirstRestart(sink.rulings) != nullptr);
+  CHECK(FirstRestart(sink.rulings) == nullptr);
 }
 
 TEST_CASE("the offside line follows a change of ends", "[unit][referee]") {
@@ -447,4 +467,50 @@ TEST_CASE("a goal kick, corner or throw-in cannot create an offside offence",
   free_kick.restart.team_id = 0;
   rules.ConsumeBallTouch(free_kick, sink);
   CHECK(FirstRestart(sink.rulings) != nullptr);
+}
+
+TEST_CASE("foul severity maps to named sanctions", "[unit][referee]") {
+  using football::sim::FoulKind;
+  using football::sim::rules::ClassifyFoul;
+  using football::sim::rules::FoulSeverity;
+  CHECK(ClassifyFoul(FoulKind::SlidingTackle, 0.9f, false).card == 0);
+  const auto careless = ClassifyFoul(FoulKind::SlidingTackle, 1.2f, false);
+  CHECK(careless.foul);
+  CHECK(careless.severity == FoulSeverity::Careless);
+  CHECK(careless.card == 1);
+  CHECK(ClassifyFoul(FoulKind::SlidingTackle, 1.6f, false).card == 2);
+  CHECK(ClassifyFoul(FoulKind::SlidingTackle, 2.2f, false).card == 3);
+  // Denying an obvious goal-scoring opportunity is a send-off on its own.
+  CHECK(ClassifyFoul(FoulKind::SlidingTackle, 1.2f, true).card == 3);
+  CHECK(ClassifyFoul(FoulKind::SlidingTackle, 1.2f, true).dogso);
+}
+
+TEST_CASE("a penalty for an attempt to play the ball is a caution, not a red",
+          "[unit][referee]") {
+  Referee rules;
+  FoulAssessment fact = Sliding(Tick{100}, 2.2f);
+  fact.position = football::math::Vector3(47.5f, 0.0f, 0.0f);
+  fact.denied_goal_opportunity = true;
+  rules.AssessFoul(fact, Tick{100}, false);
+  Collect sink;
+  Check(rules, Tick{100}, Live(1.2f), sink);
+  const AwardRestartRuling* award = FirstRestart(sink.rulings);
+  REQUIRE(award != nullptr);
+  CHECK(award->kind == e_GameMode_Penalty);
+  const CardRuling* card = FirstCard(sink.rulings);
+  REQUIRE(card != nullptr);
+  CHECK(card->type == 2);
+}
+
+TEST_CASE("a DOGSO outside the penalty area is a send-off", "[unit][referee]") {
+  Referee rules;
+  FoulAssessment fact = Sliding(Tick{100}, 2.2f);
+  fact.position = football::math::Vector3(0.0f, 0.0f, 0.0f);
+  fact.denied_goal_opportunity = true;
+  rules.AssessFoul(fact, Tick{100}, false);
+  Collect sink;
+  Check(rules, Tick{100}, Live(1.2f), sink);
+  const CardRuling* card = FirstCard(sink.rulings);
+  REQUIRE(card != nullptr);
+  CHECK(card->type == 3);
 }

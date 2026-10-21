@@ -82,8 +82,8 @@ class Referee {
                           football::sim::event::RulingSink& rulings);
 
   protected:
-    // Players on offside position at the time of the last ball touch.
-    std::vector<OffsideReference> offsidePlayers;
+    // The offside position captured at the last attacking touch (Law 11).
+    OffsideSnapshot offside_;
 
     Foul foul;
 

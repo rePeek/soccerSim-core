@@ -24,6 +24,15 @@
 
 namespace football::sim::rules {
 
+// How the ball was played at the moment of this touch. Law 11 treats a
+// deliberate play by a defender as resetting the offside position, while a
+// deflection or a deliberate save leaves it standing.
+enum class BallPlayKind {
+  DeliberatePlay,
+  Deflection,
+  DeliberateSave,
+};
+
 // Explicit value facts for one synchronous touch notification. Runtime reads the
 // competition facts and samples them at the touch boundary; the referee only
 // consumes these values and never reaches into Ball, Player, Team or restart
@@ -33,7 +42,7 @@ struct BallTouchFacts {
   football::sim::Tick now{};
   football::player::PlayerId touch_player = football::player::kInvalidPlayerId;
   int touch_team_id = -1;
-  // The toucher's pitch-frame position, for the offside restart spot.
+  // The toucher's Stadium Frame position, for the offside restart spot.
   football::math::Vector3 touch_position;
   RefereeTeamFact touch_team;
   RefereeTeamFact defending_team;
@@ -46,7 +55,7 @@ struct BallTouchFacts {
   RestartRuleFacts restart;
   // Release verdict inputs, sampled at this exact touch boundary.
   RestartReleaseFacts release;
-  bool preserve_opponent_offside = false;
+  BallPlayKind play_kind = BallPlayKind::DeliberatePlay;
 };
 
 }  // namespace football::sim::rules

@@ -24,6 +24,7 @@
 #include "referee/offside.hpp"
 #include "football/animation/types.hpp"
 #include "referee/ball_rules.hpp"
+#include "referee/foul_sanction.hpp"
 
 namespace {
 using football::sim::Tick;
@@ -72,6 +73,9 @@ Referee::Referee() {
   foul.victim_team_id = -1;
   foul.foulType = 0;
   foul.advantage = false;
+  foul.advantage_kept = false;
+  foul.dogso = false;
+  foul.attempted_to_play_ball = false;
   foul.foul_tick = {};
   foul.hasBeenProcessed = true;
 }
@@ -79,8 +83,8 @@ Referee::Referee() {
 Referee::~Referee() {}
 
 void Referee::OnCeremonialSetup() {
-  // A placed/repositioned setup invalidates the last-touch offside reference.
-  offsidePlayers.clear();
+  // A placed/repositioned setup invalidates the last-touch offside position.
+  offside_.Clear();
 }
 
 void Referee::OnRestartTaken() {
@@ -88,6 +92,8 @@ void Referee::OnRestartTaken() {
   foul.offender = football::player::kInvalidPlayerId;
   foul.victim = football::player::kInvalidPlayerId;
   foul.foulType = 0;
+  foul.dogso = false;
+  foul.attempted_to_play_ball = false;
 }
 
 void Referee::OnPeriodEnded(MatchPhase ended_phase) {
@@ -98,6 +104,9 @@ void Referee::OnPeriodEnded(MatchPhase ended_phase) {
   foul.victim = football::player::kInvalidPlayerId;
   foul.foulType = 0;
   foul.advantage = false;
+  foul.advantage_kept = false;
+  foul.dogso = false;
+  foul.attempted_to_play_ball = false;
   foul.foul_tick = {};
   foul.hasBeenProcessed = true;
 }
@@ -244,7 +253,6 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
   if (!facts.offsides_enabled) {
     return;
   }
-  // check for offside player receiving the ball
 
   const int lastTouchTeamID = facts.touch_team_id;
   if (lastTouchTeamID == -1) return; // shouldn't happen really ;)
@@ -257,105 +265,107 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
           return player.team_id == team_id;
         }));
   };
-  if (facts.in_play && !facts.in_set_piece &&
-      (!restart.active ||
-       (restart.active && !OffsideExemptRestart(restart.kind))) &&
-      active_count(defending_team_id) > 1) {
-      // disable if only 1 player: that's debug mode with only
-                    // keeper
-    for (const OffsideReference& reference : offsidePlayers) {
-      if (reference.player == ball_owner_id) {
-        foul.advantage = false;
-        if (!CheckFoul(facts.now, *facts.pitch,
-                       LiveFoulFacts(facts.touch_team, facts.defending_team), rulings)) {
-          // Offside takes effect at the enclosing synchronous touch boundary.
-          rulings.Submit(football::sim::event::StopPlayRuling{});
-          SubmitRestart(e_GameMode_FreeKick, static_cast<football::sim::TeamSide>(defending_team_id),
-                        facts.touch_position, TickSpan{}, rulings,
-                        football::sim::event::RestartCause{
-                            football::sim::event::RestartCauseKind::Offside,
-                            ball_owner_id, football::player::kInvalidPlayerId});
-          break; // Setup clears offside state on the next rule tick, not during this iteration.
-        }
+  const bool offside_eligible =
+      facts.in_play && !facts.in_set_piece &&
+      (!restart.active || !OffsideExemptRestart(restart.kind));
+
+  // 1. Offside offence: an attacker flagged at the last attacking touch plays
+  //    the ball. This holds across a deflection or a deliberate save (Law 11).
+  if (offside_eligible && active_count(defending_team_id) > 1) {
+    for (const OffsideReference& reference : offside_.candidates) {
+      if (reference.player != ball_owner_id) continue;
+      foul.advantage = false;
+      if (!CheckFoul(facts.now, *facts.pitch,
+                     LiveFoulFacts(facts.touch_team, facts.defending_team), rulings)) {
+        // Offside takes effect at the enclosing synchronous touch boundary.
+        rulings.Submit(football::sim::event::StopPlayRuling{});
+        SubmitRestart(e_GameMode_FreeKick,
+                      static_cast<football::sim::TeamSide>(defending_team_id),
+                      facts.touch_position, TickSpan{}, rulings,
+                      football::sim::event::RestartCause{
+                          football::sim::event::RestartCauseKind::Offside,
+                          ball_owner_id, football::player::kInvalidPlayerId});
       }
+      break;  // Setup clears the snapshot on the next rule tick.
     }
   }
 
-  // A reviewed opponent deflection does not erase the earlier attacking
-  // team's offside positions. Touching by the flagged attacker is still judged
-  // above; a teammate's touch still creates a new offside reference.
-  if (facts.preserve_opponent_offside &&
-      std::any_of(offsidePlayers.begin(), offsidePlayers.end(),
-                  [&](const OffsideReference& reference) {
-                    return reference.team_id != lastTouchTeamID;
-                  })) return;
+  // 2. Update the offside position for the next touch.
+  if (!offside_eligible) {
+    offside_.Clear();
+    return;
+  }
+  if (!offside_.Empty() && offside_.attacking_team_id != lastTouchTeamID) {
+    // An opponent touched the ball. A deliberate play by the defender resets
+    // the offside position; a deflection or a deliberate save leaves it
+    // standing, so a later flagged attacker is still penalised.
+    if (facts.play_kind == football::sim::rules::BallPlayKind::DeliberatePlay)
+      offside_.Clear();
+    return;
+  }
 
-  offsidePlayers.clear();
-
-  if (facts.in_play &&
-      (!restart.active ||
-       (restart.active && !OffsideExemptRestart(restart.kind)))) {
-    // check for offside players at moment of touch
-    const float offside = football::sim::rules::GetOffsideLine(
-        facts.all_active_players, facts.ball.position, *facts.pitch,
-        defending_team_id, facts.defending_team.defending_direction);
-    const signed int side = facts.touch_team.defending_direction;
-    for (const football::sim::rules::RefereePlayerFact& player : facts.all_active_players) {
-      if (player.team_id != lastTouchTeamID) continue;
-      if (player.id != ball_owner_id) {
-        if (player.position.coords[0] * side < offside * side) {
-          offsidePlayers.push_back({player.id, player.team_id});
-        }
-      }
-    }
+  // An attacking teammate (or the first touch of a phase) played the ball:
+  // capture the offside position at this instant.
+  const float offside = football::sim::rules::GetOffsideLine(
+      facts.all_active_players, facts.ball.position, *facts.pitch,
+      defending_team_id, facts.defending_team.defending_direction);
+  const signed int side = facts.touch_team.defending_direction;
+  offside_.created_at = facts.now;
+  offside_.passer = ball_owner_id;
+  offside_.attacking_team_id = lastTouchTeamID;
+  offside_.candidates.clear();
+  for (const football::sim::rules::RefereePlayerFact& player : facts.all_active_players) {
+    if (player.team_id != lastTouchTeamID) continue;
+    if (player.id == ball_owner_id) continue;
+    if (player.position.coords[0] * side < offside * side)
+      offside_.candidates.push_back({player.id, player.team_id});
   }
 }
 
 void Referee::AssessFoul(const FoulAssessment& fact, Tick now, bool restart_active) {
   if (restart_active) return;
+  if (fact.offender_team_id == fact.victim_team_id) return;
 
+  // The contact solver only reports a suspicion for a real challenge. The
+  // referee confirms the foul and classifies the sanction from frozen facts.
   if (fact.kind == FoulKind::StandingFall) {
     // standing tackle
-    if (fact.victim_team_fading_possession > 1.1 &&
-        (fact.offender_action_type == static_cast<int>(e_FunctionType_Interfere) ||
-         fact.offender_action_type == static_cast<int>(e_FunctionType_Sliding)) &&
-        (fact.victim_position - fact.ball_position.Get2D()).GetLength() < 2.0 &&
-        fact.offender_team_id != fact.victim_team_id) {
-      // uooooga uooooga foul!
-      foul.foulType = 1;
-      foul.advantage = true;
-      foul.offender = fact.offender;
-      foul.victim = fact.victim;
-      foul.offender_team_id = fact.offender_team_id;
-      foul.victim_team_id = fact.victim_team_id;
-      foul.foul_tick = now;
-      foul.foulPosition = fact.position;
-      foul.hasBeenProcessed = false;
-    }
-  } else if (fact.kind == FoulKind::SlidingTackle &&
-             (fact.offender != foul.offender || foul.foulType == 0)) {
+    if (!(fact.victim_team_fading_possession > 1.1f)) return;
+    if (fact.offender_action_type != static_cast<int>(e_FunctionType_Interfere) &&
+        fact.offender_action_type != static_cast<int>(e_FunctionType_Sliding))
+      return;
+    if ((fact.victim_position - fact.ball_position.Get2D()).GetLength() >= 2.0f)
+      return;
+  } else {
     // sliding tackle
-    if (now - fact.offender_last_touch_tick > kTouchGrace &&
-        fact.offender_action_type == static_cast<int>(e_FunctionType_Sliding) &&
-        fact.offender_team_id != fact.victim_team_id &&
-        (fact.ball_position - fact.victim_position).GetLength() < 8.0) {
-      const float severity = fact.severity;
-      if (severity > 1.0) {
-        // uooooga uooooga foul!
-        foul.foulType = 1;
-        foul.advantage = false;
-        foul.offender = fact.offender;
-        foul.victim = fact.victim;
-        foul.offender_team_id = fact.offender_team_id;
-        foul.victim_team_id = fact.victim_team_id;
-        foul.foul_tick = now;
-        foul.foulPosition = fact.position;
-        foul.hasBeenProcessed = false;
-        if (severity > 1.4) foul.foulType = 2;
-        if (severity > 2.0) foul.foulType = 3;
-      }
-    }
+    if (now - fact.offender_last_touch_tick <= kTouchGrace) return;
+    if (fact.offender_action_type != static_cast<int>(e_FunctionType_Sliding))
+      return;
+    if ((fact.ball_position - fact.victim_position).GetLength() >= 8.0f) return;
+    if (fact.offender == foul.offender && foul.foulType != 0) return;
   }
+
+  const football::sim::rules::FoulSanction sanction =
+      football::sim::rules::ClassifyFoul(fact.kind, fact.severity,
+                                         fact.denied_goal_opportunity);
+  if (!sanction.foul) return;
+
+  // Law 12 double jeopardy is applied later, where the offender's penalty area
+  // is known; here the raw card reflects severity and DOGSO.
+  foul.foulType = sanction.card;
+  foul.advantage = fact.kind == FoulKind::StandingFall;
+  foul.advantage_kept = false;
+  foul.dogso = sanction.dogso;
+  foul.attempted_to_play_ball =
+      fact.offender_action_type == static_cast<int>(e_FunctionType_Sliding) ||
+      fact.offender_action_type == static_cast<int>(e_FunctionType_Interfere);
+  foul.offender = fact.offender;
+  foul.victim = fact.victim;
+  foul.offender_team_id = fact.offender_team_id;
+  foul.victim_team_id = fact.victim_team_id;
+  foul.foul_tick = now;
+  foul.foulPosition = fact.position;
+  foul.hasBeenProcessed = false;
 }
 
 bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
@@ -369,50 +379,51 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
             pitch.half_length() - pitch.penalty_area_depth() + pitch.line_half_width())
       penalty = true;
   }
+  // Law 12 double jeopardy: a penalty plus an attempt to play the ball is a
+  // caution, not a send-off. Holding/pulling or no attempt to play stays red.
+  if (penalty && foul.dogso && foul.attempted_to_play_ball && foul.foulType == 3)
+    foul.foulType = 2;
 
   if (foul.advantage) {
     if (penalty) {
+      // A penalty cannot play on.
       foul.advantage = false;
-    } else {
-      if (now > foul.foul_tick + kAdvantageRecheck) {
-        if (now > foul.foul_tick + kAdvantageExpiry) {
-          // cancel foul, advantage took long enough
-          foul.offender = football::player::kInvalidPlayerId;
-          foul.victim = football::player::kInvalidPlayerId;
-          foul.foulType = 0;
-        } else {
-          // calculate if there's advantage still
-          if (live.For(foul.victim_team_id).fading_possession_amount < 1.0) {
-            foul.advantage = false;
-          }
-        }
+    } else if (now > foul.foul_tick + kAdvantageRecheck) {
+      if (now > foul.foul_tick + kAdvantageExpiry) {
+        // The advantage played out: the restart is cancelled, but a
+        // card-worthy foul is still disciplined at this stoppage.
+        foul.advantage = false;
+        foul.advantage_kept = true;
+      } else if (live.For(foul.victim_team_id).fading_possession_amount < 1.0f) {
+        // Possession did not recover: recall the foul.
+        foul.advantage = false;
       }
     }
   }
 
-  if (foul.foulType != 0 && foul.advantage == false && !foul.hasBeenProcessed) {
-    rulings.Submit(football::sim::event::StopPlayRuling{});
-    const football::math::Vector3 stadium_position = penalty
-        ? football::math::Vector3(
-              (pitch.half_length() - pitch.penalty_mark_distance()) *
-                  live.For(foul.offender_team_id).defending_direction,
-              0, 0)
-        : foul.foulPosition;
-    const football::sim::TeamSide team_side =
-        static_cast<football::sim::TeamSide>(foul.victim_team_id);
-    SubmitRestart(penalty ? e_GameMode_Penalty : e_GameMode_FreeKick, team_side,
-                  stadium_position,
-                  foul.foulType >= 2 ? kCardAdministration : TickSpan{}, rulings,
-                  football::sim::event::RestartCause{
-                      football::sim::event::RestartCauseKind::Foul,
-                      foul.offender, foul.victim});
+  if (foul.foulType != 0 && !foul.advantage && !foul.hasBeenProcessed) {
+    if (!foul.advantage_kept) {
+      rulings.Submit(football::sim::event::StopPlayRuling{});
+      const football::math::Vector3 stadium_position = penalty
+          ? football::math::Vector3(
+                (pitch.half_length() - pitch.penalty_mark_distance()) *
+                    live.For(foul.offender_team_id).defending_direction,
+                0, 0)
+          : foul.foulPosition;
+      const football::sim::TeamSide team_side =
+          static_cast<football::sim::TeamSide>(foul.victim_team_id);
+      SubmitRestart(penalty ? e_GameMode_Penalty : e_GameMode_FreeKick, team_side,
+                    stadium_position,
+                    foul.foulType >= 2 ? kCardAdministration : TickSpan{}, rulings,
+                    football::sim::event::RestartCause{
+                        football::sim::event::RestartCauseKind::Foul,
+                        foul.offender, foul.victim});
+    }
     if (foul.foulType == 2 || foul.foulType == 3) {
       rulings.Submit(football::sim::event::CardRuling{
           foul.offender, foul.foulType, now + kCardEffectDelay});
     }
-
     foul.hasBeenProcessed = true;
-
     return true;
   }
 

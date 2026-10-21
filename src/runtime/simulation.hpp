@@ -124,6 +124,10 @@ class Simulation {
   // referee consume happen at the exact legacy boundary and in legacy order.
   Player* FindPlayerById(football::player::PlayerId id) const;
   void DispatchTouch(const football::sim::event::AcceptedTouch& touch);
+  // Law 12 evidence for one frozen foul: Runtime samples the live geometry
+  // (goal, victim, ball, covering opponents) and the referee classifies the
+  // sanction from it. It never mutates an actor.
+  bool DeniedGoalOpportunity(const football::sim::FoulAssessment& fact) const;
   void CommitPendingRulings();
   void CommitRuling(const football::sim::event::RefereeRuling& ruling);
   void ValidateRuling(const football::sim::event::RefereeRuling& ruling) const;

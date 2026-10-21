@@ -22,6 +22,11 @@ struct Foul {
   int victim_team_id = -1;
   int foulType = 0;  // 0: nothing, 1: foul, 2: yellow, 3: red
   bool advantage = false;
+  // Advantage played out: the restart is cancelled but discipline still runs.
+  bool advantage_kept = false;
+  // Law 12 extras the sanction classification needs at the decision point.
+  bool dogso = false;
+  bool attempted_to_play_ball = false;
   football::sim::Tick foul_tick{};
   Vector3 foulPosition;
   bool hasBeenProcessed = false;
@@ -45,11 +50,31 @@ struct FoulLiveFacts {
   const FoulTeamFacts& For(int team_id) const { return team_id == 0 ? home : away; }
 };
 
-// A player frozen on an offside position at the last touch: stable identity
-// plus the team needed to detect an opponent deflection. No Player object.
+// A player frozen on an offside position at the last attacking touch: stable
+// identity plus the team needed to detect an opponent deflection. No Player
+// object.
 struct OffsideReference {
   football::player::PlayerId player = football::player::kInvalidPlayerId;
   int team_id = -1;
+};
+
+// The offside position captured at the instant an attacking team last played
+// the ball (Law 11). A defender's deliberate play resets it; a deflection or a
+// deliberate save leaves it standing, so a later flagged attacker is still
+// penalised.
+struct OffsideSnapshot {
+  football::sim::Tick created_at{};
+  football::player::PlayerId passer = football::player::kInvalidPlayerId;
+  int attacking_team_id = -1;
+  std::vector<OffsideReference> candidates;
+
+  bool Empty() const { return candidates.empty() && attacking_team_id < 0; }
+  void Clear() {
+    created_at = {};
+    passer = football::player::kInvalidPlayerId;
+    attacking_team_id = -1;
+    candidates.clear();
+  }
 };
 
 #endif  // FOOTBALL_SIM_REFEREE_REFEREE_STATE_HPP

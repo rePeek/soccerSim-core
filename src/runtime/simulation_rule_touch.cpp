@@ -66,7 +66,7 @@ void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& re
     football::sim::event::AcceptedTouch accepted{
         GetTimelineTick(), player->GetID(), player->GetTeamSide(),
         kick ? e_TouchType_Intentional_Kicked : e_TouchType_Accidental, result.state.position, result.state.velocity,
-        static_cast<int>(action), !kick, kick};
+        static_cast<int>(action), kick};
     PublishRuleTouch({accepted, owner->second.second,
         football::sim::event::RuleTouchSource::BodyCCD, 0, 0, contact});
     rule_contact_episodes_.at(episode_key) = true;

@@ -20,9 +20,6 @@ struct PlayerTouchEvent {
   football::math::Vector3 ball_position;
   football::math::Vector3 ball_velocity;
   int action_type = 0;
-  // Reviewed CCD deflection, not deliberate opponent play. Default false keeps
-  // the legacy producer's semantics until its replacement is explicitly enabled.
-  bool preserve_opponent_offside = false;
   // Authorized selected kick action plus genuine approaching boot CCD impact.
   bool physical_kick = false;
 };
