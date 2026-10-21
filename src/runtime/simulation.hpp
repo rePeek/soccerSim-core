@@ -325,6 +325,9 @@ class Simulation {
   // The single authoritative ball in the Stadium Frame. Only the physics
   // kernel steps it; there is no processing-frame view or mirror.
   std::unique_ptr<football::ball::Ball> ball_;
+  // Ball centre before the current tick's integration, exposed to the rules so
+  // an out-of-play restart uses the exact crossing point.
+  football::math::Vector3 referee_previous_ball_{};
   // Live match relationship state, separate from the owning Team.
   std::array<football::sim::ActiveLineupState, 2> active_lineups_;
   mutable std::array<football::sim::TeamOrientation, 2> team_orientations_;

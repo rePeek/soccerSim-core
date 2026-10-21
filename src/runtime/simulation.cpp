@@ -79,7 +79,7 @@ football::sim::rules::RefereeTickFacts ToRefereeTickFacts(
       runtime.set_piece_active,
       runtime.goal_scored,
       {runtime.ball.state().position, runtime.ball.state().velocity,
-       runtime.ball.config().radius()},
+       runtime.ball.config().radius(), runtime.previous_ball_position},
       runtime.pitch,
       runtime.regulation,
       ToRefereeTeamFact(runtime.home),
@@ -161,7 +161,7 @@ football::sim::RuntimeTickFacts Simulation::RefereeFacts() const {
   // The Referee reads the single authoritative Stadium Frame directly; there
   // is no processing-frame conversion.
   return {GetTimelineTick(), phase_, play_authorized_, set_piece_active_, goal_scored_,
-      *ball_, pitch_, GetRegulationTime(), home, away, first_team_,
+      *ball_, referee_previous_ball_, pitch_, GetRegulationTime(), home, away, first_team_,
       GetLastTouchTeam(),
       last_goal_team_};
 }
@@ -1026,6 +1026,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     ProcessReferee();
   }
   Vector3 previous_ball_pos = ball_->state().position;
+  referee_previous_ball_ = previous_ball_pos;
   // Restore the processing frame even on the referee's terminal transition.
   if (Finished()) {
     DiscardBodyCollisionShadow();

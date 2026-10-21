@@ -27,6 +27,9 @@ struct RefereeBallFact {
   // Physical sphere radius. The rules need it to decide whether the whole
   // ball crossed a line; it is sampled from the Ball model, never guessed.
   float radius = 0.11f;
+  // The ball centre before its last integration step, for the exact boundary
+  // crossing point rather than the tick-end centre.
+  football::math::Vector3 previous_position;
 };
 
 // Read-only restart execution facts exposed to the rules. Runtime owns the full

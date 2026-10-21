@@ -938,3 +938,79 @@ TEST_CASE("a kept advantage still shows a deferred card", "[runtime][ruling]") {
   REQUIRE(card != nullptr);
   CHECK(card->type == 2);
 }
+
+TEST_CASE("the ruling path validates the whole batch before it mutates",
+          "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  // An unsupported restart kind is rejected before any runtime mutation.
+  SimulationAccess::RulingsOf(sim).Submit(AwardRestartRuling{
+      e_GameMode_Normal, TeamSide::Home, Vector3(0, 0, 0), TickSpan{}, {}});
+  REQUIRE(SimulationAccess::PendingRulingsOf(sim) == 1);
+  CHECK_THROWS(SimulationAccess::CommitRulings(sim));
+  // Nothing was consumed: the invalid batch is still queued for a retry.
+  CHECK(SimulationAccess::PendingRulingsOf(sim) == 1);
+}
+
+TEST_CASE("a stop, restart and card batch commits atomically and drains",
+          "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+  SimulationAccess::RulingsOf(sim).Submit(StopPlayRuling{});
+  SimulationAccess::RulingsOf(sim).Submit(AwardRestartRuling{
+      e_GameMode_FreeKick, TeamSide::Home, Vector3(5, 5, 0), TickSpan{}, {}});
+  SimulationAccess::RulingsOf(sim).Submit(CardRuling{player->GetID(), 2, Tick{1000}});
+  SimulationAccess::CommitRulings(sim);
+  CHECK(SimulationAccess::PendingRulingsOf(sim) == 0);
+  const RestartContext& restart = SimulationAccess::RestartContextOf(sim);
+  CHECK(restart.active);
+  CHECK(restart.kind == e_GameMode_FreeKick);
+  bool card_event = false;
+  for (const MatchEventRecord& record : SimulationAccess::MatchEventsOf(sim)) {
+    if (std::holds_alternative<CardShownEvent>(record.event)) card_event = true;
+  }
+  CHECK(card_event);
+}
+
+TEST_CASE("an offside offence reaches the event log through RefereeRuling",
+          "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  auto& rules = Open(sim);
+  Player* attacker = SimulationAccess::TeamOf(sim, 0).Players()[1];
+  REQUIRE(attacker != nullptr);
+  rules.FlagOffside(attacker);
+
+  std::vector<football::sim::rules::RefereePlayerFact> active;
+  for (int team = 0; team < 2; ++team)
+    for (Player* player : SimulationAccess::TeamOf(sim, team).Players())
+      active.push_back({player->GetID(), player->GetTeamID(), player->GetPosition()});
+  static const football::pitch::Pitch pitch;
+  football::sim::rules::BallTouchFacts facts;
+  facts.now = Tick{100};
+  facts.touch_player = attacker->GetID();
+  facts.touch_team_id = 0;
+  facts.touch_position = attacker->GetPosition();
+  facts.touch_team = {0, TeamSide::Home, -1, 1.0f};
+  facts.defending_team = {1, TeamSide::Away, 1, 1.0f};
+  facts.in_play = true;
+  facts.offsides_enabled = true;
+  facts.ball = {football::math::Vector3(0, 0, 0), football::math::Vector3(0, 0, 0)};
+  facts.pitch = &pitch;
+  facts.all_active_players = active;
+  rules.ConsumeBallTouch(facts, SimulationAccess::RulingsOf(sim));
+  SimulationAccess::CommitRulings(sim);
+
+  CHECK(SimulationAccess::PendingRulingsOf(sim) == 0);
+  const RestartContext& restart = SimulationAccess::RestartContextOf(sim);
+  CHECK(restart.active);
+  CHECK(restart.kind == e_GameMode_FreeKick);
+  bool offside_event = false;
+  for (const MatchEventRecord& record : SimulationAccess::MatchEventsOf(sim)) {
+    if (std::holds_alternative<OffsideConfirmedEvent>(record.event))
+      offside_event = true;
+  }
+  CHECK(offside_event);
+}

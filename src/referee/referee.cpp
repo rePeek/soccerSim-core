@@ -127,17 +127,20 @@ void Referee::EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
   const RefereeTickFacts& tick = view.tick;
   if (tick.phase == MatchPhase::Finished) return;
   if (!(tick.play_authorized && !tick.set_piece_active)) return;
-  // The Referee reads the single Stadium Frame directly.
-  const football::math::Vector3 ballPos = tick.ball.position;
-  // Goal-line priority: the legacy local authorization was cleared when the goal
-  // line applied, so the sideline branch could not run at the same instant.
-  const BallOutOfPlay out = ClassifyBallOutOfPlay(tick.pitch, ballPos, tick.ball.radius);
+  // Goal-line priority: the ball is classified from its current centre, but the
+  // restart spot uses the exact point where the whole ball crossed the boundary.
+  const BallOutOfPlay out = ClassifyBallOutOfPlay(
+      tick.pitch, tick.ball.position, tick.ball.radius);
+  const football::math::Vector3 ballPos =
+      football::sim::BoundaryCrossingPoint(tick.pitch, tick.ball.previous_position,
+                                           tick.ball.position, tick.ball.radius, out)
+          .value_or(tick.ball.position);
   if (out == BallOutOfPlay::GoalLine || tick.goal_scored) {
     SettleGoalLine(ballPos, tick, rulings);
   } else if (out == BallOutOfPlay::Touchline) {
     SettleTouchline(ballPos, tick, view.post_restart_grace, rulings);
   }
-}
+  }
 
 void Referee::SettleGoalLine(const football::math::Vector3& ballPos,
                              const RefereeTickFacts& facts,

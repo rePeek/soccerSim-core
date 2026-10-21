@@ -25,13 +25,19 @@ BallOutOfPlay ClassifyBallOutOfPlay(const football::pitch::Pitch& pitch,
                                     const football::math::Vector3& ball_position,
                                     float ball_radius);
 
-// The +1/-1 goal side whose goal line the whole ball crossed between two
-// consecutive observed positions, or nullopt. Reuses CrossedGoalLine's strict
-// segment endpoints, bidirectional crossing and side-net veto.
 std::optional<int> CrossedGoalMouth(const football::pitch::Pitch& pitch,
                                     const football::math::Vector3& previous,
                                     const football::math::Vector3& current,
                                     float ball_radius);
+
+// The exact point where the ball centre crosses the boundary between two
+// observed positions, or nullopt when the step does not cross it. The full-ball
+// radius is applied, so the point lies on the plane the whole ball passed.
+std::optional<football::math::Vector3> BoundaryCrossingPoint(
+    const football::pitch::Pitch& pitch,
+    const football::math::Vector3& previous,
+    const football::math::Vector3& current, float ball_radius,
+    BallOutOfPlay boundary);
 
 }  // namespace football::sim
 

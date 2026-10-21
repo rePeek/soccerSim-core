@@ -514,3 +514,25 @@ TEST_CASE("a DOGSO outside the penalty area is a send-off", "[unit][referee]") {
   REQUIRE(card != nullptr);
   CHECK(card->type == 3);
 }
+
+TEST_CASE("the out-of-play restart uses the exact boundary crossing point",
+          "[unit][referee]") {
+  const Pitch pitch;
+  using football::math::Vector3;
+  using football::sim::BallOutOfPlay;
+  using football::sim::BoundaryCrossingPoint;
+  const float r = 0.11f;
+  const float limit_y = pitch.half_width() + pitch.line_half_width() + r;
+  // The ball crosses the touchline halfway through the step; the restart spot
+  // is the crossing (x=22.5), not the tick-end centre (x=25).
+  const auto crossing = BoundaryCrossingPoint(
+      pitch, Vector3(20.0f, limit_y - 0.05f, r), Vector3(25.0f, limit_y + 0.05f, r),
+      r, BallOutOfPlay::Touchline);
+  REQUIRE(crossing.has_value());
+  CHECK(crossing->coords[0] == Catch::Approx(22.5f).margin(0.05f));
+  CHECK(crossing->coords[1] == Catch::Approx(limit_y).margin(0.01f));
+  // A step that never reaches the boundary has no crossing point.
+  CHECK_FALSE(BoundaryCrossingPoint(pitch, Vector3(0, 0, r), Vector3(1, 1, r), r,
+                                    BallOutOfPlay::Touchline)
+                  .has_value());
+}

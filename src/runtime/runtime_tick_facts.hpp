@@ -21,6 +21,9 @@ struct RuntimeTickFacts {
   bool set_piece_active;
   bool goal_scored;
   const football::ball::Ball& ball;
+  // The ball centre before its last integration step, for exact boundary
+  // crossings and out-of-play restart spots.
+  football::math::Vector3 previous_ball_position;
   const football::pitch::Pitch& pitch;
   TickSpan regulation;
   football::sim::TeamView home;
