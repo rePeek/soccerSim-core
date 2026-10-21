@@ -24,7 +24,6 @@
 #include "referee/offside.hpp"
 #include "football/animation/types.hpp"
 #include "referee/ball_rules.hpp"
-#include "football/pitch/pitch_frame.hpp"
 
 namespace {
 using football::sim::Tick;
@@ -112,9 +111,8 @@ void Referee::EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
   const RefereeTickFacts& tick = view.tick;
   if (tick.phase == MatchPhase::Finished) return;
   if (!(tick.play_authorized && !tick.set_piece_active)) return;
-  const auto home_ball = tick.ball_to_home.Position(tick.ball.position);
-  // Legacy foul/side data uses stadium coordinates, including switched ends.
-  const football::math::Vector3 ballPos = tick.stadium_to_home.Position(home_ball);
+  // The Referee reads the single Stadium Frame directly.
+  const football::math::Vector3 ballPos = tick.ball.position;
   // Goal-line priority: the legacy local authorization was cleared when the goal
   // line applied, so the sideline branch could not run at the same instant.
   const BallOutOfPlay out = ClassifyBallOutOfPlay(tick.pitch, ballPos);
@@ -134,7 +132,7 @@ void Referee::SettleGoalLine(const football::math::Vector3& ballPos,
   foul.advantage = false;
   bool isFoul = false;
   if (!facts.goal_scored) {
-    isFoul = CheckFoul(facts.now, facts.pitch, facts.stadium_to_home,
+    isFoul = CheckFoul(facts.now, facts.pitch,
                        LiveFoulFacts(facts.home, facts.away), rulings);
   } else {
     foul.foulType = 0;
@@ -169,7 +167,7 @@ void Referee::SettleGoalLine(const football::math::Vector3& ballPos,
         (facts.pitch.half_length() - 5.5f) * -lastSide, 0, 0);
   }
   SubmitRestart(kind, static_cast<football::sim::TeamSide>(team_id),
-                facts.stadium_to_home.Position(stadium_position), TickSpan{}, rulings);
+                stadium_position, TickSpan{}, rulings);
 }
 
 void Referee::SettleTouchline(const football::math::Vector3& ballPos,
@@ -177,7 +175,7 @@ void Referee::SettleTouchline(const football::math::Vector3& ballPos,
                               football::sim::event::RulingSink& rulings) {
   if (post_restart_grace) return;
   foul.advantage = false;
-  if (CheckFoul(facts.now, facts.pitch, facts.stadium_to_home,
+  if (CheckFoul(facts.now, facts.pitch,
                 LiveFoulFacts(facts.home, facts.away), rulings)) return;
   rulings.Submit(football::sim::event::StopPlayRuling{});
   int lastTouchTeam = facts.last_touch_team;
@@ -190,15 +188,15 @@ void Referee::SettleTouchline(const football::math::Vector3& ballPos,
   if (ballPos.coords[1] <= 0) stadium_position.coords[1] = -facts.pitch.half_width();
   stadium_position.coords[2] = 0;
   SubmitRestart(e_GameMode_ThrowIn, static_cast<football::sim::TeamSide>(team_id),
-                facts.stadium_to_home.Position(stadium_position), TickSpan{}, rulings);
+                stadium_position, TickSpan{}, rulings);
 }
 
 void Referee::GoalMouthCrossed(int side, const RefereeTickFacts& facts,
                                football::sim::event::RulingSink* rulings) {
   // The opponent of the side whose goal mouth was crossed scores.
   std::optional<football::sim::TeamSide> scorer_side;
-  if (facts.home.execution_direction == -side) scorer_side = facts.home.side;
-  else if (facts.away.execution_direction == -side) scorer_side = facts.away.side;
+  if (facts.home.defending_direction == -side) scorer_side = facts.home.side;
+  else if (facts.away.defending_direction == -side) scorer_side = facts.away.side;
   if (scorer_side.has_value() && rulings != nullptr) {
     rulings->Submit(football::sim::event::AwardGoalRuling{*scorer_side, std::nullopt});
   }
@@ -206,7 +204,7 @@ void Referee::GoalMouthCrossed(int side, const RefereeTickFacts& facts,
 
 void Referee::CheckPendingFoul(const football::sim::rules::RefereeView& view,
                                football::sim::event::RulingSink& rulings) {
-  CheckFoul(view.tick.now, view.tick.pitch, view.tick.stadium_to_home,
+  CheckFoul(view.tick.now, view.tick.pitch,
             LiveFoulFacts(view.tick.home, view.tick.away), rulings);
 }
 
@@ -262,12 +260,12 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
     for (const OffsideReference& reference : offsidePlayers) {
       if (reference.player == ball_owner_id) {
         foul.advantage = false;
-        if (!CheckFoul(facts.now, *facts.pitch, facts.stadium_to_home,
+        if (!CheckFoul(facts.now, *facts.pitch,
                        LiveFoulFacts(facts.touch_team, facts.defending_team), rulings)) {
           // Offside takes effect at the enclosing synchronous touch boundary.
           rulings.Submit(football::sim::event::StopPlayRuling{});
           SubmitRestart(e_GameMode_FreeKick, static_cast<football::sim::TeamSide>(defending_team_id),
-                        facts.stadium_to_home.Position(facts.touch_position), TickSpan{}, rulings,
+                        facts.touch_position, TickSpan{}, rulings,
                         football::sim::event::RestartCause{
                             football::sim::event::RestartCauseKind::Offside,
                             ball_owner_id, football::player::kInvalidPlayerId});
@@ -295,8 +293,8 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
     // check for offside players at moment of touch
     const float offside = football::sim::rules::GetOffsideLine(
         facts.all_active_players, facts.ball.position, *facts.pitch,
-        defending_team_id, facts.defending_team.execution_direction);
-    const signed int side = facts.touch_team.execution_direction;
+        defending_team_id, facts.defending_team.defending_direction);
+    const signed int side = facts.touch_team.defending_direction;
     for (const football::sim::rules::RefereePlayerFact& player : facts.all_active_players) {
       if (player.team_id != lastTouchTeamID) continue;
       if (player.id != ball_owner_id) {
@@ -356,7 +354,7 @@ void Referee::AssessFoul(const FoulAssessment& fact, Tick now, bool restart_acti
 }
 
 bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
-                        PitchFrameTransform stadium_to_home, const FoulLiveFacts& live,
+                        const FoulLiveFacts& live,
                         football::sim::event::RulingSink& rulings) {
   bool penalty = false;
   if (foul.foulType != 0) {
@@ -398,7 +396,7 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
     const football::sim::TeamSide team_side =
         static_cast<football::sim::TeamSide>(foul.victim_team_id);
     SubmitRestart(penalty ? e_GameMode_Penalty : e_GameMode_FreeKick, team_side,
-                  stadium_to_home.Position(stadium_position),
+                  stadium_position,
                   foul.foulType >= 2 ? kCardAdministration : TickSpan{}, rulings,
                   football::sim::event::RestartCause{
                       football::sim::event::RestartCauseKind::Foul,

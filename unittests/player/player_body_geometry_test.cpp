@@ -333,36 +333,6 @@ TEST_CASE("collider ids are stable and stay inside the reserved bands") {
   REQUIRE(region_ids.size() == kBakedContactRegionCount);
 }
 
-TEST_CASE("mirror keeps the body geometry symmetric") {
-  const PoseFrame pose = StandingPose();
-  PlayerKinematicState state;
-  state.position = Vector3(4.0f, 5.0f, 0.0f);
-  const auto profile = MakeProfile(1.80f, 90.0f);
-
-  PlayerBakedPoseSample sample;
-  sample.pose = pose;
-  sample.state = state;
-  sample.base_angle = 0.0f;
-  sample.body_profile = profile;
-  const auto original = sample.Geometry();
-  sample.Mirror();
-  const auto mirrored = sample.Geometry();
-
-  for (std::size_t i = 0; i < original.shapes.size(); ++i) {
-    if (std::holds_alternative<Capsule>(original.shapes[i])) {
-      const auto& oc = AsCapsule(original.shapes[i]);
-      const auto& mc = AsCapsule(mirrored.shapes[i]);
-      REQUIRE(mc.radius == oc.radius);
-      REQUIRE(VecClose(mc.a, MirrorVec(oc.a)));
-      REQUIRE(VecClose(mc.b, MirrorVec(oc.b)));
-    } else {
-      const auto& os = AsSphere(original.shapes[i]);
-      const auto& ms = AsSphere(mirrored.shapes[i]);
-      REQUIRE(ms.radius == os.radius);
-      REQUIRE(VecClose(ms.center, MirrorVec(os.center)));
-    }
-  }
-}
 
 TEST_CASE("body geometry is consumable by Overlap and Sweep") {
   const PoseFrame pose = StandingPose();

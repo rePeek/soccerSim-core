@@ -35,7 +35,6 @@ class Ball {
   BallStepResult Predict(const BallTickInput& input) const;
 
   void Reset(const BallState& state);
-  void Mirror();
 
  private:
   BallStepResult AdvanceState(

@@ -39,14 +39,6 @@ struct PlayerKinematicState {
     return bodyFacing.Get2D().GetNormalized(football::math::Vector3(0, -1, 0));
   }
 
-  // Mirrors position and velocity like the legacy spatial state. bodyFacing is
-  // deliberately left untouched (the legacy spatial state mirror only negates
-  // position and movements); the derived GetFacing() therefore mirrors through
-  // velocity while moving and stays on the un-mirrored body facing at rest.
-  void Mirror() {
-    position.Mirror();
-    velocity.Mirror();
-  }
 
 };
 

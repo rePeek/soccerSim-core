@@ -5,7 +5,6 @@
 
 #include "football/ball/ball.hpp"
 #include "football/pitch/pitch.hpp"
-#include "football/pitch/pitch_frame.hpp"
 #include "player/player.hpp"
 #include "player/kick_targeting.hpp"
 
@@ -28,13 +27,8 @@ e_FunctionType ToFunctionType(ControlAction action) {
 
 PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
                                        Player& player, const PlayerCommandInputs& inputs) {
-  // Value controls use home pitch coordinates; convert at consumption, after
-  // Simulation selects the actor's processing frame. Never mutate caller data.
+  // Controls are already in the single Stadium Frame; never mutate caller data.
   PlayerControl control = input;
-  const auto runtime_frame = FromHomePitchFrame(player.GetTeamSide() == football::sim::TeamSide::Home, player.GetExecutionDirection());
-  control.move_direction = runtime_frame.Direction(control.move_direction);
-  if (control.look_at) control.look_at = runtime_frame.Position(*control.look_at);
-  if (control.target_position) control.target_position = runtime_frame.Position(*control.target_position);
   PlayerCommand movement;
   movement.desiredFunctionType = e_FunctionType_Movement;
   movement.useDesiredMovement = true;
@@ -58,7 +52,7 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     authorization_request.predicted_ball =
         inputs.ball.Predict(football::sim::TickSpan{16}).position;
     authorization_request.half_length = inputs.pitch.half_length();
-    authorization_request.execution_direction = player.GetExecutionDirection();
+    authorization_request.defending_direction = player.GetDefendingDirection();
   }
   football::sim::player::PlayerActionAuthorization authorization;
   if (inputs.authorization != nullptr) {

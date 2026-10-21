@@ -39,7 +39,7 @@ PlayerActionAuthorization EvaluateActionAuthorization(
   authorization.goalkeeper_hands_allowed =
       input.is_goalkeeper && !input.ball_retained && !input.backpass &&
       std::fabs(input.predicted_ball_y) <= 20.05f &&
-      input.predicted_ball_x * -input.execution_direction <=
+      input.predicted_ball_x * -input.defending_direction <=
           -input.half_length + 16.4f;
   return authorization;
 }

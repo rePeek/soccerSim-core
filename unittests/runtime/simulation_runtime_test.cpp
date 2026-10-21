@@ -205,18 +205,17 @@ TEST_CASE("Runtime harness: initial team orientation is Simulation-owned",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
-  const football::sim::TeamOrientation& home_frame = SimulationAccess::TeamOrientationOf(sim, 0);
-  const football::sim::TeamOrientation& away_frame = SimulationAccess::TeamOrientationOf(sim, 1);
+  const football::sim::TeamOrientation& home_frame =
+      SimulationAccess::TeamOrientationOf(sim, 0);
+  const football::sim::TeamOrientation& away_frame =
+      SimulationAccess::TeamOrientationOf(sim, 1);
 
-  // Historical initial orientation: both teams start in the first processing
-  // frame (dynamic -1); only the persistent direction differs by slot. Nothing
-  // keeps a copy of this -- Simulation owns the only TeamOrientation.
-  CHECK(home_frame.execution_direction == -1);
-  CHECK(away_frame.execution_direction == -1);
+  // Home defends -X and Away +X in the first half; the attack direction is
+  // always the negation. Simulation owns the only TeamOrientation.
   CHECK(home_frame.defending_direction == -1);
   CHECK(away_frame.defending_direction == 1);
-  CHECK(home_frame.execution_direction == home_frame.defending_direction);
-  CHECK(away_frame.execution_direction != away_frame.defending_direction);
+  CHECK(home_frame.attack_direction() == 1);
+  CHECK(away_frame.attack_direction() == -1);
   CHECK(sim.Stop());
 }
 
@@ -255,93 +254,35 @@ TEST_CASE("Runtime harness: a few ticks advance and tear down cleanly",
   std::fprintf(stderr, "[runtime] Stop: %.3fs\n", SecondsSince(stop_start));
 }
 
-TEST_CASE("Runtime harness: Mirror twice restores players, sides and ball",
+TEST_CASE("Runtime harness: the change of ends flips only the team orientation",
           "[runtime][sim]") {
   Simulation sim;
   InitMatch(sim);
   const football::team::Team& home_team = SimulationAccess::TeamOf(sim, 0);
-  const football::team::Team& away_team = SimulationAccess::TeamOf(sim, 1);
-
-
+  const football::sim::TeamOrientation& home_frame =
+      SimulationAccess::TeamOrientationOf(sim, 0);
+  const int defending_before = home_frame.defending_direction;
   const WorldState before = sim.Observe();
-  const football::sim::TeamOrientation& home_frame = SimulationAccess::TeamOrientationOf(sim, 0);
-  const int dynamic_before = home_frame.execution_direction;
-  std::vector<int> player_sides;
-  for (Player* player : home_team.Players()) player_sides.push_back(player->GetExecutionDirection());
 
-  // Mirror both teams but not the ball; mirroring is its own inverse.
-  sim.Mirror(true, true, false);
-  CHECK(home_frame.execution_direction == -dynamic_before);
-  for (Player* player : home_team.Players()) {
-    CHECK(player->GetExecutionDirection() == -dynamic_before);
-  }
-  sim.Mirror(true, true, false);
+  // Half-time flips the direction and publishes it; the Stadium Frame and the
+  // stored positions never move.
+  SimulationAccess::SwitchTeamEnds(sim, 0);
+  CHECK(home_frame.defending_direction == -defending_before);
+  for (Player* player : home_team.Players())
+    CHECK(player->GetDefendingDirection() == -defending_before);
 
-  CHECK(home_frame.execution_direction == dynamic_before);
   const WorldState after = sim.Observe();
   REQUIRE(after.players.size() == before.players.size());
   for (std::size_t i = 0; i < before.players.size(); ++i) {
     CHECK(after.players[i].id == before.players[i].id);
-    CHECK(after.players[i].position.coords[0] == Catch::Approx(before.players[i].position.coords[0]));
-    CHECK(after.players[i].position.coords[1] == Catch::Approx(before.players[i].position.coords[1]));
-  }
-  CHECK(after.ball_position.coords[0] == Catch::Approx(before.ball_position.coords[0]));
-  CHECK(after.ball_position.coords[1] == Catch::Approx(before.ball_position.coords[1]));
-  CHECK(sim.Stop());
-}
-
-TEST_CASE("Runtime harness: SwitchEnds flips both directions, not the tick frame",
-          "[runtime][sim]") {
-  Simulation sim;
-  InitMatch(sim);
-  const football::team::Team& home_team = SimulationAccess::TeamOf(sim, 0);
-  const football::team::Team& away_team = SimulationAccess::TeamOf(sim, 1);
-
-
-  const football::sim::TeamOrientation& home_frame = SimulationAccess::TeamOrientationOf(sim, 0);
-  const int dynamic_before = home_frame.execution_direction;
-  const int static_before = home_frame.defending_direction;
-
-  // Half-time change of ends: both directions flip; the canonical between-tick
-  // frame (mirrored) must not change.
-  SimulationAccess::SwitchTeamEnds(sim, 0);
-  CHECK(home_frame.execution_direction == -dynamic_before);
-  CHECK(home_frame.defending_direction == -static_before);
-  // Publication is part of the behaviour: a switched end that skipped it would
-  // leave every player reading the previous tick's team facts.
-  for (Player* player : home_team.Players()) {
-    CHECK(player->GetExecutionDirection() == -dynamic_before);
-    CHECK(player->GetDefendingDirection() == -static_before);
+    CHECK(after.players[i].position.coords[0] ==
+          Catch::Approx(before.players[i].position.coords[0]));
+    CHECK(after.players[i].position.coords[1] ==
+          Catch::Approx(before.players[i].position.coords[1]));
   }
 
   SimulationAccess::SwitchTeamEnds(sim, 0);
-  CHECK(home_frame.execution_direction == dynamic_before);
-  CHECK(home_frame.defending_direction == static_before);
-  CHECK(sim.Stop());
-}
-
-TEST_CASE("Runtime harness: transient mirror and permanent end change write disjoint fields",
-          "[runtime][sim]") {
-  Simulation sim;
-  InitMatch(sim);
-  const football::sim::TeamOrientation& home_frame = SimulationAccess::TeamOrientationOf(sim, 0);
-  const int dynamic_before = home_frame.execution_direction;
-  const int static_before = home_frame.defending_direction;
-
-  // The transient execution-frame toggle owns execution_direction and mirrored; the
-  // persistent direction the team defends is not a frame concern.
-  SimulationAccess::MirrorTeam(sim, 0);
-  CHECK(home_frame.execution_direction == -dynamic_before);
-  CHECK(home_frame.defending_direction == static_before);
-  SimulationAccess::MirrorTeam(sim, 0);
-  CHECK(home_frame.execution_direction == dynamic_before);
-  CHECK(home_frame.defending_direction == static_before);
-
-  // The permanent change of ends owns defending_direction and execution_direction together and
-  // must leave the between-tick mirror flag alone.
-  SimulationAccess::SwitchTeamEnds(sim, 0);
-  CHECK(home_frame.defending_direction == -static_before);
-  CHECK(home_frame.execution_direction == -dynamic_before);
+  CHECK(home_frame.defending_direction == defending_before);
   CHECK(sim.Stop());
 }
 
@@ -494,7 +435,7 @@ TEST_CASE("Rules authorize movement, action and keeper hands separately",
     auto input = base;
     input.is_goalkeeper = true;
     input.half_length = 52.5f;
-    input.execution_direction = -1;
+    input.defending_direction = -1;
     input.predicted_ball_x = -40.0f;
     input.predicted_ball_y = 5.0f;
     CHECK(EvaluateActionAuthorization(input).goalkeeper_hands_allowed);
@@ -948,15 +889,10 @@ TEST_CASE("Runtime harness: state commit unifies locomotion and legacy sync",
   CHECK(next_step.position.GetDistance(after_contact.position) < 0.01f);
   CHECK(next_step.position.GetDistance(after_tick.position) > 0.05f);
 
-  // 4) Mirror round trip with a correction in between stays consistent and
-  // returns the frame to its canonical orientation.
+  // 4) A correction keeps the Player's kinematic and spatial views consistent.
   sim.Step(PlayerControlSet{});
-  const Vector3 before_mirror = player->GetPosition();
-  sim.Mirror(true, true, false);
   player->OffsetPosition(offset_a);
-  sim.Mirror(true, true, false);
   CHECK(player->GetKinematicState().position == player->GetPosition());
-  CHECK(player->GetPosition().GetDistance(before_mirror) > 0.0f);
 
   // 5) A reset clears the correction and the Player stays consistent.
   sim.ResetSituation(Vector3(0.0f, 0.0f, 0.0f));
@@ -999,22 +935,10 @@ TEST_CASE("Runtime harness: lifecycle paths keep one Player authority",
 
   const PlayerKinematicState base = player->GetKinematicState();
 
-  // Mirror commits through the Player and keeps the historical asymmetry:
-  // position and velocity are mirrored, bodyFacing is not. The derived
-  // GetFacing() therefore mirrors through velocity while moving, and at rest
-  // stays on the un-mirrored bodyFacing (verified by the round trip below).
-  sim.Mirror(true, true, false);
-  const PlayerKinematicState mirrored = player->GetKinematicState();
-  CHECK(mirrored.position == -base.position);
-  CHECK(mirrored.velocity == -base.velocity);
-  CHECK(mirrored.bodyFacing == base.bodyFacing);
-  CHECK(player->GetGroundCollider().center == mirrored.position.Get2D());
-
-  // Mirroring is its own inverse, so a round trip restores every field.
-  sim.Mirror(true, true, false);
-  CHECK(player->GetKinematicState().position == base.position);
-  CHECK(player->GetKinematicState().velocity == base.velocity);
-  CHECK(player->GetKinematicState().bodyFacing == base.bodyFacing);
+  // The committed kinematic state is the single authority and its projection
+  // matches it.
+  CHECK(player->GetKinematicState().position == player->GetPosition());
+  CHECK(player->GetKinematicState().velocity == player->GetMovement());
 
   // A contact correction followed by a reset must not leave residue, and both
   // sides must agree after the lifecycle entry.

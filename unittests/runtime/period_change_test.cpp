@@ -95,15 +95,13 @@ TEST_CASE("Runtime harness: half time swaps ends exactly once at the next tick",
 
     const football::team::Team& home_team = SimulationAccess::TeamOf(sim, 0);
     const football::team::Team& away_team = SimulationAccess::TeamOf(sim, 1);
-    const int home_static = SimulationAccess::TeamOrientationOf(sim, 0).defending_direction;
-    const int away_static = SimulationAccess::TeamOrientationOf(sim, 1).defending_direction;
-    const int home_dynamic = SimulationAccess::TeamOrientationOf(sim, 0).execution_direction;
-    const int away_dynamic = SimulationAccess::TeamOrientationOf(sim, 1).execution_direction;
-    // Baseline: the persistent ends differ, both execution frames do not.
+    const int home_static =
+        SimulationAccess::TeamOrientationOf(sim, 0).defending_direction;
+    const int away_static =
+        SimulationAccess::TeamOrientationOf(sim, 1).defending_direction;
+    // Baseline: the ends differ.
     REQUIRE(home_static == -1);
     REQUIRE(away_static == 1);
-    REQUIRE(home_dynamic == -1);
-    REQUIRE(away_dynamic == -1);
 
     PlayerControlSet controls;
     int guard = 0;
@@ -124,8 +122,6 @@ TEST_CASE("Runtime harness: half time swaps ends exactly once at the next tick",
     sim.Step(controls);
     CHECK(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction == -home_static);
     CHECK(SimulationAccess::TeamOrientationOf(sim, 1).defending_direction == -away_static);
-    CHECK(SimulationAccess::TeamOrientationOf(sim, 0).execution_direction == -home_dynamic);
-    CHECK(SimulationAccess::TeamOrientationOf(sim, 1).execution_direction == -away_dynamic);
     // Identity is a match fact, never a direction, so it does not flip.
     for (Player* player : home_team.Players()) {
       CHECK(player->GetTeamSide() == TeamSide::Home);
@@ -139,7 +135,7 @@ TEST_CASE("Runtime harness: half time swaps ends exactly once at the next tick",
   }
 }
 
-TEST_CASE("Runtime harness: a change of ends preserves the home-pitch observation frame",
+TEST_CASE("Runtime harness: a change of ends flips the published directions",
           "[runtime][sim]") {
   Simulation sim;
   Init(sim, false, football::sim::Minutes(45));
@@ -166,10 +162,10 @@ TEST_CASE("Runtime harness: a change of ends preserves the home-pitch observatio
     CHECK(after.players[i].position == before.players[i].position);
     CHECK(after.players[i].velocity == before.players[i].velocity);
   }
-  // The published defending directions are a fixed home-pitch contract: they
-  // describe the frame, not the physical ends, so they never flip.
-  CHECK(after.teams[0].defending_direction == -1);
-  CHECK(after.teams[1].defending_direction == 1);
+  // The change of ends flips the published defending directions; the stored
+  // positions never move.
+  CHECK(after.teams[0].defending_direction == 1);
+  CHECK(after.teams[1].defending_direction == -1);
   CHECK(sim.Stop());
 }
 
@@ -230,80 +226,28 @@ TEST_CASE("Runtime harness: the goal-line restart side follows the physical ends
   CHECK(sim.Stop());
 }
 
-TEST_CASE("Runtime harness: the published frame conversions compose to a fixed offset",
+TEST_CASE("Runtime harness: the observation is the single Stadium Frame",
           "[runtime][sim]") {
   for (const bool reverse : {false, true}) {
     CAPTURE(reverse);
     Simulation sim;
     Init(sim, reverse, football::sim::Minutes(45));
-    // An asymmetric raw ball so a wrong or doubled rotation cannot hide.
     SimulationAccess::ResetBall(sim, football::math::Vector3(3.5f, -2.5f, 0.0f));
-
     for (int half = 0; half < 2; ++half) {
-      const football::ball::BallState raw = SimulationAccess::BallOf(sim)->state();
-      const auto facts = SimulationAccess::RefereeFactsOf(sim);
-      // home = ball_to_home(raw); stadium = stadium_to_home(home).
-      const football::math::Vector3 home = facts.ball_to_home.Position(raw.position);
-      const football::math::Vector3 stadium = facts.stadium_to_home.Position(home);
-      // The between-tick persistent frame differs from the Stadium Frame by
-      // exactly the reverse-processing rotation, in both halves.
-      const football::math::Vector3 expected =
-          PitchFrameTransform(reverse).Position(raw.position);
-      CHECK(stadium.coords[0] == expected.coords[0]);
-      CHECK(stadium.coords[1] == expected.coords[1]);
-      // The published observation is that same home-pitch point.
+      // The observation publishes the authoritative ball position unchanged.
+      const football::math::Vector3 raw =
+          SimulationAccess::BallOf(sim)->state().position;
       const WorldState world = sim.Observe();
-      CHECK(world.ball_position.coords[0] == home.coords[0]);
-      CHECK(world.ball_position.coords[1] == home.coords[1]);
-
-      if (half == 0) SimulationAccess::ApplyChangeOfEndsNow(sim);
-    }
-    CHECK(sim.Stop());
-  }
-}
-
-TEST_CASE("Runtime harness: processing mirrors move the ball view, never the authority",
-          "[runtime][sim]") {
-  Simulation sim;
-  // reverse=true makes the view differ from the fixed authority frame.
-  Init(sim, true, football::sim::Minutes(45));
-  SimulationAccess::ResetBall(sim, football::math::Vector3(3.5f, -2.5f, 0.0f));
-  const football::math::Vector3 authority =
-      SimulationAccess::BallAuthorityStateOf(sim).position;
-  const football::math::Vector3 view = SimulationAccess::BallOf(sim)->state().position;
-  REQUIRE(authority != view);
-
-  // A processing-order toggle moves only the derived view.
-  sim.Mirror(true, true, true);
-  CHECK(SimulationAccess::BallAuthorityStateOf(sim).position == authority);
-  CHECK(SimulationAccess::BallOf(sim)->state().position == football::math::Vector3(-view.coords[0], -view.coords[1], view.coords[2]));
-  sim.Mirror(true, true, true);
-  CHECK(SimulationAccess::BallAuthorityStateOf(sim).position == authority);
-  CHECK(SimulationAccess::BallOf(sim)->state().position == view);
-  CHECK(sim.Stop());
-}
-
-TEST_CASE("Runtime harness: the published stadium transform is the named defending-end value",
-          "[runtime][sim]") {
-  for (const bool reverse : {false, true}) {
-    CAPTURE(reverse);
-    Simulation sim;
-    Init(sim, reverse, football::sim::Minutes(45));
-    for (int half = 0; half < 2; ++half) {
+      CHECK(world.ball_position.coords[0] == raw.coords[0]);
+      CHECK(world.ball_position.coords[1] == raw.coords[1]);
+      // Team directions are the live Stadium Frame orientations.
       const auto home_view = SimulationAccess::TeamViewOf(sim, 0);
       const auto away_view = SimulationAccess::TeamViewOf(sim, 1);
-      // The runtime value API and the production Referee fact are the same
-      // rotation in both halves and both processing orders.
-      const auto expected = StadiumToHomePitch(home_view.defending_end());
-      const auto actual = SimulationAccess::RefereeFactsOf(sim).stadium_to_home;
-      const football::math::Vector3 probe(7.0f, -3.0f, 1.5f);
-      CHECK(actual.Position(probe) == expected.Position(probe));
-      // Away defends the opposite end in every state.
-      CHECK(away_view.defending_end() != home_view.defending_end());
+      CHECK(world.teams[0].defending_direction == home_view.defending_direction);
+      CHECK(world.teams[1].defending_direction == away_view.defending_direction);
+      CHECK(away_view.defending_direction == -home_view.defending_direction);
       if (half == 0) SimulationAccess::ApplyChangeOfEndsNow(sim);
     }
-    CHECK(SimulationAccess::TeamViewOf(sim, 0).defending_end() ==
-          DefendingEndOf(SimulationAccess::TeamOrientationOf(sim, 0).defending_direction));
     CHECK(sim.Stop());
   }
 }

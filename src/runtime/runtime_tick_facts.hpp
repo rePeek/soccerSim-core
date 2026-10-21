@@ -3,7 +3,6 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
-#include "football/pitch/pitch_frame.hpp"
 #include "football/runtime/phase.hpp"
 #include "runtime/team_view.hpp"
 
@@ -30,14 +29,6 @@ struct RuntimeTickFacts {
   // Legacy team slots (0/1), -1 when the fact is unknown.
   int last_touch_team = -1;
   int last_goal_team = -1;
-  // Sampling conversions for one execution instant. Both are 180-degree
-  // rotations and therefore involutions:
-  // - ball_to_home maps the between-tick processing frame to the published
-  //   Home Pitch Frame (the first processing team's dynamic side);
-  // - stadium_to_home maps the Home Pitch Frame <-> the Stadium Frame, derived
-  //   from the home team's defending end, never from MatchPhase.
-  PitchFrameTransform ball_to_home;
-  PitchFrameTransform stadium_to_home;
 };
 
 }  // namespace football::sim

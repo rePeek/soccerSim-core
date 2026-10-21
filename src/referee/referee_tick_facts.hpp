@@ -3,7 +3,6 @@
 
 #include "football/pitch/pitch.hpp"
 #include "football/runtime/phase.hpp"
-#include "football/pitch/pitch_frame.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "referee/referee_facts.hpp"
 
@@ -28,11 +27,6 @@ struct RefereeTickFacts {
   // Legacy team slots (0/1), -1 when the fact is unknown.
   int last_touch_team = -1;
   int last_goal_team = -1;
-  // Same two involution conversions as RuntimeTickFacts: ball_to_home maps the
-  // processing frame to the published Home Pitch Frame; stadium_to_home maps
-  // the Home Pitch Frame <-> the Stadium Frame from the home defending end.
-  PitchFrameTransform ball_to_home;
-  PitchFrameTransform stadium_to_home;
 };
 
 } // namespace football::sim::rules

@@ -21,7 +21,7 @@ PlayerAuthorizationPortImpl::Evaluate(
     input.predicted_ball_x = request.predicted_ball.coords[0];
     input.predicted_ball_y = request.predicted_ball.coords[1];
     input.half_length = request.half_length;
-    input.execution_direction = request.execution_direction;
+    input.defending_direction = request.defending_direction;
   }
   const football::sim::rules::PlayerActionAuthorization verdict =
       football::sim::rules::EvaluateActionAuthorization(input);

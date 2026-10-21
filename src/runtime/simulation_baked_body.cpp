@@ -52,7 +52,6 @@ void Simulation::BuildBakedBodyTape(std::span<const std::optional<PlayerBakedPos
     auto start=*baked_body_starts_[slot], end=*endpoints[slot];
     // Both samples share the first-team frame. The kernel uses pitch physics
     // coordinates and preserves physical identities under this half turn.
-    if(options_.reverse_team_processing) { start.Mirror(); end.Mirror(); }
     const auto motions=BuildBakedBodyColliderMotions(start.Geometry(),end.Geometry(),std::uint32_t(slot));
     baked_body_colliders_.insert(baked_body_colliders_.end(),motions.begin(),motions.end());
     const auto regions=BuildBakedContactRegionMotions(start.ContactRegions(),end.ContactRegions(),std::uint32_t(slot));
@@ -72,7 +71,6 @@ void Simulation::BeginBakedBodyTick() {
     auto& actor=*snapshot_players_[slot];
     if(!actor.IsActive()) { baked_body_poses_[slot].reset(); baked_body_starts_[slot].reset(); continue; }
     auto target=actor.GetBakedPoseSample();
-    if(actor.GetTeamID()==second_team_) target.Mirror();
     if(!baked_body_poses_[slot]) baked_body_poses_[slot]=WorldBakedPose(target);
     // Player pair/root projection is already committed at Tick entry. Do not
     // turn that placement correction into this Tick's inferred body velocity.
@@ -82,7 +80,6 @@ void Simulation::BeginBakedBodyTick() {
     // clip skeleton at the next frame through PreviewRawPose; the Simulation
     // only predicts the root position and realizes the body geometry.
     auto future=actor.PreviewRawPose(1);
-    if(actor.GetTeamID()==second_team_) future.Mirror();
     future.state.position+=future.state.velocity*football::sim::kTickSeconds;
     baked_body_forecasts_[slot]=RealizeBakedPose(*baked_body_starts_[slot],future,future.outgoing_special_state);
     ++BakedBodyPreviewChecks();
@@ -95,7 +92,6 @@ void Simulation::CompleteBakedBodyPreparation() {
     auto& actor=*snapshot_players_[slot];
     if(!actor.IsActive()) { baked_body_poses_[slot].reset(); continue; }
     auto target=actor.GetBakedPoseSample();
-    if(actor.GetTeamID()==second_team_) target.Mirror();
     baked_body_poses_[slot]=RealizeBakedPose(*baked_body_starts_[slot],target,target.outgoing_special_state);
   }
   BuildBakedBodyTape(baked_body_poses_);

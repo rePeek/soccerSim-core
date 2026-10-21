@@ -169,7 +169,7 @@ RestartController::TickOutcome RestartController::Advance(
         context_.id = next_restart_id_++;
         outcome.events.push_back(football::sim::event::RestartAwardedEvent{
             facts.now, static_cast<TeamSide>(context_.team_id), e_GameMode_KickOff,
-            facts.stadium_to_home.Position(context_.position), context_.id});
+            context_.position, context_.id});
       }
       if (context_.taker != nullptr && facts.now >= context_.start_tick) {
         // blow whistle and wait for set piece taker to touch the ball
@@ -226,32 +226,31 @@ void RestartController::ProcessRestart(const RuntimeTickFacts& facts, const Matc
       context_.position.coords[0] = clamp(context_.position.coords[0], -0.95f * facts.pitch.half_length(), 0.95f * facts.pitch.half_length());
       context_.position.coords[1] = clamp(context_.position.coords[1], -0.95f * facts.pitch.half_width(), 0.95f * facts.pitch.half_width());
     }
-    commands.ResetSituation(facts.ball_to_home.Position(context_.position));
-    state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
-        facts.ball.state().position), ActivePlayers(facts), context_.kind,
+    commands.ResetSituation(context_.position);
+    state.plan = PlanRestart(facts.pitch, facts.ball.state().position,
+        ActivePlayers(facts), context_.kind,
         context_.setpiece_team, planning);
     for (const auto& target : state.plan.players) {
       Player* actor = roster.Find(target.player);
       if (actor == nullptr) continue;
-      const auto frame = FromHomePitchFrame(actor->GetTeamSide() == football::sim::TeamSide::Home, actor->GetExecutionDirection());
-      actor->ResetPosition(actor->GetPosition(), frame.Position(state.plan.ball_position));
+      actor->ResetPosition(actor->GetPosition(), state.plan.ball_position);
     }
     context_.taker = roster.Find(state.plan.taker);
     state.setup_done = true;
   }
   if (!context_.taker || !context_.taker->IsActive()) {
-    state.plan = PlanRestart(facts.pitch, facts.ball_to_home.Position(
-        facts.ball.state().position), ActivePlayers(facts), context_.kind,
+    state.plan = PlanRestart(facts.pitch, facts.ball.state().position,
+        ActivePlayers(facts), context_.kind,
         context_.setpiece_team, planning);
     context_.taker = roster.Find(state.plan.taker);
   }
   if (facts.now < state.earliest_restart_tick) return;
   if (!state.used_timeout_placement && facts.now >= state.timeout_tick) {
     PlaceRestartPlayersAtTimeout(state.plan, roster);
-    commands.ResetBall(facts.ball_to_home.Position(state.plan.ball_position));
+    commands.ResetBall(state.plan.ball_position);
     state.used_timeout_placement = true;
   }
-  const auto ball_position = facts.ball_to_home.Position(facts.ball.state().position);
+  const auto ball_position = facts.ball.state().position;
   if (!RestartPlayersReady(state.plan, facts.pitch, roster) ||
       std::fabs(ball_position.coords[2] - 0.11f) > 0.03f ||
       (ball_position.Get2D() - state.plan.ball_position).GetLength() > 0.05f ||

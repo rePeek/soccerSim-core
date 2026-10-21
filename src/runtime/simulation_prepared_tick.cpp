@@ -7,24 +7,6 @@
 #include <stdexcept>
 
 namespace {
-void MirrorResult(football::ball::BallStepResult& result) {
-  result.state.position.Mirror();
-  result.state.velocity.Mirror();
-  result.state.angular_velocity.Mirror();
-  result.state.orientation = (football::math::Quaternion(0, 0, 1, 0) * result.state.orientation).GetNormalized();
-  for (auto& c : result.contacts) {
-    c.point.Mirror(); c.normal.Mirror(); c.relative_velocity.Mirror();
-    c.surface_velocity.Mirror();
-  }
-  if (result.active_impulse) {
-    result.active_impulse->impulse.Mirror();
-    result.active_impulse->contact_point.Mirror();
-  }
-  if (result.endpoint_constraint) {
-    result.endpoint_constraint->position.Mirror();
-    result.endpoint_constraint->velocity.Mirror();
-  }
-}
 bool SameState(const football::ball::BallState& a, const football::ball::BallState& b) {
   return a.position == b.position && a.velocity == b.velocity &&
          a.angular_velocity == b.angular_velocity && !(a.orientation != b.orientation);
@@ -35,20 +17,13 @@ bool SameState(const football::ball::BallState& a, const football::ball::BallSta
 struct PreparationPorts final : football::sim::PlayerTouchPreparationSink,
                                 football::sim::PlayerRuntimeSink,
                                 football::sim::AcceptedTouchSink {
-  bool second_team = false;
   // Runtime-owned team state. The port is the only writer, exactly like the
   // direct view write it replaces; it does not publish team facts.
   std::array<football::sim::TeamMatchState*, 2> team_states{};
   std::vector<football::sim::PreparedPlayerTouch> touches;
   std::optional<Player*> release;
   void PrepareTouch(const football::sim::PreparedPlayerTouch& input) override {
-    auto touch = input;
-    if (second_team) {
-      touch.desired_ball_center.Mirror(); touch.target_velocity.Mirror();
-      touch.strike_point.Mirror();
-      touch.fact.ball_position.Mirror(); touch.fact.ball_velocity.Mirror();
-    }
-    touches.push_back(touch);
+    touches.push_back(input);
   }
   void SetBallRetainer(Player* value) override {
     // Acquisition is committed only if that actor's anchor wins. A release
@@ -84,7 +59,6 @@ void Simulation::EnablePreparedTickProduction(bool enabled) {
 void Simulation::RunPreparedPlayerTick() {
   using namespace football::ball;
   using namespace football::geometry;
-  const bool reverse = options_.reverse_team_processing;
   BeginBakedBodyTick();
   auto bodies = body_physics_production_ ?
       std::span<const ColliderMotion>{baked_body_production_ ? baked_body_colliders_ : body_physics_production_colliders_} :
@@ -93,9 +67,8 @@ void Simulation::RunPreparedPlayerTick() {
   // Const actor forecast: no force consumption or actor/action/RNG advance.
   // Baked mode later refreshes the passive preview against actual prepared
   // geometry; the normal physical write remains the single final Step.
-  // The kernel runs in the fixed authority frame; the view is derived.
-  auto passive = ball_authority_->Predict(input);
-  if (ball_view_mirrored_) MirrorResult(passive);
+  // The kernel runs in the single Stadium Frame; no view is derived.
+  auto passive = ball_->Predict(input);
   preparation_ball_->Reset(passive.state);
   CaptureMentalImage(preparation_ball_.get());
   // One borrowed read-only observation per preparation pass; the adapter must
@@ -137,20 +110,13 @@ void Simulation::RunPreparedPlayerTick() {
     football::sim::FinishTeamPossession(TeamOf(id).Players(), team_orientations_[id],
         team_states_[id], team_states_[1 - id]);
   };
-  Mirror(first_team_ == 1, first_team_ == 0, false);
   prepare_team(first_team_);
-  Mirror(true, true, true);
-  preparation_ball_->Mirror();
-  ports.second_team = true;
   prepare_team(second_team_);
-  Mirror(first_team_ == 0, first_team_ == 1, true);
-  preparation_ball_->Mirror();
   if (baked_body_production_) {
     CompleteBakedBodyPreparation();
     bodies = std::span<const ColliderMotion>{baked_body_colliders_};
     input.dynamic_colliders = bodies;
-    passive = ball_authority_->Predict(input);
-    if (ball_view_mirrored_) MirrorResult(passive);
+    passive = ball_->Predict(input);
   }
 
   pending_active_impulse_.reset();
@@ -244,18 +210,11 @@ void Simulation::RunPreparedPlayerTick() {
   }
   if (winner) {
     input.active_impulse = winner->impulse;
-    if (reverse) {
-      input.active_impulse->impulse.Mirror();
-      input.active_impulse->contact_point.Mirror();
-    }
   } else if (anchor && !passive_impact) {
     input.endpoint_constraint = BallEndpointConstraint{anchor->desired_ball_center, football::math::Vector3(0)};
-    if (reverse) input.endpoint_constraint->position.Mirror();
   }
   tick_active_candidates_.clear();
-  auto result = ball_authority_->Step(input); // the sole authoritative normal physical write
-  if (ball_view_mirrored_) MirrorResult(result);
-  RefreshBallView();
+  auto result = ball_->Step(input); // the sole authoritative physical write
   committed_ball_tick_ = result;
   if (body_physics_shadow_tick_) {
     // This is the actual committed endpoint, including the accepted active input.
@@ -264,7 +223,6 @@ void Simulation::RunPreparedPlayerTick() {
   }
 
   // All consumers now see committed physical state in the common actor frame.
-  Mirror(reverse, !reverse, false);
   const auto* previous_retainer = ball_retainer_;
   if (ports.release) ball_retainer_ = nullptr;
   if (anchor && input.endpoint_constraint) ball_retainer_ = FindPlayerById(anchor->fact.player);
@@ -291,13 +249,8 @@ void Simulation::RunPreparedPlayerTick() {
                                       reset_sequence_, ball_config_);
   }
   football::sim::observation::RefreshLatestMentalImageBallPredictions(mental_images_, *ball_);
-  Mirror(reverse, !reverse, false);
-  // No animation/action execution or RNG redraw in the commit phase.
-  Mirror(first_team_ == 1, first_team_ == 0, false);
+  // No animation/action execution in the commit phase; every prepared actor
+  // commits in the single Stadium Frame.
   for (const auto& [actor, distance] : prepared)
-    if (actor->GetTeamID() == first_team_) actor->CommitTick(PlayerTickFacts(*actor), distance);
-  Mirror(true, true, true);
-  for (const auto& [actor, distance] : prepared)
-    if (actor->GetTeamID() == second_team_) actor->CommitTick(PlayerTickFacts(*actor), distance);
-  Mirror(first_team_ == 0, first_team_ == 1, true);
+    actor->CommitTick(PlayerTickFacts(*actor), distance);
 }

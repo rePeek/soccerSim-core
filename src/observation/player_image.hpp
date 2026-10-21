@@ -31,11 +31,6 @@ struct PlayerImage {
   Player *player;
   e_Velocity velocity = e_Velocity_Idle;
   e_PlayerRole role;
-  void Mirror() {
-    position.Mirror();
-    directionVec.Mirror();
-    movement.Mirror();
-  }
 };
 
 struct PlayerImagePosition {

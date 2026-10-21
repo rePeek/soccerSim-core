@@ -30,12 +30,5 @@ struct PlayerBakedPoseSample {
   auto ContactRegions() const {
     return BuildBakedContactRegions(pose,state,base_angle,body_profile);
   }
-  void Mirror() {
-    state.Mirror();
-    // PlayerKinematicState::Mirror deliberately does not rotate facing fields;
-    // FK takes the animation base explicitly, so only that angle is transformed.
-    football::math::radian angle = base_angle;
-    angle.Mirror(); base_angle = angle;
-  }
 };
 #endif

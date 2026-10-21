@@ -15,7 +15,6 @@
 #include "player/player_ball_contact.hpp"
 #include "event/touch_query.hpp"
 #include "observation/mentalimage_sampling.hpp"
-#include "football/pitch/pitch_frame.hpp"
 #include "observation/world_state_builder.hpp"
 #include "player/player_contact.hpp"
 #include "runtime/team_possession.hpp"
@@ -65,7 +64,7 @@ football::sim::rules::RefereeTeamFact ToRefereeTeamFact(
   fact.team_id = team.team_id;
   fact.side = team.side;
   fact.defending_direction = team.defending_direction;
-  fact.execution_direction = team.execution_direction;
+  fact.defending_direction = team.defending_direction;
   fact.fading_possession_amount = team.fading_possession_amount();
   return fact;
 }
@@ -87,9 +86,7 @@ football::sim::rules::RefereeTickFacts ToRefereeTickFacts(
       ToRefereeTeamFact(runtime.away),
       runtime.first_team,
       runtime.last_touch_team,
-      runtime.last_goal_team,
-      runtime.ball_to_home,
-      runtime.stadium_to_home};
+      runtime.last_goal_team};
 }
 
 football::sim::rules::RestartRuleFacts ToRestartRuleFacts(
@@ -133,22 +130,12 @@ football::sim::RuntimeTickFacts Simulation::RefereeFacts() const {
   if (!ball_) throw std::logic_error("simulation has no match");
   const football::sim::TeamView home = TeamViewOf(0);
   const football::sim::TeamView away = TeamViewOf(1);
-  // The between-tick persistent state lives in the first processing team's
-  // frame. Two explicit conversions sample it for the Referee:
-  // - ball_to_home: that processing frame -> the published Home Pitch Frame
-  //   (a function of the first team's dynamic side);
-  // - stadium_to_home: the Home Pitch Frame <-> the Stadium Frame, i.e. the
-  //   rotation that puts the home team's own goal back on -X. It is derived
-  //   from the home team's defending end, never from MatchPhase.
-  // Both are involutions, so either also converts back.
-  const int ball_frame_team = options_.reverse_team_processing ? 1 : 0;
+  // The Referee reads the single authoritative Stadium Frame directly; there
+  // is no processing-frame conversion.
   return {GetTimelineTick(), phase_, play_authorized_, set_piece_active_, goal_scored_,
       *ball_, pitch_, GetRegulationTime(), home, away, first_team_,
       GetLastTouchTeam(),
-      last_goal_team_,
-      ToHomePitchFrame(ball_frame_team == static_cast<int>(football::sim::TeamSide::Home),
-                       team_orientations_[ball_frame_team].execution_direction),
-      ToAttackingFrame(DefendingEndOf(team_orientations_[0].defending_direction))};
+      last_goal_team_};
 }
 
 football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor) {
@@ -265,10 +252,7 @@ void Simulation::MeasureBodyShadowEndpoint(const Player& player) {
   if (!body_shadow_active_) return;
   for (auto& prediction : body_shadow_predictions_) {
     if (prediction.player != player.GetID()) continue;
-    // Second team executes in the opposite frame. Rotate only this copy,
-    // before pair offsets/other actors can contaminate the Process endpoint.
     auto actual = player.GetKinematicState();
-    if (player.GetTeamID() == second_team_) actual.Mirror();
     prediction.endpoint_error = (actual.position - prediction.end.position).GetLength();
     prediction.turned = prediction.start.velocity.GetLength() > .5f &&
         actual.velocity.GetLength() > .5f &&
@@ -378,7 +362,6 @@ void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch)
     facts.ball = {ball_->state().position, ball_->state().velocity};
     facts.pitch = &pitch_;
     facts.all_active_players = active;
-    facts.stadium_to_home = tick.stadium_to_home;
     const football::sim::RestartContext& restart = restarts_.context();
     facts.restart = ToRestartRuleFacts(restart);
     facts.preserve_opponent_offside = touch.preserve_opponent_offside;
@@ -541,7 +524,6 @@ football::sim::TeamView Simulation::TeamViewOf(int team_id) const {
       team_id,
       static_cast<football::sim::TeamSide>(team_id),
       team_orientations_[team_id].defending_direction,
-      team_orientations_[team_id].execution_direction,
       TeamOf(team_id).Goalie(),
       TeamOf(team_id).Players(),
       &team_states_[team_id],
@@ -581,24 +563,14 @@ void Simulation::RelaxTeamFatigue(int team_id, float amount) {
   }
 }
 
-void Simulation::MirrorTeam(int team_id) {
-  football::sim::TeamOrientation& frame = team_orientations_[team_id];
-  frame.execution_direction *= -1;
-  const PlayerTeamFacts facts = TeamFactsFor(team_id);
-  for (Player* player : TeamOf(team_id).Players()) {
-    player->Mirror();
-    player->SetTeamContext(facts);
-  }
-}
-
 void Simulation::SwitchTeamEnds(int team_id) {
-  football::sim::TeamOrientation& frame = team_orientations_[team_id];
-  // Historical order: the persistent direction flips first, then the frame.
-  frame.defending_direction = -frame.defending_direction;
-  frame.execution_direction = -frame.execution_direction;
+  // The permanent change of ends flips the only live orientation. Positions
+  // are not mirrored: the kickoff ceremony that follows re-places the actors,
+  // and the Stadium Frame never rotates.
+  football::sim::TeamOrientation& orientation = team_orientations_[team_id];
+  orientation.defending_direction = -orientation.defending_direction;
   const PlayerTeamFacts facts = TeamFactsFor(team_id);
   for (Player* player : TeamOf(team_id).Players()) {
-    player->Mirror();
     player->SetTeamContext(facts);
   }
 }
@@ -804,13 +776,11 @@ void Simulation::Init(
   reset_sequence_ = 0;
   pending_change_of_ends_ = false;
   last_body_ball_collision_tick_ = {};
-  ball_mirrored_ = false;
   touches_.Reset();
   mental_images_.clear();
   teams_ = {};
   active_lineups_ = {};
   for (int i = 0; i < 2; ++i) {
-    team_orientations_[i].execution_direction = -1;
     team_orientations_[i].defending_direction = i == 0 ? -1 : 1;
     team_states_[i] = football::sim::TeamMatchState{};
     team_states_[i].time_to_ball_ms = 100;
@@ -901,11 +871,6 @@ void Simulation::Init(
   // Commit. Pointer/reference borrows stay valid: the heap objects do not move
   // when their owning unique_ptrs are transferred.
   ball_ = std::move(ball);
-  // The authoritative ball is fixed-frame; the view above is derived from it.
-  ball_authority_ = std::make_unique<football::ball::Ball>(ball_config_, pitch_);
-  ball_view_mirrored_ = options.reverse_team_processing;
-  ball_authority_->Reset(ball_->state());
-  if (ball_view_mirrored_) ball_authority_->Mirror();
   referee_ = std::move(referee);
   player_runtime_sink_ = commands.get();
   rule_commands_ = std::move(commands);
@@ -1019,9 +984,7 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     }
   }
 
-  const bool reverse = options_.reverse_team_processing;
-  // Ball already shares the first team's frame; turn only the other team.
-  Mirror(reverse, !reverse, false);
+  // The Stadium Frame is the only frame; no processing-frame toggle exists.
   // P4b only: capture the common ball/player frame and run read-only dynamic
   // CCD before the legacy resolver can change Ball or emit AcceptedTouch.
   BeginBodyCollisionShadow();
@@ -1034,7 +997,6 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     ProcessReferee();
   }
   Vector3 previous_ball_pos = ball_->state().position;
-  Mirror(reverse, !reverse, false);
   // Restore the processing frame even on the referee's terminal transition.
   if (Finished()) {
     DiscardBodyCollisionShadow();
@@ -1052,15 +1014,12 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   RunPreparedPlayerTick();
 
   // UpdatePossession: retain both per-team refreshes before arbitration.
-  Mirror(first_team_ == 1, first_team_ == 0, false);
   football::sim::RefreshTeamPossession(TeamOf(first_team_).Players(),
       team_orientations_[first_team_], team_states_[first_team_],
       team_states_[second_team_], *ball_, GetTimelineTick(), ball_retainer_);
-  Mirror(true, true, true);
   football::sim::RefreshTeamPossession(TeamOf(second_team_).Players(),
       team_orientations_[second_team_], team_states_[second_team_],
       team_states_[first_team_], *ball_, GetTimelineTick(), ball_retainer_);
-  Mirror(first_team_ == 0, first_team_ == 1, true);
 
   const auto possession = football::sim::EvaluatePossession(
       static_cast<football::sim::TeamSide>(first_team_),
@@ -1071,7 +1030,6 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   designated_possession_player_ = possession.designated_player;
 
   // ResolvePlayerContacts: live pair mutations, then movement sharing.
-  Mirror(reverse, !reverse, false);
   std::vector<Player*> players;
   GetActiveTeamPlayers(first_team_, players);
   GetActiveTeamPlayers(second_team_, players);
@@ -1102,27 +1060,26 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
       return football::sim::CrossedGoalLine(
           pitch_, side, previous_ball_pos, ball_->state().position);
     };
-    first_team_goal = crossed_goal(team_orientations_[first_team_].execution_direction);
-    second_team_goal = crossed_goal(team_orientations_[second_team_].execution_direction);
+    first_team_goal = crossed_goal(team_orientations_[first_team_].defending_direction);
+    second_team_goal = crossed_goal(team_orientations_[second_team_].defending_direction);
   }
   bool goal = first_team_goal | second_team_goal;
   ball_in_goal_ |= goal;
   // The referee maps each crossed goal-mouth side to the scoring opponent and
   // submits an AwardGoalRuling; no goal-mouth fact travels through the buffer.
   if (first_team_goal) {
-    referee_->GoalMouthCrossed(team_orientations_[first_team_].execution_direction,
+    referee_->GoalMouthCrossed(team_orientations_[first_team_].defending_direction,
                                ToRefereeTickFacts(RefereeFacts()),
                                ruling_sink_.get());
   }
   if (second_team_goal) {
-    referee_->GoalMouthCrossed(team_orientations_[second_team_].execution_direction,
+    referee_->GoalMouthCrossed(team_orientations_[second_team_].defending_direction,
                                ToRefereeTickFacts(RefereeFacts()),
                                ruling_sink_.get());
   }
   // Both teams are still in the common frame used at Begin; compare only
   // after their real Process calls, never by running animation a second time.
   CompleteBodyCollisionShadow();
-  Mirror(reverse, !reverse, false);
   CommitPendingRulings();
 }
 
@@ -1172,32 +1129,12 @@ WorldState Simulation::Observe() const {
 
 void Simulation::TouchBall(const Vector3& impulse) {
   if (!ball_) throw std::logic_error("simulation has no match");
-  // Diagnostic escape: a centre point impulse through the unified kernel. The
-  // impulse and contact point are expressed in the current view frame, so they
-  // are converted to the fixed authority frame before the step.
+  // Diagnostic escape: a centre point impulse through the unified kernel, in
+  // the single Stadium Frame.
   football::ball::BallTickInput input{};
   input.active_impulse = football::ball::BallImpulse{
       impulse, ball_->state().position};
-  if (ball_view_mirrored_) {
-    input.active_impulse->impulse.Mirror();
-    input.active_impulse->contact_point.Mirror();
-  }
-  ball_authority_->Step(input);
-  RefreshBallView();
-}
-void Simulation::Mirror(bool team_0, bool team_1, bool ball) {
-  if (!ball_) throw std::logic_error("simulation has no match");
-  if (team_0) MirrorTeam(0);
-  if (team_1) MirrorTeam(1);
-  if (ball) {
-    ball_mirrored_ = !ball_mirrored_;
-    // A processing-frame toggle moves the view, not the authority.
-    ball_view_mirrored_ = !ball_view_mirrored_;
-    ball_->Mirror();
-  }
-  for (auto& image : mental_images_) {
-    image.Mirror(team_0, team_1, ball);
-  }
+  ball_->Step(input);
 }
 
 void Simulation::PlaceBallAt(const Vector3& focus) {
@@ -1208,14 +1145,8 @@ void Simulation::PlaceBallAt(const Vector3& focus) {
       focus + Vector3(0, 0, ball_config_.radius()), Vector3(0), Vector3(0),
       football::math::Quaternion{}};
   ball_->Reset(placed);
-  ball_authority_->Reset(placed);
-  if (ball_view_mirrored_) ball_authority_->Mirror();
 }
 
-void Simulation::RefreshBallView() {
-  ball_->Reset(ball_authority_->state());
-  if (ball_view_mirrored_) ball_->Mirror();
-}
 
 void Simulation::ResetSituation(const Vector3& focus_position) {
   if (!ball_) throw std::logic_error("simulation has no match");
@@ -1280,13 +1211,10 @@ void Simulation::EndPeriod() {
 
 void Simulation::ApplyChangeOfEnds() {
   // The half-time transaction, applied as one unit: close the old physical
-  // contact episodes, discard frame-local transients, swap both teams' ends
-  // (SwitchTeamEnds flips defending_direction and execution_direction), then rotate the shared
-  // ball and mental-image frames so the canonical between-tick frame and the
-  // home-pitch observation still describe the same physical state.
+  // contact episodes, discard frame-local transients and swap both teams'
+  // ends. The Stadium Frame never rotates, so no stored position changes.
   body_geometry_episodes_.Break();
   body_impact_episodes_.Break();
-  // A queued active impulse belongs to the old frame; never carry it across.
   pending_active_impulse_.reset();
   tick_active_candidates_.clear();
   committed_ball_tick_.reset();
@@ -1295,11 +1223,6 @@ void Simulation::ApplyChangeOfEnds() {
   // Permanent end change: preserve processing-team order and canonical flags.
   SwitchTeamEnds(first_team_);
   SwitchTeamEnds(second_team_);
-  ball_->Mirror();
-  ball_authority_->Mirror();
-  for (auto& image : mental_images_) {
-    image.Mirror(true, true, true);
-  }
 }
 
 void Simulation::UpdateRecentPossession(football::sim::TickSpan admitted) {
@@ -1322,25 +1245,20 @@ void Simulation::AdvanceTime(football::sim::TickSpan delta) {
 }
 
 void Simulation::CaptureSnapshot() {
-  const auto state = ball_->state();
-  const auto ball_frame = ToHomePitchFrame(
-      first_team_ == static_cast<int>(football::sim::TeamSide::Home),
-      team_orientations_[first_team_].execution_direction);
+  const auto& state = ball_->state();
   auto& ball = snapshot_scratch_.ball;
-  ball.position = ball_frame.Position(state.position);
-  ball.velocity = ball_frame.Direction(state.velocity);
-  // Frame conversion is a proper 180-degree rotation, not a reflection, so
-  // angular velocity (an axial vector) uses the same rotation as velocity.
-  ball.angular_velocity = ball_frame.Direction(state.angular_velocity);
+  // The Snapshot shares the single authoritative Stadium Frame.
+  ball.position = state.position;
+  ball.velocity = state.velocity;
+  ball.angular_velocity = state.angular_velocity;
   for (std::size_t i = 0; i < snapshot_players_.size(); ++i) {
     Player& player = *snapshot_players_[i];
     auto& dst = snapshot_scratch_.players[i];
     const auto& kinematic = player.GetKinematicState();
-    const auto frame = ToHomePitchFrame(player.GetTeamSide() == football::sim::TeamSide::Home, player.GetExecutionDirection());
-    dst.position = frame.Position(kinematic.position);
-    dst.velocity = frame.Direction(kinematic.velocity);
-    dst.facing = frame.Direction(kinematic.GetFacing());
-    dst.body_facing = frame.Direction(kinematic.bodyFacing);
+    dst.position = kinematic.position;
+    dst.velocity = kinematic.velocity;
+    dst.facing = kinematic.GetFacing();
+    dst.body_facing = kinematic.bodyFacing;
     dst.active = player.IsActive();
     dst.has_possession = player.HasPossession();
     dst.animation_id = -1;
@@ -1457,8 +1375,6 @@ void Simulation::ClearComposition() {
   rule_commands_.reset();
   send_off_sink_.reset();
   ball_.reset();
-  ball_authority_.reset();
-  ball_view_mirrored_ = false;
   teams_[0].reset();
   teams_[1].reset();
   active_lineups_ = {};

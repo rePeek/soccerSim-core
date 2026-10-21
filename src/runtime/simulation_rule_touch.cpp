@@ -75,7 +75,6 @@ void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& re
   // Collider tapes are in pitch physics coordinates; result is in first-team
   // coordinates. No identity remapping occurs when ends/processing order change.
   auto center = result.state.position;
-  if (options_.reverse_team_processing) center.Mirror();
   // Four leg primitives remain physically distinct, but continuation transfers
   // across adjacent lower-body surfaces without another rule touch. Re-arm only
   // when the whole semantic group has separated, never leaf-by-leaf or by time.

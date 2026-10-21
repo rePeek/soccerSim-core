@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "football/pitch/pitch.hpp"
-#include "football/pitch/pitch_frame.hpp"
 #include "football/match/game_mode.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/runtime/phase.hpp"
@@ -75,7 +74,7 @@ class Referee {
     // Foul facts carry their own timestamps; the caller supplies the evaluation
     // instant and the live team rule facts (fading possession, static side).
     bool CheckFoul(football::sim::Tick now, const football::pitch::Pitch& pitch,
-                   PitchFrameTransform stadium_to_home, const FoulLiveFacts& live,
+                   const FoulLiveFacts& live,
                    football::sim::event::RulingSink& rulings);
     // Synchronous accepted-touch consumption (restart release / offside) from
     // facts Runtime sampled at the exact touch boundary.

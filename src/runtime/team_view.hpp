@@ -4,10 +4,7 @@
 #include <algorithm>
 #include <span>
 
-#include "football/pitch/pitch_frame.hpp"
 #include "football/runtime/match_config.hpp"
-#include "runtime/team_facts.hpp"
-#include "runtime/team_state.hpp"
 #include "runtime/team_facts.hpp"
 #include "runtime/team_state.hpp"
 
@@ -22,13 +19,8 @@ namespace football::sim {
 struct TeamView {
   int team_id = -1;
   TeamSide side = TeamSide::Home;
-  // The end this team defends in the Stadium Frame (persistent).
+  // The end this team defends in the Stadium Frame: -1 (-X) or +1 (+X).
   int defending_direction = -1;
-  // The direction of the team's current execution frame (transient).
-  int execution_direction = -1;
-  // MIR-1: the named defending end behind the ±1 static side, so consumers that
-  // need a value transform do not re-interpret the number.
-  DefendingEnd defending_end() const { return DefendingEndOf(defending_direction); }
   Player* goalie = nullptr;
   // Full player list in stable insertion order; callers filter IsActive() themselves.
   std::span<Player* const> players;
@@ -36,6 +28,9 @@ struct TeamView {
   TeamMatchState* state = nullptr;
   // Live orientation, needed to publish team facts after a state write.
   const TeamOrientation* orientation = nullptr;
+
+  // The direction this team attacks in the Stadium Frame.
+  int attack_direction() const { return -defending_direction; }
 
   bool HasPossession() const { return state != nullptr && state->has_possession; }
   int TimeNeededToGetToBall_ms() const {

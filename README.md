@@ -64,11 +64,10 @@ mirror. Home defends -X and Away +X in the first half; the change of ends only
 flips which end each team defends. Ball, players, colliders, mental images,
 snapshots, `WorldState` and controls all share this frame.
 
-Each team has a `TeamOrientation` with a persistent `defending_direction` and a
-transient `execution_direction`; the attack direction is the negation of the
-defending direction. Team-relative interpretation is always an explicit
-direction value, never an implicit mirrored frame. Pitch owns geometry and the
-static ground/post/crossbar scene only.
+Each team has a `TeamOrientation` with a single `defending_direction`; the
+attack direction is its negation. Team-relative interpretation is always an
+explicit direction value, and stored physics is never mirrored. Pitch owns
+geometry and the static ground/post/crossbar scene only.
 
 ## Determinism
 

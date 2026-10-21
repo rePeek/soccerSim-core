@@ -248,7 +248,6 @@ TEST_CASE("Rulings: confirmed goal beats out of play and awards the opponent kic
   Init(sim);
   auto& rules = Open(sim);
   // In the common rules frame Away defends the positive goal.
-  SimulationAccess::MirrorTeam(sim, 1);
   const auto tick = SimulationAccess::RefereeFactsOf(sim);
   rules.GoalMouthCrossed(1, tick, &SimulationAccess::RulingsOf(sim));
   REQUIRE(SimulationAccess::ScoreOf(sim, 0) == 0);
@@ -664,7 +663,6 @@ TEST_CASE("Rulings: preset targets keep the team-relative frame after a change o
   // not follow the stadium orientation.
   SimulationAccess::SwitchTeamEnds(sim, 0);
   SimulationAccess::SwitchTeamEnds(sim, 1);
-  sim.Mirror(false, false, true);
   Assess(sim, rules, 1.2f, Vector3(40, 20, 0));
   SimulationAccess::ProcessReferee(sim);
   SimulationAccess::ProcessReferee(sim);

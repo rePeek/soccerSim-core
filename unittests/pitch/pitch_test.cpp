@@ -16,7 +16,6 @@
 #include "football/foundation/geometry/shapes.hpp"
 #include "football/foundation/math/vector3.hpp"
 #include "football/pitch/pitch.hpp"
-#include "football/pitch/pitch_frame.hpp"
 
 using football::geometry::Capsule;
 using football::geometry::ColliderMotion;
@@ -115,75 +114,4 @@ TEST_CASE("Pitch equality compares configuration, not the collider cache",
   const Pitch other(100.0f, 68.0f);
   CHECK(a != other);
   CHECK(other == Pitch(100.0f, 68.0f));
-}
-
-TEST_CASE("Frame transforms are 180-degree rotations about Z", "[unit][pitch]") {
-  const Vector3 position(3.0f, -4.0f, 1.5f);
-  CHECK(PitchFrameTransform{false}.Position(position) == position);
-  CHECK(PitchFrameTransform{false}.Direction(position) == position);
-
-  const Vector3 rotated = PitchFrameTransform{true}.Position(position);
-  CHECK(rotated == Vector3(-3.0f, 4.0f, 1.5f));
-  // Position and direction share one rotation; Z (height) is preserved.
-  CHECK(PitchFrameTransform{true}.Direction(position) == rotated);
-  // Involution and isometry: no reflection (handedness) is introduced.
-  CHECK(PitchFrameTransform{true}.Position(rotated) == position);
-  CHECK(rotated.GetLength() == Approx(position.GetLength()));
-}
-
-TEST_CASE("Home pitch frame keeps Home on -X for both processing frames",
-          "[unit][pitch]") {
-  const Vector3 position(10.0f, 5.0f, 0.0f);
-  const Vector3 mirrored(-10.0f, -5.0f, 0.0f);
-  // Home in the canonical frame is already the home pitch frame; the other
-  // three combinations rotate exactly once.
-  CHECK(ToHomePitchFrame(true, -1).Position(position) == position);
-  CHECK(ToHomePitchFrame(true, 1).Position(position) == mirrored);
-  CHECK(ToHomePitchFrame(false, -1).Position(position) == mirrored);
-  CHECK(ToHomePitchFrame(false, 1).Position(position) == position);
-  CHECK(FromHomePitchFrame(true, 1).Position(mirrored) == position);
-}
-
-TEST_CASE("Attacking frame maps one tactical anchor into either defending end",
-          "[unit][pitch]") {
-  // A left-back anchor in the team's own attacking frame: 25 m behind the
-  // halfway line, on the team's left. The same value is used all match.
-  const Vector3 anchor(-25.0f, 20.0f, 0.0f);
-  // Defending -X: the attacking frame already equals the fixed frame.
-  CHECK(ToAttackingFrame(DefendingEnd::NegativeX).Position(anchor) == anchor);
-  // Defending +X: the team plays the other way, so the fixed-frame target is
-  // the 180-degree rotation of the same tactical anchor.
-  CHECK(ToAttackingFrame(DefendingEnd::PositiveX).Position(anchor) ==
-        Vector3(25.0f, -20.0f, 0.0f));
-  // Self-inverse: a fixed-frame point maps back into the attacker's view.
-  CHECK(FromAttackingFrame(DefendingEnd::PositiveX)
-            .Position(Vector3(25.0f, -20.0f, 0.0f)) == anchor);
-}
-
-TEST_CASE("The runtime ±1 side convention maps to a defending end",
-          "[unit][pitch]") {
-  // -1 is the convention for defending -X, +1 for defending +X; this bridge
-  // is the only place the numeric convention is interpreted.
-  CHECK(DefendingEndOf(-1) == DefendingEnd::NegativeX);
-  CHECK(DefendingEndOf(1) == DefendingEnd::PositiveX);
-  CHECK(ToAttackingFrame(DefendingEndOf(-1)).Position(Vector3(1, 2, 3)) ==
-        Vector3(1, 2, 3));
-  CHECK(ToAttackingFrame(DefendingEndOf(1)).Position(Vector3(1, 2, 3)) ==
-        Vector3(-1, -2, 3));
-}
-
-TEST_CASE("Stadium and home pitch transforms agree with the defending end",
-          "[unit][pitch]") {
-  const Vector3 stadium(7.0f, -3.0f, 0.0f);
-  // Home defending -X: the published home frame is the stadium frame.
-  CHECK(StadiumToHomePitch(DefendingEnd::NegativeX).Position(stadium) == stadium);
-  // Home defending +X (second half): 180-degree rotation.
-  CHECK(StadiumToHomePitch(DefendingEnd::PositiveX).Position(stadium) ==
-        Vector3(-7.0f, 3.0f, 0.0f));
-  // Same operation, opposite name; self-inverse round trip.
-  CHECK(HomePitchToStadium(DefendingEnd::PositiveX).Position(stadium) ==
-        Vector3(-7.0f, 3.0f, 0.0f));
-  CHECK(HomePitchToStadium(DefendingEnd::PositiveX)
-            .Position(StadiumToHomePitch(DefendingEnd::PositiveX).Position(stadium)) ==
-        stadium);
 }

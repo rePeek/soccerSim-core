@@ -31,7 +31,6 @@ struct PlayerGroundCollider {
                                                          other.radius);
   }
 
-  void Mirror() { center.Mirror(); }
 
 };
 

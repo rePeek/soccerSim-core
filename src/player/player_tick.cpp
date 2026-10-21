@@ -10,7 +10,6 @@
 
 #include "football/ball/ball.hpp"
 #include "player/player_control_builder.hpp"
-#include "football/pitch/pitch_frame.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -78,13 +77,13 @@ PlayerCommandQueue Player::BuildCommandQueueForRequest(
     const football::sim::PlayerTickContext& tick) {
   PlayerControl control;
   control.player = GetID();
-  const auto to_home = ToHomePitchFrame(GetTeamSide() == football::sim::TeamSide::Home, GetExecutionDirection());
-  control.move_direction = to_home.Direction(request.direction.Get2D());
+  // The request is already in the single Stadium Frame.
+  control.move_direction = request.direction.Get2D();
   control.desired_speed = std::max(0.0f, request.speed);
   control.action = ToControlAction(request.kind);
   control.power = request.power;
   if (request.has_target_position)
-    control.target_position = to_home.Position(request.target_position);
+    control.target_position = request.target_position;
   if (request.target_player != football::player::kInvalidPlayerId)
     control.target_player = request.target_player;
   const PlayerCommandInputs inputs{
@@ -112,23 +111,6 @@ const AnimationClip &Player::GetCurrentBakedClip() const {
   return GetBakedClip(anim_state_.animationId);
 }
 
-
-void Player::MirrorLegacyState() {
-  // Mirrors the field-level legacy contract, not a whole-state coordinate
-  // transform: SpatialState::Mirror negates the movement fields but leaves the
-  // facing/body fields untouched. Player::Mirror() mirrors its kinematic
-  // mirror with exactly the same asymmetry, and the movement oracle verifies
-  // the result bit-exactly.
-  startPos.Mirror();
-  startAngle.Mirror();
-  nextStartPos.Mirror();
-  nextStartAngle.Mirror();
-  spatial_state_.Mirror();
-  previousPosition2D.Mirror();
-  tripDirection.Mirror();
-  decayingPositionOffset.Mirror();
-  predicate_RelDesiredDirection.Mirror();
-}
 
 
 

@@ -18,7 +18,6 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
-#include "football/pitch/pitch_frame.hpp"
 #include "football/player/player_definition.hpp"
 #include "referee/referee_facts.hpp"
 #include "referee/referee_player_fact.hpp"
@@ -44,8 +43,6 @@ struct BallTouchFacts {
   RefereeBallFact ball;
   const football::pitch::Pitch* pitch = nullptr;
   std::span<const RefereePlayerFact> all_active_players;
-  // Home Pitch Frame <-> Stadium Frame, same involution as RefereeTickFacts.
-  PitchFrameTransform stadium_to_home{false};
   RestartRuleFacts restart;
   // Release verdict inputs, sampled at this exact touch boundary.
   RestartReleaseFacts release;

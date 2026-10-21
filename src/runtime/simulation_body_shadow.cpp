@@ -2,7 +2,6 @@
 #include "runtime/simulation.hpp"
 #include "runtime/touch_evidence_classification.hpp"
 #include "football/ball/ball.hpp"
-#include <type_traits>
 #include "player/player_body_pose_shadow.hpp"
 #include "player/player.hpp"
 #include "event/touch_query.hpp"
@@ -10,35 +9,6 @@
 #include "referee/period.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 
-namespace {
-void MirrorShape(football::geometry::ColliderShape& shape) {
-  std::visit([](auto& s) {
-    using T = std::decay_t<decltype(s)>;
-    if constexpr (std::is_same_v<T, football::geometry::Sphere>) {
-      s.center.Mirror();
-    } else if constexpr (std::is_same_v<T, football::geometry::Capsule>) {
-      s.a.Mirror();
-      s.b.Mirror();
-    } else {
-      s.point.Mirror();
-      s.normal.Mirror();
-    }
-  }, shape);
-}
-void MirrorResult(football::ball::BallStepResult& result) {
-  result.state.position.Mirror();
-  result.state.velocity.Mirror();
-  result.state.angular_velocity.Mirror();
-  const football::math::Quaternion half_turn(0, 0, 1, 0);
-  result.state.orientation = (half_turn * result.state.orientation).GetNormalized();
-  for (auto& contact : result.contacts) {
-    contact.point.Mirror();
-    contact.normal.Mirror();
-    contact.relative_velocity.Mirror();
-    contact.surface_velocity.Mirror();
-  }
-}
-}
 
 void Simulation::BeginBodyPhysicsShadow() {
   if (!body_physics_shadow_ball_) return;
@@ -46,22 +16,10 @@ void Simulation::BeginBodyPhysicsShadow() {
   tick.step_index = snapshot_step_.value_or(0);
   tick.generation = reset_sequence_;
   tick.initial = ball_->state();
-  // Match the existing Ball Step's pitch frame, not team-local coordinates.
-  // Static ids stay attached to actual pitch shapes, even under reverse order.
-  const bool reverse = options_.reverse_team_processing;
   body_physics_shadow_colliders_.assign(body_shadow_colliders_.begin(), body_shadow_colliders_.end());
-  if (reverse) {
-    for (auto& collider : body_physics_shadow_colliders_) {
-      MirrorShape(collider.start);
-      MirrorShape(collider.end);
-    }
-  }
   const auto compute = [&](std::span<const football::geometry::ColliderMotion> bodies) {
     body_physics_shadow_ball_->Reset(tick.initial);
-    if (reverse) body_physics_shadow_ball_->Mirror();
-    auto result = body_physics_shadow_ball_->Step(football::ball::BallTickInput{bodies});
-    if (reverse) MirrorResult(result);
-    return result;
+    return body_physics_shadow_ball_->Step(football::ball::BallTickInput{bodies});
   };
   tick.static_only = compute({});
   body_physics_production_colliders_ = body_physics_shadow_colliders_;
@@ -153,13 +111,11 @@ void Simulation::BeginBodyPhysicsShadow() {
     body_physics_shadow_colliders_.clear();
     for (const auto& p : body_shadow_predictions_) {
       PlayerBodyColliderMotionIds ids{{p.colliders[0].id, p.colliders[1].id, p.colliders[2].id}};
-      // Player facing remains team-local through mirrors. Convert only a copy.
+      // Player facing is already in the single Stadium Frame.
       auto axis = p.start.bodyFacing;
-      if (FindPlayerById(p.player)->GetTeamID() == second_team_) axis.Mirror();
       std::array<football::geometry::ColliderMotion, kPlayerBodyPartCount> posed;
       BuildShadowPosedBodyMotions(p.start, p.end, p.action, axis, ids, posed);
       for (auto& collider : posed) {
-        if (reverse) { MirrorShape(collider.start); MirrorShape(collider.end); }
         body_physics_shadow_colliders_.push_back(collider);
       }
     }

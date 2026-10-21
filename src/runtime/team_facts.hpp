@@ -13,8 +13,6 @@ namespace football::sim {
 inline PlayerTeamFacts TeamFactsOf(const TeamOrientation& orientation,
                                    const TeamMatchState& state) {
   return PlayerTeamFacts{orientation.defending_direction,
-                         orientation.execution_direction,
-                         orientation.on_original_side(),
                          state.possession_amount,
                          state.fading_possession_amount,
                          state.designated_player};

@@ -3,23 +3,11 @@
 #include "player/player.hpp"
 #include "player/player_active_touch_shadow.hpp"
 
-namespace {
-void MirrorState(football::ball::BallState& state) {
-  state.position.Mirror(); state.velocity.Mirror(); state.angular_velocity.Mirror();
-  state.orientation = (football::math::Quaternion(0, 0, 1, 0) * state.orientation).GetNormalized();
-}
-}
 class Simulation::ActiveTouchEvents final : public ActiveTouchShadowSink {
  public:
   explicit ActiveTouchEvents(Simulation& owner) : owner_(owner) {}
   void Observe(const ActiveTouchObservation& source) override {
     auto observation = source;
-    const Player* player = owner_.FindPlayerById(source.candidate.player);
-    if (player && player->GetTeamID() == owner_.second_team_) {
-      MirrorState(observation.before); MirrorState(observation.after);
-      observation.raw_animation_point.Mirror(); observation.player_position.Mirror();
-      observation.candidate.target_velocity.Mirror(); observation.candidate.target_angular_velocity.Mirror();
-    }
     const auto& passive = owner_.body_physics_shadow_tick_;
     if (passive && passive->step_index == owner_.snapshot_step_.value_or(0) &&
         passive->generation == owner_.reset_sequence_) {

@@ -219,26 +219,6 @@ TEST_CASE("Ball Reset restores the exact state", "[unit][ball][simulation]") {
   CHECK(ball.state().angular_velocity.coords[2] == Approx(9.0f));
 }
 
-TEST_CASE("Ball Mirror flips the coordinate frame", "[unit][ball][simulation]") {
-  const BallModel config;
-  const Pitch pitch;
-  Ball ball(config, pitch);
-  BallState state = BallAt({1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f});
-  state.angular_velocity = Vector3(7.0f, 8.0f, 9.0f);
-  ball.Reset(state);
-
-  ball.Mirror();
-
-  CHECK(ball.state().position.coords[0] == Approx(-1.0f));
-  CHECK(ball.state().position.coords[1] == Approx(-2.0f));
-  CHECK(ball.state().position.coords[2] == Approx(3.0f));
-  CHECK(ball.state().velocity.coords[0] == Approx(-4.0f));
-  CHECK(ball.state().velocity.coords[1] == Approx(-5.0f));
-  CHECK(ball.state().velocity.coords[2] == Approx(6.0f));
-  CHECK(ball.state().angular_velocity.coords[0] == Approx(-7.0f));
-  CHECK(ball.state().angular_velocity.coords[1] == Approx(-8.0f));
-  CHECK(ball.state().angular_velocity.coords[2] == Approx(9.0f));
-}
 
 TEST_CASE("Active impulse changes velocity and spin only at the tick endpoint",
           "[unit][ball][simulation]") {

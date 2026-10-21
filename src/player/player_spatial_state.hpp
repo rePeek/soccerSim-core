@@ -34,13 +34,6 @@ struct SpatialState {
   Vector3 relBodyDirectionVec; // for efficiency, vector version of relBodyAngle
   e_Foot foot;
 
-  void Mirror() {
-    position.Mirror();
-    movement.Mirror();
-    actionSmuggleMovement.Mirror();
-    movementSmuggleMovement.Mirror();
-    positionOffsetMovement.Mirror();
-  }
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_SPATIAL_STATE_HPP

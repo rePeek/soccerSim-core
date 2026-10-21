@@ -272,17 +272,17 @@ TEST_CASE("Runtime owns live lineup, frame and match state separately from Team"
   SimulationAccess::RuntimeOf(sim).SetDesignatedPlayer(0, players[1]);
   CHECK(state.designated_player == players[1]);
   CHECK(players[0]->GetTeamDesignatedPossessionPlayer() == cached);
-  SimulationAccess::MirrorTeam(sim, 0);
+  SimulationAccess::SwitchTeamEnds(sim, 0);
   CHECK(players[0]->GetTeamDesignatedPossessionPlayer() == players[1]);
-  CHECK(frame.execution_direction == 1);
-  SimulationAccess::MirrorTeam(sim, 0);
-  CHECK(frame.execution_direction == -1);
+  CHECK(frame.defending_direction == 1);
+  SimulationAccess::SwitchTeamEnds(sim, 0);
+  CHECK(frame.defending_direction == -1);
   view.SetFadingPossessionAmount(.8f);
   CHECK(state.fading_possession_amount == .8f);
   CHECK(players[0]->GetTeamFadingPossessionAmount() == .8f);
   SimulationAccess::SwitchTeamEnds(sim, 0);
   CHECK(frame.defending_direction == 1);
-  CHECK(frame.execution_direction == 1);
+  CHECK(frame.defending_direction == 1);
   CHECK(active.slots == team.lineup.starters);
   CHECK(sim.Stop());
 }

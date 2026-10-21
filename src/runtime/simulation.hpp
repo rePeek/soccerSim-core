@@ -107,7 +107,6 @@ class Simulation {
   // Transitional test/diagnostic clock-only advance: no actors, rules or Step count.
   void AdvanceTime(football::sim::TickSpan delta);
   // Runtime composition, also transitional test/diagnostic escapes.
-  void Mirror(bool team_0, bool team_1, bool ball);
   void ResetSituation(const football::math::Vector3& focus_position);
   // Transitional diagnostic impulse; synchronous physics/history/possession only.
   void TouchBall(const football::math::Vector3& impulse);
@@ -152,19 +151,10 @@ class Simulation {
                        std::uint8_t first_schedule_phase);
   // runtime-owned Team/frame/state; no allocation, nothing retained.
   football::sim::TeamView TeamViewOf(int team_id) const;
-  // Team orientation is runtime-owned behaviour: these mutate the borrowed
-  // TeamOrientation and publish the resulting facts to that team's players, in
-  // declaration order. The two are deliberately not interchangeable:
-  //
-  // - MirrorTeam is the transient execution-frame toggle used by StepImpl. It
-  //   flips execution_direction; defending_direction is never touched.
-  // - SwitchTeamEnds is the permanent half-time change of ends. It flips both
-  //   execution_direction and defending_direction.
-  //
-  // Nothing else writes a TeamOrientation. Pitch does not know the half, Referee
-  // does not change a direction, Team owns no live orientation and AI never
-  // schedules a change of ends.
-  void MirrorTeam(int team_id);
+  // Team orientation is runtime-owned behaviour: only the permanent change of
+  // ends mutates it. Nothing else writes a TeamOrientation; Pitch does not know
+  // the half, Referee does not change a direction, Team owns no live
+  // orientation and AI never schedules a change of ends.
   void SwitchTeamEnds(int team_id);
   PlayerTeamFacts TeamFactsFor(int team_id) const;
   void PublishTeamFacts(int team_id);
@@ -243,10 +233,6 @@ class Simulation {
   // Match restart semantics: place the ball at a kickoff/free-kick focus with
   // zero motion. Ball itself only exposes Reset(BallState).
   void PlaceBallAt(const football::math::Vector3& focus);
-  // Re-derives the processing-frame `ball_` view from `ball_authority_` and
-  // `ball_view_mirrored_`. The only authority mutations are the kernel step,
-  // a reset and the half-time change of ends; every other toggle is a view.
-  void RefreshBallView();
   void SetMatchPhase(MatchPhase newPhase);
   void StartPlay() { play_authorized_ = true; }
   void StopPlay() {
@@ -297,7 +283,6 @@ class Simulation {
   std::uint64_t GetResetSequence() const { return reset_sequence_; }
   int FirstTeam() const { return first_team_; }
   int SecondTeam() const { return second_team_; }
-  bool isBallMirrored() const { return ball_mirrored_; }
   bool IsGoalScored() const { return goal_scored_; }
   bool IsBallInGoal() const { return ball_in_goal_; }
   int GetLastGoalTeam() const { return last_goal_team_; }
@@ -333,13 +318,8 @@ class Simulation {
 
   // Live team aggregates: definition plus the set of Players the Team owns.
   std::array<std::unique_ptr<football::team::Team>, 2> teams_;
-  // FRAME-2 authority/view split. `ball_authority_` is the fixed-frame
-  // authoritative ball; only the physics kernel steps it, and it is never
-  // mirrored for a processing order. `ball_` stays the current
-  // processing-frame view used by every consumer (view = rotated ?
-  // mirror(authority) : authority). `ball_view_mirrored_` is that relation.
-  std::unique_ptr<football::ball::Ball> ball_authority_;
-  bool ball_view_mirrored_ = false;
+  // The single authoritative ball in the Stadium Frame. Only the physics
+  // kernel steps it; there is no processing-frame view or mirror.
   std::unique_ptr<football::ball::Ball> ball_;
   // Live match relationship state, separate from the owning Team.
   std::array<football::sim::ActiveLineupState, 2> active_lineups_;
@@ -432,7 +412,6 @@ class Simulation {
   football::sim::Tick last_body_ball_collision_tick_{};
   int first_team_ = 0;
   int second_team_ = 1;
-  bool ball_mirrored_ = false;
 };
 
 #endif  // FOOTBALL_SIM_SIMULATION_HPP

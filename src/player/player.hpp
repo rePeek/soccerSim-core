@@ -178,15 +178,12 @@ class Player;
 struct PlayerTeamFacts {
   // The end this team defends in the Stadium Frame: -1 (-X) or +1 (+X).
   int defending_direction = -1;
-  // The direction of the actor's current execution frame: -1 or +1.
-  int execution_direction = -1;
-  bool on_original_side = true;
   float possession_amount = 1.0f;
   float fading_possession_amount = 1.0f;
   Player* designated_possession_player = nullptr;
 
-  // The direction this team attacks while executing in its execution frame.
-  int attack_direction() const { return -execution_direction; }
+  // The direction this team attacks in the Stadium Frame.
+  int attack_direction() const { return -defending_direction; }
 };
 
 // ANIM-1 A7: a passive trip the Player accepted at contact time. It is applied
@@ -211,7 +208,6 @@ class Player final {
     ~Player();
     // Explicit teardown reset before deletion; no hidden clock destructor path.
     void Exit(football::sim::Tick now);
-    void Mirror();
 
     football::player::PlayerId GetID() const { return model_.id; }
     const football::player::PlayerDefinition& GetModel() const { return model_; }
@@ -500,7 +496,7 @@ class Player final {
     // facing, derived speed and the collider center must all match the
     // compatibility spatial state exactly. An epsilon cannot mask a
     // synchronization bug.
-    bool IsKinematicMirrorConsistent() const;
+    bool IsSpatialProjectionConsistent() const;
     // Fatal (all build types) form of the same invariant, with the diverging
     // field reported. Callers are the mirror writers and state restore, so the
     // contract is checked at every movement mutation point.
@@ -571,13 +567,10 @@ class Player final {
 
     int GetTeamID() const { return team_id_; }
     football::sim::TeamSide GetTeamSide() const { return side_; }
-    // The end this team defends in the Stadium Frame (persistent, -1 or +1).
+    // The end this team defends in the Stadium Frame: -1 (-X) or +1 (+X).
     int GetDefendingDirection() const { return team_facts_.defending_direction; }
-    // The direction of this actor's current execution frame (transient, -1 or +1).
-    int GetExecutionDirection() const { return team_facts_.execution_direction; }
-    // The direction this team attacks in its execution frame.
+    // The direction this team attacks in the Stadium Frame.
     int GetAttackDirection() const { return team_facts_.attack_direction(); }
-    bool OnOriginalSide() const { return team_facts_.on_original_side; }
     float GetTeamFadingPossessionAmount() const {
       return team_facts_.fading_possession_amount;
     }
@@ -601,9 +594,17 @@ class Player final {
     bool HasPossession() const;
     bool HasBestPossession() const;
     bool HasUniquePossession() const;
-    int GetTimeNeededToGetToBall_ms() const { return timeNeededToGetToBall_ms; }
-    int GetTimeNeededToGetToBall_optimistic_ms() const { return timeNeededToGetToBall_optimistic_ms; }
-    int GetTimeNeededToGetToBall_previous_ms() const { return timeNeededToGetToBall_previous_ms; }
+    // Non-negative by contract: the stored value is an unsigned millisecond
+    // estimate, so a saturated/internal value must never read back negative.
+    int GetTimeNeededToGetToBall_ms() const {
+      return static_cast<int>(std::min<unsigned int>(timeNeededToGetToBall_ms, 1000000u));
+    }
+    int GetTimeNeededToGetToBall_optimistic_ms() const {
+      return static_cast<int>(std::min<unsigned int>(timeNeededToGetToBall_optimistic_ms, 1000000u));
+    }
+    int GetTimeNeededToGetToBall_previous_ms() const {
+      return static_cast<int>(std::min<unsigned int>(timeNeededToGetToBall_previous_ms, 1000000u));
+    }
     void SetDesiredTimeToBall_ms(int ms) { desiredTimeToBall_ms = ms; }
     int GetDesiredTimeToBall_ms() const { return clamp(desiredTimeToBall_ms, timeNeededToGetToBall_ms, 1000000.0f); }
     bool AllowLastDitch(bool includingPossessionAmount = true) const;
@@ -755,7 +756,6 @@ class Player final {
         const PlayerKinematicState& state,
         const football::player::PlayerBodyProfile& profile) const;
     football::sim::SelectedAction CurrentSelectedAction() const;
-    void MirrorLegacyState();
     void ResetLegacyPosition(const Vector3 &newPos, const Vector3 &focusPos);
     void ResetLegacySituation(const Vector3 &focusPos);
     void ApplyLegacyPositionOffset(const Vector3 &offset);

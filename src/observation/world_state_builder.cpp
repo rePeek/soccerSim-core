@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include "football/ball/ball.hpp"
-#include "football/pitch/pitch_frame.hpp"
 #include "player/player.hpp"
 #include "referee/referee.hpp"
 
@@ -18,20 +17,15 @@ WorldState BuildWorldState(const WorldStateSource& s) {
   world.ball_in_play = s.ball_in_play;
   world.reset_sequence = s.reset_sequence;
 
-  const football::sim::TeamView& first_team_view =
-      s.first_team == 0 ? s.home : s.away;
-  const auto ball_frame =
-      ToHomePitchFrame(first_team_view.side == football::sim::TeamSide::Home,
-                       first_team_view.execution_direction);
-  world.ball_position = ball_frame.Position(s.ball.state().position);
-  world.ball_velocity = ball_frame.Direction(s.ball.state().velocity);
+  // Observation emits the single authoritative Stadium Frame.
+  world.ball_position = s.ball.state().position;
+  world.ball_velocity = s.ball.state().velocity;
   // P21.2: the runtime Ball model owns the look-ahead; the AI only reads it.
   for (std::size_t i = 0; i < kWorldBallPredictionCount; ++i) {
     const football::sim::TickSpan horizon{
         static_cast<std::uint64_t>(kWorldBallPredictionHorizons_ms[i]) /
         football::sim::kMillisecondsPerTick};
-    world.ball_prediction[i] =
-        ball_frame.Position(s.ball.Predict(horizon).position);
+    world.ball_prediction[i] = s.ball.Predict(horizon).position;
   }
   world.pitch = s.pitch;
   world.in_play = s.in_play;
@@ -54,14 +48,13 @@ WorldState BuildWorldState(const WorldStateSource& s) {
         team_views[team_id]->fading_possession_amount();
     world.teams[team_id].time_to_ball_ms =
         team_views[team_id]->TimeNeededToGetToBall_ms();
-    const auto player_frame =
-        ToHomePitchFrame(team_views[team_id]->side == football::sim::TeamSide::Home,
-                         team_views[team_id]->execution_direction);
+    world.teams[team_id].defending_direction =
+        team_views[team_id]->defending_direction;
     for (Player* player : team_views[team_id]->players) {
       const PlayerKinematicState& state = player->GetKinematicState();
       WorldPlayerState observed{player->GetID(), player->GetTeamSide(),
-          player_frame.Position(state.position), player_frame.Direction(state.velocity),
-          player_frame.Direction(state.GetFacing()), player->IsActive(), player->HasPossession()};
+          state.position, state.velocity, state.GetFacing(), player->IsActive(),
+          player->HasPossession()};
       observed.lazy = player->GetFormationEntry().lazy;
       observed.max_speed = player->GetMaxVelocity();
       observed.role = player->GetFormationEntry().role;

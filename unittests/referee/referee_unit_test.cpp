@@ -93,7 +93,7 @@ FoulLiveFacts Live(float victim_fade) {
 }
 
 void Check(Referee& rules, Tick now, const FoulLiveFacts& live, Collect& sink) {
-  rules.CheckFoul(now, Pitch{}, PitchFrameTransform{false}, live, sink);
+  rules.CheckFoul(now, Pitch{}, live, sink);
 }
 
 }  // namespace
@@ -194,19 +194,18 @@ TEST_CASE("the offside line is the one-but-deepest defender", "[unit][referee]")
 
 namespace {
 
-RefereeTeamFact TeamFact(int team_id, int defending_direction, int execution_direction) {
+RefereeTeamFact TeamFact(int team_id, int defending_direction) {
   RefereeTeamFact team;
   team.team_id = team_id;
   team.side = team_id == 0 ? TeamSide::Home : TeamSide::Away;
   team.defending_direction = defending_direction;
-  team.execution_direction = execution_direction;
   team.fading_possession_amount = 1.0f;
   return team;
 }
 
 struct OffsideScene {
-  RefereeTeamFact home = TeamFact(0, -1, -1);
-  RefereeTeamFact away = TeamFact(1, 1, 1);
+  RefereeTeamFact home = TeamFact(0, -1);
+  RefereeTeamFact away = TeamFact(1, 1);
   // Home attacks +x. Away defends +x, so its one-but-deepest defender at x=30
   // sets the offside line and the home attacker at x=40 is beyond it.
   std::vector<RefereePlayerFact> players = {
@@ -236,7 +235,6 @@ BallTouchFacts MakeTouch(const OffsideScene& scene,
   static const Pitch pitch;
   facts.pitch = &pitch;
   facts.all_active_players = scene.players;
-  facts.stadium_to_home = PitchFrameTransform{false};
   return facts;
 }
 

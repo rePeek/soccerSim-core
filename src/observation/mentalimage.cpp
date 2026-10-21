@@ -45,19 +45,6 @@ MentalImage::MentalImage(football::sim::Tick captured_tick,
   UpdateBallPredictions(ball);
 }
 
-void MentalImage::Mirror(bool team_0, bool team_1, bool ball) {
-  for (auto& i : players) {
-    if (i.player->GetTeamID() == 0 ? team_0 : team_1) {
-      i.Mirror();
-    }
-  }
-  if (ball) {
-    ballPredictions_mirrored = !ballPredictions_mirrored;
-    for (auto& i : ballPredictions) {
-      i.Mirror();
-    }
-  }
-}
 
 football::sim::TickSpan MentalImage::GetAge(football::sim::Tick now) const {
   return now - captured_tick;

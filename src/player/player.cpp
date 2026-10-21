@@ -301,7 +301,7 @@ void Player::Exit(football::sim::Tick now) {
   }
 }
 
-bool Player::IsKinematicMirrorConsistent() const {
+bool Player::IsSpatialProjectionConsistent() const {
   return Vector3BitsEqual(kinematicState.position, spatial_state_.position) &&
          Vector3BitsEqual(kinematicState.velocity, spatial_state_.movement) &&
          Vector3BitsEqual(kinematicState.bodyFacing,
@@ -311,25 +311,10 @@ bool Player::IsKinematicMirrorConsistent() const {
 }
 
 void Player::CheckSimulationKinematicOracle() const {
-  assert(IsKinematicMirrorConsistent() &&
-         "gameplay kinematic mirror diverged from the compatibility spatial state");
+  assert(IsSpatialProjectionConsistent() &&
+         "gameplay kinematic state diverged from the compatibility spatial state");
 }
 
-void Player::Mirror() {
-  // Never-activated bench entries have no runtime state. Sent-off players
-  // were activated once and must keep the historical mirror/oracle path.
-  if (!legacy_state_initialized_) return;
-  MirrorLegacyState();
-  // S0.4: mirror through the single commit point. PlayerKinematicState::Mirror
-  // keeps the historical field asymmetry on purpose -- position and velocity are
-  // mirrored, facing and bodyFacing are not -- because the legacy spatial-state
-  // mirror does the same. Changing that would be a coordinate-system migration,
-  // not a lifecycle cleanup.
-  PlayerKinematicState mirrored = kinematicState;
-  mirrored.Mirror();
-  CommitKinematicState(mirrored);
-  CheckSimulationKinematicOracle();
-}
 
 PlayerKinematicState Player::CommitLocomotion(
     const PlayerCommand &command, const PlayerKinematicState &tick_start,
@@ -870,8 +855,6 @@ void Player::RequestCommand(PlayerCommandQueue &commandQueue, const PlayerComman
     PlayerControl idle;
     idle.player = GetID();
     idle.move_direction = GetDirectionVec();
-    if (team_facts_.execution_direction != (team_id_ == 0 ? -1 : 1))
-      idle.move_direction.Mirror();
     commandQueue = BuildPlayerCommands(idle, *this, inputs);
   }
 }
@@ -984,9 +967,7 @@ void Player::ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now)
 
 
 Vector3 Player::GetPitchPosition() {
-  Vector3 pos = GetPosition();
-  if (!team_facts_.on_original_side) pos.Mirror();
-  return pos;
+  return GetPosition();
 }
 
 void Player::Activate() {
@@ -1002,7 +983,7 @@ void Player::Activate() {
   ResetLegacyPosition(Vector3(0), Vector3(0));
   ResetLegacyPosition(
       GetFormationEntry().position * 25 *
-          Vector3(-team_facts_.execution_direction, -team_facts_.execution_direction, 0),
+          Vector3(-team_facts_.defending_direction, -team_facts_.defending_direction, 0),
       Vector3(0));
   legacy_state_initialized_ = true;
   CommitLegacyActionMotion();
@@ -1122,13 +1103,13 @@ void Player::_CalculateTacticalSituation(const football::sim::PlayerTickContext&
                : std::chrono::milliseconds{GetReactionTime_ms()};
   assert(IsActive());
   float time_sec = 0.5f;
-  Vector3 checkPos = GetPosition() + Vector3(-team_facts_.execution_direction, 0, 0) * sprintVelocity * time_sec;
+  Vector3 checkPos = GetPosition() + Vector3(-team_facts_.defending_direction, 0, 0) * sprintVelocity * time_sec;
   tacticalSituation.forwardSpaceRating = football::sim::player::CalculateFreeSpace(tick.now, observation, observation_age, team_id_, checkPos, 5.0f, time_sec);
   time_sec = 0.1f;
   checkPos = GetPosition() + GetMovement() * time_sec;
   tacticalSituation.spaceRating = football::sim::player::CalculateFreeSpace(tick.now, observation, observation_age, team_id_, checkPos, 5.0f, time_sec);
   tacticalSituation.forwardRating =
-      1.0f - clamp((Vector3(pitch_.half_length() * -team_facts_.execution_direction, 0, 0) - GetPosition()).GetLength() /
+      1.0f - clamp((Vector3(pitch_.half_length() * -team_facts_.defending_direction, 0, 0) - GetPosition()).GetLength() /
                        (pitch_.half_length() * 2.0f), 0.0f, 1.0f);
   tacticalSituation.forwardRating = std::pow(tacticalSituation.forwardRating, 1.5f);
 }

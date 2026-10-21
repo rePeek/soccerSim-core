@@ -37,7 +37,6 @@ class MentalImage {
   MentalImage() = default;
   MentalImage(football::sim::Tick captured_tick,
               std::span<Player* const> players, const football::ball::Ball& ball);
-  void Mirror(bool team_0, bool team_1, bool ball);
   PlayerImage GetPlayerImage(Player* player, football::sim::Tick now) const;
   std::vector<PlayerImagePosition> GetTeamPlayerImages(
       int teamID, football::sim::Tick now) const;
@@ -53,7 +52,6 @@ class MentalImage {
   football::sim::Tick captured_tick{};
   float maxDistanceDeviation = 2.5f;
   float maxMovementDeviation = walkVelocity;
-  bool ballPredictions_mirrored = false;
 };
 
 #endif

@@ -9,7 +9,6 @@
 #include "runtime/simulation.hpp"
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
-#include "football/pitch/pitch_frame.hpp"
 #include "player/player.hpp"
 #include "player/player_control_builder.hpp"
 #include "player/player_team_view.hpp"
@@ -124,20 +123,16 @@ class SimulationAccess {
   static const football::ball::Ball* BallOf(const Simulation& s) { return s.ball_.get(); }
   static void EnablePreparedTickProduction(Simulation& s, bool enabled) { s.EnablePreparedTickProduction(enabled); }
   static const auto& CommittedBallTickOf(const Simulation& s) { return s.committed_ball_tick_; }
-  // FRAME-2: the fixed-frame authoritative ball. Processing mirrors must never
-  // change it; they only move the derived view returned by BallOf().
+  // The single authoritative ball is the only ball.
   static football::ball::BallState BallAuthorityStateOf(const Simulation& s) {
-    return s.ball_authority_->state();
+    return s.ball_->state();
   }
   static const auto& RuleTouchesOf(const Simulation& s) { return s.rule_touches_; }
   // Borrowed view of one team, as rules/observation see it.
   static football::sim::TeamView TeamViewOf(Simulation& s, int team_id) {
     return s.TeamViewOf(team_id);
   }
-  // Runtime-owned orientation behaviour, reachable from the harness without a
-  // Team object: MirrorTeam flips the execution frame, SwitchTeamEnds is the
-  // half-time change of ends.
-  static void MirrorTeam(Simulation& s, int team_id) { s.MirrorTeam(team_id); }
+  // Runtime-owned orientation: SwitchTeamEnds is the half-time change of ends.
   static void SwitchTeamEnds(Simulation& s, int team_id) {
     s.SwitchTeamEnds(team_id);
   }
@@ -176,7 +171,6 @@ class SimulationAccess {
   }
   static int FirstTeamOf(Simulation& s) { return s.first_team_; }
   static int SecondTeamOf(Simulation& s) { return s.second_team_; }
-  static bool IsBallMirroredOf(Simulation& s) { return s.ball_mirrored_; }
   static Player* DesignatedPlayerOf(Simulation& s) { return s.designated_possession_player_; }
   static Player* BallRetainerOf(Simulation& s) { return s.ball_retainer_; }
   static const football::pitch::Pitch& PitchOf(Simulation& s) { return s.pitch_; }
@@ -289,13 +283,8 @@ class SimulationAccess {
   static void ResetBall(Simulation& s, const football::math::Vector3& position) {
     s.PlaceBallAt(position);
   }
-  // Test-only: set the ball's processing-frame state while keeping the fixed
-  // authority in sync. A direct Ball::Reset on the view would desync the
-  // FRAME-2 authority/view split.
   static void SetBallState(Simulation& s, const football::ball::BallState& state) {
     s.ball_->Reset(state);
-    s.ball_authority_->Reset(state);
-    if (s.ball_view_mirrored_) s.ball_authority_->Mirror();
   }
   // Ground-resting placement for a standalone Ball under test. The removed
   // Ball::ResetSituation is expressed here through the stable Ball::Reset API;

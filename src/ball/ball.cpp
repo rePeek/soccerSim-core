@@ -99,15 +99,4 @@ BallState Ball::Predict(football::sim::TickSpan ahead) const {
 void Ball::Reset(const BallState& state) {
   state_ = state;
 }
-
-void Ball::Mirror() {
-  state_.position.Mirror();
-  state_.velocity.Mirror();
-  state_.angular_velocity.Mirror();
-  const Quaternion half_turn(0.0f, 0.0f, 1.0f, 0.0f);
-  state_.orientation = (half_turn * state_.orientation).GetNormalized();
-}
-
-
-
 }

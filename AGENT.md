@@ -72,9 +72,9 @@ There is exactly one physical coordinate system, the **Stadium Frame**:
 
 Consequences and rules:
 
-- A team's orientation is `TeamOrientation { defending_direction,
-  execution_direction }` (`runtime/team_state.hpp`). The attacking direction is
-  the negation of the defending direction; never store it separately.
+- A team's orientation is `TeamOrientation { defending_direction }`
+  (`runtime/team_state.hpp`). The attacking direction is the negation of the
+  defending direction; never store it separately.
 - `Pitch` owns geometry and the static physics scene only. It does not know
   Home/Away, half, or any per-tick coordinate conversion.
 - Runtime is the only owner of team orientation and of the tick schedule.
@@ -84,9 +84,8 @@ Consequences and rules:
   team-relative interpretation is an explicit `attack_direction`/
   `defending_direction` value, never an implicit mirrored frame.
 
-The remaining `pitch/pitch_frame.hpp` transforms and the per-tick execution
-frame are transitional. Do not add new users; port callers to explicit
-directions and remove them.
+There is no per-tick execution frame and no coordinate transform: the
+observation, controls and stored physics are all the Stadium Frame.
 
 ## Authority and invariants
 
