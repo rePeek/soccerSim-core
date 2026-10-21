@@ -306,6 +306,37 @@ porting that math to one frame with explicit direction handling (a
 `dynamic_side`-driven rewrite of Player/contact/animation), not a mirrored
 view. Do not start it as a storage refactor.
 
+MIR-0/MIR-1 are done (A/B trace + named stadium values). MIR-2 first
+divergence and field audit, measured with the trace tool:
+
+- Removing only `player->Mirror()` from `MirrorTeam` diverges first at tick 1,
+  on the Away roster's restart-placement positions (ids 11-21). The seam is
+  `restart_controller.cpp`/`restart_planner.cpp`
+  `FromHomePitchFrame(side, dynamic_side)`: with fixed storage but a still
+  flipping `dynamic_side`, the placement target is converted the wrong way.
+  Placement is therefore the first consumer to port, not the Player AI.
+- `Player::MirrorLegacyState()` mixes three semantic categories, so no single
+  transform can replace it:
+  * world points/vectors (negate X/Y): `startPos`, `nextStartPos`,
+    `previousPosition2D`, `spatial_state_.position`, `movement`,
+    `actionSmuggleMovement`, `movementSmuggleMovement`,
+    `positionOffsetMovement`, `tripDirection`, `decayingPositionOffset`,
+    `predicate_RelDesiredDirection`, and `PlayerKinematicState` position/velocity;
+  * angles (add PI via `radian::Mirror()`'s `_rotated` flag): `startAngle`,
+    `nextStartAngle`, `spatial_state_.angle`/`bodyAngle`/`relBodyAngle`,
+    `relBodyAngleNonquantized`;
+  * deliberately NOT mirrored: `spatial_state_.directionVec`/`bodyDirectionVec`/
+    `relBodyDirectionVec`, and `PlayerKinematicState.bodyFacing`.
+  `bodyFacing` needs an explicit world-pose definition before it can be treated
+  as a world quantity; it must not simply gain a `Mirror()`.
+
+MIR-2 order, therefore: (1) port the placement/control `FromHomePitchFrame`
+seams, (2) port the AI/`_CalculateTacticalSituation` direction reads to an
+explicit team-direction value, (3) port the angle/body classes with their own
+semantics, (4) only then switch `kinematicState`/`spatial_state_` storage.
+Each step must keep both MIR-0 traces and both fingerprints identical; the
+runtime suite alone is not a gate.
+
 Gate for the migration: keep the debug runtime suite green; bring up the
 normalized A/B comparison before changing any authority; capture a
 reverse=true determinism fingerprint as well as the default one; keep FRAME-5
