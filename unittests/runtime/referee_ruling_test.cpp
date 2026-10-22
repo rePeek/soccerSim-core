@@ -4,6 +4,7 @@
 #include <variant>
 #include <vector>
 
+#include "football/animation/types.hpp"
 #include "testing/simulation_access.hpp"
 
 namespace {
@@ -224,13 +225,23 @@ TEST_CASE("Rulings: out of play awards distinguish corner goal kick and throw in
   auto& rules = Open(sim);
   e_GameMode kind = e_GameMode_ThrowIn;
   Vector3 position(5, 40, 0);
+  Vector3 previous(5, 20, 0);
   SECTION("throw in") {}
-  SECTION("corner") { kind = e_GameMode_Corner; position = Vector3(-55, 40, 0); }
-  SECTION("goal kick") { kind = e_GameMode_GoalKick; position = Vector3(55, 40, 0); }
-  // Home is last to touch. At its own goal line this is a corner; at the
-  // opposite goal line it is a goal kick, even when also beyond the touchline.
+  SECTION("corner") {
+    kind = e_GameMode_Corner;
+    position = Vector3(-55, 40, 0);
+    previous = Vector3(-48, 0, 0);
+  }
+  SECTION("goal kick") {
+    kind = e_GameMode_GoalKick;
+    position = Vector3(55, 40, 0);
+    previous = Vector3(48, 0, 0);
+  }
+  // Home is last to touch. The step crosses the goal line before the
+  // touchline for the corner/goal kick sections, so the goal-line verdict wins;
+  // a pure touchline step is a throw-in.
   SimulationAccess::TouchesOf(sim).Record(0, 1, e_TouchType_Intentional_Kicked);
-  SimulationAccess::ResetBall(sim, position);
+  SimulationAccess::SetBallStep(sim, previous, position);
   SimulationAccess::ProcessReferee(sim);
   const auto& events = SimulationAccess::MatchEventsOf(sim);
   REQUIRE(events.size() == 1);
@@ -910,7 +921,8 @@ TEST_CASE("Rulings: a goal never completes a receiver-less pass", "[runtime][rul
   }));
 }
 
-TEST_CASE("a kept advantage still shows a deferred card", "[runtime][ruling]") {
+TEST_CASE("a kept advantage shows its card at the next stoppage",
+          "[runtime][ruling]") {
   OpenReferee rules;
   rules.StageAdvantageCard(Tick{100});
   std::vector<RefereeRuling> rulings;
@@ -926,17 +938,37 @@ TEST_CASE("a kept advantage still shows a deferred card", "[runtime][ruling]") {
   // Still inside the recheck window: the foul stays pending.
   rules.CheckFoul(Tick{120}, football::pitch::Pitch{}, live, sink);
   CHECK(rulings.empty());
-  // The advantage played out: no restart, but the card is still shown.
+  // The advantage played out: no restart and no card yet. It is deferred to
+  // the next stoppage rather than shown three seconds later.
   rules.CheckFoul(Tick{500}, football::pitch::Pitch{}, live, sink);
-  int restarts = 0;
-  const CardRuling* card = nullptr;
+  CHECK(rulings.empty());
+
+  // A second, non-advantage foul stops play; that stoppage flushes the card.
+  FoulAssessment second;
+  second.kind = FoulKind::SlidingTackle;
+  second.offender = 12;
+  second.victim = 2;
+  second.offender_team_id = 1;
+  second.victim_team_id = 0;
+  second.contacted_at = Tick{500};
+  second.position = Vector3(4, 3, 0);
+  second.offender_action_type = static_cast<int>(e_FunctionType_Sliding);
+  second.ball_position = Vector3(0, 0, 0);
+  second.victim_position = Vector3(0, 0, 0);
+  second.offender_last_touch_tick = {};
+  second.severity = 1.2f;
+  rules.AssessFoul(second, Tick{500}, false);
+  rules.CheckFoul(Tick{500}, football::pitch::Pitch{}, live, sink);
+  bool deferred = false;
+  bool stopped = false;
   for (const RefereeRuling& ruling : rulings) {
-    if (std::holds_alternative<AwardRestartRuling>(ruling)) ++restarts;
-    if (const auto* value = std::get_if<CardRuling>(&ruling)) card = value;
+    if (std::holds_alternative<StopPlayRuling>(ruling)) stopped = true;
+    if (const auto* card = std::get_if<CardRuling>(&ruling);
+        card != nullptr && card->player == 11 && card->type == 2)
+      deferred = true;
   }
-  CHECK(restarts == 0);
-  REQUIRE(card != nullptr);
-  CHECK(card->type == 2);
+  CHECK(stopped);
+  CHECK(deferred);
 }
 
 TEST_CASE("the ruling path validates the whole batch before it mutates",
@@ -1013,4 +1045,22 @@ TEST_CASE("an offside offence reaches the event log through RefereeRuling",
       offside_event = true;
   }
   CHECK(offside_event);
+}
+
+TEST_CASE("a conflicting ruling batch is rejected before it mutates",
+          "[runtime][ruling]") {
+  Simulation sim;
+  Init(sim);
+  SimulationAccess::RulingsOf(sim).Submit(StopPlayRuling{});
+  SimulationAccess::RulingsOf(sim).Submit(BallInPlayRuling{});
+  CHECK_THROWS(SimulationAccess::CommitRulings(sim));
+  CHECK(SimulationAccess::PendingRulingsOf(sim) == 2);
+
+  Simulation two;
+  Init(two);
+  SimulationAccess::RulingsOf(two).Submit(AwardRestartRuling{
+      e_GameMode_FreeKick, TeamSide::Home, Vector3(5, 5, 0), TickSpan{}, {}});
+  SimulationAccess::RulingsOf(two).Submit(AwardRestartRuling{
+      e_GameMode_Corner, TeamSide::Away, Vector3(-5, 5, 0), TickSpan{}, {}});
+  CHECK_THROWS(SimulationAccess::CommitRulings(two));
 }

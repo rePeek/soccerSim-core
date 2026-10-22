@@ -217,7 +217,8 @@ TEST_CASE("Runtime harness: the goal-line restart side follows the physical ends
   if (phase == MatchPhase::SecondHalf) SimulationAccess::ApplyChangeOfEndsNow(sim);
 
   SimulationAccess::TouchesOf(sim).Record(0, 1, e_TouchType_Intentional_Kicked);
-  SimulationAccess::ResetBall(sim, football::math::Vector3(55.0f, 40.0f, 0.0f));
+  SimulationAccess::SetBallStep(sim, football::math::Vector3(48.0f, 0.0f, 0.0f),
+                                football::math::Vector3(55.0f, 40.0f, 0.0f));
   SimulationAccess::ProcessReferee(sim);
 
   const RestartAwardedEvent* award = LastAward(sim);

@@ -426,15 +426,26 @@ TEST_CASE("a goal needs the whole ball through the goal-mouth rectangle",
   // Through the plane but outside the posts: no goal.
   CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(goal_x - 0.05f, 3.7f, r),
                               Vector3(goal_x + 0.05f, 3.7f, r), r));
+  // The centre clears the post line but the whole ball does not: no goal.
+  const float near_post_y = pitch.goal_half_width() - 0.05f;
+  CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(goal_x - 0.05f, near_post_y, r),
+                              Vector3(goal_x + 0.05f, near_post_y, r), r));
   // Through the plane but above the crossbar: no goal.
   CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(goal_x - 0.05f, 0, 2.5f),
                               Vector3(goal_x + 0.05f, 0, 2.5f), r));
+  // The centre is under the bar but the whole ball is not: no goal.
+  const float near_bar_z = pitch.goal_height() - 0.05f;
+  CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(goal_x - 0.05f, 0, near_bar_z),
+                              Vector3(goal_x + 0.05f, 0, near_bar_z), r));
   // Crossing the opposite goal plane is not a goal on side +1.
   CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(-goal_x - 0.05f, 0, r),
                               Vector3(-goal_x + 0.05f, 0, r), r));
   // A step parallel to the goal plane never crosses it.
   CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(goal_x - 0.05f, 0, r),
                               Vector3(goal_x - 0.05f, 1, r), r));
+  // A ball leaving the goal back into the field is not a new goal.
+  CHECK_FALSE(CrossedGoalLine(pitch, 1, Vector3(goal_x + 0.05f, 0, r),
+                              Vector3(goal_x - 0.05f, 0, r), r));
 }
 
 TEST_CASE("a goal kick, corner or throw-in cannot create an offside offence",
@@ -485,12 +496,15 @@ TEST_CASE("foul severity maps to named sanctions", "[unit][referee]") {
   CHECK(ClassifyFoul(FoulKind::SlidingTackle, 1.2f, true).dogso);
 }
 
-TEST_CASE("a penalty for an attempt to play the ball is a caution, not a red",
+TEST_CASE("a penalty for a genuine attempt to play the ball is only a caution",
           "[unit][referee]") {
   Referee rules;
-  FoulAssessment fact = Sliding(Tick{100}, 2.2f);
+  // Careless challenge: the red card exists only because of the DOGSO, so the
+  // double-jeopardy rule downgrades it to a caution.
+  FoulAssessment fact = Sliding(Tick{100}, 1.2f);
   fact.position = football::math::Vector3(47.5f, 0.0f, 0.0f);
   fact.denied_goal_opportunity = true;
+  fact.attempted_to_play_ball = true;
   rules.AssessFoul(fact, Tick{100}, false);
   Collect sink;
   Check(rules, Tick{100}, Live(1.2f), sink);
@@ -500,6 +514,25 @@ TEST_CASE("a penalty for an attempt to play the ball is a caution, not a red",
   const CardRuling* card = FirstCard(sink.rulings);
   REQUIRE(card != nullptr);
   CHECK(card->type == 2);
+}
+
+TEST_CASE("excessive force keeps its send-off even with a penalty",
+          "[unit][referee]") {
+  Referee rules;
+  // The red card stands on its own severity: the penalty cannot downgrade it.
+  FoulAssessment fact = Sliding(Tick{100}, 2.2f);
+  fact.position = football::math::Vector3(47.5f, 0.0f, 0.0f);
+  fact.denied_goal_opportunity = true;
+  fact.attempted_to_play_ball = true;
+  rules.AssessFoul(fact, Tick{100}, false);
+  Collect sink;
+  Check(rules, Tick{100}, Live(1.2f), sink);
+  const AwardRestartRuling* award = FirstRestart(sink.rulings);
+  REQUIRE(award != nullptr);
+  CHECK(award->kind == e_GameMode_Penalty);
+  const CardRuling* card = FirstCard(sink.rulings);
+  REQUIRE(card != nullptr);
+  CHECK(card->type == 3);
 }
 
 TEST_CASE("a DOGSO outside the penalty area is a send-off", "[unit][referee]") {
@@ -535,4 +568,59 @@ TEST_CASE("the out-of-play restart uses the exact boundary crossing point",
   CHECK_FALSE(BoundaryCrossingPoint(pitch, Vector3(0, 0, r), Vector3(1, 1, r), r,
                                     BallOutOfPlay::Touchline)
                   .has_value());
+}
+
+TEST_CASE("a diagonal exit is classified by the line the ball crossed first",
+          "[unit][referee]") {
+  const Pitch pitch;
+  using football::math::Vector3;
+  using football::sim::BallOutOfPlay;
+  using football::sim::DetectBallBoundaryCrossing;
+  const float r = 0.11f;
+  const float lx = pitch.half_length() + pitch.line_half_width() + r;
+  const float ly = pitch.half_width() + pitch.line_half_width() + r;
+
+  // The ball leaves over the touchline first and only later crosses the goal
+  // line: the restart is a throw-in, not a goal line decision.
+  const auto touchline_first = DetectBallBoundaryCrossing(
+      pitch, Vector3(lx - 2.0f, ly - 0.5f, r), Vector3(lx + 0.5f, ly + 1.5f, r), r);
+  CHECK(touchline_first.boundary == BallOutOfPlay::Touchline);
+  CHECK(touchline_first.fraction < 0.5f);
+  CHECK(touchline_first.position.coords[1] == Catch::Approx(ly).margin(0.01f));
+
+  // The same tick but the goal line is crossed first: the corner/goal-kick
+  // decision wins instead.
+  const auto goal_first = DetectBallBoundaryCrossing(
+      pitch, Vector3(lx - 0.5f, ly - 2.0f, r), Vector3(lx + 1.5f, ly + 0.5f, r), r);
+  CHECK(goal_first.boundary == BallOutOfPlay::GoalLine);
+  CHECK(goal_first.fraction < 0.5f);
+  CHECK(goal_first.position.coords[0] == Catch::Approx(lx).margin(0.01f));
+}
+
+TEST_CASE("a free kick release captures the offside position",
+          "[unit][referee]") {
+  const OffsideScene scene;
+  Referee rules;
+  Collect sink;
+  // The taker plays the free kick while the set-piece administration is still
+  // active; this touch must freeze the offside position.
+  BallTouchFacts release = MakeTouch(scene, 41, 0);
+  release.in_set_piece = true;
+  release.release.eligible = true;
+  release.release.kind = e_GameMode_FreeKick;
+  release.release.action_type = static_cast<int>(e_FunctionType_ShortPass);
+  release.release.scheduled_contact = true;
+  release.release.ball_speed = 5.0f;
+  release.restart.active = true;
+  release.restart.scheduled = true;
+  release.restart.kind = e_GameMode_FreeKick;
+  release.restart.team_id = 0;
+  rules.ConsumeBallTouch(release, sink);
+  REQUIRE(sink.rulings.size() == 1);
+  REQUIRE(std::holds_alternative<BallInPlayRuling>(sink.rulings.front()));
+  // The attacker flagged at the release now plays it: offside.
+  rules.ConsumeBallTouch(MakeTouch(scene, 40, 0), sink);
+  const AwardRestartRuling* award = FirstRestart(sink.rulings);
+  REQUIRE(award != nullptr);
+  CHECK(award->cause.kind == RestartCauseKind::Offside);
 }

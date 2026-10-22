@@ -26,6 +26,11 @@
 namespace football::sim {
 namespace {
 
+// How close the ball must be to the offender's contact for the challenge to
+// count as an attempt to play the ball (Law 12 double jeopardy).
+constexpr float kAttemptedPlayReach = 3.0f;
+
+
 struct PlayerBounce {
   Player *opp;
   float force = 0.0f;
@@ -54,6 +59,14 @@ void FillContactEvidence(FoulAssessment& fact, Player* victim, Player* offender,
   fact.offender_last_touch_tick = offender->GetLastTouchTick();
   fact.victim_team_fading_possession =
       victim->GetTeamFadingPossessionAmount();
+  // The offender genuinely challenged for the ball only when a challenge
+  // animation was active and the ball was within reach at the contact.
+  const football::math::Vector3 to_ball =
+      ball_position.Get2D() - offender->GetPosition().Get2D();
+  fact.attempted_to_play_ball =
+      (action.type == e_FunctionType_Sliding || action.type == e_FunctionType_Interfere ||
+       action.type == e_FunctionType_Trap || action.type == e_FunctionType_BallControl) &&
+      to_ball.GetLength() < kAttemptedPlayReach;
 }
 
 // Legacy sliding severity, computed once from the frozen evidence. The

@@ -127,17 +127,16 @@ void Referee::EvaluateOutOfPlay(const football::sim::rules::RefereeView& view,
   const RefereeTickFacts& tick = view.tick;
   if (tick.phase == MatchPhase::Finished) return;
   if (!(tick.play_authorized && !tick.set_piece_active)) return;
-  // Goal-line priority: the ball is classified from its current centre, but the
-  // restart spot uses the exact point where the whole ball crossed the boundary.
-  const BallOutOfPlay out = ClassifyBallOutOfPlay(
-      tick.pitch, tick.ball.position, tick.ball.radius);
-  const football::math::Vector3 ballPos =
-      football::sim::BoundaryCrossingPoint(tick.pitch, tick.ball.previous_position,
-                                           tick.ball.position, tick.ball.radius, out)
-          .value_or(tick.ball.position);
-  if (out == BallOutOfPlay::GoalLine || tick.goal_scored) {
+  // The first boundary the whole ball actually crossed owns the restart, not
+  // the tick-end centre: a diagonal exit can be past both lines at once.
+  const football::sim::BallBoundaryCrossing crossing =
+      football::sim::DetectBallBoundaryCrossing(
+          tick.pitch, tick.ball.previous_position, tick.ball.position,
+          tick.ball.radius);
+  const football::math::Vector3& ballPos = crossing.position;
+  if (crossing.boundary == BallOutOfPlay::GoalLine || tick.goal_scored) {
     SettleGoalLine(ballPos, tick, rulings);
-  } else if (out == BallOutOfPlay::Touchline) {
+  } else if (crossing.boundary == BallOutOfPlay::Touchline) {
     SettleTouchline(ballPos, tick, view.post_restart_grace, rulings);
   }
   }
@@ -157,6 +156,7 @@ void Referee::SettleGoalLine(const football::math::Vector3& ballPos,
     foul.foulType = 0;
   }
   if (isFoul) return;
+  FlushPendingDiscipline(facts.now, rulings);
   rulings.Submit(football::sim::event::StopPlayRuling{});
   // corner, goal kick or kick off?
   int lastTouchTeam = facts.last_touch_team;
@@ -196,6 +196,7 @@ void Referee::SettleTouchline(const football::math::Vector3& ballPos,
   foul.advantage = false;
   if (CheckFoul(facts.now, facts.pitch,
                 LiveFoulFacts(facts.home, facts.away), rulings)) return;
+  FlushPendingDiscipline(facts.now, rulings);
   rulings.Submit(football::sim::event::StopPlayRuling{});
   int lastTouchTeam = facts.last_touch_team;
   if (lastTouchTeam < 0) lastTouchTeam = facts.home.team_id;
@@ -268,13 +269,20 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
           return player.team_id == team_id;
         }));
   };
-  const bool offside_eligible =
-      facts.in_play && !facts.in_set_piece &&
-      (!restart.active || !OffsideExemptRestart(restart.kind));
+  const bool restart_exempt = restart.active && OffsideExemptRestart(restart.kind);
+  // An offence can only be called in open play; a set-piece administration is
+  // not yet open play. A snapshot, however, must also be captured on the
+  // release touch of a non-exempt restart (a free kick).
+  const bool offence_evaluable =
+      facts.in_play && !facts.in_set_piece && !restart_exempt;
+  const bool snapshot_allowed =
+      !restart_exempt &&
+      ((facts.in_play && !facts.in_set_piece) ||
+       (facts.in_set_piece && facts.release.eligible));
 
   // 1. Offside offence: an attacker flagged at the last attacking touch plays
   //    the ball. This holds across a deflection or a deliberate save (Law 11).
-  if (offside_eligible && active_count(defending_team_id) > 1) {
+  if (offence_evaluable && active_count(defending_team_id) > 1) {
     for (const OffsideReference& reference : offside_.candidates) {
       if (reference.player != ball_owner_id) continue;
       foul.advantage = false;
@@ -294,7 +302,7 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
   }
 
   // 2. Update the offside position for the next touch.
-  if (!offside_eligible) {
+  if (!snapshot_allowed) {
     offside_.Clear();
     return;
   }
@@ -359,9 +367,8 @@ void Referee::AssessFoul(const FoulAssessment& fact, Tick now, bool restart_acti
   foul.advantage = fact.kind == FoulKind::StandingFall;
   foul.advantage_kept = false;
   foul.dogso = sanction.dogso;
-  foul.attempted_to_play_ball =
-      fact.offender_action_type == static_cast<int>(e_FunctionType_Sliding) ||
-      fact.offender_action_type == static_cast<int>(e_FunctionType_Interfere);
+  foul.severity = sanction.severity;
+  foul.attempted_to_play_ball = fact.attempted_to_play_ball;
   foul.offender = fact.offender;
   foul.victim = fact.victim;
   foul.offender_team_id = fact.offender_team_id;
@@ -382,9 +389,12 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
             pitch.half_length() - pitch.penalty_area_depth() + pitch.line_half_width())
       penalty = true;
   }
-  // Law 12 double jeopardy: a penalty plus an attempt to play the ball is a
-  // caution, not a send-off. Holding/pulling or no attempt to play stays red.
-  if (penalty && foul.dogso && foul.attempted_to_play_ball && foul.foulType == 3)
+  // Law 12 double jeopardy: a penalty plus a genuine attempt to play the ball
+  // is a caution, not a send-off. It never downgrades a send-off that stands on
+  // its own via excessive force, only one whose sole reason is the DOGSO.
+  if (penalty && foul.dogso && foul.attempted_to_play_ball &&
+      foul.severity != football::sim::rules::FoulSeverity::Excessive &&
+      foul.foulType == 3)
     foul.foulType = 2;
 
   if (foul.advantage) {
@@ -405,23 +415,35 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
   }
 
   if (foul.foulType != 0 && !foul.advantage && !foul.hasBeenProcessed) {
-    if (!foul.advantage_kept) {
-      rulings.Submit(football::sim::event::StopPlayRuling{});
-      const football::math::Vector3 stadium_position = penalty
-          ? football::math::Vector3(
-                (pitch.half_length() - pitch.penalty_mark_distance()) *
-                    live.For(foul.offender_team_id).defending_direction,
-                0, 0)
-          : foul.foulPosition;
-      const football::sim::TeamSide team_side =
-          static_cast<football::sim::TeamSide>(foul.victim_team_id);
-      SubmitRestart(penalty ? e_GameMode_Penalty : e_GameMode_FreeKick, team_side,
-                    stadium_position,
-                    foul.foulType >= 2 ? kCardAdministration : TickSpan{}, rulings,
-                    football::sim::event::RestartCause{
-                        football::sim::event::RestartCauseKind::Foul,
-                        foul.offender, foul.victim});
+    if (foul.advantage_kept) {
+      // The realized advantage cancels the restart, not the discipline: hold
+      // the card until the next stoppage, which Runtime signals by settling a
+      // stop. This path emits no stop of its own.
+      if (foul.foulType >= 2) {
+        foul.pending_card = foul.foulType;
+        foul.pending_offender = foul.offender;
+      }
+      foul.foulType = 0;
+      foul.advantage_kept = false;
+      foul.hasBeenProcessed = true;
+      return false;
     }
+    FlushPendingDiscipline(now, rulings);
+    rulings.Submit(football::sim::event::StopPlayRuling{});
+    const football::math::Vector3 stadium_position = penalty
+        ? football::math::Vector3(
+              (pitch.half_length() - pitch.penalty_mark_distance()) *
+                  live.For(foul.offender_team_id).defending_direction,
+              0, 0)
+        : foul.foulPosition;
+    const football::sim::TeamSide team_side =
+        static_cast<football::sim::TeamSide>(foul.victim_team_id);
+    SubmitRestart(penalty ? e_GameMode_Penalty : e_GameMode_FreeKick, team_side,
+                  stadium_position,
+                  foul.foulType >= 2 ? kCardAdministration : TickSpan{}, rulings,
+                  football::sim::event::RestartCause{
+                      football::sim::event::RestartCauseKind::Foul,
+                      foul.offender, foul.victim});
     if (foul.foulType == 2 || foul.foulType == 3) {
       rulings.Submit(football::sim::event::CardRuling{
           foul.offender, foul.foulType, now + kCardEffectDelay});
@@ -431,4 +453,13 @@ bool Referee::CheckFoul(Tick now, const football::pitch::Pitch& pitch,
   }
 
   return false;
+}
+
+void Referee::FlushPendingDiscipline(Tick now,
+                                     football::sim::event::RulingSink& rulings) {
+  if (foul.pending_card < 2) return;
+  rulings.Submit(football::sim::event::CardRuling{
+      foul.pending_offender, foul.pending_card, now + kCardEffectDelay});
+  foul.pending_card = 0;
+  foul.pending_offender = football::player::kInvalidPlayerId;
 }

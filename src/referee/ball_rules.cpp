@@ -43,6 +43,44 @@ std::optional<int> CrossedGoalMouth(const football::pitch::Pitch& pitch,
   return std::nullopt;
 }
 
+BallBoundaryCrossing DetectBallBoundaryCrossing(
+    const football::pitch::Pitch& pitch,
+    const football::math::Vector3& previous,
+    const football::math::Vector3& current, float ball_radius) {
+  BallBoundaryCrossing result;
+  const float limit_x = pitch.half_length() + pitch.line_half_width() + ball_radius;
+  const float limit_y = pitch.half_width() + pitch.line_half_width() + ball_radius;
+  float best = 2.0f;
+  for (int sign : {-1, 1}) {
+    if (const auto t = CrossAxis(previous.coords[0], current.coords[0],
+                                 static_cast<float>(sign) * limit_x);
+        t && *t < best) {
+      best = *t;
+      result.boundary = BallOutOfPlay::GoalLine;
+    }
+    if (const auto t = CrossAxis(previous.coords[1], current.coords[1],
+                                 static_cast<float>(sign) * limit_y);
+        t && *t < best) {
+      best = *t;
+      result.boundary = BallOutOfPlay::Touchline;
+    }
+  }
+  if (result.boundary != BallOutOfPlay::None) {
+    result.fraction = best;
+    result.position = previous + (current - previous) * best;
+    return result;
+  }
+  // Already outside at the start of the step: keep the line it was out on.
+  const BallOutOfPlay at_previous =
+      ClassifyBallOutOfPlay(pitch, previous, ball_radius);
+  result.boundary = at_previous != BallOutOfPlay::None
+                        ? at_previous
+                        : ClassifyBallOutOfPlay(pitch, current, ball_radius);
+  result.position = at_previous != BallOutOfPlay::None ? previous : current;
+  result.fraction = at_previous != BallOutOfPlay::None ? 0.0f : 1.0f;
+  return result;
+}
+
 std::optional<football::math::Vector3> BoundaryCrossingPoint(
     const football::pitch::Pitch& pitch,
     const football::math::Vector3& previous,

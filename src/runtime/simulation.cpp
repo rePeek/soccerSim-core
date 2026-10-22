@@ -106,13 +106,33 @@ football::sim::rules::RestartRuleFacts ToRestartRuleFacts(
 // Law 11 play classification: a controlled kick/control is a deliberate play,
 // an uncontrolled contact is a deflection, and a keeper/save action is a
 // deliberate save. Runtime owns this classification; the rules only consume it.
-football::sim::rules::BallPlayKind PlayKindOf(const football::sim::event::AcceptedTouch& touch) {
+bool StopsShotAtGoal(const football::math::Vector3& ball_position,
+                     const football::math::Vector3& ball_velocity,
+                     const football::math::Vector3& goal) {
+  const football::math::Vector3 to_goal = goal.Get2D() - ball_position.Get2D();
+  if (to_goal.GetLength() > 40.0f) return false;
+  if (ball_velocity.Get2D().GetLength() < 1.0f) return false;
+  return ball_velocity.Get2D().GetNormalized(football::math::Vector3(1, 0, 0))
+             .GetDotProduct(to_goal.GetNormalized(football::math::Vector3(1, 0, 0))) >
+         0.5f;
+}
+
+// Law 11 play classification: a controlled kick/control is a deliberate play,
+// an uncontrolled contact is a deflection, and a keeper action is only a
+// deliberate save when the ball was actually heading at the defended goal.
+football::sim::rules::BallPlayKind PlayKindOf(
+    const football::sim::event::AcceptedTouch& touch,
+    const football::math::Vector3& ball_position,
+    const football::math::Vector3& ball_velocity,
+    const football::math::Vector3& defended_goal) {
   using football::sim::rules::BallPlayKind;
   if (touch.type == e_TouchType_Accidental) return BallPlayKind::Deflection;
   switch (static_cast<e_FunctionType>(touch.action_type)) {
     case e_FunctionType_Deflect:
     case e_FunctionType_Catch:
-      return BallPlayKind::DeliberateSave;
+      return StopsShotAtGoal(ball_position, ball_velocity, defended_goal)
+                 ? BallPlayKind::DeliberateSave
+                 : BallPlayKind::DeliberatePlay;
     case e_FunctionType_BallControl:
     case e_FunctionType_Trap:
     case e_FunctionType_ShortPass:
@@ -393,7 +413,12 @@ void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch)
     facts.all_active_players = active;
     const football::sim::RestartContext& restart = restarts_.context();
     facts.restart = ToRestartRuleFacts(restart);
-    facts.play_kind = PlayKindOf(touch);
+    const football::math::Vector3 defended_goal(
+        static_cast<float>(team_orientations_[player->GetTeamID()].defending_direction) *
+            pitch_.half_length(),
+        0.0f, 0.0f);
+    facts.play_kind = PlayKindOf(touch, ball_->state().position,
+                                 ball_->state().velocity, defended_goal);
     // Release verdict inputs, sampled at this exact boundary (never earlier).
     if (restart.active && restart.state &&
         restart.state->phase == football::sim::RestartPhase::Ready &&
@@ -658,11 +683,30 @@ void Simulation::CommitRuling(const football::sim::event::RefereeRuling& ruling)
       }, ruling);
 }
 
+void Simulation::ValidateRulingBatch() const {
+  // One logical decision per instant. Two restarts, two goals or a stop plus a
+  // restart release in the same batch are a producer bug, not something the
+  // executor should silently reorder.
+  int restarts = 0, goals = 0, stops = 0, ball_in_play = 0;
+  for (const auto& ruling : pending_rulings_) {
+    if (std::holds_alternative<football::sim::event::AwardRestartRuling>(ruling)) ++restarts;
+    else if (std::holds_alternative<football::sim::event::AwardGoalRuling>(ruling)) ++goals;
+    else if (std::holds_alternative<football::sim::event::StopPlayRuling>(ruling)) ++stops;
+    else if (std::holds_alternative<football::sim::event::BallInPlayRuling>(ruling)) ++ball_in_play;
+  }
+  if (restarts > 1 || goals > 1 || stops > 1 || ball_in_play > 1 ||
+      (stops > 0 && ball_in_play > 0))
+    throw std::logic_error("conflicting referee ruling batch");
+}
+
 void Simulation::CommitPendingRulings() {
   // Submit never re-enters execution. Drain only after the rule operation has
   // finished; consume each entry exactly once, in submission order.
-  // A foul's stop/award/card are one logical unit. Fail loudly before any
-  // runtime mutation/event, rather than silently dropping an invalid card.
+  // Validation is complete before any mutation: a single invalid or conflicting
+  // ruling leaves the whole queue untouched for a retry. Once validation passes
+  // the handlers are simple state mutations and do not throw, so the normal
+  // commit path has no partial-batch rollback.
+  ValidateRulingBatch();
   for (const auto& ruling : pending_rulings_) ValidateRuling(ruling);
   for (const auto& ruling : pending_rulings_) CommitRuling(ruling);
   pending_rulings_.clear();

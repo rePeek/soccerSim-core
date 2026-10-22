@@ -22,30 +22,32 @@ using football::math::Vector3;
 bool CrossedGoalLine(const football::pitch::Pitch& pitch, int side,
                      const Vector3& previous, const Vector3& current,
                      float ball_radius) {
-  // The goal mouth is the plane x = goal_x clipped to the goal rectangle
-  // (|y| <= goal half width, 0 <= z <= goal height). The whole ball must cross
-  // the goal line, so the plane and the side-net veto are offset by the radius.
+  // Law 10: the whole ball must pass over the goal line between the posts and
+  // under the crossbar. The plane and the goal rectangle are therefore offset
+  // by the ball radius, and the step must move into the goal (never out of it).
   const float goal_x =
       (pitch.half_length() + pitch.line_half_width() + ball_radius) * side;
   const float half_goal_width = pitch.goal_half_width();
   const float goal_height = pitch.goal_height();
 
+  const float dx = current.coords[0] - previous.coords[0];
+  if (dx * static_cast<float>(side) <= 0.0f) return false;  // not into the goal
+  const float r = (goal_x - previous.coords[0]) / dx;
+  if (r <= 0.0f || r >= 1.0f) return false;  // crossing strictly inside the step
+
   // Extra check: ball could have gone 'in' via the side netting, if line begin
   // == inside pitch, but outside of post, and line end == in goal. disallow!
-  if (fabs(previous.coords[1]) > half_goal_width &&
-      fabs(previous.coords[0]) >
+  if (std::fabs(previous.coords[1]) > half_goal_width &&
+      std::fabs(previous.coords[0]) >
           pitch.half_length() - pitch.line_half_width() - ball_radius) {
     return false;
   }
 
-  const float dx = current.coords[0] - previous.coords[0];
-  if (std::fabs(dx) < 0.000001f) return false;  // parallel to the goal plane
-  const float r = (goal_x - previous.coords[0]) / dx;
-  if (r <= 0.0f || r >= 1.0f) return false;  // crossing strictly inside the step
-
   const float y = previous.coords[1] + (current.coords[1] - previous.coords[1]) * r;
   const float z = previous.coords[2] + (current.coords[2] - previous.coords[2]) * r;
-  if (std::fabs(y) > half_goal_width || z < 0.0f || z > goal_height) return false;
+  // The whole ball must clear the post and the crossbar.
+  if (std::fabs(y) > half_goal_width - ball_radius) return false;
+  if (z < ball_radius || z > goal_height - ball_radius) return false;
 
   return true;
 }

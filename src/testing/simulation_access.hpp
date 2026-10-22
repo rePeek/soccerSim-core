@@ -283,6 +283,14 @@ class SimulationAccess {
   static void ResetBall(Simulation& s, const football::math::Vector3& position) {
     s.PlaceBallAt(position);
   }
+  // Test-only: place the ball at `current` and set the previous centre the
+  // rules use for a boundary crossing, so a test can define one exact step
+  // without running the tick that normally records the previous centre.
+  static void SetBallStep(Simulation& s, const football::math::Vector3& previous,
+                          const football::math::Vector3& current) {
+    s.PlaceBallAt(current.Get2D());
+    s.referee_previous_ball_ = previous;
+  }
   static void SetBallState(Simulation& s, const football::ball::BallState& state) {
     s.ball_->Reset(state);
   }

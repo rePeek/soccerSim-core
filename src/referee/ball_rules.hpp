@@ -25,19 +25,25 @@ BallOutOfPlay ClassifyBallOutOfPlay(const football::pitch::Pitch& pitch,
                                     const football::math::Vector3& ball_position,
                                     float ball_radius);
 
-std::optional<int> CrossedGoalMouth(const football::pitch::Pitch& pitch,
-                                    const football::math::Vector3& previous,
-                                    const football::math::Vector3& current,
-                                    float ball_radius);
-
-// The exact point where the ball centre crosses the boundary between two
-// observed positions, or nullopt when the step does not cross it. The full-ball
-// radius is applied, so the point lies on the plane the whole ball passed.
 std::optional<football::math::Vector3> BoundaryCrossingPoint(
     const football::pitch::Pitch& pitch,
     const football::math::Vector3& previous,
     const football::math::Vector3& current, float ball_radius,
     BallOutOfPlay boundary);
+
+// The first boundary the whole ball crosses between two observed positions.
+// The goal-line and touchline crossings are compared by their step fraction,
+// so a diagonal exit is classified by the line it actually crossed first and
+// the reported position is that exact crossing point.
+struct BallBoundaryCrossing {
+  BallOutOfPlay boundary = BallOutOfPlay::None;
+  football::math::Vector3 position;
+  float fraction = 0.0f;
+};
+BallBoundaryCrossing DetectBallBoundaryCrossing(
+    const football::pitch::Pitch& pitch,
+    const football::math::Vector3& previous,
+    const football::math::Vector3& current, float ball_radius);
 
 }  // namespace football::sim
 

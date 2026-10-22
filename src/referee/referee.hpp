@@ -103,6 +103,10 @@ class Referee {
                          football::sim::event::RulingSink& rulings);
     void EvaluateBallTouch(const football::sim::rules::BallTouchFacts& facts,
                            football::sim::event::RulingSink& rulings);
+    // Shows a card deferred by a realized advantage at the next stoppage. A
+    // no-op when no discipline is pending, so every stop path can call it.
+    void FlushPendingDiscipline(football::sim::Tick now,
+                                football::sim::event::RulingSink& rulings);
 };
 
 #endif

@@ -131,6 +131,9 @@ class Simulation {
   void CommitPendingRulings();
   void CommitRuling(const football::sim::event::RefereeRuling& ruling);
   void ValidateRuling(const football::sim::event::RefereeRuling& ruling) const;
+  // Rejects mutually conflicting rulings in one logical batch before any of
+  // them is committed.
+  void ValidateRulingBatch() const;
   bool CardAlreadyCommitted(const football::sim::event::CardRuling& ruling) const;
   // Exhaustive ruling execution: every defined verdict has an explicit handler,
   // so a new ruling type cannot be silently dropped by the executor.

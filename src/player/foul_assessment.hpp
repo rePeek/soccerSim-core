@@ -53,6 +53,9 @@ struct FoulAssessment {
   // Solver-supplied: this foul denied an obvious goal-scoring opportunity.
   // The referee classifies the sanction from it; it is evidence, not a card.
   bool denied_goal_opportunity = false;
+  // Solver-supplied: the offender was genuinely challenging for the ball (not
+  // merely performing a challenge animation). Law 12 double jeopardy needs it.
+  bool attempted_to_play_ball = false;
 };
 
 }  // namespace football::sim

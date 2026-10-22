@@ -4,6 +4,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/player/player_definition.hpp"
+#include "referee/foul_sanction.hpp"
 
 using namespace football::math;
 
@@ -21,6 +22,10 @@ struct Foul {
   int offender_team_id = -1;
   int victim_team_id = -1;
   int foulType = 0;  // 0: nothing, 1: foul, 2: yellow, 3: red
+  // The severity the card came from. A send-off is only downgraded for the
+  // penalty double jeopardy when the severity itself is not excessive.
+  football::sim::rules::FoulSeverity severity =
+      football::sim::rules::FoulSeverity::None;
   bool advantage = false;
   // Advantage played out: the restart is cancelled but discipline still runs.
   bool advantage_kept = false;
@@ -30,6 +35,10 @@ struct Foul {
   football::sim::Tick foul_tick{};
   Vector3 foulPosition;
   bool hasBeenProcessed = false;
+  // A realized advantage cancels the restart but not the discipline: the card
+  // is shown at the next stoppage, which Runtime signals by settling a stop.
+  int pending_card = 0;
+  football::player::PlayerId pending_offender = football::player::kInvalidPlayerId;
 };
 
 // One team's live rule facts for a foul verdict. Fading possession is
