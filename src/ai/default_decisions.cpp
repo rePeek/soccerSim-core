@@ -79,7 +79,7 @@ Vector3 FormationTarget(const WorldState &world, const TacticalBoard &board,
 }  // namespace
 
 void ComputeDefaultControls(const WorldState &world,
-                            std::span<const TacticalBoard, 2> boards,
+                            std::span<const TacticalBoard> boards,
                             PlayerControlSet &output) {
   output.Clear();
   const Vector3 ball = world.ball_position.Get2D();

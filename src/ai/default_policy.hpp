@@ -10,8 +10,7 @@ namespace football::ai {
 // shared with the public DefaultAI baseline.
 class DefaultPolicy final : public IPlayerPolicy {
  public:
-  void Update(const WorldState& world,
-              std::span<const TacticalBoard, 2> tactics,
+  void Update(const PlayerAIContext& context,
               PlayerControlSet& output) override;
 };
 

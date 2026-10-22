@@ -15,7 +15,7 @@ namespace football::ai {
 // never diverge. It fully replaces the tick's output and never mutates the
 // world or the boards.
 void ComputeDefaultControls(const WorldState& world,
-                            std::span<const TacticalBoard, 2> boards,
+                            std::span<const TacticalBoard> boards,
                             PlayerControlSet& output);
 
 }  // namespace football::ai

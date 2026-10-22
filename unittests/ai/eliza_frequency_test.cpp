@@ -26,6 +26,15 @@ std::array<football::ai::TacticalBoard, 2> MakeBoards(
           football::ai::MakeTacticalBoard(away, TeamSide::Away, pitch)};
 }
 
+void Update(football::ai::ElizaPolicy& policy, const WorldState& world,
+            std::array<football::ai::TacticalBoard, 2>& boards,
+            PlayerControlSet& output) {
+  football::ai::PlayerAIContext context;
+  context.world = &world;
+  context.tactics = boards;
+  policy.Update(context, output);
+}
+
 bool SameControl(const PlayerControl& a, const PlayerControl& b) {
   return a.player == b.player && a.move_direction == b.move_direction &&
          a.desired_speed == b.desired_speed && a.look_at == b.look_at &&
@@ -46,13 +55,13 @@ TEST_CASE("Eliza possession memory is per PlayerId and Reset clears it", "[ai]")
   football::ai::ElizaPolicy policy;
   PlayerControlSet output;
   for (int tick = 1; tick <= 5; ++tick) {
-    policy.Update(world, boards, output);
+    Update(policy, world, boards, output);
     CHECK(policy.PossessionTicks(carrier) == tick);
     CHECK(policy.PossessionTicks(teammate) == 0);
   }
   policy.Reset();
   CHECK(policy.PossessionTicks(carrier) == 0);
-  policy.Update(world, boards, output);
+  Update(policy, world, boards, output);
   CHECK(policy.PossessionTicks(carrier) == 1);
 }
 
@@ -66,10 +75,10 @@ TEST_CASE("Eliza possession memory clears when the ball moves on", "[ai]") {
 
   football::ai::ElizaPolicy policy;
   PlayerControlSet output;
-  policy.Update(world, boards, output);
+  Update(policy, world, boards, output);
   CHECK(policy.PossessionTicks(carrier) == 1);
   world.ball_retainer.reset();
-  policy.Update(world, boards, output);
+  Update(policy, world, boards, output);
   CHECK(policy.PossessionTicks(carrier) == 0);
 }
 
@@ -81,7 +90,7 @@ TEST_CASE("Eliza emits one complete control set per tick", "[ai]") {
 
   football::ai::ElizaPolicy policy;
   PlayerControlSet output;
-  policy.Update(world, boards, output);
+  Update(policy, world, boards, output);
   REQUIRE(output.controls().size() == static_cast<std::size_t>(kPlayers) * 2);
   std::vector<PlayerId> seen;
   for (const PlayerControl& control : output.controls()) {
@@ -102,8 +111,8 @@ TEST_CASE("Two fresh Eliza policies agree on the same world", "[ai]") {
   football::ai::ElizaPolicy second;
   PlayerControlSet a;
   PlayerControlSet b;
-  first.Update(world, boards, a);
-  second.Update(world, boards, b);
+  Update(first, world, boards, a);
+  Update(second, world, boards, b);
   REQUIRE(a.controls().size() == b.controls().size());
   for (std::size_t i = 0; i < a.controls().size(); ++i)
     CHECK(SameControl(a.controls()[i], b.controls()[i]));

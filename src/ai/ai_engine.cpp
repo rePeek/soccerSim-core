@@ -18,18 +18,9 @@ std::unique_ptr<IPlayerPolicy> MakePlayerPolicy(PlayerPolicyKind kind) {
     case PlayerPolicyKind::Eliza:
       return std::make_unique<ElizaPolicy>();
     case PlayerPolicyKind::Heuristic:
-      // Driven through the versioned IPlayerPolicyV2 interface below; there is
-      // no legacy IPlayerPolicy adapter and Update() must not require one.
-      return nullptr;
+      return std::make_unique<HeuristicPolicy>();
   }
   throw std::invalid_argument("unknown PlayerPolicyKind");
-}
-
-// The versioned policy that consumes transient mental effects.
-std::unique_ptr<IPlayerPolicyV2> MakePlayerPolicyV2(PlayerPolicyKind kind) {
-  if (kind == PlayerPolicyKind::Heuristic)
-    return std::make_unique<HeuristicPolicy>();
-  return nullptr;
 }
 
 }  // namespace
@@ -67,8 +58,7 @@ AIEngine::AIEngine(const football::sim::TeamSetup& home,
                         ? std::make_unique<HeuristicCoachPolicy>()
                         : nullptr),
       coach_enabled_(config.coach_enabled),
-      policy_(MakePlayerPolicy(config.player_policy)),
-      policy_v2_(MakePlayerPolicyV2(config.player_policy)) {
+      policy_(MakePlayerPolicy(config.player_policy)) {
   boards_[0].side = football::sim::TeamSide::Home;
   boards_[1].side = football::sim::TeamSide::Away;
 }
@@ -84,28 +74,24 @@ void AIEngine::Update(const WorldState& world, PlayerControlSet& output) {
   } else {
     pending_events_.clear();
   }
-  if (policy_v2_) {
-    // Materialise the bounded transient effects once per tick, then hand the
-    // policy a read-only context. Shouts stay out of WorldState and boards.
-    mental_scratch_.clear();
-    for (unsigned index = 0; index < 2; ++index) {
-      const auto side = static_cast<football::sim::TeamSide>(index);
-      for (const WorldPlayerState& player : world.players) {
-        if (player.side != side) continue;
-        const PlayerMentalEffect effect = coach_.MentalEffect(side, player.id);
-        if (effect.motivation != 0.0f || effect.confidence != 0.0f ||
-            effect.focus != 0.0f || effect.composure != 0.0f)
-          mental_scratch_.push_back({side, player.id, effect});
-      }
+  // Materialise the bounded transient effects once per tick, then hand the
+  // policy a read-only context. Shouts stay out of WorldState and boards.
+  mental_scratch_.clear();
+  for (unsigned index = 0; index < 2; ++index) {
+    const auto side = static_cast<football::sim::TeamSide>(index);
+    for (const WorldPlayerState& player : world.players) {
+      if (player.side != side) continue;
+      const PlayerMentalEffect effect = coach_.MentalEffect(side, player.id);
+      if (effect.motivation != 0.0f || effect.confidence != 0.0f ||
+          effect.focus != 0.0f || effect.composure != 0.0f)
+        mental_scratch_.push_back({side, player.id, effect});
     }
-    PlayerAIContext context;
-    context.world = &world;
-    context.tactics = boards_;
-    context.mental_effects = mental_scratch_;
-    policy_v2_->Update(context, output);
-  } else {
-    policy_->Update(world, boards_, output);
   }
+  PlayerAIContext context;
+  context.world = &world;
+  context.tactics = boards_;
+  context.mental_effects = mental_scratch_;
+  policy_->Update(context, output);
 }
 
 bool AIEngine::SubmitCoachCommand(const CoachCommandEnvelope& envelope) {

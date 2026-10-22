@@ -58,10 +58,12 @@ int ElizaPolicy::PossessionTicks(football::player::PlayerId player) const {
   return found == possession_ticks_.end() ? 0 : found->second;
 }
 
-void ElizaPolicy::Update(const WorldState& world,
-                         std::span<const TacticalBoard, 2> tactics,
+void ElizaPolicy::Update(const PlayerAIContext& context,
                          PlayerControlSet& output) {
   output.Clear();
+  if (context.world == nullptr || context.tactics.size() < 2) return;
+  const WorldState& world = *context.world;
+  const std::span<const TacticalBoard> tactics = context.tactics;
   const Vector3 ball = world.ball_position.Get2D();
   const Vector3 intercept = ball + world.ball_velocity.Get2D() * 0.18f;
   const WorldPlayerState* chasers[2] = {

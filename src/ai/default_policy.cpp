@@ -4,10 +4,13 @@
 
 namespace football::ai {
 
-void DefaultPolicy::Update(const WorldState& world,
-                           std::span<const TacticalBoard, 2> tactics,
+void DefaultPolicy::Update(const PlayerAIContext& context,
                            PlayerControlSet& output) {
-  ComputeDefaultControls(world, tactics, output);
+  if (context.world == nullptr || context.tactics.size() < 2) {
+    output.Clear();
+    return;
+  }
+  ComputeDefaultControls(*context.world, context.tactics, output);
 }
 
 }  // namespace football::ai

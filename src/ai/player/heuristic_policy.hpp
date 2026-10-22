@@ -36,7 +36,7 @@ struct HeuristicAssignment {
 // It is a new PlayerPolicyKind and never the default. Legacy boards fall back
 // to the interpreted-from-nothing path: the historical anchors are unavailable,
 // so the policy uses the effective defaults and the observation only.
-class HeuristicPolicy final : public IPlayerPolicyV2 {
+class HeuristicPolicy final : public IPlayerPolicy {
  public:
   void Reset() override;
   void Update(const PlayerAIContext& context,

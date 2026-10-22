@@ -78,9 +78,6 @@ private:
   std::uint64_t next_command_id_ = 1;
   std::vector<football::sim::event::MatchEventRecord> pending_events_;
   std::unique_ptr<IPlayerPolicy> policy_;
-  // Set instead of policy_ when the selected implementation is the versioned
-  // policy that can see transient mental effects.
-  std::unique_ptr<IPlayerPolicyV2> policy_v2_;
   std::vector<PlayerMentalEffectEntry> mental_scratch_;
 };
 

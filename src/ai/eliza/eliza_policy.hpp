@@ -20,8 +20,7 @@ class ElizaPolicy final : public IPlayerPolicy {
  public:
   // Clears the per-player memory; the next Update behaves like a fresh policy.
   void Reset() override;
-  void Update(const WorldState& world,
-              std::span<const TacticalBoard, 2> tactics,
+  void Update(const PlayerAIContext& context,
               PlayerControlSet& output) override;
 
   // Test/diagnostic view of the policy-owned possession clock.
