@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <span>
 
 #include "football/ai/tactical_board.hpp"
 #include "football/ai/tactical_plan.hpp"
@@ -51,6 +52,9 @@ struct EffectivePlayerTactics {
   TacticalSlotId slot = 0;
   football::player::PlayerId player = football::player::kInvalidPlayerId;
   bool assigned = false;
+  // True when the plan's slot is the goalkeeper, so a policy never has to
+  // guess the role from the observation.
+  bool goalkeeper = false;
   football::math::Vector3 target_anchor_metres = football::math::Vector3(0);
   float forward_run_bias = 0.5f;
   float pass_risk = 0.5f;
@@ -63,7 +67,6 @@ struct EffectivePlayerTactics {
 };
 
 struct EffectiveTeamTactics {
-  bool has_plan = false;
   TacticalPhase phase = TacticalPhase::OutOfPossession;
   float tempo = 0.5f;
   float risk = 0.5f;
@@ -87,15 +90,25 @@ struct TacticalInterpretation {
   std::array<std::array<EffectivePlayerTactics, kTacticalSlotCount>, 2> players{};
 };
 
-// Pure interpreter. Legacy boards are reported as `has_plan == false` and left
-// untouched; callers keep reading the legacy fields for those.
+// Pure interpreter. Every board holds a formal plan, so a side always has an
+// interpreted plan; there is no legacy fallback path.
 class TacticalInterpreter {
  public:
   static TacticalInterpretation Build(
-      const std::array<TacticalBoard, 2>& boards, const WorldState& world,
+      std::span<const TacticalBoard> boards, const WorldState& world,
       const std::array<SlotAssignment, 2>& assignments,
       const InterpretationState& state);
 };
+
+// The assigned effective tactics for a player, or nullptr when the plan has no
+// occupied slot bound to that identity.
+inline const EffectivePlayerTactics* FindEffective(
+    const std::array<EffectivePlayerTactics, kTacticalSlotCount>& players,
+    football::player::PlayerId player) {
+  for (const EffectivePlayerTactics& candidate : players)
+    if (candidate.assigned && candidate.player == player) return &candidate;
+  return nullptr;
+}
 
 }  // namespace football::ai
 

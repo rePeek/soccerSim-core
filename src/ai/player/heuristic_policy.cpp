@@ -22,20 +22,6 @@ using football::player::PlayerId;
 using football::sim::TeamSide;
 using namespace football::ai::eliza;
 
-const EffectivePlayerTactics* FindEffective(
-    const std::array<EffectivePlayerTactics, kTacticalSlotCount>& players,
-    PlayerId id) {
-  for (const EffectivePlayerTactics& player : players)
-    if (player.assigned && player.player == id) return &player;
-  return nullptr;
-}
-
-const PlayerDirective* FindDirective(const TacticalBoard& board, PlayerId id) {
-  for (const PlayerDirective& directive : board.players)
-    if (directive.player == id) return &directive;
-  return nullptr;
-}
-
 const WorldPlayerState* ClosestTo(const WorldState& world, TeamSide side,
                                   const Vector3& point, bool exclude_keeper,
                                   PlayerId exclude = football::player::kInvalidPlayerId) {
@@ -105,25 +91,19 @@ void HeuristicPolicy::Update(const PlayerAIContext& context,
   const Vector3 ball = world.ball_position.Get2D();
   const Vector3 intercept = ball + world.ball_velocity.Get2D() * 0.18f;
 
-  // Interpret the persistent plan once per tick. Legacy boards are reported
-  // unsupported and the policy falls back to their legacy directives.
-  std::array<TacticalBoard, 2> views = {tactics[0], tactics[1]};
+  // Interpret the persistent plan once per tick: the plan is the only
+  // authority for role, anchor and team instruction.
   std::array<ElizaIntent, 2> intents{};
   std::array<std::array<EffectivePlayerTactics, kTacticalSlotCount>, 2> effective{};
-  if (tactics[0].mode == BoardMode::V2 || tactics[1].mode == BoardMode::V2) {
+  {
     std::array<SlotAssignment, 2> slot_assignments;
     for (unsigned side = 0; side < 2; ++side)
       slot_assignments[side] =
           DefaultSlotAssignment(world, static_cast<TeamSide>(side));
     const TacticalInterpretation interpretation = TacticalInterpreter::Build(
-        views, world, slot_assignments, InterpretationState::FromWorld(world));
+        tactics, world, slot_assignments, InterpretationState::FromWorld(world));
     for (unsigned side = 0; side < 2; ++side) {
-      if (interpretation.teams[side].has_plan) {
-        views[side] = MakeElizaTacticalView(interpretation.teams[side],
-                                            interpretation.players[side], world,
-                                            static_cast<TeamSide>(side));
-        effective[side] = interpretation.players[side];
-      }
+      effective[side] = interpretation.players[side];
       intents[side] = MakeElizaIntent(interpretation.teams[side]);
     }
   }
@@ -165,11 +145,9 @@ void HeuristicPolicy::Update(const PlayerAIContext& context,
     }
     const unsigned index = static_cast<unsigned>(player.side);
     const auto side = player.side;
-    const TacticalBoard& board = views[index];
     const ElizaIntent& intent = intents[index];
     const SidePlan& plan = plans[index];
     const EffectivePlayerTactics* eff = FindEffective(effective[index], player.id);
-    const PlayerDirective* directive = FindDirective(board, player.id);
     const float attack = AttackSign(world, side);
     const float defend = -attack;
 
@@ -204,11 +182,7 @@ void HeuristicPolicy::Update(const PlayerAIContext& context,
 
     // ---- Coordinated off-ball target ----
     Vector3 raw = player.position;
-    if (eff != nullptr) {
-      raw = eff->target_anchor_metres;
-    } else if (directive != nullptr && directive->formation_position) {
-      raw = *directive->formation_position;
-    }
+    if (eff != nullptr) raw = eff->target_anchor_metres;
     raw.coords[0] += world.ball_position.coords[0] * 0.15f;
     raw.coords[1] += world.ball_position.coords[1] * 0.12f;
 
@@ -221,9 +195,7 @@ void HeuristicPolicy::Update(const PlayerAIContext& context,
     ElizaIntent player_intent = intent;
     if (mental.motivation != 0.0f || mental.confidence != 0.0f ||
         mental.focus != 0.0f || mental.composure != 0.0f) {
-      // Neutral weights match the legacy constants, so enabling the intent
-      // here only adds the bounded mental tilt.
-      player_intent.has_plan = true;
+      // The plan intent is always active; the transient tilt is bounded on top.
       player_intent.risk_taking =
           clamp(player_intent.risk_taking + 0.15f * mental.confidence -
                     0.20f * mental.composure,
@@ -320,7 +292,7 @@ void HeuristicPolicy::Update(const PlayerAIContext& context,
       if (decision.save) action = ControlAction::Save;
     } else if (owns_ball || restart_taker) {
       const OnBallDecision decision =
-          DecideOnBall(world, board, player, parameters, possession_ms,
+          DecideOnBall(world, player, parameters, possession_ms,
                        player_intent);
       action = decision.action;
       action_target = decision.target_player;

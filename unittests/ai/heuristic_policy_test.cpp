@@ -100,8 +100,8 @@ WorldState MakeWorld(const football::sim::TeamSetup& home,
 std::array<TacticalBoard, 2> MakeBoards(const football::sim::TeamSetup& home,
                                         const football::sim::TeamSetup& away) {
   std::array<TacticalBoard, 2> boards;
-  boards[0] = football::ai::MakeTacticalBoardV2(home, TeamSide::Home, Pitch());
-  boards[1] = football::ai::MakeTacticalBoardV2(away, TeamSide::Away, Pitch());
+  boards[0] = football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch());
+  boards[1] = football::ai::MakeTacticalBoard(away, TeamSide::Away, Pitch());
   return boards;
 }
 
@@ -237,7 +237,7 @@ TEST_CASE("a high defensive line pushes the block up the pitch",
 
   auto run = [&](float line) {
     auto boards = MakeBoards(home, away);
-    boards[0].advanced->out_of_possession.defensive_line = line;
+    boards[0].plan.out_of_possession.defensive_line = line;
     HeuristicPolicy policy;
     PlayerControlSet output;
     output = Run(policy, world, boards);

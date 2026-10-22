@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_AI_ELIZA_DEFENSE_HPP
 #define FOOTBALL_AI_ELIZA_DEFENSE_HPP
 
-#include "football/ai/tactical_board.hpp"
+#include "football/ai/tactical_interpreter.hpp"
 #include "football/foundation/math/vector3.hpp"
 #include "football/observation/world_state.hpp"
 
@@ -11,7 +11,7 @@ namespace football::ai::eliza {
 // and active, else the opponent nearest the ball.
 const WorldPlayerState* SelectMarkingTarget(const WorldState& world,
                                             const WorldPlayerState& self,
-                                            const PlayerDirective* directive);
+                                            const EffectivePlayerTactics* tactics);
 
 // Legacy GetDefendPosition: the point on the opponent -> own-goal line that is
 // as close to us as to the opponent.

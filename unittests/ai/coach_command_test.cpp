@@ -11,7 +11,6 @@
 
 namespace {
 
-using football::ai::BoardMode;
 using football::ai::CoachCommand;
 using football::ai::CoachCommandEnvelope;
 using football::ai::CoachCommandExecutor;
@@ -89,7 +88,7 @@ WorldState MakeWorld(const football::sim::TeamSetup& home,
 }
 
 TacticalBoard MakeBoard(const football::sim::TeamSetup& team, TeamSide side) {
-  return football::ai::MakeTacticalBoardV2(team, side, Pitch());
+  return football::ai::MakeTacticalBoard(team, side, Pitch());
 }
 
 CoachCommandEnvelope Envelope(std::uint64_t id, std::uint64_t revision,
@@ -135,7 +134,7 @@ TEST_CASE("a team instruction commits and bumps the revision",
   REQUIRE(result.accepted);
   CHECK(result.new_board_revision == 1);
   CHECK(board.revision == 1);
-  CHECK(board.advanced->in_possession.tempo == 0.8f);
+  CHECK(board.plan.in_possession.tempo == 0.8f);
 }
 
 TEST_CASE("mentality applies the preset defaults", "[ai][tactical][coach]") {
@@ -151,9 +150,9 @@ TEST_CASE("mentality applies the preset defaults", "[ai][tactical][coach]") {
   command.value = football::ai::Mentality::VeryAttacking;
   const auto result = executor.Apply(board, Envelope(1, 0, command), world, world.tick);
   REQUIRE(result.accepted);
-  CHECK(board.advanced->mentality == football::ai::Mentality::VeryAttacking);
-  CHECK(board.advanced->out_of_possession.pressing_intensity >
-        board.advanced->out_of_possession.compactness);
+  CHECK(board.plan.mentality == football::ai::Mentality::VeryAttacking);
+  CHECK(board.plan.out_of_possession.pressing_intensity >
+        board.plan.out_of_possession.compactness);
 }
 
 TEST_CASE("an invalid command never changes the board",
@@ -172,7 +171,7 @@ TEST_CASE("an invalid command never changes the board",
   CHECK_FALSE(result.accepted);
   CHECK(result.error == CoachErrorCode::ValueOutOfRange);
   CHECK(board.revision == 0);
-  CHECK(board.advanced->in_possession.tempo == 0.5f);
+  CHECK(board.plan.in_possession.tempo == 0.5f);
 }
 
 TEST_CASE("staleness, expiry and duplicate ids are rejected",
@@ -202,11 +201,6 @@ TEST_CASE("staleness, expiry and duplicate ids are rejected",
     const auto result =
         executor.Apply(board, Envelope(1, 0, command, 900), world, world.tick);
     CHECK(result.error == CoachErrorCode::FutureTick);
-  }
-  SECTION("legacy board") {
-    TacticalBoard legacy = football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch());
-    const auto result = executor.Apply(legacy, Envelope(1, 0, command), world, world.tick);
-    CHECK(result.error == CoachErrorCode::LegacyBoard);
   }
   SECTION("slot out of range") {
     football::ai::SetSlotAnchor anchor;
@@ -250,7 +244,7 @@ TEST_CASE("individual marking validates opponent ownership",
     command.value = away.players[9].id;
     const auto result = executor.Apply(board, Envelope(1, 0, command), world, world.tick);
     REQUIRE(result.accepted);
-    CHECK(board.advanced->slots[2].instructions.marking_target == away.players[9].id);
+    CHECK(board.plan.slots[2].instructions.marking_target == away.players[9].id);
   }
   SECTION("unknown player rejected") {
     command.value = static_cast<football::player::PlayerId>(4242);
@@ -280,7 +274,7 @@ TEST_CASE("the AIEngine applies queued commands at the next tick",
 
   PlayerControlSet output;
   engine.Update(world, output);
-  CHECK(engine.tactics(TeamSide::Home).advanced->in_possession.tempo == 0.9f);
+  CHECK(engine.tactics(TeamSide::Home).plan.in_possession.tempo == 0.9f);
   CHECK(engine.tactics(TeamSide::Home).revision == 1);
   REQUIRE(engine.CoachLog().size() == 1);
   CHECK(engine.CoachLog()[0].result.accepted);
@@ -309,12 +303,8 @@ TEST_CASE("read-only tools never expose the opponent",
   CHECK(state.self == TeamSide::Home);
   CHECK(state.tick == world.tick);
 
-  const auto plan = CoachToolRegistry::TacticalPlan(home_board);
-  REQUIRE(plan.has_value());
-  CHECK(plan->slots.size() == 11);
-  CHECK_FALSE(CoachToolRegistry::TacticalPlan(
-                  football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch()))
-                  .has_value());
+  const auto plan = CoachToolRegistry::TacticalPlanOf(home_board);
+  CHECK(plan.slots.size() == 11);
 
   CHECK(CoachToolRegistry::PlayerInfo(world, TeamSide::Home, home.players[0].id)
             .has_value());

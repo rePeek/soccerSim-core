@@ -5,7 +5,6 @@
 
 #include "eliza_intent.hpp"
 #include "eliza_parameters.hpp"
-#include "football/ai/tactical_board.hpp"
 #include "football/foundation/math/vector3.hpp"
 #include "football/observation/world_state.hpp"
 #include "football/player/player_control.hpp"
@@ -33,7 +32,7 @@ float PassingOdds(const WorldState& world, const WorldPlayerState& self,
 // is replaced by a fixed threshold.
 // `possession_ms` is the policy-owned time-on-the-ball estimate (the legacy
 // GetPossessionDuration_ms); a long possession lowers the release threshold.
-OnBallDecision DecideOnBall(const WorldState& world, const TacticalBoard& board,
+OnBallDecision DecideOnBall(const WorldState& world,
                             const WorldPlayerState& self,
                             const ElizaParameters& parameters,
                             float possession_ms = 0.0f,

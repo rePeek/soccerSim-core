@@ -25,7 +25,7 @@ const WorldPlayerState* FindWorldPlayer(const WorldState& world, PlayerId id) {
   return nullptr;
 }
 
-std::optional<TacticalSlot*> SlotOf(TacticalPlanV2& plan, TacticalSlotId slot) {
+std::optional<TacticalSlot*> SlotOf(TacticalPlan& plan, TacticalSlotId slot) {
   if (slot >= kTacticalSlotCount) return std::nullopt;
   for (TacticalSlot& candidate : plan.slots)
     if (candidate.id == slot) return &candidate;
@@ -33,7 +33,7 @@ std::optional<TacticalSlot*> SlotOf(TacticalPlanV2& plan, TacticalSlotId slot) {
 }
 
 // Applies the command to a plan copy. Returns nullopt when the command is valid.
-std::optional<CoachCommandResult> ApplyToPlan(TacticalPlanV2& plan,
+std::optional<CoachCommandResult> ApplyToPlan(TacticalPlan& plan,
                                               const CoachCommand& command,
                                               const WorldState& world) {
   if (const auto* set = std::get_if<SetTeamInstruction>(&command)) {
@@ -186,8 +186,6 @@ football::sim::TeamSide CoachCommandSide(const CoachCommand& command) {
 CoachCommandResult CoachCommandExecutor::Apply(
     TacticalBoard& board, const CoachCommandEnvelope& envelope,
     const WorldState& world, std::uint64_t tick) const {
-  if (board.mode != BoardMode::V2 || !board.advanced)
-    return Reject(CoachErrorCode::LegacyBoard, "coach writes require a V2 board");
   if (envelope.observed_tick > tick)
     return Reject(CoachErrorCode::FutureTick, "observed tick is in the future");
   if (envelope.expires_at_tick != 0 && tick > envelope.expires_at_tick)
@@ -198,14 +196,14 @@ CoachCommandResult CoachCommandExecutor::Apply(
     return Reject(CoachErrorCode::InvalidPhase, "match is finished");
 
   // Transaction: validate and mutate a copy, commit only when fully valid.
-  TacticalPlanV2 candidate = *board.advanced;
+  TacticalPlan candidate = board.plan;
   const std::optional<CoachCommandResult> failure =
       ApplyToPlan(candidate, envelope.command, world);
   if (failure) return *failure;
   if (!ValidateTacticalPlan(candidate).ok)
     return Reject(CoachErrorCode::MalformedCommand, "resulting plan is invalid");
 
-  board.advanced = candidate;
+  board.plan = candidate;
   board.revision += 1;
   CoachCommandResult result;
   result.accepted = true;

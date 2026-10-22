@@ -2,7 +2,6 @@
 #define FOOTBALL_AI_COACH_CONTEXT_HPP
 
 #include <cstdint>
-#include <optional>
 #include <vector>
 
 #include "football/ai/shout.hpp"
@@ -74,8 +73,8 @@ struct CoachContext {
   TeamTrendSummary last_15_min;
   std::vector<PlayerSummary> own_players;
   std::vector<MatchEventSummary> recent_events;
-  // Own persistent intent only. nullopt for a legacy board.
-  std::optional<TacticalPlanV2> current_tactics;
+  // Own persistent intent only. Always present: every board holds a plan.
+  TacticalPlan current_tactics;
   std::vector<ActiveShout> active_shouts;
 };
 

@@ -25,12 +25,6 @@ using football::player::PlayerId;
 using football::sim::TeamSide;
 using namespace football::ai::eliza;
 
-const PlayerDirective* FindDirective(const TacticalBoard& board, PlayerId id) {
-  for (const PlayerDirective& directive : board.players)
-    if (directive.player == id) return &directive;
-  return nullptr;
-}
-
 // The closest outfield player to the predicted ball interception point. Only
 // this actor closes the ball, so the rest of the team keeps its shape.
 const WorldPlayerState* Chaser(const WorldState& world, TeamSide side,
@@ -70,23 +64,18 @@ void ElizaPolicy::Update(const PlayerAIContext& context,
       Chaser(world, TeamSide::Home, intercept),
       Chaser(world, TeamSide::Away, intercept)};
 
-  // V2 boards are interpreted once per tick into read-only legacy-shaped views
-  // plus a bounded intent. Legacy boards keep their exact historical path.
-  std::array<TacticalBoard, 2> views = {tactics[0], tactics[1]};
+  // The plan is the single authority: interpret it once per tick into a
+  // bounded per-player execution view and the derived team intent.
+  std::array<SlotAssignment, 2> assignments;
+  for (unsigned side = 0; side < 2; ++side)
+    assignments[side] = DefaultSlotAssignment(world, static_cast<TeamSide>(side));
+  const TacticalInterpretation interpretation = TacticalInterpreter::Build(
+      tactics, world, assignments, InterpretationState::FromWorld(world));
   std::array<ElizaIntent, 2> intents{};
-  if (tactics[0].mode == BoardMode::V2 || tactics[1].mode == BoardMode::V2) {
-    std::array<SlotAssignment, 2> assignments;
-    for (unsigned side = 0; side < 2; ++side)
-      assignments[side] = DefaultSlotAssignment(world, static_cast<TeamSide>(side));
-    const TacticalInterpretation interpretation = TacticalInterpreter::Build(
-        views, world, assignments, InterpretationState::FromWorld(world));
-    for (unsigned side = 0; side < 2; ++side) {
-      if (interpretation.teams[side].has_plan)
-        views[side] = MakeElizaTacticalView(interpretation.teams[side],
-                                            interpretation.players[side], world,
-                                            static_cast<TeamSide>(side));
-      intents[side] = MakeElizaIntent(interpretation.teams[side]);
-    }
+  std::array<std::array<EffectivePlayerTactics, kTacticalSlotCount>, 2> effective{};
+  for (unsigned side = 0; side < 2; ++side) {
+    effective[side] = interpretation.players[side];
+    intents[side] = MakeElizaIntent(interpretation.teams[side]);
   }
 
   for (const WorldPlayerState& player : world.players) {
@@ -95,9 +84,9 @@ void ElizaPolicy::Update(const PlayerAIContext& context,
       continue;
     }
     const unsigned side_index = static_cast<unsigned>(player.side);
-    const TacticalBoard& board = views[side_index];
+    const EffectivePlayerTactics* tactics_entry =
+        FindEffective(effective[side_index], player.id);
     const ElizaIntent& intent = intents[side_index];
-    const PlayerDirective* directive = FindDirective(board, player.id);
     PlayerControl control;
     control.player = player.id;
     control.look_at = world.ball_position;
@@ -143,7 +132,7 @@ void ElizaPolicy::Update(const PlayerAIContext& context,
       if (decision.save) action = ControlAction::Save;
     } else if (owns_ball || restart_taker) {
       const OnBallDecision decision =
-          DecideOnBall(world, board, player, parameters_, possession_ms, intent);
+          DecideOnBall(world, player, parameters_, possession_ms, intent);
       action = decision.action;
       action_target = decision.target_player;
       action_position = decision.target_position;
@@ -157,7 +146,7 @@ void ElizaPolicy::Update(const PlayerAIContext& context,
         action = decision.action;
         target = intercept;
       } else {
-        target = CalculateOffBallTarget(world, board, directive, player, parameters_,
+        target = CalculateOffBallTarget(world, tactics_entry, player, parameters_,
                                        intent);
         action = DecideTackle(world, player);
         if (action == ControlAction::Tackle) target = world.ball_position;

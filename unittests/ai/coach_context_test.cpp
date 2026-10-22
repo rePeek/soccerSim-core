@@ -82,8 +82,8 @@ TEST_CASE("the collector folds trends and derives events",
   const auto away = MakeTeam(100);
   WorldState world = MakeWorld(home, away);
   const std::array<TacticalBoard, 2> boards = {
-      football::ai::MakeTacticalBoardV2(home, TeamSide::Home, Pitch()),
-      football::ai::MakeTacticalBoardV2(away, TeamSide::Away, Pitch())};
+      football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch()),
+      football::ai::MakeTacticalBoard(away, TeamSide::Away, Pitch())};
 
   ContextCollector collector(TeamSide::Home);
   std::vector<football::ai::ActiveShout> no_shouts;
@@ -120,8 +120,7 @@ TEST_CASE("the collector folds trends and derives events",
   CHECK(context.opponent_score == 1);
   REQUIRE(context.own_players.size() == kPlayers);
   for (const auto& player : context.own_players) CHECK(player.active);
-  REQUIRE(context.current_tactics.has_value());
-  CHECK(context.current_tactics->in_possession.tempo == 0.5f);
+  CHECK(context.current_tactics.in_possession.tempo == 0.5f);
 
   // 3 samples in the 5-minute window (0, 500, 1000), plus 2000 and 20000 ->
   // the 5-minute window covers the last 30000 ticks, so all 5 sampled ticks.
@@ -142,25 +141,25 @@ TEST_CASE("the collector folds trends and derives events",
   CHECK(out_of_play_seen);
 }
 
-TEST_CASE("the collector never exposes a legacy plan",
+TEST_CASE("the collector always exposes the coach's plan",
           "[ai][tactical][context]") {
   const auto home = MakeTeam(0);
   const auto away = MakeTeam(100);
   WorldState world = MakeWorld(home, away);
-  const football::ai::TacticalBoard legacy =
+  const football::ai::TacticalBoard board =
       football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch());
   ContextCollector collector(TeamSide::Home);
   std::vector<football::ai::ActiveShout> shouts;
   collector.OnTick(world, shouts);
-  const auto context = collector.Build(world, legacy);
-  CHECK_FALSE(context.current_tactics.has_value());
+  const auto context = collector.Build(world, board);
+  CHECK(context.current_tactics.in_possession.tempo == 0.5f);
 }
 
 TEST_CASE("reset clears the collected window", "[ai][tactical][context]") {
   const auto home = MakeTeam(0);
   const auto away = MakeTeam(100);
   WorldState world = MakeWorld(home, away);
-  auto board = football::ai::MakeTacticalBoardV2(home, TeamSide::Home, Pitch());
+  auto board = football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch());
   ContextCollector collector(TeamSide::Home);
   std::vector<football::ai::ActiveShout> shouts;
   collector.OnTick(world, shouts);
@@ -175,7 +174,7 @@ TEST_CASE("the collector ingests formal confirmed events exactly once",
   const auto home = MakeTeam(0);
   const auto away = MakeTeam(100);
   WorldState world = MakeWorld(home, away);
-  const auto board = football::ai::MakeTacticalBoardV2(home, TeamSide::Home, Pitch());
+  const auto board = football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch());
   ContextCollector collector(TeamSide::Home);
 
   football::sim::event::MatchEventRecord card;

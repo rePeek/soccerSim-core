@@ -102,8 +102,8 @@ struct Fixture {
   football::sim::TeamSetup away = MakeTeam(100);
   WorldState world = MakeWorld(home, away);
   std::array<TacticalBoard, 2> boards = {
-      football::ai::MakeTacticalBoardV2(home, TeamSide::Home, Pitch()),
-      football::ai::MakeTacticalBoardV2(away, TeamSide::Away, Pitch())};
+      football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch()),
+      football::ai::MakeTacticalBoard(away, TeamSide::Away, Pitch())};
   CoachRuntime runtime{&boards};
 };
 
@@ -112,7 +112,7 @@ struct Fixture {
 TEST_CASE("a shout is transient and never edits the board",
           "[ai][tactical][shout]") {
   Fixture fixture;
-  const float tempo_before = fixture.boards[0].advanced->in_possession.tempo;
+  const float tempo_before = fixture.boards[0].plan.in_possession.tempo;
   const std::uint64_t revision_before = fixture.boards[0].revision;
 
   REQUIRE(fixture.runtime.Submit(ShoutEnvelope(
@@ -127,7 +127,7 @@ TEST_CASE("a shout is transient and never edits the board",
   CHECK(active.expires_at_tick == fixture.world.tick + 2500);
 
   CHECK(fixture.boards[0].revision == revision_before);
-  CHECK(fixture.boards[0].advanced->in_possession.tempo == tempo_before);
+  CHECK(fixture.boards[0].plan.in_possession.tempo == tempo_before);
   REQUIRE(fixture.runtime.log().size() == 1);
   CHECK(fixture.runtime.log()[0].result.accepted);
   CHECK(fixture.runtime.log()[0].before_revision ==

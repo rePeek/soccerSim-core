@@ -12,7 +12,7 @@ namespace football::ai {
 // goal to opponent goal, v left/right from the attacking view).
 
 namespace detail {
-inline void SetExampleSlot(TacticalPlanV2& plan, std::size_t index,
+inline void SetExampleSlot(TacticalPlan& plan, std::size_t index,
                            TacticalAnchor in_possession,
                            TacticalAnchor out_of_possession,
                            PossessionRole possession_role,
@@ -27,8 +27,8 @@ inline void SetExampleSlot(TacticalPlanV2& plan, std::size_t index,
 }  // namespace detail
 
 // 4-3-3 balanced: the shape the V2 bootstrap produces, written out explicitly.
-inline TacticalPlanV2 MakeBalanced433() {
-  TacticalPlanV2 plan;
+inline TacticalPlan MakeBalanced433() {
+  TacticalPlan plan;
   plan.mentality = Mentality::Balanced;
   plan.in_possession = DefaultInPossession(Mentality::Balanced);
   plan.out_of_possession = DefaultOutOfPossession(Mentality::Balanced);
@@ -60,8 +60,8 @@ inline TacticalPlanV2 MakeBalanced433() {
 
 // 3-2-5 in possession, 4-4-2 out of possession. The two phases are genuinely
 // different shapes; the same eleven slots change anchors and roles.
-inline TacticalPlanV2 MakeThreeTwoFiveVsFourFourTwo() {
-  TacticalPlanV2 plan;
+inline TacticalPlan MakeThreeTwoFiveVsFourFourTwo() {
+  TacticalPlan plan;
   plan.mentality = Mentality::Positive;
   plan.in_possession = DefaultInPossession(Mentality::Positive);
   plan.out_of_possession = DefaultOutOfPossession(Mentality::Positive);
@@ -93,8 +93,8 @@ inline TacticalPlanV2 MakeThreeTwoFiveVsFourFourTwo() {
 }
 
 // Low block counter: a deep, compact block that springs forward on a win.
-inline TacticalPlanV2 MakeLowBlockCounter() {
-  TacticalPlanV2 plan;
+inline TacticalPlan MakeLowBlockCounter() {
+  TacticalPlan plan;
   plan.mentality = Mentality::Defensive;
   plan.in_possession = DefaultInPossession(Mentality::Defensive);
   plan.out_of_possession = DefaultOutOfPossession(Mentality::Defensive);

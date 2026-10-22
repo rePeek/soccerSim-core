@@ -52,7 +52,7 @@ nlohmann::json MatchStateJson(const CoachMatchStateSummary& summary) {
               {"restart_pending", summary.restart_pending}};
 }
 
-nlohmann::json TacticalPlanJson(const TacticalPlanV2& plan) {
+nlohmann::json TacticalPlanJson(const TacticalPlan& plan) {
   json out;
   out["mentality"] = std::string(ToWireName(plan.mentality));
 
@@ -138,8 +138,7 @@ nlohmann::json CoachContextJson(const CoachContext& context) {
   }
   out["recent_events"] = std::move(events);
 
-  if (context.current_tactics)
-    out["current_tactics"] = TacticalPlanJson(*context.current_tactics);
+  out["current_tactics"] = TacticalPlanJson(context.current_tactics);
 
   json shouts = json::array();
   for (const ActiveShout& shout : context.active_shouts) {

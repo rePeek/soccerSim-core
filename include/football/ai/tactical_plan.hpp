@@ -13,7 +13,7 @@
 
 namespace football::ai {
 
-// FM-style dual-phase tactical scheme, version 2.
+// FM-style dual-phase tactical scheme.
 //
 // The plan is a pure, serialisable value model of the coach's *persistent*
 // intent. It contains no live match state: no possession flag, no marking
@@ -130,7 +130,7 @@ struct TacticalSlot {
   IndividualInstructions instructions;
 };
 
-struct TacticalPlanV2 {
+struct TacticalPlan {
   Mentality mentality = Mentality::Balanced;
   InPossessionInstructions in_possession;
   OutOfPossessionInstructions out_of_possession;
@@ -179,7 +179,7 @@ constexpr bool OptionalInRange(const std::optional<float>& value) {
 }  // namespace detail
 
 // Pure structural validation. Same input -> same result, no allocation.
-inline TacticalValidation ValidateTacticalPlan(const TacticalPlanV2& plan) {
+inline TacticalValidation ValidateTacticalPlan(const TacticalPlan& plan) {
   using football::ai::detail::FiniteInRange;
   using football::ai::detail::OptionalInRange;
   using football::ai::detail::ValidEnum;
@@ -320,10 +320,10 @@ inline OutOfPossessionInstructions DefaultOutOfPossession(Mentality mentality) {
 TacticalAnchor PossessionRoleAnchor(PossessionRole role);
 TacticalAnchor DefendingRoleAnchor(DefendingRole role);
 
-// Deterministically build a v2 plan from the declared static team shape. The
+// Deterministically build the plan from the declared static team shape. The
 // two phases start identical; later phases may diverge through explicit coach
 // intent. Slot ids are stamped 0..10 in declared order.
-TacticalPlanV2 MakeTacticalPlanV2(const football::sim::TeamSetup& team,
+TacticalPlan MakeTacticalPlan(const football::sim::TeamSetup& team,
                                   football::sim::TeamSide side,
                                   const football::pitch::Pitch& pitch);
 

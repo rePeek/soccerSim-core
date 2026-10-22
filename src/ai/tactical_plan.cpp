@@ -119,12 +119,12 @@ TacticalAnchor DefendingRoleAnchor(DefendingRole role) {
   return {0.5f, 0.0f};
 }
 
-TacticalPlanV2 MakeTacticalPlanV2(const football::sim::TeamSetup& team,
+TacticalPlan MakeTacticalPlan(const football::sim::TeamSetup& team,
                                   football::sim::TeamSide side,
                                   const football::pitch::Pitch& pitch) {
   (void)side;
   (void)pitch;
-  TacticalPlanV2 plan;
+  TacticalPlan plan;
   plan.mentality = Mentality::Balanced;
   plan.in_possession = DefaultInPossession(Mentality::Balanced);
   plan.out_of_possession = DefaultOutOfPossession(Mentality::Balanced);

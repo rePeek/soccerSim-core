@@ -1,4 +1,4 @@
-// TACT-1: TacticalPlanV2 value schema, validation and deterministic bootstrap.
+// TACT-1: TacticalPlan value schema, validation and deterministic bootstrap.
 #include <array>
 #include <catch2/catch_test_macros.hpp>
 #include <limits>
@@ -9,13 +9,11 @@
 
 namespace {
 
-using football::ai::BoardMode;
 using football::ai::MakeTacticalBoard;
-using football::ai::MakeTacticalBoardV2;
-using football::ai::MakeTacticalPlanV2;
+using football::ai::MakeTacticalPlan;
 using football::ai::TacticalAnchor;
 using football::ai::TacticalErrorCode;
-using football::ai::TacticalPlanV2;
+using football::ai::TacticalPlan;
 using football::ai::ValidateTacticalBoard;
 using football::ai::ValidateTacticalPlan;
 
@@ -45,7 +43,7 @@ football::sim::TeamSetup MakeTeam() {
 }  // namespace
 
 TEST_CASE("a default plan is structurally valid", "[ai][tactical][schema]") {
-  TacticalPlanV2 plan;
+  TacticalPlan plan;
   for (std::size_t i = 0; i < plan.slots.size(); ++i)
     plan.slots[i].id = static_cast<football::ai::TacticalSlotId>(i);
   const auto result = ValidateTacticalPlan(plan);
@@ -54,7 +52,7 @@ TEST_CASE("a default plan is structurally valid", "[ai][tactical][schema]") {
 }
 
 TEST_CASE("slot identity is validated", "[ai][tactical][schema]") {
-  TacticalPlanV2 plan;
+  TacticalPlan plan;
   for (std::size_t i = 0; i < plan.slots.size(); ++i)
     plan.slots[i].id = static_cast<football::ai::TacticalSlotId>(i);
 
@@ -75,7 +73,7 @@ TEST_CASE("slot identity is validated", "[ai][tactical][schema]") {
 
 TEST_CASE("numeric instructions reject non-finite and out-of-range",
           "[ai][tactical][schema]") {
-  TacticalPlanV2 plan;
+  TacticalPlan plan;
   for (std::size_t i = 0; i < plan.slots.size(); ++i)
     plan.slots[i].id = static_cast<football::ai::TacticalSlotId>(i);
 
@@ -113,12 +111,12 @@ TEST_CASE("numeric instructions reject non-finite and out-of-range",
   }
 }
 
-TEST_CASE("MakeTacticalPlanV2 is deterministic and well formed",
+TEST_CASE("MakeTacticalPlan is deterministic and well formed",
           "[ai][tactical][schema]") {
   const auto team = MakeTeam();
   const football::pitch::Pitch pitch;
-  const auto first = MakeTacticalPlanV2(team, football::sim::TeamSide::Home, pitch);
-  const auto second = MakeTacticalPlanV2(team, football::sim::TeamSide::Home, pitch);
+  const auto first = MakeTacticalPlan(team, football::sim::TeamSide::Home, pitch);
+  const auto second = MakeTacticalPlan(team, football::sim::TeamSide::Home, pitch);
   REQUIRE(ValidateTacticalPlan(first).ok);
 
   CHECK(first.slots.size() == 11);
@@ -131,37 +129,21 @@ TEST_CASE("MakeTacticalPlanV2 is deterministic and well formed",
     CHECK(first.slots[i].in_possession.v == second.slots[i].in_possession.v);
   }
   // The home side is independent of side argument for the canonical plan.
-  const auto away = MakeTacticalPlanV2(team, football::sim::TeamSide::Away, pitch);
+  const auto away = MakeTacticalPlan(team, football::sim::TeamSide::Away, pitch);
   CHECK(away.slots[9].in_possession.u == first.slots[9].in_possession.u);
   CHECK(away.slots[9].in_possession.v == first.slots[9].in_possession.v);
 }
 
-TEST_CASE("board mode and advanced plan stay paired", "[ai][tactical][schema]") {
+TEST_CASE("MakeTacticalBoard bootstraps the formal plan", "[ai][tactical][schema]") {
   const auto team = MakeTeam();
   const football::pitch::Pitch pitch;
+  const auto board = MakeTacticalBoard(team, football::sim::TeamSide::Home, pitch);
+  CHECK(board.side == football::sim::TeamSide::Home);
+  CHECK(board.revision == 0);
+  REQUIRE(board.plan.slots.size() == 11);
+  CHECK(ValidateTacticalBoard(board));
 
-  const auto legacy = MakeTacticalBoard(team, football::sim::TeamSide::Home, pitch);
-  CHECK(legacy.mode == BoardMode::Legacy);
-  CHECK_FALSE(legacy.advanced.has_value());
-  CHECK(ValidateTacticalBoard(legacy));
-  CHECK(legacy.players.size() == 11);
-
-  const auto v2 = MakeTacticalBoardV2(team, football::sim::TeamSide::Home, pitch);
-  CHECK(v2.mode == BoardMode::V2);
-  REQUIRE(v2.advanced.has_value());
-  CHECK(ValidateTacticalBoard(v2));
-  // The legacy fields are not populated in V2 mode.
-  CHECK(v2.players.empty());
-  CHECK(v2.width == 0.75f);
-  CHECK(v2.depth == 0.55f);
-  CHECK(football::ai::AdvancedPlan(v2) != nullptr);
-
-  // A half-built board is rejected: V2 without a plan, or a plan without V2.
+  // A default-constructed board has no slot identity stamped, so it is invalid.
   football::ai::TacticalBoard broken;
-  broken.mode = BoardMode::V2;
-  CHECK_FALSE(ValidateTacticalBoard(broken));
-  broken.mode = BoardMode::Legacy;
-  broken.advanced =
-      MakeTacticalPlanV2(team, football::sim::TeamSide::Home, pitch);
   CHECK_FALSE(ValidateTacticalBoard(broken));
 }

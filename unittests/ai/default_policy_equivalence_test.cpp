@@ -159,8 +159,8 @@ TEST_CASE("AIEngine Default policy is field-identical to DefaultAI", "[ai]") {
         home, TeamSide::Home, football::pitch::Pitch{});
     overridden.initial_tactics[1] = football::ai::MakeTacticalBoard(
         away, TeamSide::Away, football::pitch::Pitch{});
-    overridden.initial_tactics[0]->width = 0.4f;
-    overridden.initial_tactics[0]->depth = 0.8f;
+    overridden.initial_tactics[0]->plan.in_possession.attacking_width = 0.4f;
+    overridden.initial_tactics[0]->plan.out_of_possession.defensive_line = 0.8f;
     const WorldState world = MakeWorld(home, away);
     CheckIdentical(RunBaseline(home, away, overridden, world),
                    RunEngine(home, away, overridden, world));
@@ -184,8 +184,8 @@ TEST_CASE("AIEngine selects the requested player policy", "[ai]") {
 
   football::ai::AIEngine engine(home, away, football::pitch::Pitch{}, config);
   // The coach-owned boards are reachable and start from the declared shape.
-  CHECK(engine.tactics(TeamSide::Home).players.size() == kPlayers);
-  CHECK(engine.tactics(TeamSide::Away).players.size() == kPlayers);
+  CHECK(engine.tactics(TeamSide::Home).plan.slots.size() == kPlayers);
+  CHECK(engine.tactics(TeamSide::Away).plan.slots.size() == kPlayers);
   CHECK(engine.tactics(TeamSide::Home).side == TeamSide::Home);
   CHECK(engine.tactics(TeamSide::Away).side == TeamSide::Away);
 

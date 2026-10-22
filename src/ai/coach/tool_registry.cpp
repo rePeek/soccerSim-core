@@ -49,10 +49,8 @@ CoachMatchStateSummary CoachToolRegistry::MatchState(const WorldState& world,
   return summary;
 }
 
-std::optional<TacticalPlanV2> CoachToolRegistry::TacticalPlan(
-    const TacticalBoard& board) {
-  if (const TacticalPlanV2* plan = AdvancedPlan(board)) return *plan;
-  return std::nullopt;
+TacticalPlan CoachToolRegistry::TacticalPlanOf(const TacticalBoard& board) {
+  return board.plan;
 }
 
 std::optional<CoachPlayerInfo> CoachToolRegistry::PlayerInfo(

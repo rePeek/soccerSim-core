@@ -46,10 +46,7 @@ CoachToolExecution ExecuteTyped(const GetMatchStateRequest&,
 CoachToolExecution ExecuteTyped(const GetTacticalBoardRequest&,
                            const CoachToolView& view) {
   if (view.board == nullptr) return Rejected("board_unavailable");
-  const std::optional<TacticalPlanV2> plan =
-      CoachToolRegistry::TacticalPlan(*view.board);
-  if (!plan) return Rejected("legacy_board");
-  return Payload(TacticalPlanJson(*plan));
+  return Payload(TacticalPlanJson(CoachToolRegistry::TacticalPlanOf(*view.board)));
 }
 
 CoachToolExecution ExecuteTyped(const GetPlayerInfoRequest& request,

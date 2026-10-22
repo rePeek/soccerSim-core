@@ -2,6 +2,7 @@
 // TacticalBoard -> Player AI split (changing the board changes the decision).
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <cmath>
 #include <cstddef>
 
@@ -19,12 +20,6 @@ using football::ai::test::kPlayers;
 using football::ai::test::MakeTeam;
 using football::ai::test::MakeWorld;
 
-const football::ai::PlayerDirective* DirectiveOf(const football::ai::TacticalBoard& board,
-                                                 football::player::PlayerId id) {
-  for (const football::ai::PlayerDirective& directive : board.players)
-    if (directive.player == id) return &directive;
-  return nullptr;
-}
 }  // namespace
 
 TEST_CASE("Eliza keeper holds the box and advances toward the ball", "[ai]") {
@@ -95,30 +90,50 @@ TEST_CASE("Eliza keeper emits a Save action through the policy", "[ai]") {
   CHECK(keeper->action == ControlAction::Save);
 }
 
-TEST_CASE("TacticalBoard changes the interpreted shape", "[ai]") {
+TEST_CASE("TacticalPlan changes the interpreted shape", "[ai]") {
   const football::sim::TeamSetup home = MakeTeam(0);
   const football::sim::TeamSetup away = MakeTeam(11);
   WorldState world = MakeWorld(home, away);
   world.teams[0].has_possession = true;
   world.teams[0].fading_possession_amount = 1.4f;
   const football::pitch::Pitch pitch;
-  football::ai::TacticalBoard board =
+  const football::ai::TacticalBoard home_board =
       football::ai::MakeTacticalBoard(home, TeamSide::Home, pitch);
   const WorldPlayerState* winger =
       football::ai::eliza::FindPlayer(world, home.players[6].id);
   REQUIRE(winger != nullptr);
 
-  const Vector3 narrow = football::ai::eliza::CalculateFormationAnchor(
-      world, board, DirectiveOf(board, winger->id), *winger);
-  board.width *= 1.6f;
-  const Vector3 wide = football::ai::eliza::CalculateFormationAnchor(
-      world, board, DirectiveOf(board, winger->id), *winger);
+  auto anchor_at = [&](float width) {
+    football::ai::TacticalBoard board = home_board;
+    board.plan.in_possession.attacking_width = width;
+    const football::ai::TacticalBoard boards[2] = {board, board};
+    std::array<football::ai::SlotAssignment, 2> assignments;
+    for (unsigned side = 0; side < 2; ++side)
+      assignments[side] =
+          football::ai::DefaultSlotAssignment(world, static_cast<TeamSide>(side));
+    const auto interpretation = football::ai::TacticalInterpreter::Build(
+        boards, world, assignments,
+        football::ai::InterpretationState::FromWorld(world));
+    return football::ai::eliza::CalculateFormationAnchor(
+        world, football::ai::FindEffective(interpretation.players[0], winger->id),
+        *winger);
+  };
+
+  const Vector3 narrow = anchor_at(0.2f);
+  const Vector3 wide = anchor_at(0.95f);
   CHECK(std::fabs(wide.coords[1]) > std::fabs(narrow.coords[1]));
 
-  board.depth = 0.9f;
+  football::ai::TacticalBoard board = home_board;
+  const football::ai::TacticalBoard boards[2] = {board, board};
+  std::array<football::ai::SlotAssignment, 2> assignments;
+  for (unsigned side = 0; side < 2; ++side)
+    assignments[side] =
+        football::ai::DefaultSlotAssignment(world, static_cast<TeamSide>(side));
+  const auto interpretation = football::ai::TacticalInterpreter::Build(
+      boards, world, assignments, football::ai::InterpretationState::FromWorld(world));
   const Vector3 deep = football::ai::eliza::CalculateOffBallTarget(
-      world, board, DirectiveOf(board, winger->id), *winger,
-      football::ai::eliza::kElizaParameters);
+      world, football::ai::FindEffective(interpretation.players[0], winger->id),
+      *winger, football::ai::eliza::kElizaParameters);
   CHECK(std::isfinite(deep.coords[0]));
   CHECK(std::isfinite(deep.coords[1]));
 }
@@ -132,13 +147,13 @@ TEST_CASE("TacticalBoard marking target selects the defended opponent", "[ai]") 
       football::ai::eliza::FindPlayer(world, home.players[2].id);
   REQUIRE(defender != nullptr);
 
-  football::ai::PlayerDirective directive;
-  directive.player = defender->id;
-  directive.role = football::ai::PlannedPlayerRole::Defender;
+  football::ai::EffectivePlayerTactics effective;
+  effective.player = defender->id;
+  effective.assigned = true;
   const football::player::PlayerId marked = away.players[9].id;
-  directive.marking_target = marked;
+  effective.mark_target = marked;
   const WorldPlayerState* target =
-      football::ai::eliza::SelectMarkingTarget(world, *defender, &directive);
+      football::ai::eliza::SelectMarkingTarget(world, *defender, &effective);
   REQUIRE(target != nullptr);
   CHECK(target->id == marked);
 

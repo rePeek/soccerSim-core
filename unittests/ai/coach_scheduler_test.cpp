@@ -131,7 +131,7 @@ TEST_CASE("the heuristic coach is a NoOp when the score is level",
   world.teams[1].score = 1;
   ContextCollector collector(TeamSide::Home);
   collector.OnTick(world, {});
-  auto board = football::ai::MakeTacticalBoardV2(home, TeamSide::Home, Pitch());
+  auto board = football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch());
   const auto context = collector.Build(world, board);
   HeuristicCoachPolicy coach;
   std::vector<CoachCommand> commands;
@@ -145,9 +145,9 @@ TEST_CASE("a synchronous mock coach loop edits once and rejects stale writes",
   const auto away = MakeTeam(100);
   football::ai::AIConfig config;
   config.initial_tactics[0] =
-      football::ai::MakeTacticalBoardV2(home, TeamSide::Home, Pitch());
+      football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch());
   config.initial_tactics[1] =
-      football::ai::MakeTacticalBoardV2(away, TeamSide::Away, Pitch());
+      football::ai::MakeTacticalBoard(away, TeamSide::Away, Pitch());
   football::ai::AIEngine engine(home, away, Pitch(), config);
 
   ContextCollector collector(TeamSide::Home);
@@ -183,7 +183,7 @@ TEST_CASE("a synchronous mock coach loop edits once and rejects stale writes",
   turn(0, false);
   const std::uint64_t revision_after_first = engine.tactics(TeamSide::Home).revision;
   CHECK(revision_after_first > 0);
-  CHECK(engine.tactics(TeamSide::Home).advanced->in_possession.tempo == 0.70f);
+  CHECK(engine.tactics(TeamSide::Home).plan.in_possession.tempo == 0.70f);
 
   // Second turn: the plan already matches the target, so no new writes.
   turn(20000, false);
@@ -208,7 +208,6 @@ TEST_CASE("a synchronous mock coach loop edits once and rejects stale writes",
 
   // The context exposes only the coach's own plan.
   const auto context = collector.Build(world, engine.tactics(TeamSide::Home));
-  REQUIRE(context.current_tactics.has_value());
-  CHECK(context.current_tactics->in_possession.tempo ==
-        engine.tactics(TeamSide::Home).advanced->in_possession.tempo);
+  CHECK(context.current_tactics.in_possession.tempo ==
+        engine.tactics(TeamSide::Home).plan.in_possession.tempo);
 }

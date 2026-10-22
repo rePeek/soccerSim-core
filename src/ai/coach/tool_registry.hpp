@@ -48,8 +48,8 @@ class CoachToolRegistry {
 
   static CoachMatchStateSummary MatchState(const WorldState& world,
                                            football::sim::TeamSide self);
-  // Own-side plan only. Returns nullopt for a legacy board.
-  static std::optional<TacticalPlanV2> TacticalPlan(const TacticalBoard& board);
+  // Own-side plan only.
+  static TacticalPlan TacticalPlanOf(const TacticalBoard& board);
   // Own-side player only. Returns nullopt for an unknown or opponent player.
   static std::optional<CoachPlayerInfo> PlayerInfo(
       const WorldState& world, football::sim::TeamSide self,

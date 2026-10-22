@@ -29,8 +29,7 @@ void SetTransition(const CoachContext& context, TransitionKey key,
 void HeuristicCoachPolicy::RunTurn(const CoachContext& context,
                                    std::vector<CoachCommand>& out) {
   out.clear();
-  if (!context.current_tactics) return;  // legacy board: nothing to edit
-  const TacticalPlanV2& plan = *context.current_tactics;
+  const TacticalPlan& plan = context.current_tactics;
   const int difference = context.self_score - context.opponent_score;
 
   const bool chase = difference < 0 && context.phase == MatchPhase::SecondHalf;

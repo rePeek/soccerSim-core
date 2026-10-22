@@ -191,7 +191,7 @@ CoachContext ContextCollector::Build(const WorldState& world,
   context.last_15_min = Summarise(kWindowTicks);
   context.recent_events = events_;
   context.active_shouts = shouts_;
-  if (const TacticalPlanV2* plan = AdvancedPlan(own_board)) context.current_tactics = *plan;
+  context.current_tactics = own_board.plan;
 
   for (const WorldPlayerState& player : world.players) {
     if (player.side != self_) continue;

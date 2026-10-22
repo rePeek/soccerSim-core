@@ -16,12 +16,11 @@
 
 namespace {
 
-using football::ai::AdvancedPlan;
 using football::ai::AIEngine;
 using football::ai::AIConfig;
 using football::ai::PlayerPolicyKind;
 using football::ai::TacticalBoard;
-using football::ai::TacticalPlanV2;
+using football::ai::TacticalPlan;
 using football::ai::TransitionOnLoss;
 using football::ai::TransitionOnWin;
 using football::ai::test::MakeTeam;
@@ -35,9 +34,9 @@ AIConfig CoachConfig(const football::sim::TeamSetup& home,
   config.player_policy = PlayerPolicyKind::Heuristic;
   config.coach_enabled = true;
   config.initial_tactics[0] =
-      football::ai::MakeTacticalBoardV2(home, TeamSide::Home, football::pitch::Pitch{});
+      football::ai::MakeTacticalBoard(home, TeamSide::Home, football::pitch::Pitch{});
   config.initial_tactics[1] =
-      football::ai::MakeTacticalBoardV2(away, TeamSide::Away, football::pitch::Pitch{});
+      football::ai::MakeTacticalBoard(away, TeamSide::Away, football::pitch::Pitch{});
   return config;
 }
 
@@ -66,7 +65,7 @@ TEST_CASE("the coach loop runs a full heuristic turn and commits it next tick",
   world.tick = 1001;
   engine.Update(world, output);
 
-  const TacticalPlanV2& plan = *AdvancedPlan(engine.tactics(TeamSide::Home));
+  const TacticalPlan& plan = engine.tactics(TeamSide::Home).plan;
   REQUIRE(plan.in_possession.tempo == 0.70f);
   REQUIRE(plan.in_possession.attacking_bias == 0.75f);
   REQUIRE(plan.in_possession.risk_taking == 0.65f);

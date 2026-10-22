@@ -85,11 +85,10 @@ float PassingOdds(const WorldState& world, const WorldPlayerState& self,
   return 1.0f - danger;
 }
 
-OnBallDecision DecideOnBall(const WorldState& world, const TacticalBoard& board,
+OnBallDecision DecideOnBall(const WorldState& world,
                             const WorldPlayerState& self,
                             const ElizaParameters& parameters,
                             float possession_ms, const ElizaIntent& intent) {
-  (void)board;
   (void)parameters;
   const ElizaScoreWeights weights = MakeElizaScoreWeights(intent);
   OnBallDecision decision;

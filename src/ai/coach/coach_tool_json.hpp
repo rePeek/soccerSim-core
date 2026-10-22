@@ -19,7 +19,7 @@ namespace football::ai {
 // public contract.
 
 nlohmann::json MatchStateJson(const CoachMatchStateSummary& summary);
-nlohmann::json TacticalPlanJson(const TacticalPlanV2& plan);
+nlohmann::json TacticalPlanJson(const TacticalPlan& plan);
 nlohmann::json PlayerInfoJson(const CoachPlayerInfo& info);
 nlohmann::json CoachContextJson(const CoachContext& context);
 

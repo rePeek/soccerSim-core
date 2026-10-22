@@ -6,19 +6,10 @@ namespace football::ai::eliza {
 namespace {
 using football::ai::TransitionOnLoss;
 using football::ai::TransitionOnWin;
-
-const WorldPlayerState* FindPlayer(const WorldState& world,
-                                   football::player::PlayerId id) {
-  for (const WorldPlayerState& player : world.players)
-    if (player.id == id) return &player;
-  return nullptr;
-}
 }  // namespace
 
 ElizaIntent MakeElizaIntent(const EffectiveTeamTactics& team) {
   ElizaIntent intent;
-  if (!team.has_plan) return intent;
-  intent.has_plan = true;
   intent.width = team.width;
   intent.defensive_line = team.defensive_line;
   intent.pressing_intensity = team.press;
@@ -39,7 +30,6 @@ ElizaIntent MakeElizaIntent(const EffectiveTeamTactics& team) {
 
 ElizaScoreWeights MakeElizaScoreWeights(const ElizaIntent& intent) {
   ElizaScoreWeights weights;
-  if (!intent.has_plan) return weights;
   // risk 0 -> 0.42 (conservative), risk 1 -> 0.18 (aggressive); 0.5 -> 0.30.
   weights.shoot_odds_threshold =
       0.30f - 0.24f * (intent.risk_taking - 0.5f);
@@ -49,31 +39,6 @@ ElizaScoreWeights MakeElizaScoreWeights(const ElizaIntent& intent) {
   weights.long_directness =
       0.2f + 0.15f * intent.risk_taking + 0.1f * std::max(0.0f, intent.transition_on_win);
   return weights;
-}
-
-TacticalBoard MakeElizaTacticalView(
-    const EffectiveTeamTactics& team,
-    const std::array<EffectivePlayerTactics, kTacticalSlotCount>& players,
-    const WorldState& world, football::sim::TeamSide side) {
-  (void)team;
-  TacticalBoard view;
-  view.side = side;
-  view.mode = BoardMode::Legacy;
-  view.width = 0.75f;
-  view.depth = 0.55f;
-  for (const EffectivePlayerTactics& effective : players) {
-    if (!effective.assigned) continue;
-    const WorldPlayerState* observed = FindPlayer(world, effective.player);
-    PlayerDirective directive;
-    directive.player = effective.player;
-    directive.role = (observed != nullptr && observed->role == e_PlayerRole_GK)
-                         ? PlannedPlayerRole::Goalkeeper
-                         : PlannedPlayerRole::Defender;
-    directive.formation_position = effective.target_anchor_metres;
-    directive.marking_target = effective.mark_target;
-    view.players.push_back(directive);
-  }
-  return view;
 }
 
 }  // namespace football::ai::eliza

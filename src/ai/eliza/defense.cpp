@@ -17,9 +17,9 @@ using football::math::Vector3;
 
 const WorldPlayerState* SelectMarkingTarget(const WorldState& world,
                                             const WorldPlayerState& self,
-                                            const PlayerDirective* directive) {
-  if (directive != nullptr && directive->marking_target) {
-    const WorldPlayerState* marked = FindPlayer(world, *directive->marking_target);
+                                            const EffectivePlayerTactics* tactics) {
+  if (tactics != nullptr && tactics->mark_target) {
+    const WorldPlayerState* marked = FindPlayer(world, *tactics->mark_target);
     if (marked != nullptr && marked->active && marked->side != self.side) return marked;
   }
   return NearestOpponentToBall(world, self.side);

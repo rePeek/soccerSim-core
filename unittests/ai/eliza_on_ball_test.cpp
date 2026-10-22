@@ -119,7 +119,7 @@ TEST_CASE("Eliza on-ball selects a clear pass target", "[ai]") {
   const WorldPlayerState* self = football::ai::eliza::FindPlayer(world, home.players[5].id);
   REQUIRE(self != nullptr);
   const football::ai::eliza::OnBallDecision decision =
-      football::ai::eliza::DecideOnBall(world, football::ai::TacticalBoard{}, *self,
+      football::ai::eliza::DecideOnBall(world, *self,
                                         football::ai::eliza::kElizaParameters);
   REQUIRE(decision.target_player.has_value());
   CHECK(*decision.target_player == home.players[9].id);
@@ -141,7 +141,7 @@ TEST_CASE("Eliza on-ball degrades safely without a target", "[ai]") {
   const WorldPlayerState* self = football::ai::eliza::FindPlayer(world, home.players[5].id);
   REQUIRE(self != nullptr);
   const football::ai::eliza::OnBallDecision decision =
-      football::ai::eliza::DecideOnBall(world, football::ai::TacticalBoard{}, *self,
+      football::ai::eliza::DecideOnBall(world, *self,
                                         football::ai::eliza::kElizaParameters);
   CHECK(decision.action == ControlAction::None);
   CHECK_FALSE(decision.target_player.has_value());
@@ -155,7 +155,7 @@ TEST_CASE("Eliza on-ball shoots in range", "[ai]") {
   const WorldPlayerState* self = football::ai::eliza::FindPlayer(world, home.players[5].id);
   REQUIRE(self != nullptr);
   const football::ai::eliza::OnBallDecision decision =
-      football::ai::eliza::DecideOnBall(world, football::ai::TacticalBoard{}, *self,
+      football::ai::eliza::DecideOnBall(world, *self,
                                         football::ai::eliza::kElizaParameters);
   CHECK(decision.action == ControlAction::Shoot);
   CHECK(decision.target_position.has_value());

@@ -1,10 +1,12 @@
 #include "default_decisions.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <span>
 
+#include "football/ai/tactical_interpreter.hpp"
 #include "football/observation/world_state.hpp"
 #include "football/player/player_control_set.hpp"
 
@@ -19,24 +21,17 @@ const WorldPlayerState *Find(const WorldState &world, PlayerId id) {
   return nullptr;
 }
 
-const PlayerDirective *Directive(std::span<const TacticalBoard> boards,
-                                 TeamSide side, PlayerId id) {
-  const auto &board = boards[static_cast<unsigned>(side)];
-  for (const auto &directive : board.players)
-    if (directive.player == id) return &directive;
-  return nullptr;
-}
-
 // Ties follow observation/roster order, never IDs or scheduler phases.
-const WorldPlayerState *Closest(const WorldState &world, TeamSide side,
-                               const Vector3 &position, bool exclude_keeper,
-                               std::span<const TacticalBoard> boards) {
+const WorldPlayerState *Closest(
+    const WorldState &world, TeamSide side, const Vector3 &position,
+    bool exclude_keeper,
+    const std::array<EffectivePlayerTactics, kTacticalSlotCount> &tactics) {
   const WorldPlayerState *best = nullptr;
   float distance = std::numeric_limits<float>::max();
   for (const auto &player : world.players) {
-    const auto *directive = Directive(boards, player.side, player.id);
+    const auto *effective = FindEffective(tactics, player.id);
     if (!player.active || player.side != side || player.lazy ||
-        (exclude_keeper && directive && directive->role == PlannedPlayerRole::Goalkeeper)) continue;
+        (exclude_keeper && effective && effective->goalkeeper)) continue;
     const float candidate = (player.position - position).GetSquaredLength();
     if (candidate < distance) { best = &player; distance = candidate; }
   }
@@ -49,18 +44,17 @@ bool TeamHasBall(const WorldState &world, TeamSide side) {
   return false;
 }
 
-// Compute this tick's target from immutable tactics and actual match state.
-Vector3 FormationTarget(const WorldState &world, const TacticalBoard &board,
-                        const PlayerDirective *directive, const WorldPlayerState &player) {
-  if (!directive || !directive->formation_position) return player.position;
+// Compute this tick's target from the interpreted plan and actual match state.
+Vector3 FormationTarget(const WorldState &world,
+                        const EffectivePlayerTactics *tactics,
+                        const WorldPlayerState &player) {
+  if (tactics == nullptr) return player.position;
   const int defend = world.teams[static_cast<unsigned>(player.side)].defending_direction;
-  if (directive->role == PlannedPlayerRole::Goalkeeper)
+  if (tactics->goalkeeper)
     return Vector3(defend * (world.pitch.half_length() - 2.f),
                    std::clamp(world.ball_position.coords[1] * 0.2f, -3.f, 3.f), 0);
-  Vector3 position = *directive->formation_position;
-  position.coords[0] *= board.depth / 0.55f;
-  position.coords[1] *= board.width / 0.75f;
-  const auto marking = directive->marking_target;
+  Vector3 position = tactics->target_anchor_metres;
+  const auto marking = tactics->mark_target;
   if (marking) {
     const auto *opponent = Find(world, *marking);
     if (opponent && opponent->active && opponent->side != player.side)
@@ -82,18 +76,29 @@ void ComputeDefaultControls(const WorldState &world,
                             std::span<const TacticalBoard> boards,
                             PlayerControlSet &output) {
   output.Clear();
+  if (boards.size() < 2) return;
+
+  std::array<SlotAssignment, 2> assignments;
+  for (std::size_t side_index = 0; side_index < 2; ++side_index)
+    assignments[side_index] =
+        DefaultSlotAssignment(world, static_cast<TeamSide>(side_index));
+  const TacticalInterpretation interpretation = TacticalInterpreter::Build(
+      boards, world, assignments, InterpretationState::FromWorld(world));
+
   const Vector3 ball = world.ball_position.Get2D();
   const Vector3 intercept = ball + world.ball_velocity.Get2D() * 0.18f;
   for (const auto &player : world.players) {
     if (!player.active) continue;
+    const unsigned side_index = static_cast<unsigned>(player.side);
+    const auto &side_tactics = interpretation.players[side_index];
+    const auto *tactics = FindEffective(side_tactics, player.id);
     PlayerControl control;
     control.player = player.id;
     control.look_at = ball;
-    const auto *directive = Directive(boards, player.side, player.id);
-    const bool keeper = directive && directive->role == PlannedPlayerRole::Goalkeeper;
-    const int defend = world.teams[static_cast<unsigned>(player.side)].defending_direction;
+    const bool keeper = tactics && tactics->goalkeeper;
+    const int defend = world.teams[side_index].defending_direction;
     const Vector3 goal(-defend * world.pitch.half_length(), 0, 0);
-    Vector3 target = FormationTarget(world, boards[static_cast<unsigned>(player.side)], directive, player);
+    Vector3 target = FormationTarget(world, tactics, player);
 
     if (world.restart_pending) {
       const Vector3 delta = (player.restart_target.value_or(player.position) - player.position).Get2D();
@@ -109,7 +114,7 @@ void ComputeDefaultControls(const WorldState &world,
       output.Set(player.id, control);
       continue;
     }
-    const auto *chaser = Closest(world, player.side, intercept, true, boards);
+    const auto *chaser = Closest(world, player.side, intercept, true, side_tactics);
     if (chaser && chaser->id == player.id) target = intercept;
     if (keeper && ball.coords[0] * defend > world.pitch.half_length() - 16.f) target = intercept;
 

@@ -17,18 +17,17 @@
 namespace {
 
 using Catch::Approx;
-using football::ai::BoardMode;
+using football::ai::SlotAssignment;
 using football::ai::SlotAssignment;
 using football::ai::TacticalBoard;
 using football::ai::TacticalInterpreter;
-using football::ai::TacticalPlanV2;
+using football::ai::TacticalPlan;
 using football::ai::eliza::CalculateOffBallTarget;
 using football::ai::eliza::ElizaIntent;
 using football::ai::eliza::ElizaParameters;
 using football::ai::eliza::ElizaScoreWeights;
 using football::ai::eliza::MakeElizaIntent;
 using football::ai::eliza::MakeElizaScoreWeights;
-using football::ai::eliza::MakeElizaTacticalView;
 using football::sim::TeamSide;
 
 constexpr int kPlayers = 11;
@@ -102,8 +101,8 @@ WorldState MakeWorld(const football::sim::TeamSetup& home,
 std::array<TacticalBoard, 2> MakeBoards(const football::sim::TeamSetup& home,
                                         const football::sim::TeamSetup& away) {
   std::array<TacticalBoard, 2> boards;
-  boards[0] = football::ai::MakeTacticalBoardV2(home, TeamSide::Home, Pitch());
-  boards[1] = football::ai::MakeTacticalBoardV2(away, TeamSide::Away, Pitch());
+  boards[0] = football::ai::MakeTacticalBoard(home, TeamSide::Home, Pitch());
+  boards[1] = football::ai::MakeTacticalBoard(away, TeamSide::Away, Pitch());
   return boards;
 }
 
@@ -113,19 +112,18 @@ SlotAssignment AssignmentFor(const WorldState& world, TeamSide side) {
 
 }  // namespace
 
-TEST_CASE("legacy intent keeps the historical score weights",
+TEST_CASE("balanced intent keeps the neutral score weights",
           "[ai][tactical][response]") {
-  const ElizaIntent legacy;  // has_plan == false
-  const ElizaScoreWeights weights = MakeElizaScoreWeights(legacy);
+  const ElizaIntent balanced;
+  const ElizaScoreWeights weights = MakeElizaScoreWeights(balanced);
   CHECK(weights.shoot_odds_threshold == Approx(0.30f));
   CHECK(weights.pass_release_shift == Approx(0.0f));
-  CHECK(weights.long_directness == Approx(0.2f));
+  CHECK(weights.long_directness == Approx(0.275f));
 }
 
 TEST_CASE("score weights respond monotonically to intent",
           "[ai][tactical][response]") {
   ElizaIntent intent;
-  intent.has_plan = true;
 
   intent.risk_taking = 0.2f;
   const auto cautious = MakeElizaScoreWeights(intent);
@@ -147,7 +145,7 @@ TEST_CASE("score weights respond monotonically to intent",
   CHECK(counter.long_directness > hold.long_directness);
 }
 
-TEST_CASE("the interpreted view carries anchors and identity scaling",
+TEST_CASE("the interpreted plan carries anchors and role bindings",
           "[ai][tactical][response]") {
   const auto home = MakeTeam(0);
   const auto away = MakeTeam(100);
@@ -159,49 +157,41 @@ TEST_CASE("the interpreted view carries anchors and identity scaling",
       boards, world, assignments,
       football::ai::InterpretationState::FromWorld(world));
 
-  REQUIRE(interpretation.teams[0].has_plan);
-  const TacticalBoard view =
-      MakeElizaTacticalView(interpretation.teams[0], interpretation.players[0], world,
-                            TeamSide::Home);
-  CHECK(view.mode == BoardMode::Legacy);
-  CHECK(view.width == Approx(0.75f));
-  CHECK(view.depth == Approx(0.55f));
-  REQUIRE(view.players.size() == kPlayers);
-  for (std::size_t i = 0; i < view.players.size(); ++i) {
-    REQUIRE(view.players[i].formation_position.has_value());
-    CHECK(view.players[i].formation_position->coords[0] ==
-          Approx(interpretation.players[0][i].target_anchor_metres.coords[0]));
-    CHECK(view.players[i].formation_position->coords[1] ==
-          Approx(interpretation.players[0][i].target_anchor_metres.coords[1]));
+  REQUIRE(interpretation.players[0][0].assigned);
+  CHECK(interpretation.players[0][0].goalkeeper);
+  CHECK_FALSE(interpretation.players[0][1].goalkeeper);
+  for (std::size_t i = 0; i < kPlayers; ++i) {
+    CHECK(interpretation.players[0][i].assigned);
+    CHECK(std::isfinite(
+        interpretation.players[0][i].target_anchor_metres.coords[0]));
+    CHECK(std::isfinite(
+        interpretation.players[0][i].target_anchor_metres.coords[1]));
   }
   const ElizaIntent intent = MakeElizaIntent(interpretation.teams[0]);
-  CHECK(intent.has_plan);
   CHECK(intent.width == Approx(interpretation.teams[0].width));
   CHECK(intent.pressing_intensity == Approx(interpretation.teams[0].press));
 }
 
 TEST_CASE("pressing intensity scales the defensive engagement",
           "[ai][tactical][response]") {
-  const ElizaIntent legacy;
-  CHECK(ElizaDefenceBias(0.4f, legacy) == Approx(0.4f));
+  const ElizaIntent balanced;
+  CHECK(ElizaDefenceBias(0.4f, balanced) == Approx(0.4f));
 
   ElizaIntent weak;
-  weak.has_plan = true;
   weak.pressing_intensity = 0.1f;
   ElizaIntent strong;
-  strong.has_plan = true;
   strong.pressing_intensity = 0.9f;
   CHECK(ElizaDefenceBias(0.4f, strong) > ElizaDefenceBias(0.4f, weak));
 
   // Counter-press lifts it, regroup lowers it, relative to balanced.
-  ElizaIntent balanced = strong;
-  balanced.transition_on_loss = 0.0f;
+  ElizaIntent even = strong;
+  even.transition_on_loss = 0.0f;
   ElizaIntent counter = strong;
   counter.transition_on_loss = 1.0f;
   ElizaIntent regroup = strong;
   regroup.transition_on_loss = -1.0f;
-  CHECK(ElizaDefenceBias(0.4f, counter) > ElizaDefenceBias(0.4f, balanced));
-  CHECK(ElizaDefenceBias(0.4f, regroup) < ElizaDefenceBias(0.4f, balanced));
+  CHECK(ElizaDefenceBias(0.4f, counter) > ElizaDefenceBias(0.4f, even));
+  CHECK(ElizaDefenceBias(0.4f, regroup) < ElizaDefenceBias(0.4f, even));
 }
 
 TEST_CASE("Eliza on V2 boards stays legal and responds to width",
@@ -211,7 +201,7 @@ TEST_CASE("Eliza on V2 boards stays legal and responds to width",
 
   auto run = [&](float attacking_width) {
     auto boards = MakeBoards(home, away);
-    boards[0].advanced->in_possession.attacking_width = attacking_width;
+    boards[0].plan.in_possession.attacking_width = attacking_width;
     football::ai::AIConfig config;
     config.player_policy = football::ai::PlayerPolicyKind::Eliza;
     config.initial_tactics[0] = boards[0];

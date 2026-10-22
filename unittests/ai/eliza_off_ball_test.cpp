@@ -3,6 +3,8 @@
 // and the full policy through AIEngine.
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -84,20 +86,21 @@ WorldState MakeWorld(const TeamSetup& home, const TeamSetup& away) {
   return world;
 }
 
-const football::ai::PlayerDirective* DirectiveOf(const football::ai::TacticalBoard& board,
-                                                 PlayerId id) {
-  for (const football::ai::PlayerDirective& directive : board.players)
-    if (directive.player == id) return &directive;
-  return nullptr;
-}
-
 Vector3 OffBall(const WorldState& world, const football::ai::TacticalBoard& board,
                 PlayerId id) {
   const WorldPlayerState* player = football::ai::eliza::FindPlayer(world, id);
   REQUIRE(player != nullptr);
+  const football::ai::TacticalBoard boards[2] = {board, board};
+  std::array<football::ai::SlotAssignment, 2> assignments;
+  for (unsigned side = 0; side < 2; ++side)
+    assignments[side] =
+        football::ai::DefaultSlotAssignment(world, static_cast<TeamSide>(side));
+  const auto interpretation = football::ai::TacticalInterpreter::Build(
+      boards, world, assignments, football::ai::InterpretationState::FromWorld(world));
+  const auto* effective = football::ai::FindEffective(
+      interpretation.players[static_cast<unsigned>(player->side)], id);
   return football::ai::eliza::CalculateOffBallTarget(
-      world, board, DirectiveOf(board, id), *player,
-      football::ai::eliza::kElizaParameters);
+      world, effective, *player, football::ai::eliza::kElizaParameters);
 }
 
 bool IsFinite(const Vector3& v) {

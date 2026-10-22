@@ -158,27 +158,22 @@ SlotAssignment DefaultSlotAssignment(const WorldState& world,
 }
 
 TacticalInterpretation TacticalInterpreter::Build(
-    const std::array<TacticalBoard, 2>& boards, const WorldState& world,
+    std::span<const TacticalBoard> boards, const WorldState& world,
     const std::array<SlotAssignment, 2>& assignments,
     const InterpretationState& state) {
   TacticalInterpretation result;
   for (std::size_t side_index = 0; side_index < 2; ++side_index) {
     EffectiveTeamTactics& team = result.teams[side_index];
-    const TacticalPlanV2* plan = AdvancedPlan(boards[side_index]);
-    if (!plan) {
-      team.has_plan = false;
-      continue;
-    }
-    team.has_plan = true;
+    const TacticalPlan& plan = boards[side_index].plan;
     team.phase = state.phase[side_index];
     team.transition_momentum =
         Finite(state.transition_momentum[side_index])
             ? std::clamp(state.transition_momentum[side_index], -1.0f, 1.0f)
             : 0.0f;
 
-    const InPossessionInstructions& ip = plan->in_possession;
-    const OutOfPossessionInstructions& oop = plan->out_of_possession;
-    const TransitionInstructions& transition = plan->transition;
+    const InPossessionInstructions& ip = plan.in_possession;
+    const OutOfPossessionInstructions& oop = plan.out_of_possession;
+    const TransitionInstructions& transition = plan.transition;
 
     team.tempo = ip.tempo;
     team.risk = ip.risk_taking;
@@ -195,10 +190,13 @@ TacticalInterpretation TacticalInterpreter::Build(
     const int defending_direction = world.teams[side_index].defending_direction;
     const bool man_marking = oop.marking != MarkingStyle::Zonal;
 
-    for (std::size_t i = 0; i < plan->slots.size(); ++i) {
-      const TacticalSlot& slot = plan->slots[i];
+    for (std::size_t i = 0; i < plan.slots.size(); ++i) {
+      const TacticalSlot& slot = plan.slots[i];
       EffectivePlayerTactics& effective = result.players[side_index][i];
       effective.slot = slot.id;
+      effective.goalkeeper =
+          slot.in_possession_role == PossessionRole::Goalkeeper ||
+          slot.out_of_possession_role == DefendingRole::Goalkeeper;
       if (assignments[side_index].players[i]) {
         effective.player = *assignments[side_index].players[i];
         effective.assigned = true;

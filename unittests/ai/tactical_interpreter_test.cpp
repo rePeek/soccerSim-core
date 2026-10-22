@@ -19,7 +19,7 @@ using football::ai::TacticalBoard;
 using football::ai::TacticalInterpretation;
 using football::ai::TacticalInterpreter;
 using football::ai::TacticalPhase;
-using football::ai::TacticalPlanV2;
+using football::ai::TacticalPlan;
 using football::sim::TeamSide;
 
 constexpr int kSlots = 11;
@@ -74,9 +74,9 @@ const football::pitch::Pitch& world_pitch();
 std::array<TacticalBoard, 2> Boards(const football::sim::TeamSetup& home,
                                     const football::sim::TeamSetup& away) {
   std::array<TacticalBoard, 2> boards;
-  boards[0] = football::ai::MakeTacticalBoardV2(home, TeamSide::Home,
+  boards[0] = football::ai::MakeTacticalBoard(home, TeamSide::Home,
                                                 world_pitch());
-  boards[1] = football::ai::MakeTacticalBoardV2(away, TeamSide::Away,
+  boards[1] = football::ai::MakeTacticalBoard(away, TeamSide::Away,
                                                 world_pitch());
   return boards;
 }
@@ -93,8 +93,8 @@ TacticalInterpretation Interpret(std::array<TacticalBoard, 2>& boards,
   return TacticalInterpreter::Build(boards, world, assignments, state);
 }
 
-TacticalPlanV2& Plan(std::array<TacticalBoard, 2>& boards, TeamSide side) {
-  return *football::ai::AdvancedPlan(boards[static_cast<unsigned>(side)]);
+TacticalPlan& Plan(std::array<TacticalBoard, 2>& boards, TeamSide side) {
+  return boards[static_cast<unsigned>(side)].plan;
 }
 
 }  // namespace
@@ -111,7 +111,7 @@ TEST_CASE("default plan interprets to finite mirrored anchors",
 
   const auto result = Interpret(boards, assignments, world, state);
   for (std::size_t side = 0; side < 2; ++side) {
-    CHECK(result.teams[side].has_plan);
+    CHECK(result.teams[side].phase == TacticalPhase::InPossession);
     for (const auto& player : result.players[side]) {
       CHECK(player.assigned);
       CHECK(std::isfinite(player.target_anchor_metres.coords[0]));
@@ -272,20 +272,6 @@ TEST_CASE("a second-half defending direction stays consistent",
   const auto result = Interpret(boards, assignments, world, state);
   CHECK(result.players[0][9].target_anchor_metres.coords[0] < 0.0f);
   CHECK(result.players[1][9].target_anchor_metres.coords[0] > 0.0f);
-}
-
-TEST_CASE("legacy boards are reported unsupported",
-          "[ai][tactical][interpreter]") {
-  const auto home = MakeTeam(0);
-  const auto away = MakeTeam(100);
-  std::array<TacticalBoard, 2> boards;
-  boards[0] = football::ai::MakeTacticalBoard(home, TeamSide::Home, world_pitch());
-  boards[1] = football::ai::MakeTacticalBoard(away, TeamSide::Away, world_pitch());
-  const auto assignments = Assign(home, away);
-  WorldState world = MakeWorld();
-  const auto result = Interpret(boards, assignments, world, {});
-  CHECK_FALSE(result.teams[0].has_plan);
-  CHECK_FALSE(result.teams[1].has_plan);
 }
 
 TEST_CASE("Runtime formation slot bindings survive vacancies and replacement", "[team][tactical]") {

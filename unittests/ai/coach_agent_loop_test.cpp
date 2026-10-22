@@ -55,11 +55,11 @@ struct Fixture {
   football::sim::TeamSetup away = MakeTeam(100);
   WorldState world = MakeWorld(home, away);
   TacticalBoard board =
-      football::ai::MakeTacticalBoardV2(home, TeamSide::Home, football::pitch::Pitch{});
+      football::ai::MakeTacticalBoard(home, TeamSide::Home, football::pitch::Pitch{});
   CoachTurnSnapshot snapshot;
 
   explicit Fixture(TeamSide self = TeamSide::Home) {
-    board = football::ai::MakeTacticalBoardV2(
+    board = football::ai::MakeTacticalBoard(
         self == TeamSide::Home ? home : away, self, football::pitch::Pitch{});
     snapshot.context.self = self;
     snapshot.context.observed_tick = world.tick;
