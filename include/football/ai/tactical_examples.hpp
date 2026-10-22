@@ -26,7 +26,7 @@ inline void SetExampleSlot(TacticalPlan& plan, std::size_t index,
 }
 }  // namespace detail
 
-// 4-3-3 balanced: the shape the V2 bootstrap produces, written out explicitly.
+// 4-3-3 balanced: the shape the plan bootstrap produces, written out explicitly.
 inline TacticalPlan MakeBalanced433() {
   TacticalPlan plan;
   plan.mentality = Mentality::Balanced;

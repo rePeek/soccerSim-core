@@ -122,7 +122,6 @@ enum class CoachErrorCode : std::uint8_t {
   FutureTick,
   DuplicateId,
   InvalidPhase,
-  LegacyBoard,
   InvalidSlot,
   InvalidEnum,
   NonFiniteValue,

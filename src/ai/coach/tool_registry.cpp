@@ -6,7 +6,7 @@ using football::sim::TeamSide;
 
 constexpr CoachToolDescriptor kTools[] = {
     {"get_match_state", false, "observed tick, phase, score, possession facts"},
-    {"get_tactical_board", false, "own persistent V2 plan (read-only)"},
+    {"get_tactical_board", false, "own persistent tactical plan (read-only)"},
     {"get_player_info", false, "own player's public observation values"},
     {"set_team_instruction", true, "set one team instruction field"},
     {"set_slot_role", true, "set an in/out-of-possession slot role"},

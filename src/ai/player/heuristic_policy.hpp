@@ -33,9 +33,9 @@ struct HeuristicAssignment {
 // on-ball, off-ball and keeper decisions. It owns only per-PlayerId memory and
 // never actors, match state or RNG; every tick it fully replaces its output.
 //
-// It is a new PlayerPolicyKind and never the default. Legacy boards fall back
-// to the interpreted-from-nothing path: the historical anchors are unavailable,
-// so the policy uses the effective defaults and the observation only.
+// It is a new PlayerPolicyKind and never the default. Every tick it reads the
+// interpreter projection of the plan plus the observation; it holds no board
+// state of its own.
 class HeuristicPolicy final : public IPlayerPolicy {
  public:
   void Reset() override;

@@ -48,7 +48,7 @@ ModelToolCall Call(std::string id, std::string name, std::string arguments) {
   return call;
 }
 
-// A synthetic observed world plus the Home team's own V2 board. The pointers in
+// A synthetic observed world plus the Home team's own tactical board. The
 // `snapshot.view` point back into this fixture, so it is never copied.
 struct Fixture {
   football::sim::TeamSetup home = MakeTeam(0);

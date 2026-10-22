@@ -102,9 +102,8 @@ TEST_CASE("Default policy still matches the public DefaultAI baseline", "[ai]") 
 }
 
 TEST_CASE("Every selectable PlayerPolicyKind constructs and drives AIEngine", "[ai]") {
-  // Regression: AIEngine builds a legacy policy and a versioned policy from the
-  // same kind. A kind driven through the V2 interface must not require a legacy
-  // adapter, or the whole engine construction throws.
+  // Regression: every selectable kind must construct and drive the engine
+  // through the unified IPlayerPolicy without a legacy adapter.
   const football::sim::TeamSetup home = MakeTeam(0);
   const football::sim::TeamSetup away = MakeTeam(11);
   WorldState world = MakeWorld(home, away);

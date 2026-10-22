@@ -31,8 +31,8 @@ TacticalAnchor WorldPositionToAnchor(const football::math::Vector3& position,
 TacticalPhase PhaseFromPossession(bool team_has_possession);
 
 // Uses Runtime's stable slot binding when present, filtering unavailable actors.
-// Synthetic/legacy observations without metadata retain active roster-order
-// fallback. An authoritative vacancy must never compress the remaining slots.
+// Synthetic observations without metadata retain active roster-order fallback.
+// An authoritative vacancy must never compress the remaining slots.
 SlotAssignment DefaultSlotAssignment(const WorldState& world,
                                      football::sim::TeamSide side);
 

@@ -1,6 +1,6 @@
-// TACT-3: the Eliza heuristic consumes V2 tactical intent through an explicit
-// adapter. Legacy boards keep the historical path; V2 boards add verifiable
-// movement and candidate-scoring differences.
+// TACT-3: the Eliza heuristic consumes the plan through the interpreter. The
+// plan's instructions produce verifiable movement and candidate-scoring
+// differences.
 #include <array>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -194,7 +194,7 @@ TEST_CASE("pressing intensity scales the defensive engagement",
   CHECK(ElizaDefenceBias(0.4f, regroup) < ElizaDefenceBias(0.4f, even));
 }
 
-TEST_CASE("Eliza on V2 boards stays legal and responds to width",
+TEST_CASE("Eliza stays legal and responds to width",
           "[ai][tactical][response]") {
   const auto home = MakeTeam(0);
   const auto away = MakeTeam(100);
@@ -245,7 +245,7 @@ TEST_CASE("Eliza on V2 boards stays legal and responds to width",
   CHECK(differs);
 }
 
-TEST_CASE("Eliza V2 keeps restarts and keeper behaviour intact",
+TEST_CASE("Eliza keeps restarts and keeper behaviour intact",
           "[ai][tactical][response]") {
   const auto home = MakeTeam(0);
   const auto away = MakeTeam(100);

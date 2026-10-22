@@ -12,10 +12,10 @@ struct Point {
   float y = 0.0f;
 };
 
-// Normalized role anchor in the legacy (-1..1) shape space: x is depth
+// Normalized role anchor in the interpreter's (-1..1) shape space: x is depth
 // (negative = own goal), y is lateral (positive = own left). Mirrors the
-// historical MakeTacticalBoard RoleAnchor so the V2 bootstrap describes the
-// same declared shape.
+// historical MakeTacticalBoard RoleAnchor so the bootstrap describes the same
+// declared shape.
 Point RolePoint(e_PlayerRole role) {
   switch (role) {
     case e_PlayerRole_GK:
