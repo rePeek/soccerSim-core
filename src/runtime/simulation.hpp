@@ -36,11 +36,11 @@
 #include "event/rule_touch.hpp"
 
 #include "referee/referee_tick_facts.hpp"
-#include "referee/rule_command_sink.hpp"
+#include "runtime/rule_command_sink.hpp"
 #include "player/player_tick_context.hpp"
 #include "player/player_runtime_sink.hpp"
 #include "player/player_send_off_sink.hpp"
-#include "player/foul_assessment.hpp"
+#include "football/player/foul_assessment.hpp"
 #include "player/player_body_collision_shadow.hpp"
 #include "player/player_active_touch_shadow.hpp"
 #include "player/player_baked_pose_sample.hpp"
@@ -258,7 +258,7 @@ class Simulation {
   // Team-state write published by an actor through PlayerRuntimeSink. Runtime
   // owns the storage; the actor never touches TeamMatchState directly.
   void SetDesignatedPlayer(int team_id, Player* receiver) {
-    team_states_[team_id].designated_player = receiver;
+    team_states_[team_id].SetDesignatedPlayer(receiver);
   }
   void SetGoalScored(bool onOff) {
     if (onOff) clock_->StopBallInPlay();

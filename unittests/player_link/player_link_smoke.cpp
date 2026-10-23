@@ -13,6 +13,7 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/match/team_side.hpp"
 #include "football/player/formation_entry.hpp"
+#include "football/player/foul_assessment.hpp"
 #include "football/player/player_control.hpp"
 #include "football/player/player_control_set.hpp"
 #include "football/player/player_definition.hpp"
@@ -47,11 +48,15 @@ int main() {
   FormationEntry entry;
   entry.role = e_PlayerRole_CF;
 
+  const football::sim::ChallengeAction challenge =
+      football::sim::ChallengeAction::StandingChallenge;
+
   const e_TouchType touch_type = e_TouchType_Intentional_Kicked;
   const football::sim::TeamSide side = football::sim::TeamSide::Home;
 
   return (touch_type == e_TouchType_SIZE || side == football::sim::TeamSide::Away ||
-          team_facts.time_to_ball_ms == 0 || restart_facts.active)
+          team_facts.time_to_ball_ms == 0 || restart_facts.active ||
+          challenge == football::sim::ChallengeAction::Other)
              ? 1
              : 0;
 }

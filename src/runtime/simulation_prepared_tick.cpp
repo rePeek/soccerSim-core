@@ -33,7 +33,7 @@ struct PreparationPorts final : football::sim::PlayerTouchPreparationSink,
   void SetDesignatedPlayer(int team_id, Player* receiver) override {
     // Preserve the legacy designation time: before the physical touch is
     // committed. Synchronous and non-publishing, like the view write.
-    if (auto* state = team_states.at(team_id)) state->designated_player = receiver;
+    if (auto* state = team_states.at(team_id)) state->SetDesignatedPlayer(receiver);
   }
   void OnAcceptedTouch(const football::sim::event::AcceptedTouch&) override {
     throw std::logic_error("accepted touch published before Ball commit");
@@ -98,7 +98,7 @@ void Simulation::RunPreparedPlayerTick() {
           base.ball_retainer, base.designated_possession_player, base.last_touch_player,
           base.touches, base.restart, base.pitch, base.own_team, base.opponent_team,
           base.processing_slot,
-          base.restart_needs_simulation, nullptr, &ports, nullptr,
+          base.restart_needs_simulation, nullptr, &ports,
           base.send_off, base.authorization};
       const auto before = preparation_ball_->state();
       const auto distance = actor->PrepareTick(facts, observation, ports, ports);

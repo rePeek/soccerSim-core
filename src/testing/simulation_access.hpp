@@ -179,7 +179,7 @@ class SimulationAccess {
   static bool MayTouchBallOf(Simulation& s, const Player& actor) {
     return s.clock_->IsBallInPlay() ||
         (s.play_authorized_ && s.set_piece_active_ && s.restarts_.context().active &&
-         s.restarts_.context().taker == &actor);
+         s.restarts_.context().taker == actor.GetID());
   }
   static bool IsGoalScoredOf(Simulation& s) { return s.goal_scored_; }
   static bool IsBallInGoalOf(Simulation& s) { return s.ball_in_goal_; }

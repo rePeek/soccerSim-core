@@ -311,18 +311,18 @@ TEST_CASE("Runtime harness: possession arbitration is runtime-owned",
   // A retainer is a physical fact and wins over the estimates.
   const auto retained = football::sim::EvaluatePossession(
       football::sim::TeamSide::Home, home_state, football::sim::TeamSide::Away,
-      away_state, best, away_state.designated_player);
+      away_state, best, away_state.designated_actor);
   REQUIRE(retained.best_team.has_value());
   CHECK(*retained.best_team == football::sim::TeamSide::Away);
-  CHECK(retained.designated_player == away_state.designated_player);
+  CHECK(retained.designated_player == away_state.designated_actor);
 
   // A send-off re-designation writes the runtime state and publishes it.
   football::sim::RefreshDesignatedTeamPossessionPlayer(
       home_team.Players(), SimulationAccess::TeamOrientationOf(sim, 0), home_state,
       *SimulationAccess::BallOf(sim));
-  CHECK(home_state.designated_player != nullptr);
+  CHECK(home_state.designated_actor != nullptr);
   for (Player* player : home_team.Players()) {
-    CHECK(player->GetTeamDesignatedPossessionPlayer() == home_state.designated_player);
+    CHECK(player->GetTeamDesignatedPossessionPlayer() == home_state.designated_actor);
   }
   CHECK(sim.Stop());
 }
@@ -377,18 +377,18 @@ TEST_CASE("Runtime harness: team designation is a runtime-owned port write",
   REQUIRE(away_receiver != nullptr);
 
   const auto before = SimulationAccess::PlayerTickOf(sim, *home_witness);
-  CHECK(before.own_team.DesignatedPlayer() != home_receiver);
+  CHECK(before.own_team.DesignatedPlayerId() != home_receiver->GetID());
   SimulationAccess::RuntimeOf(sim).SetDesignatedPlayer(
       home_actor->GetTeamID(), home_receiver);
   const auto after = SimulationAccess::PlayerTickOf(sim, *home_witness);
-  CHECK(after.own_team.DesignatedPlayer() == home_receiver);
-  CHECK(SimulationAccess::TeamStateOf(sim, 0).designated_player == home_receiver);
+  CHECK(after.own_team.DesignatedPlayerId() == home_receiver->GetID());
+  CHECK(SimulationAccess::TeamStateOf(sim, 0).designated_actor == home_receiver);
 
   // The explicit team id keeps the write on the actor's own team.
   SimulationAccess::RuntimeOf(sim).SetDesignatedPlayer(
       away_actor->GetTeamID(), away_receiver);
-  CHECK(SimulationAccess::TeamStateOf(sim, 1).designated_player == away_receiver);
-  CHECK(SimulationAccess::TeamStateOf(sim, 0).designated_player == home_receiver);
+  CHECK(SimulationAccess::TeamStateOf(sim, 1).designated_actor == away_receiver);
+  CHECK(SimulationAccess::TeamStateOf(sim, 0).designated_actor == home_receiver);
   CHECK(sim.Stop());
 }
 
@@ -549,7 +549,7 @@ TEST_CASE("Runtime harness: ResetSituation resets team state and actors",
   state.has_possession = true;
   state.possession_amount = 0.25f;
   state.fading_possession_amount = 0.25f;
-  state.designated_player = nullptr;
+  state.SetDesignatedPlayer(nullptr);
 
   const football::math::Vector3 focus{5.0f, -3.0f, 0.0f};
   sim.ResetSituation(focus);
@@ -560,8 +560,8 @@ TEST_CASE("Runtime harness: ResetSituation resets team state and actors",
   CHECK_FALSE(state.has_possession);
   CHECK(state.possession_amount == Catch::Approx(1.0f));
   CHECK(state.fading_possession_amount == Catch::Approx(1.0f));
-  REQUIRE(state.designated_player != nullptr);
-  CHECK(state.designated_player->IsActive());
+  REQUIRE(state.designated_actor != nullptr);
+  CHECK(state.designated_actor->IsActive());
   for (Player* player : SimulationAccess::TeamOf(sim, 0).Players()) {
     CHECK(IsFinite(player->GetPosition()));
     // Published projection matches the reset state.
@@ -592,7 +592,7 @@ TEST_CASE("Runtime harness: Stop then re-Init rebuilds both rosters",
       CHECK(player->GetModel().height > 1.0f);
       CHECK(player->GetModel().id == player->GetID());
     }
-    CHECK(SimulationAccess::TeamStateOf(sim, team).designated_player != nullptr);
+    CHECK(SimulationAccess::TeamStateOf(sim, team).designated_actor != nullptr);
   }
   CHECK(sim.Stop());
 }

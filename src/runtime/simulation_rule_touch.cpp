@@ -60,7 +60,7 @@ void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& re
                                             player->GetKinematicState().velocity);
     if(!IsBallInPlay()) {
       const auto& restart=restarts_.context();
-      if(!kick || !set_piece_active_ || restart.taker!=player || !restart.state ||
+      if(!kick || !set_piece_active_ || restart.taker!=player->GetID() || !restart.state ||
           restart.state->phase!=football::sim::RestartPhase::Ready) continue;
     }
     football::sim::event::AcceptedTouch accepted{

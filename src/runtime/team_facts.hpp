@@ -15,7 +15,7 @@ inline PlayerTeamFacts TeamFactsOf(const TeamOrientation& orientation,
   return PlayerTeamFacts{orientation.defending_direction,
                          state.possession_amount,
                          state.fading_possession_amount,
-                         state.designated_player};
+                         state.designated_actor};
 }
 
 // Publishes the current facts to every player of the slice, in declaration order.

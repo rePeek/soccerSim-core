@@ -20,6 +20,7 @@ namespace {
 
 using football::pitch::Pitch;
 using football::sim::FoulAssessment;
+using football::sim::ChallengeAction;
 using football::sim::FoulKind;
 using football::sim::TeamSide;
 using football::sim::Tick;
@@ -33,6 +34,7 @@ using football::sim::event::StopPlayRuling;
 using football::sim::rules::BallTouchFacts;
 using football::sim::rules::RefereePlayerFact;
 using football::sim::rules::RefereeTeamFact;
+using football::sim::rules::RestartReleaseAction;
 
 class Collect final : public RulingSink {
  public:
@@ -64,7 +66,7 @@ FoulAssessment Sliding(Tick at, float severity) {
   fact.victim_team_id = 0;
   fact.contacted_at = at;
   fact.position = football::math::Vector3(4, 3, 0);
-  fact.offender_action_type = static_cast<int>(e_FunctionType_Sliding);
+  fact.action = ChallengeAction::SlidingChallenge;
   fact.ball_position = football::math::Vector3(0, 0, 0);
   fact.victim_position = football::math::Vector3(0, 0, 0);
   fact.offender_last_touch_tick = {};
@@ -81,7 +83,7 @@ FoulAssessment Standing(Tick at) {
   fact.victim_team_id = 0;
   fact.contacted_at = at;
   fact.position = football::math::Vector3(4, 3, 0);
-  fact.offender_action_type = static_cast<int>(e_FunctionType_Interfere);
+  fact.action = ChallengeAction::StandingChallenge;
   fact.ball_position = football::math::Vector3(0, 0, 0);
   fact.victim_position = football::math::Vector3(0, 0, 0);
   fact.victim_team_fading_possession = 1.2f;
@@ -321,7 +323,7 @@ TEST_CASE("a legal restart release returns the ball to play", "[unit][referee]")
   facts.offsides_enabled = false;
   facts.release.eligible = true;
   facts.release.kind = e_GameMode_FreeKick;
-  facts.release.action_type = static_cast<int>(e_FunctionType_ShortPass);
+  facts.release.action = RestartReleaseAction::ShortPass;
   facts.release.scheduled_contact = true;
   facts.release.ball_speed = 5.0f;
   {
@@ -343,7 +345,7 @@ TEST_CASE("a legal restart release returns the ball to play", "[unit][referee]")
     Collect sink;
     BallTouchFacts thrown = facts;
     thrown.release.kind = e_GameMode_ThrowIn;
-    thrown.release.action_type = static_cast<int>(e_FunctionType_BallControl);
+    thrown.release.action = RestartReleaseAction::BallControl;
     thrown.release.intentional_kick = false;
     rules.ConsumeBallTouch(thrown, sink);
     REQUIRE(sink.rulings.empty());
@@ -608,7 +610,7 @@ TEST_CASE("a free kick release captures the offside position",
   release.in_set_piece = true;
   release.release.eligible = true;
   release.release.kind = e_GameMode_FreeKick;
-  release.release.action_type = static_cast<int>(e_FunctionType_ShortPass);
+  release.release.action = RestartReleaseAction::ShortPass;
   release.release.scheduled_contact = true;
   release.release.ball_speed = 5.0f;
   release.restart.active = true;

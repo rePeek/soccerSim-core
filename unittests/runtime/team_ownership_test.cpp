@@ -270,7 +270,7 @@ TEST_CASE("Runtime owns live lineup, frame and match state separately from Team"
   CHECK(active.slots == team.lineup.starters);
   const auto cached = players[0]->GetTeamDesignatedPossessionPlayer();
   SimulationAccess::RuntimeOf(sim).SetDesignatedPlayer(0, players[1]);
-  CHECK(state.designated_player == players[1]);
+  CHECK(state.designated_actor == players[1]);
   CHECK(players[0]->GetTeamDesignatedPossessionPlayer() == cached);
   SimulationAccess::SwitchTeamEnds(sim, 0);
   CHECK(players[0]->GetTeamDesignatedPossessionPlayer() == players[1]);

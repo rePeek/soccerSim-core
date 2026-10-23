@@ -37,10 +37,10 @@ struct TeamView {
     return state != nullptr ? state->time_to_ball_ms : 100;
   }
   Player* DesignatedPlayer() const {
-    return state != nullptr ? state->designated_player : nullptr;
+    return state != nullptr ? state->designated_actor : nullptr;
   }
   void SetDesignatedPlayer(Player* player) const {
-    if (state != nullptr) state->designated_player = player;
+    if (state != nullptr) state->SetDesignatedPlayer(player);
   }
   float fading_possession_amount() const {
     return state != nullptr ? state->fading_possession_amount : 0.0f;

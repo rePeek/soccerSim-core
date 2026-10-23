@@ -63,6 +63,14 @@ struct RestartContext : football::player::PlayerRestartFacts {
   bool end_phase = false;
   std::optional<RestartState> state;
 
+  // Live actor for the stable `taker` identity above, resolved by
+  // RestartController. Runtime-only execution cache; never a rule/actor fact
+  // and never serialized.
+  Player* taker_actor = nullptr;
+
+  void SetTaker(Player* actor);
+  bool HasTaker() const { return taker_actor != nullptr; }
+
   bool NeedsSimulation() const {
     return active && state.has_value() && state->phase == RestartPhase::Pending;
   }

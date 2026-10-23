@@ -53,7 +53,6 @@ struct PlayerTickContext {
   // Non-null only in the prepare phase. Ball is an immutable endpoint view:
   // touches/rotation/retention are proposals, not immediate mutations/events.
   PlayerTouchPreparationSink* touch_preparation = nullptr;
-  football::ball::Ball* legacy_ball = nullptr;
   // Write-only port: a send-off reports itself and Runtime performs the
   // team-level follow-up. Optional; a null port only skips that follow-up.
   PlayerSendOffSink* send_off = nullptr;

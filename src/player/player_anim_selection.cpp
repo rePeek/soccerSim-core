@@ -893,7 +893,7 @@ Vector3 Player::ComputeMovementSmuggle(
 
   if (!kEnableMovementSmuggle) return Vector3(0);
 
-  if (tick.own_team.DesignatedPlayer() != this ||
+  if (tick.own_team.DesignatedPlayerId() != GetID() ||
       tick.designated_possession_player != this ||
       currentAnim.touchFrame != -1 ||
       (currentAnim.functionType == e_FunctionType_Trip &&

@@ -35,7 +35,7 @@ PossessionSelection EvaluatePossession(TeamSide first_side,
       return side == first_side ? first_state : second_state;
     };
     if (selection.best_team.has_value()) {
-      Player* candidate = state_of(*selection.best_team).designated_player;
+      Player* candidate = state_of(*selection.best_team).designated_actor;
       if (candidate != current_designated) {
         unsigned int designatedTime = current_designated->GetTimeNeededToGetToBall_ms();
         unsigned int candidateTime = candidate->GetTimeNeededToGetToBall_ms();
@@ -45,7 +45,7 @@ PossessionSelection EvaluatePossession(TeamSide first_side,
     } else {
       // just stick with current team
       selection.designated_player =
-          state_of(current_designated->GetTeamSide()).designated_player;
+          state_of(current_designated->GetTeamSide()).designated_actor;
     }
   } else {
     selection.designated_player = ball_retainer;

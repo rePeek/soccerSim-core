@@ -92,7 +92,7 @@ void Assess(Simulation& sim, Referee& rules, float severity, Vector3 position = 
   fact.offender_team_id = 1;
   fact.contacted_at = SimulationAccess::NowOf(sim);
   fact.position = position;
-  fact.offender_action_type = static_cast<int>(e_FunctionType_Sliding);
+  fact.action = ChallengeAction::SlidingChallenge;
   fact.severity = severity;
   rules.AssessFoul(fact, fact.contacted_at);
 }
@@ -485,7 +485,7 @@ TEST_CASE("Rulings: standing foul advantage retains its recall and expiry timing
   fact.victim_team_id = 0;
   fact.offender_team_id = 1;
   fact.victim_team_fading_possession = 1.2f;
-  fact.offender_action_type = static_cast<int>(e_FunctionType_Interfere);
+  fact.action = ChallengeAction::StandingChallenge;
   const auto now = SimulationAccess::NowOf(sim);
   rules.AssessFoul(fact, now);
   SimulationAccess::ProcessReferee(sim);
@@ -527,12 +527,12 @@ TEST_CASE("Rulings: runtime restart context is what players and world read", "[r
 
   // The next instant plans the restart; the taker and targets stay Runtime-owned.
   SimulationAccess::ProcessReferee(sim);
-  REQUIRE(restart.taker != nullptr);
-  REQUIRE(restart.state->plan.taker == restart.taker->GetID());
-  REQUIRE(restart.taker->IsActive());
+  REQUIRE(restart.taker != football::player::kInvalidPlayerId);
+  REQUIRE(restart.state->plan.taker == restart.taker);
+  REQUIRE(restart.taker_actor->IsActive());
   const WorldState planned = sim.Observe();
   REQUIRE(planned.restart_taker.has_value());
-  REQUIRE(*planned.restart_taker == restart.taker->GetID());
+  REQUIRE(*planned.restart_taker == restart.taker);
 }
 
 TEST_CASE("Rulings: opening ceremony state is runtime-owned", "[runtime][ruling]") {
@@ -541,11 +541,11 @@ TEST_CASE("Rulings: opening ceremony state is runtime-owned", "[runtime][ruling]
   const football::sim::RestartContext& restart = SimulationAccess::RestartContextOf(sim);
   REQUIRE(restart.active);
   REQUIRE(restart.kind == e_GameMode_KickOff);
-  REQUIRE(restart.taker == nullptr);
+  REQUIRE(restart.taker == football::player::kInvalidPlayerId);
   REQUIRE_FALSE(restart.state.has_value());
 
   SimulationAccess::ProcessReferee(sim);  // placement + confirmed award
-  REQUIRE(restart.taker != nullptr);
+  REQUIRE(restart.taker != football::player::kInvalidPlayerId);
   REQUIRE_FALSE(restart.state.has_value());
   REQUIRE(std::get<RestartAwardedEvent>(SimulationAccess::MatchEventsOf(sim).front().event).kind ==
           e_GameMode_KickOff);
@@ -568,7 +568,8 @@ TEST_CASE("Rulings: play state derives from runtime authorization and restart", 
   // drive the documented timeout fallback instead. It repairs positions and
   // must not invent a touch or a decision.
   SimulationAccess::ProcessReferee(sim);
-  REQUIRE(SimulationAccess::RestartContextOf(sim).taker != nullptr);
+  REQUIRE(SimulationAccess::RestartContextOf(sim).taker !=
+          football::player::kInvalidPlayerId);
   sim.AdvanceTime(TickSpan{3001});
   SimulationAccess::ProcessReferee(sim);
   REQUIRE(SimulationAccess::PlayStateOf(sim) == football::sim::PlayState::RestartReady);
@@ -598,8 +599,8 @@ TEST_CASE("Rulings: team free-kick order overrides the nearest taker",
   REQUIRE(ordered_restart.state.has_value());
   REQUIRE(ordered_restart.kind == e_GameMode_FreeKick);
   REQUIRE(ordered_restart.state->plan.taker == 0);
-  REQUIRE(ordered_restart.taker != nullptr);
-  REQUIRE(ordered_restart.taker->GetID() == 0);
+  REQUIRE(ordered_restart.taker != football::player::kInvalidPlayerId);
+  REQUIRE(ordered_restart.taker == 0);
 
   // No declared order: the nearest active candidate takes it (legacy ranking).
   Simulation legacy;
@@ -610,8 +611,8 @@ TEST_CASE("Rulings: team free-kick order overrides the nearest taker",
   SimulationAccess::ProcessReferee(legacy);
   const RestartContext& legacy_restart = SimulationAccess::RestartContextOf(legacy);
   REQUIRE(legacy_restart.state->plan.taker != 0);
-  REQUIRE(legacy_restart.taker != nullptr);
-  REQUIRE(legacy_restart.taker->GetID() != 0);
+  REQUIRE(legacy_restart.taker != football::player::kInvalidPlayerId);
+  REQUIRE(legacy_restart.taker != 0);
 }
 
 TEST_CASE("Rulings: team formation presets seed both sides' restart targets",
@@ -952,7 +953,7 @@ TEST_CASE("a kept advantage shows its card at the next stoppage",
   second.victim_team_id = 0;
   second.contacted_at = Tick{500};
   second.position = Vector3(4, 3, 0);
-  second.offender_action_type = static_cast<int>(e_FunctionType_Sliding);
+  second.action = ChallengeAction::SlidingChallenge;
   second.ball_position = Vector3(0, 0, 0);
   second.victim_position = Vector3(0, 0, 0);
   second.offender_last_touch_tick = {};

@@ -29,8 +29,9 @@ struct PlayerTeamView {
   int TimeNeededToGetToBall_ms() const {
     return state != nullptr ? state->time_to_ball_ms : 100;
   }
-  Player* DesignatedPlayer() const {
-    return state != nullptr ? state->designated_player : nullptr;
+  football::player::PlayerId DesignatedPlayerId() const {
+    return state != nullptr ? state->designated_player
+                            : football::player::kInvalidPlayerId;
   }
 };
 

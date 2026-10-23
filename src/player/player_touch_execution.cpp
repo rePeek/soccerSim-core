@@ -183,7 +183,7 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
   if (controlledBallCollision) this->ResetControlledBallCollisionTrigger();
   const bool may_touch = tick.ball_in_play ||
       (tick.play_authorized && tick.set_piece_active && tick.restart.active &&
-       tick.restart.taker == this);
+       tick.restart.taker == GetID());
   if (may_touch && controlledBallCollision && !action.HasScheduledContact()) {
     begin_active_observation(ActiveTouchOrigin::Controlled);
     if (active_observation) active_observation->candidate.reachable = true;

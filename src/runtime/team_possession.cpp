@@ -11,6 +11,12 @@ using football::ball::Ball;
 
 namespace football::sim {
 
+void TeamMatchState::SetDesignatedPlayer(Player* player) {
+  designated_actor = player;
+  designated_player = player != nullptr ? player->GetID()
+                                        : football::player::kInvalidPlayerId;
+}
+
 Player* BestPossessionPlayer(std::span<Player* const> players) {
   int bestTime_ms = 10000000;
   Player* bestPlayer = nullptr;
@@ -55,7 +61,7 @@ void PrepareTeamPossession(TeamSide side, std::span<Player* const> players,
 void FinishTeamPossession(std::span<Player* const> players,
                           const TeamOrientation& frame, TeamMatchState& state,
                           const TeamMatchState& opponent_state) {
-  Player* designated = state.designated_player;
+  Player* designated = state.designated_actor;
   int designatedPlayerTime_ms = designated->GetTimeNeededToGetToBall_ms();
   Player* bestPlayer = BestPossessionPlayer(players);
   int oppTime_ms = opponent_state.time_to_ball_ms;
@@ -70,7 +76,7 @@ void FinishTeamPossession(std::span<Player* const> players,
       timeRating *= 1.2f;
     }
     if (timeRating < 0.8f) {
-      state.designated_player = bestPlayer;
+      state.SetDesignatedPlayer(bestPlayer);
       PublishTeamFacts(players, frame, state);
     }
   }
@@ -83,7 +89,7 @@ void RefreshTeamPossession(std::span<Player* const> players,
   (void)frame;  // aggregation writes only estimates, which do not publish
   for (Player* actor : players) {
     if (actor->IsActive()) actor->UpdatePossessionStats(
-        ball, opponent_state, now, retainer, state.designated_player);
+        ball, opponent_state, now, retainer, state.designated_actor);
   }
   bool hasPossession = false;
   int timeNeededToGetToBall_ms = 100000;
@@ -102,8 +108,8 @@ void RefreshDesignatedTeamPossessionPlayer(std::span<Player* const> players,
                                           const TeamOrientation& frame,
                                           TeamMatchState& state,
                                           const Ball& ball) {
-  state.designated_player =
-      football::sim::player::FindClosestPlayer(players, ball.state().position.Get2D());
+  state.SetDesignatedPlayer(
+      football::sim::player::FindClosestPlayer(players, ball.state().position.Get2D()));
   PublishTeamFacts(players, frame, state);
 }
 

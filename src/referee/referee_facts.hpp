@@ -43,13 +43,25 @@ struct RestartRuleFacts {
   football::player::PlayerId taker = football::player::kInvalidPlayerId;
 };
 
+// The release action family the rules distinguish when a restart is taken.
+// Runtime maps the animation action type into this value, so the Referee never
+// reads an animation enum.
+enum class RestartReleaseAction {
+  Other,
+  ShortPass,
+  LongPass,
+  HighPass,
+  Shot,
+  BallControl,
+};
+
 // Everything the rules need to decide whether an accepted touch legally returns
 // the ball to play. Runtime samples it at the exact touch boundary; moving the
 // sample earlier or later can change the release verdict.
 struct RestartReleaseFacts {
   bool eligible = false;  // restart Ready and this toucher is the taker
   e_GameMode kind = e_GameMode_Normal;
-  int action_type = 0;
+  RestartReleaseAction action = RestartReleaseAction::Other;
   bool scheduled_contact = false;
   bool physical_kick = false;
   bool intentional_kick = false;  // taker's last accepted touch was a kick

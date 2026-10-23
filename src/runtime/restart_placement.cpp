@@ -14,7 +14,7 @@
 
 #include "runtime/restart_placement.hpp"
 #include "football/pitch/pitch.hpp"
-#include "referee/rule_command_sink.hpp"
+#include "runtime/rule_command_sink.hpp"
 #include "player/roster_query.hpp"
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"

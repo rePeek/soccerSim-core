@@ -22,7 +22,6 @@
 #include <algorithm>
 
 #include "referee/offside.hpp"
-#include "football/animation/types.hpp"
 #include "referee/ball_rules.hpp"
 #include "referee/foul_sanction.hpp"
 
@@ -32,10 +31,12 @@ using football::sim::BallOutOfPlay;
 using football::sim::ClassifyBallOutOfPlay;
 using football::sim::FoulAssessment;
 using football::sim::FoulKind;
+using football::sim::ChallengeAction;
 using football::sim::TickSpan;
 using football::sim::Seconds;
 using football::sim::rules::RefereeTickFacts;
 using football::sim::rules::RefereeTeamFact;
+using football::sim::rules::RestartReleaseAction;
 constexpr auto kCardAdministration = Seconds(10);
 constexpr TickSpan kTouchGrace{60};
 constexpr TickSpan kAdvantageRecheck{60};
@@ -239,11 +240,11 @@ void Referee::EvaluateBallTouch(const football::sim::rules::BallTouchFacts& fact
   if (facts.release.eligible) {
     // A release requires an actual accepted scheduled touch, not cursor expiry
     // or the throw-in retain anchor's repeated non-kicked contact notices.
-    const bool kick = facts.release.action_type == e_FunctionType_ShortPass ||
-        facts.release.action_type == e_FunctionType_LongPass ||
-        facts.release.action_type == e_FunctionType_HighPass ||
-        facts.release.action_type == e_FunctionType_Shot ||
-        (facts.release.action_type == e_FunctionType_BallControl &&
+    const bool kick = facts.release.action == RestartReleaseAction::ShortPass ||
+        facts.release.action == RestartReleaseAction::LongPass ||
+        facts.release.action == RestartReleaseAction::HighPass ||
+        facts.release.action == RestartReleaseAction::Shot ||
+        (facts.release.action == RestartReleaseAction::BallControl &&
          facts.release.kind != e_GameMode_ThrowIn &&
          facts.release.intentional_kick);
     if ((facts.release.scheduled_contact || facts.release.physical_kick) && kick &&
@@ -342,16 +343,13 @@ void Referee::AssessFoul(const FoulAssessment& fact, Tick now, bool restart_acti
   if (fact.kind == FoulKind::StandingFall) {
     // standing tackle
     if (!(fact.victim_team_fading_possession > 1.1f)) return;
-    if (fact.offender_action_type != static_cast<int>(e_FunctionType_Interfere) &&
-        fact.offender_action_type != static_cast<int>(e_FunctionType_Sliding))
-      return;
+    if (fact.action == ChallengeAction::Other) return;
     if ((fact.victim_position - fact.ball_position.Get2D()).GetLength() >= 2.0f)
       return;
   } else {
     // sliding tackle
     if (now - fact.offender_last_touch_tick <= kTouchGrace) return;
-    if (fact.offender_action_type != static_cast<int>(e_FunctionType_Sliding))
-      return;
+    if (fact.action != ChallengeAction::SlidingChallenge) return;
     if ((fact.ball_position - fact.victim_position).GetLength() >= 8.0f) return;
     if (fact.offender == foul.offender && foul.foulType != 0) return;
   }

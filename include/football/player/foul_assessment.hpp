@@ -14,6 +14,15 @@ enum class FoulKind {
   SlidingTackle,
 };
 
+// The challenge family recognised at the contact instant. Player translates
+// its animation action types into this rule value, so the Referee never reads
+// an animation enum to understand a challenge.
+enum class ChallengeAction {
+  Other,
+  StandingChallenge,
+  SlidingChallenge,
+};
+
 // Contact-solver foul suspicion for one effective collision. It is the only
 // rule-relevant value the contact solver produces: at most one suspected
 // offender per collision, with a normalized [0, 1] score. Whether that
@@ -43,7 +52,8 @@ struct FoulAssessment {
   football::math::Vector3 victim_direction;
   football::math::Vector3 offender_position;
   football::math::Vector3 ball_position;
-  int offender_action_type = 0;
+  // The challenge family behind this contact, named as a rule value.
+  ChallengeAction action = ChallengeAction::Other;
   bool offender_scheduled_contact = false;
   int offender_contact_frame = -1;
   int offender_frame = 0;

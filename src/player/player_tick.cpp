@@ -513,7 +513,7 @@ void Player::RunActionTick(football::sim::Tick now,
   const bool designated_possession_player =
       tick.designated_possession_player == this;
   const bool designated_team_possession_player =
-      tick.own_team.DesignatedPlayer() == this;
+      tick.own_team.DesignatedPlayerId() == GetID();
   const auto player_decision_cadence = PlayerDecisionCadenceForContext(
       designated_possession_player, designated_team_possession_player,
       decision_distance_to_ball);
@@ -620,7 +620,7 @@ void Player::RunActionTick(football::sim::Tick now,
     } else if (tick.designated_possession_player == this) {
       frameNumPredicate = StaggeredRefreshDue(now, kOwner, football::sim::TickSpan{phase});
 
-    } else if (tick.own_team.DesignatedPlayer() == this) {
+    } else if (tick.own_team.DesignatedPlayerId() == GetID()) {
       frameNumPredicate = StaggeredRefreshDue(now, kTeamOwner, football::sim::TickSpan{phase * 2});
 
     } else if (actionDistance < 5.0f) {

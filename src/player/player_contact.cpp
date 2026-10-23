@@ -36,6 +36,15 @@ struct PlayerBounce {
   float force = 0.0f;
 };
 
+// Translate the active animation action into the rule-facing challenge family.
+// This is the only place that reads the animation enum for a contact, so the
+// Referee judges a named rule value instead of an animation type.
+ChallengeAction ClassifyChallengeAction(e_FunctionType type) {
+  if (type == e_FunctionType_Sliding) return ChallengeAction::SlidingChallenge;
+  if (type == e_FunctionType_Interfere) return ChallengeAction::StandingChallenge;
+  return ChallengeAction::Other;
+}
+
 // Freeze every rule-relevant contact input at the contact instant. The referee
 // decides from this evidence instead of re-reading later actor state.
 void FillContactEvidence(FoulAssessment& fact, Player* victim, Player* offender,
@@ -51,7 +60,7 @@ void FillContactEvidence(FoulAssessment& fact, Player* victim, Player* offender,
   fact.victim_direction = victim->GetDirectionVec();
   fact.offender_position = offender->GetPosition();
   fact.ball_position = ball_position;
-  fact.offender_action_type = static_cast<int>(action.type);
+  fact.action = ClassifyChallengeAction(action.type);
   fact.offender_scheduled_contact = action.HasScheduledContact();
   fact.offender_contact_frame = action.ContactFrame();
   fact.offender_frame = action.Frame();

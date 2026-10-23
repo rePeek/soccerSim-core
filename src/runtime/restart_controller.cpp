@@ -7,11 +7,18 @@
 #include "referee/ruling.hpp"
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
-#include "referee/rule_command_sink.hpp"
+#include "runtime/rule_command_sink.hpp"
 #include "runtime/restart_placement.hpp"
 #include "runtime/restart_planner.hpp"
 
 namespace football::sim {
+
+void RestartContext::SetTaker(Player* actor) {
+  taker_actor = actor;
+  taker = actor != nullptr ? actor->GetID()
+                           : football::player::kInvalidPlayerId;
+}
+
 namespace {
 using football::math::Vector3;
 using football::sim::Seconds;
@@ -65,7 +72,7 @@ void RestartController::BeginMatch(int kickoff_team_id, const Vector3& kickoff_p
   context_.prepare_tick = {};
   context_.start_tick = Tick{} + kRestartWhistle;
   context_.position = kickoff_position;
-  context_.taker = nullptr;
+  context_.SetTaker(nullptr);
   context_.end_phase = true;
   post_restart_relax_ = {};
   next_restart_id_ = 1;
@@ -74,7 +81,7 @@ void RestartController::BeginMatch(int kickoff_team_id, const Vector3& kickoff_p
 void RestartController::OnPeriodEnded(MatchPhase ended_phase, Tick now,
                                       const Vector3& kickoff_position, int kickoff_team_id) {
   context_.active = false;
-  context_.taker = nullptr;
+  context_.SetTaker(nullptr);
   context_.end_phase = false;
   context_.state.reset();
   if (ended_phase == MatchPhase::SecondHalf) return;
@@ -110,7 +117,7 @@ std::vector<football::sim::event::MatchEvent> RestartController::Award(
   context_.team_id = static_cast<int>(ruling.team);
   context_.setpiece_team = context_.team_id;
   context_.position = ruling.position;
-  context_.taker = nullptr;
+  context_.SetTaker(nullptr);
   context_.end_phase = false;
   context_.stop_tick = now;
   context_.id = next_restart_id_++;
@@ -131,8 +138,7 @@ std::optional<football::sim::event::RestartTakenEvent> RestartController::Confir
   taken.tick = now;
   taken.team = static_cast<TeamSide>(context_.team_id);
   taken.kind = context_.kind;
-  taken.taker = context_.taker ? context_.taker->GetID()
-                                : football::player::kInvalidPlayerId;
+  taken.taker = context_.taker;
   taken.restart_id = context_.id;
   return taken;
 }
@@ -156,7 +162,7 @@ RestartController::TickOutcome RestartController::Advance(
   if (!(facts.play_authorized && !facts.set_piece_active)) {
     // not in play, maybe something needs to happen?
     if (!facts.play_authorized && !facts.set_piece_active && context_.active == true) {
-      if (context_.taker == nullptr && facts.now >= context_.prepare_tick) {
+      if (!context_.HasTaker() && facts.now >= context_.prepare_tick) {
         if (context_.end_phase == true) {
           if (facts.phase == MatchPhase::PreMatch) {
             commands.SetPhase(MatchPhase::FirstHalf);
@@ -171,7 +177,7 @@ RestartController::TickOutcome RestartController::Advance(
             facts.now, static_cast<TeamSide>(context_.team_id), e_GameMode_KickOff,
             context_.position, context_.id});
       }
-      if (context_.taker != nullptr && facts.now >= context_.start_tick) {
+      if (context_.HasTaker() && facts.now >= context_.start_tick) {
         // blow whistle and wait for set piece taker to touch the ball
         commands.StartPlay();
         commands.StartSetPiece();
@@ -202,7 +208,7 @@ void RestartController::PrepareCeremonialKickOff(const RuntimeTickFacts& facts,
       context_.setpiece_team, context_.team_id, facts.ball, facts.regulation, options, commands);
   Player* second_taker = PositionRestartPlayers(facts.pitch, second, e_GameMode_KickOff, first,
       context_.setpiece_team, context_.team_id, facts.ball, facts.regulation, options, commands);
-  context_.taker = context_.team_id == facts.first_team ? first_taker : second_taker;
+  context_.SetTaker(context_.team_id == facts.first_team ? first_taker : second_taker);
 }
 
 void RestartController::ProcessRestart(const RuntimeTickFacts& facts, const MatchOptions& options,
@@ -235,14 +241,14 @@ void RestartController::ProcessRestart(const RuntimeTickFacts& facts, const Matc
       if (actor == nullptr) continue;
       actor->ResetPosition(actor->GetPosition(), state.plan.ball_position);
     }
-    context_.taker = roster.Find(state.plan.taker);
+    context_.SetTaker(roster.Find(state.plan.taker));
     state.setup_done = true;
   }
-  if (!context_.taker || !context_.taker->IsActive()) {
+  if (!context_.taker_actor || !context_.taker_actor->IsActive()) {
     state.plan = PlanRestart(facts.pitch, facts.ball.state().position,
         ActivePlayers(facts), context_.kind,
         context_.setpiece_team, planning);
-    context_.taker = roster.Find(state.plan.taker);
+    context_.SetTaker(roster.Find(state.plan.taker));
   }
   if (facts.now < state.earliest_restart_tick) return;
   if (!state.used_timeout_placement && facts.now >= state.timeout_tick) {
@@ -258,8 +264,8 @@ void RestartController::ProcessRestart(const RuntimeTickFacts& facts, const Matc
   state.phase = RestartPhase::Ready;
   context_.start_tick = facts.now;  // Fact: authorization instant, not a preset delay.
   if (context_.kind == e_GameMode_ThrowIn) {
-    context_.taker->SelectRetainAnim();
-    commands.SetBallRetainer(context_.taker);
+    context_.taker_actor->SelectRetainAnim();
+    commands.SetBallRetainer(context_.taker_actor);
   }
   commands.StartPlay();
   commands.StartSetPiece();

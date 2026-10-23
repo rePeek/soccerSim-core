@@ -34,7 +34,9 @@ WorldState BuildWorldState(const WorldStateSource& s) {
   const football::sim::RestartContext& restart = s.restart;
   if (restart.active) {
     world.restart = restart.kind;
-    if (restart.taker) world.restart_taker = restart.taker->GetID();
+    if (restart.taker != football::player::kInvalidPlayerId) {
+      world.restart_taker = restart.taker;
+    }
     world.restart_pending = restart.NeedsSimulation();
   }
   if (s.ball_retainer) world.ball_retainer = s.ball_retainer->GetID();

@@ -1,13 +1,8 @@
-# Runtime-side rule adapters. Player action authorization depends on Player and
-# Event values, so it stays in the sim domain rather than the rule library.
-target_sources(football_sim_domain PRIVATE
-  action_authorization.cpp action_authorization.hpp
-  rule_command_sink.hpp)
-
 # Independent Referee rule module: value rule facts in, RefereeRuling out. It
 # links only the public value contracts and never Player, Event or Runtime
 # internals; Runtime owns every actor/ball mutation and restart execution.
 add_library(football_referee STATIC
+  action_authorization.cpp
   ball_rules.cpp
   goal.cpp
   offside.cpp

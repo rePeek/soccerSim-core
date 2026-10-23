@@ -1,12 +1,7 @@
 #ifndef FOOTBALL_SIM_RULES_ACTION_AUTHORIZATION_HPP
 #define FOOTBALL_SIM_RULES_ACTION_AUTHORIZATION_HPP
 
-#include <span>
-
-#include "event/touch_state.hpp"
 #include "referee/restart_phase.hpp"
-
-class Player;
 
 namespace football::sim::rules {
 
@@ -42,12 +37,6 @@ struct PlayerActionAuthorization {
 
 PlayerActionAuthorization EvaluateActionAuthorization(
     const PlayerActionAuthorizationInput& input);
-
-// Owns the "a goalkeeper may not handle a deliberate kick from a teammate"
-// rule. The caller supplies the live touch record and the keeper's roster.
-bool IsGoalkeeperBackpass(const football::sim::event::TouchState& touches,
-                          int team_id, std::span<Player* const> teammates,
-                          const Player* actor);
 
 }  // namespace football::sim::rules
 

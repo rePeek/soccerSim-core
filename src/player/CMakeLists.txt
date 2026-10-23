@@ -30,6 +30,7 @@ target_sources(football_player PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
   FILES
     ${PROJECT_SOURCE_DIR}/include/football/player/player_definition.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/foul_assessment.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_control.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_control_set.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_role.hpp
@@ -45,10 +46,9 @@ target_include_directories(football_player
     ${PROJECT_SOURCE_DIR}/src)
 target_compile_features(football_player PUBLIC cxx_std_23)
 
-# Transitional link edge: Player still reads Runtime/Event/Observation/Referee
-# internal headers through the shared src/ root, so the matching symbols keep
-# resolving from football_sim_domain. The module already declares only the
-# lower layers it truly owns; the dependency inversion stages remove the rest.
+# Declared lower-layer closure. Player is self-contained: the boundary suite
+# (unittests/player_link) force-links every object without Runtime/Referee/
+# Event/Observation, and a configure-time guard rejects upper-layer includes.
 target_link_libraries(football_player
   PUBLIC
     football::foundation football::geometry football::pitch

@@ -1,6 +1,10 @@
 // Entity half of football::team::Team: the only owner of a team's actual
 // Player objects. It is compiled into the football_team archive, which links
 // football::player; the dependency direction is Team -> Player only.
+//
+// Minimal Actor surface: Team reads only Player::IsActive() and
+// Player::GetFormationEntry().role. A future cross-module Actor API would
+// need to expose no more than those two queries.
 
 #include "football/team/team.hpp"
 

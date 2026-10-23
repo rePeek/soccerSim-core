@@ -2,18 +2,7 @@
 
 #include <cmath>
 
-#include "event/touch_query.hpp"
-#include "player/player.hpp"
-
 namespace football::sim::rules {
-
-bool IsGoalkeeperBackpass(const football::sim::event::TouchState& touches,
-                          int team_id, std::span<Player* const> teammates,
-                          const Player* actor) {
-  return touches.last_team == team_id &&
-      football::sim::event::LastTouchPlayer(touches, team_id, teammates) != actor &&
-      touches.last_team_by_type[e_TouchType_Intentional_Kicked] == team_id;
-}
 
 PlayerActionAuthorization EvaluateActionAuthorization(
     const PlayerActionAuthorizationInput& input) {

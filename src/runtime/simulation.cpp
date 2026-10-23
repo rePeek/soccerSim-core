@@ -97,9 +97,7 @@ football::sim::rules::RestartRuleFacts ToRestartRuleFacts(
   facts.phase = restart.Phase();
   facts.kind = restart.kind;
   facts.team_id = restart.team_id;
-  facts.taker = restart.taker != nullptr
-      ? restart.taker->GetID()
-      : football::player::kInvalidPlayerId;
+  facts.taker = restart.taker;
   return facts;
 }
 
@@ -142,6 +140,20 @@ football::sim::rules::BallPlayKind PlayKindOf(
       return BallPlayKind::DeliberatePlay;
     default:
       return BallPlayKind::Deflection;
+  }
+}
+
+// Map the taker's animation action into the rule-facing release family, so the
+// Referee judges a named rule value instead of an animation type.
+football::sim::rules::RestartReleaseAction ToReleaseAction(e_FunctionType type) {
+  using football::sim::rules::RestartReleaseAction;
+  switch (type) {
+    case e_FunctionType_ShortPass: return RestartReleaseAction::ShortPass;
+    case e_FunctionType_LongPass: return RestartReleaseAction::LongPass;
+    case e_FunctionType_HighPass: return RestartReleaseAction::HighPass;
+    case e_FunctionType_Shot: return RestartReleaseAction::Shot;
+    case e_FunctionType_BallControl: return RestartReleaseAction::BallControl;
+    default: return RestartReleaseAction::Other;
   }
 }
 
@@ -206,7 +218,7 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
           restarts_.context(), pitch_, own_view, opponent_view, processing_slot,
           restarts_.NeedsSimulation(),
           active_candidate_capture_ ? active_touch_shadow_sink_.get() : nullptr,
-          nullptr, ball_.get(), send_off_sink_.get(), &authorization_port_};
+          nullptr, send_off_sink_.get(), &authorization_port_};
 }
 
 // The single write-only fact-production port. Touch bookkeeping stays synchronous
@@ -422,15 +434,16 @@ void Simulation::DispatchTouch(const football::sim::event::AcceptedTouch& touch)
     // Release verdict inputs, sampled at this exact boundary (never earlier).
     if (restart.active && restart.state &&
         restart.state->phase == football::sim::RestartPhase::Ready &&
-        restart.taker != nullptr && restart.taker->GetID() == touch.player) {
-      const auto& action = restart.taker->GetSimulationActionState();
+        restart.taker != football::player::kInvalidPlayerId &&
+        restart.taker == touch.player) {
+      const auto& action = restart.taker_actor->GetSimulationActionState();
       facts.release.eligible = true;
       facts.release.kind = restart.kind;
-      facts.release.action_type = static_cast<int>(action.type);
+      facts.release.action = ToReleaseAction(action.type);
       facts.release.scheduled_contact = action.contact && action.elapsed == *action.contact;
       facts.release.physical_kick = touch.physical_kick;
       facts.release.intentional_kick =
-          restart.taker->GetLastTouchType() == e_TouchType_Intentional_Kicked;
+          restart.taker_actor->GetLastTouchType() == e_TouchType_Intentional_Kicked;
       facts.release.ball_speed = ball_->state().velocity.GetLength();
     }
     referee_->ConsumeBallTouch(facts, *ruling_sink_);
@@ -564,10 +577,10 @@ void Simulation::InitTeamPlayers(int team_id, football::team::Team& team,
     raw->SetTeamContext(TeamFactsFor(team_id));
     if (slot) raw->Activate();
   }
-  team_states_[team_id].designated_player = nullptr;
+  team_states_[team_id].SetDesignatedPlayer(nullptr);
   for (Player* player : team.Players()) {
     if (player->IsActive()) {
-      team_states_[team_id].designated_player = player;
+      team_states_[team_id].SetDesignatedPlayer(player);
       break;
     }
   }
@@ -601,7 +614,7 @@ void Simulation::ResetTeamSituation(int team_id,
   state.has_possession = false;
   state.possession_amount = 1.0f;
   state.fading_possession_amount = 1.0f;
-  state.designated_player = TeamOf(team_id).Players().front();
+  state.SetDesignatedPlayer(TeamOf(team_id).Players().front());
   // Publication stays inside the loop, in declaration order, exactly as the
   // legacy Team's previous reset owner did; batching would change the timing.
   const PlayerTeamFacts facts = TeamFactsFor(team_id);

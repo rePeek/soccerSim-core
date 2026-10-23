@@ -2,6 +2,8 @@
 #define FOOTBALL_SIM_RUNTIME_TEAM_STATE_HPP
 #include "football/player/player_team_match_facts.hpp"
 
+class Player;
+
 namespace football::sim {
 
 // Team-level match facts that cannot be derived from any single player. Runtime
@@ -10,6 +12,11 @@ namespace football::sim {
 struct TeamMatchState : football::player::PlayerTeamMatchFacts {
   float possession_amount = 0.0f;
   float fading_possession_amount = 0.0f;
+  // Live actor for the stable `designated_player` identity above. Runtime-only
+  // execution cache; Runtime sets it through SetDesignatedPlayer.
+  Player* designated_actor = nullptr;
+
+  void SetDesignatedPlayer(Player* player);
 };
 
 // Runtime owns the only live team orientation. There is exactly one physical

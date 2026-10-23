@@ -4,13 +4,16 @@
 #ifndef FOOTBALL_PLAYER_PLAYER_RESTART_FACTS_HPP
 #define FOOTBALL_PLAYER_PLAYER_RESTART_FACTS_HPP
 
-class Player;
+#include "football/player/player_definition.hpp"
 
 namespace football::player {
 
 struct PlayerRestartFacts {
   bool active = false;
-  Player* taker = nullptr;
+  // Stable identity of the restart taker. Runtime resolves it to the live actor
+  // for execution; identity-only consumers read this value directly, so the
+  // contract stays snapshot/AI-safe instead of carrying an object reference.
+  PlayerId taker = kInvalidPlayerId;
 };
 
 }  // namespace football::player
