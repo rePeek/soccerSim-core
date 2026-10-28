@@ -7,7 +7,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/player/execution/player_touch_facts.hpp"
-#include "player/contact/player_touch_event.hpp"
+#include "player/execution/player_touch_event.hpp"
 #include "player/state/player_observation.hpp"
 
 namespace football::ball { class Ball; }
@@ -40,9 +40,8 @@ struct BallPlayerContactResult {
 
 // Preserves supplied player order and per-volume accidental-touch notifications.
 // Mutates player flags and publishes team/player touch facts through the explicit
-// write-only sink; actors/Team expose no Match or Simulation lookup. football::ball::Ball impulse,
-// dependent refresh, random rotation and cooldown publication belong to the
-// calling runtime phase.
+// write-only sink. The velocity response, dependent refresh and cooldown
+// publication belong to the calling runtime phase.
 BallPlayerContactResult ResolveBallPlayerContacts(
     const football::ball::Ball& ball, std::span<Player* const> players,
     const BallPlayerContactInputs& inputs);

@@ -1,6 +1,6 @@
 #ifndef FOOTBALL_PLAYER_BAKED_CONTACT_REGIONS_HPP
 #define FOOTBALL_PLAYER_BAKED_CONTACT_REGIONS_HPP
-#include "player/contact/player_baked_body_pose.hpp"
+#include "player/execution/player_baked_body_pose.hpp"
 
 // Separate band preserves the six original anatomical identities. Static pitch
 // IDs do not occupy this band; overflow is checked before input construction.

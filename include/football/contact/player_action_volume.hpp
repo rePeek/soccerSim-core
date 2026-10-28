@@ -10,7 +10,7 @@
 
 #include "football/player/state/player_action.hpp"
 #include "football/foundation/collision/penetration2d.hpp"
-#include "player/contact/player_ground_collider.hpp"
+#include "football/contact/player_ground_collider.hpp"
 #include "football/player/state/player_kinematics.hpp"
 
 // Contact volume for actions that reach out beyond the base body collider

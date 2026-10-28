@@ -1,6 +1,0 @@
-#ifndef FOOTBALL_SIM_PLAYER_GROUND_COLLIDER_COMPAT_HPP
-#define FOOTBALL_SIM_PLAYER_GROUND_COLLIDER_COMPAT_HPP
-
-#include "football/player/contact/player_ground_collider.hpp"
-
-#endif  // FOOTBALL_SIM_PLAYER_GROUND_COLLIDER_COMPAT_HPP

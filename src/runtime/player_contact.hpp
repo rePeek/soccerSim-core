@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "football/foundation/time/tick.hpp"
-#include "football/player/contact/foul_assessment.hpp"
+#include "football/contact/foul_assessment.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
@@ -22,8 +22,8 @@ struct PlayerContactInputs {
   Player* ball_retainer;
 };
 
-// Pure per-collision foul attribution. `first_sensitivity`/`second_sensitivity`
-// are the fall sensitivities the solver already computed for this pair, so the
+// Runtime adapter for per-collision evidence capture. `first_sensitivity` and
+// `second_sensitivity` are the solver's already-computed fall sensitivities; the
 // assessment never re-runs collision math. At most one suspected offender is
 // returned; harmless contacts and same-team contacts return nullopt. Both
 // actors may still fall physically: the fall and the foul are independent.

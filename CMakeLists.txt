@@ -46,9 +46,10 @@ add_subdirectory(src/pitch)
 
 add_subdirectory(src/ball)
 
-# Player is its own archive and publishes its public value headers; Team and
-# the Runtime contract target link it, so the Player module comes first.
+# Contact uses Player State; Player Execution uses Contact. CMake resolves
+# link targets after all sibling module declarations.
 add_subdirectory(src/player)
+add_subdirectory(src/contact)
 
 # Team is a football-domain module like ball/player/pitch: Runtime composes it.
 add_subdirectory(src/team)
@@ -76,11 +77,10 @@ target_link_libraries(simcore
   PRIVATE football::ai BqLog
     # Keep the existing runtime exports, including unreferenced GetRoleFromString.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim_domain>"
-    # Player is four static archives now. Whole-archive them so their exports
-    # and their references to runtime symbols stay exactly as before.
+    # Preserve exports from Player's three archives and the independent Contact.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_execution>"
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_command>"
-    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_contact>"
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_contact>"
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_state>")
 # env.cpp includes the internal runtime/simulation.hpp; the src/ root is a
 # PRIVATE implementation include, never exported to simcore consumers.

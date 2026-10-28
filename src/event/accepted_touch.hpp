@@ -3,7 +3,7 @@
 
 // Compatibility path. The confirmed-touch carrier is a Player-owned value now;
 // Event consumes it. See player/player_touch_event.hpp.
-#include "player/contact/player_touch_event.hpp"
+#include "player/execution/player_touch_event.hpp"
 
 namespace football::sim::event {
 

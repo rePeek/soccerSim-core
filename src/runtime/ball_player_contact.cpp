@@ -1,12 +1,13 @@
-#include "player/execution/player_ball_contact.hpp"
+#include "runtime/ball_player_contact.hpp"
 
 #include <cmath>
 
 #include "football/ball/ball.hpp"
-#include "player/contact/player_touch_event.hpp"
-#include "football/player/contact/player_touch_type.hpp"
+#include "player/execution/player_touch_event.hpp"
+#include "football/contact/player_touch_type.hpp"
 #include "player/player.hpp"
-#include "football/player/contact/player_body_collider.hpp"
+#include "football/contact/player_body_collider.hpp"
+#include "football/contact/passive_body_touch.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 #include "player/execution/player_touch_query.hpp"
 
@@ -20,9 +21,7 @@ BallPlayerContactResult ResolveBallPlayerContacts(
   constexpr TickSpan kBodyBallCollisionCooldown{15};
   if (inputs.now <= inputs.last_body_collision + kBodyBallCollisionCooldown) return {};
 
-  Vector3 bounceVec;
-  float bias = 0.0;
-  int bounceCount = 0;
+  football::contact::PassiveBodyTouchAccumulator accumulated;
   int last_touch_team = inputs.last_touch_team;
 
   for (int i = 0; i < (signed int)players.size(); i++) {
@@ -52,22 +51,13 @@ BallPlayerContactResult ResolveBallPlayerContacts(
 
       if (collisionAnim && !players[i]->HasUniquePossession() &&
           (onlyWhenDirectionChangedUnexpectedly == directionChangedUnexpectedly)) {
-        float boundingBoxSizeOffset = -0.1f;
-        if (!players[i]->HasPossession()) boundingBoxSizeOffset += 0.03f;
-        else boundingBoxSizeOffset -= 0.03f;
-
-        if (action.type == e_FunctionType_Sliding || action.type == e_FunctionType_Interfere) {
-          boundingBoxSizeOffset += 0.1f;
-        }
-        if (action.type == e_FunctionType_Deflect) {
-          boundingBoxSizeOffset += 0.2f;
-        }
+        const float ballRadius = football::contact::PassiveBodyTouchRadius(
+            action.type, players[i]->HasPossession());
 
         if (((players[i]->GetPosition() + Vector3(0, 0, 0.8f)) -
              ball.state().position).GetLength() < 2.5f) {
           const PlayerBodyCollider body = BuildBodyCollider(players[i]->GetKinematicState());
           for (const BodyVolume *volume : body.GetVolumes()) {
-            float ballRadius = 0.11f + boundingBoxSizeOffset;
             if (volume->IntersectsSphere(ball.state().position, ballRadius)) {
               // Read current touch records, not biases frozen before the sweep.
               const int latest_team = last_touch_team != -1
@@ -78,11 +68,9 @@ BallPlayerContactResult ResolveBallPlayerContacts(
                       inputs.teams[latest_team].teammates, 200, inputs.now) < 0.01f) {
                 players[i]->TriggerControlledBallCollision();
               } else {
-                float movementBias = oppLastTouchBias * 0.8f + 0.2f;
-                bounceVec +=
-                    (ball.state().position - volume->center).GetNormalized(Vector3(0)) * movementBias +
-                    players[i]->GetMovement() * (1.0f - movementBias);
-                bounceCount++;
+                football::contact::AccumulatePassiveBodyMotion(
+                    accumulated, ball.state().position, volume->center,
+                    players[i]->GetMovement(), oppLastTouchBias);
                 inputs.touch_sink->OnAcceptedTouch(
                     football::sim::player::PlayerTouchEvent{inputs.now,
                         players[i]->GetID(), players[i]->GetTeamSide(),
@@ -91,9 +79,9 @@ BallPlayerContactResult ResolveBallPlayerContacts(
                         static_cast<int>(players[i]->GetSimulationActionState().type)});
                 last_touch_team = teamID;
                 // Keep per-volume accumulation and touch/rule notification order.
-                bias += (1.0f -
-                         clamp(((ball.state().position - volume->center).GetLength() - ballRadius) /
-                                   volume->radius, 0.0f, 1.0f)) * 0.9f + 0.1f;
+                football::contact::AccumulatePassiveBodyBias(
+                    accumulated, ball.state().position, volume->center,
+                    ballRadius, volume->radius);
               }
             }
           }
@@ -102,18 +90,9 @@ BallPlayerContactResult ResolveBallPlayerContacts(
     }
   }
 
-  if (!(bias > 0.0f)) return {};
-  bounceVec /= (bounceCount * 1.0f);
-  bounceVec.coords[2] *= 0.6f;
-  bounceVec.Normalize();
-  Vector3 currentMovement = ball.state().velocity;
-  Vector3 fullCollisionVec = (bounceVec * 6.0f) + (bounceVec * currentMovement.GetLength() * 0.6f) + (currentMovement * -0.2f);
-  bias = clamp(bias, 0.0f, 1.0f);
-  bias = bias * 0.5f + 0.5f;
-  Vector3 resultVector = fullCollisionVec * bias + currentMovement * (1.0f - bias);
-  if (resultVector.GetLength() > currentMovement.GetLength()) resultVector = resultVector.GetNormalized(0) * currentMovement.GetLength();
-  resultVector *= 0.7f;
-  return {resultVector, 0.5f * bias};
+  const auto response = football::contact::FinishPassiveBodyTouches(
+      accumulated, ball.state().velocity);
+  return {response.velocity, response.rotation_bias};
 }
 
 }  // namespace football::sim

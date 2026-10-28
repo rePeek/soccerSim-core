@@ -9,11 +9,11 @@
 #include "football/ball/ball_response.hpp"
 #include "football/player/state/player_definition.hpp"
 #include "football/player/state/player_action.hpp"
-#include "football/player/contact/player_body_collider_motion.hpp"
-#include "football/player/contact/player_touch_type.hpp"
+#include "football/contact/player_body_collider_motion.hpp"
+#include "football/contact/player_touch_type.hpp"
 #include "football/ball/ball.hpp"
-#include "football/player/contact/player_active_touch_model.hpp"
-#include "football/player/contact/player_active_impulse.hpp"
+#include "football/contact/player_active_touch_model.hpp"
+#include "football/contact/player_active_impulse.hpp"
 #include "football/foundation/time/tick.hpp"
 
 // Diagnostic stages, NOT another football action enum.

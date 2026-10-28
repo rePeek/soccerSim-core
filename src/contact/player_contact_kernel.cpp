@@ -1,4 +1,4 @@
-#include "football/player/contact/player_contact_kernel.hpp"
+#include "football/contact/player_contact_kernel.hpp"
 
 #include <algorithm>
 #include <cassert>

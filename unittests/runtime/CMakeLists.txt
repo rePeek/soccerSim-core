@@ -5,6 +5,7 @@
 add_executable(football_sim_runtime_tests
   simulation_runtime_test.cpp referee_ruling_test.cpp
   period_change_test.cpp match_physics_test.cpp
+  contact_adapter_test.cpp
   team_ownership_test.cpp team_entity_test.cpp team_lifecycle_test.cpp)
 target_link_libraries(football_sim_runtime_tests
   PRIVATE

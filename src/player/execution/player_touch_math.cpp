@@ -9,7 +9,7 @@
 #include "football/animation/types.hpp"
 
 #include "player/execution/player_touch_query.hpp"
-#include "football/player/contact/player_touch_math_kernel.hpp"
+#include "football/player/execution/player_touch_math_kernel.hpp"
 #include "player/player.hpp"
 #include "player/command/player_motion_constants.hpp"
 

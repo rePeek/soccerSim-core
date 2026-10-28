@@ -99,11 +99,11 @@ observation, controls and stored physics are all the Stadium Frame.
   TeamOrientation/TeamMatchState). Derived projections (Snapshot, WorldState,
   MentalImage, TeamView, `PlayerTeamFacts`) are read-only and must be
   re-derivable from the authority, never a second source of truth.
-- **Module dependency direction is one-way**:
-  `foundation -> geometry/collision -> pitch -> ball/animation -> player ->
-  team -> runtime`, with `ai`, `model`, `referee`, `event` and `observation`
-  depending only on the public value contracts. `core` never depends on
-  `legacy`; Runtime composes; no lower module includes an upper one.
+- **Module dependency direction is one-way**: foundation/geometry/collision
+  underpin Pitch, Ball and Animation; Contact depends on Player State, Ball
+  and geometry, never Player Execution. Player Execution may use Contact;
+  Team owns Players; Runtime composes all of them. AI, Model, Referee, Event
+  and Observation consume value contracts; no lower module includes an upper one.
 - `WorldState` contains no actor pointers, animation/command queues, mutable
   runtime or AI objects.
 - `Team` owns its `Player` objects and no live match state; Runtime owns the
@@ -154,47 +154,53 @@ observation, controls and stored physics are all the Stadium Frame.
   action-clock authorities; `legacy_anim_state_` and `legacy_spatial_state_`
   are compatibility projections, never a second authority.
 
-## Player internal libraries
+## Player and Contact libraries
 
-`src/player/` builds exactly four STATIC libraries plus one INTERFACE
-aggregate (`football::player`). The aggregate is not a fifth library. Each
-responsibility directory owns its `CMakeLists.txt`, target, sources and public
-FILE_SET; the root Player CMakeLists only defines the boundary checks and
-aggregate.
+`src/player/` builds three STATIC libraries plus the INTERFACE aggregate
+`football::player`. `src/contact/` owns the independent fourth STATIC library,
+`football_contact` (`football::contact`), its sources and public FILE_SET.
+The Player aggregate lists only its three libraries; Execution's declared
+Contact dependency supplies its link closure.
 
-- `football::player_state`: value types, kinematics, action state, body profile,
-  command status, role parser. Must not depend on command, contact or
-  execution.
-- `football::player_command`: pure continuous motion, locomotion,
-  reachability, command validation and pass solving. May depend on state and
-  Ball; must not depend on contact or execution.
-- `football::player_contact`: pure pair-contact kernel, touch proposal,
-  impulse arbitration, touch difficulty and contact geometry. May depend on
-  state, Ball and geometry; must not depend on command or execution.
-- `football::player_execution`: the concrete Player actor, tick orchestration,
-  animation matching and every adapter that needs a live Player. It is the only
-  layer that owns Player and the only layer that may depend on command,
-  contact and animation.
+- `football::player_state`: definitions, kinematics, action state, body profile,
+  command status and role parser. No Command, Contact or Execution dependency.
+- `football::player_command`: continuous motion, locomotion, reachability,
+  command validation and pass solving. May depend on State and Ball; not
+  Contact or Execution.
+- `football::player_execution`: concrete Player, control/action execution,
+  animation matching, touch preparation and technical touch calculations.
+  May depend on Command, State, Contact and Animation.
+- `football::contact`: value-only pair-contact and active/passive touch models,
+  impulse arbitration, contact evidence and body/action geometry. May depend
+  on Player State, Ball and foundation geometry/collision. Never depends on
+  concrete Player, Player Command/Execution, Runtime or rule implementations.
 
 Rules:
 
 1. No circular static-library linking or linker-group workaround.
-2. State, Command and Contact interfaces must not require the concrete Player
-   class; Player-member definitions and Player* adapters live in Execution.
+2. Cross-player adapters live in `src/runtime/simulation_contact.cpp` and
+   `src/runtime/ball_player_contact.cpp`: read live Player inputs, call Contact,
+   apply corrections/reactions and publish facts. Contact never writes actors.
 3. No Player library may depend on Runtime, Referee, AI, Event, Observation or
    Team implementation headers.
-4. Preserve 100 Hz tick order, authoritative movement/action state, contact
-   order and numerical behavior during the split.
-5. `unittests/player_link` whole-archives all four libraries and separately
-   links State, Command and Contact without Execution.
-6. Public headers are grouped as `include/football/player/{state,command,
-   contact,execution}/`; the old flat paths are forwarding compatibility
-   headers only. Lower-library consumers must compile from `include/` alone.
-7. `src/` is never a PUBLIC include directory. Each library uses it PRIVATE
-   for its own implementation; only `include/` is exported.
-8. `PlayerActionState` is State; `PlayerActionFeedback` is Execution.
-   Continuous `PlayerMotion` is Command; baked-animation
-   `PlayerActionMotion` is Execution.
+4. Preserve the two contact chains: prepared action proposals are arbitrated
+   before the sole Ball::Step and Player::CommitTick; player-pair contacts run
+   afterwards, following possession refresh. Pairs read post-correction live
+   states and submit reactions immediately; movement sharing follows the loop.
+5. Contact evidence is not a foul verdict. Runtime freezes actor evidence and
+   adds match context (including DOGSO); Referee adjudicates. A touch proposal
+   is not acceptance: Player feedback confirms the committed fact later.
+6. `unittests/player_link` whole-archives the three Player libraries and Contact.
+   `unittests/contact` separately whole-archives Contact without Execution or
+   Runtime and compiles each public header using exported include roots only.
+7. Canonical headers live in `include/football/contact/` and
+   `include/football/player/{state,command,execution}/`. Old Player Contact/flat
+   paths are compatibility forwarders; Contact owns its compatibility FILE_SET.
+8. `src/` is never a PUBLIC include directory. Lower-library consumers compile
+   from `include/` alone.
+9. PlayerActionState is State; feedback, baked action motion, touch preparation,
+   pose-to-body conversion and diagnostic shadows are Execution. Continuous
+   PlayerMotion is Command; contact geometry and impulse models are Contact.
 
 ## Physics and numerical conventions
 
@@ -222,7 +228,8 @@ include/football/    public headers, one directory per module
 ├── animation/       baked schema/library/selector, playback, touch and pose
 ├── ball/            Ball, BallModel, BallState, contact/impulse integration
 ├── pitch/           Pitch description and the static ground/post/crossbar scene
-├── player/          value contracts grouped as state/command/contact/execution
+├── contact/         value-only contact models, colliders, impulses and evidence
+├── player/          value contracts grouped as state/command/execution
 ├── team/            TeamDefinition, formation templates, Player-owning Team
 ├── match/           neutral shared values (TeamSide, GameMode)
 ├── observation/     WorldState, Snapshot, MentalImage and their builders
@@ -237,13 +244,14 @@ src/                 implementations; public headers live in include/football/
 ├── animation/       football::animation_base (baker-shared) + football::animation
 ├── pitch/           football::pitch (pitch.cpp)
 ├── ball/            football::ball
-├── player/          four static libs: state, command, contact, execution
+├── contact/         football::contact (no concrete Player or Runtime)
+├── player/          three static libs: state, command, execution
 ├── team/            football::team (validation, presets, team_players.cpp)
 ├── runtime/         football::sim_contracts + football_sim_domain:
 │                      Simulation (clock/phase/score, ball, Teams, referee,
 │                      touch state, history), TeamOrientation/TeamView/team_facts,
 │                      possession, restart context/controller/planner/placement,
-│                      WorldState/Snapshot builders, MatchClock/MatchResult
+│                      contact adapters, WorldState/Snapshot builders, clock/result
 ├── observation/     mental image, snapshot history, temporal graph, slots
 ├── event/           event recognizer/log, touch state
 ├── referee/         football::referee (rules over value facts)

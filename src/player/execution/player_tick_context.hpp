@@ -6,7 +6,7 @@
 #include "football/player/execution/player_touch_facts.hpp"
 #include "player/execution/player_authorization.hpp"
 #include "player/execution/player_team_view.hpp"
-#include "player/contact/player_touch_preparation.hpp"
+#include "player/execution/player_touch_preparation.hpp"
 #include "football/player/execution/player_restart_facts.hpp"
 
 class Player;

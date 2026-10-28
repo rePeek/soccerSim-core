@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-#include "player/contact/player_baked_body_pose.hpp"
-#include "player/contact/player_baked_contact_regions.hpp"
+#include "player/execution/player_baked_body_pose.hpp"
+#include "player/execution/player_baked_contact_regions.hpp"
 
 // Read-only sample of the current runtime animation slot, not a forecast and
 // not another Humanoid execution. The requested frame is retained so a caller

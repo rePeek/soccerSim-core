@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_EVENT_RULE_TOUCH_HPP
 #define FOOTBALL_SIM_EVENT_RULE_TOUCH_HPP
 #include "event/accepted_touch.hpp"
-#include "player/contact/player_body_collider_motion.hpp"
+#include "football/contact/player_body_collider_motion.hpp"
 #include "football/ball/ball_contact.hpp"
 
 namespace football::sim::event {

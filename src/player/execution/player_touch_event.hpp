@@ -8,7 +8,7 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/match/team_side.hpp"
 #include "football/player/state/player_definition.hpp"
-#include "football/player/contact/player_touch_type.hpp"
+#include "football/contact/player_touch_type.hpp"
 
 namespace football::sim::player {
 

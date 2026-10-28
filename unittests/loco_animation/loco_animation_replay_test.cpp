@@ -17,7 +17,7 @@
 #include "football/animation/library.hpp"
 #include "football/animation/transition.hpp"
 using namespace football::animation;
-#include "player/contact/player_baked_body_pose.hpp"
+#include "player/execution/player_baked_body_pose.hpp"
 #include "football/player/state/player_body_profile.hpp"
 #include "football/player/state/player_kinematics.hpp"
 #include "player/execution/player_locomotion_animation.hpp"

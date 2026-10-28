@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "player/execution/player_contact.hpp"
+#include "runtime/player_contact.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -20,9 +20,9 @@
 
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
-#include "player/contact/player_action_volume.hpp"
-#include "football/player/contact/player_contact_kernel.hpp"
-#include "player/command/player_motion_constants.hpp"
+#include "football/contact/player_action_volume.hpp"
+#include "football/contact/player_contact_kernel.hpp"
+#include "football/contact/contact_evidence.hpp"
 
 namespace football::sim {
 namespace {
@@ -81,30 +81,13 @@ void FillContactEvidence(FoulAssessment& fact, Player* victim, Player* offender,
       to_ball.GetLength() < kAttemptedPlayReach;
 }
 
-// Legacy sliding severity, computed once from the frozen evidence. The
-// referee classifies the card from this value instead of re-deriving it.
-float SlidingChallengeSeverity(const FoulAssessment& fact) {
-  float severity = 1.0;
-  if (fact.offender_scheduled_contact) {
-    severity = std::pow(clamp(fabs(fact.offender_contact_frame - fact.offender_frame) /
-                                  fact.offender_contact_frame,
-                              0.0, 1.0),
-                    0.7) * 0.5;
-    severity += NormalizedClamp(
-        (fact.ball_position - fact.offender_contact_position).GetLength(), 0.0, 2.0) * 0.5;
-  }
-  severity += (fact.victim_position - fact.offender_position)
-                  .GetNormalized(0)
-                  .GetDotProduct(fact.victim_direction) * 0.5 + 0.5;
-  return severity;
-}
 
 FoulAssessment MakeSlidingAssessment(Player* victim, Player* tackler,
                                      const Vector3& ball_position, Tick now) {
   FoulAssessment fact;
   fact.kind = FoulKind::SlidingTackle;
   FillContactEvidence(fact, victim, tackler, ball_position, now);
-  fact.severity = SlidingChallengeSeverity(fact);
+  fact.severity = football::contact::SlidingChallengeSeverity(fact);
   // Informational normalized score; the verdict uses the raw severity above.
   fact.score = NormalizedClamp(fact.severity, 1.0f, 2.0f);
   return fact;
@@ -184,8 +167,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
               inputs.ball_retainer);
   }
 
-  // Tackle contact volume remains an Execution-side action adapter. It reads
-  // the post-offset actors, preserving the legacy order.
+  // Sample tackle geometry from the post-offset actors, preserving pair order.
   const PlayerActionState &p1Action = p1->GetSimulationActionState();
   const PlayerActionState &p2Action = p2->GetSimulationActionState();
   const PlayerActionVolume p1Tackle =
@@ -229,48 +211,17 @@ std::optional<FoulAssessment> AssessCollision(Player* first, Player* second,
                                               const football::ball::Ball& ball,
                                               Tick now) {
   if (first == nullptr || second == nullptr) return std::nullopt;
-  // A collision between teammates can never be a foul against an opponent.
-  if (first->GetTeamID() == second->GetTeamID()) return std::nullopt;
-
-  // The legacy fall sensitivity only becomes a foul-relevant fall (trip type
-  // 2) above this threshold; a lesser trip is a harmless stumble.
-  constexpr float kStandingFallThreshold = 0.58f;
-
-  const bool first_falls = first_sensitivity > kStandingFallThreshold;
-  const bool second_falls = second_sensitivity > kStandingFallThreshold;
-  if (!first_falls && !second_falls) return std::nullopt;
-
-  Player* victim = nullptr;
-  float victim_sensitivity = 0.0f;
-  if (first_falls && second_falls) {
-    // Both actors fall: attribute the collision to the harder fall, with a
-    // stable PlayerId tie-break so the verdict is deterministic.
-    if (first_sensitivity > second_sensitivity) {
-      victim = first;
-      victim_sensitivity = first_sensitivity;
-    } else if (second_sensitivity > first_sensitivity) {
-      victim = second;
-      victim_sensitivity = second_sensitivity;
-    } else if (first->GetID() < second->GetID()) {
-      victim = first;
-      victim_sensitivity = first_sensitivity;
-    } else {
-      victim = second;
-      victim_sensitivity = second_sensitivity;
-    }
-  } else if (first_falls) {
-    victim = first;
-    victim_sensitivity = first_sensitivity;
-  } else {
-    victim = second;
-    victim_sensitivity = second_sensitivity;
-  }
+  const auto attribution = football::contact::AttributeStandingFall(
+      {first->GetID(), first->GetTeamID(), first_sensitivity},
+      {second->GetID(), second->GetTeamID(), second_sensitivity});
+  if (!attribution) return std::nullopt;
+  Player* victim = attribution->victim_is_first ? first : second;
   Player* offender = victim == first ? second : first;
 
   FoulAssessment assessment;
   assessment.kind = FoulKind::StandingFall;
   FillContactEvidence(assessment, victim, offender, ball.state().position, now);
-  assessment.score = NormalizedClamp(victim_sensitivity, kStandingFallThreshold, 1.0f);
+  assessment.score = attribution->score;
   return assessment;
 }
 

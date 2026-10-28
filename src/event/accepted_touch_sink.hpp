@@ -3,7 +3,7 @@
 
 // Compatibility path. The synchronous accepted-touch port is Player-owned now;
 // Event/Runtime implement it to receive the confirmed value.
-#include "player/contact/player_touch_event.hpp"
+#include "player/execution/player_touch_event.hpp"
 
 namespace football::sim {
 

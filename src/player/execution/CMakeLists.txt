@@ -1,5 +1,5 @@
-# Execution: the concrete Player actor, tick orchestration, animation matching
-# and every adapter that needs a live Player or an animation runtime.
+# Execution: concrete Player, tick orchestration, animation and action adapters.
+# Cross-actor contact adaptation belongs to Runtime.
 add_library(football_player_execution STATIC
   player_command_execution.cpp
   player_control_builder.cpp
@@ -8,10 +8,9 @@ add_library(football_player_execution STATIC
   player_action_selection.cpp
   player_anim_selection.cpp
   player_animation_execution.cpp
-  player_ball_contact.cpp
-  player_contact.cpp
   player_touch_execution.cpp
   player_touch_math.cpp
+  player_touch_math_kernel.cpp
   player_touch_query.cpp
   player_diagnostics.cpp
   player_team_view.cpp
@@ -28,6 +27,8 @@ target_sources(football_player_execution PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_team_match_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_restart_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_action_feedback.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_touch_math_kernel.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_touch_math_kernel.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_team_match_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_restart_facts.hpp)
@@ -36,7 +37,7 @@ target_link_libraries(football_player_execution
     football::player_state
     football::player_command
   PRIVATE
-    football::player_contact
+    football::contact
     football::geometry football::pitch football::ball football::animation
     football::collision BqLog)
 target_compile_features(football_player_execution PUBLIC cxx_std_23)

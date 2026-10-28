@@ -1,8 +1,8 @@
 #ifndef FOOTBALL_PLAYER_TOUCH_PREPARATION_HPP
 #define FOOTBALL_PLAYER_TOUCH_PREPARATION_HPP
 
-#include "player/contact/player_touch_event.hpp"
-#include "football/player/contact/player_body_collider_motion.hpp"
+#include "player/execution/player_touch_event.hpp"
+#include "football/contact/player_body_collider_motion.hpp"
 #include "football/ball/ball_state.hpp"
 
 namespace football::sim {

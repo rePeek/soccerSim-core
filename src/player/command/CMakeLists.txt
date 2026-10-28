@@ -28,4 +28,7 @@ target_compile_features(football_player_command PUBLIC cxx_std_23)
 football_configure_target(football_player_command)
 football_player_check_boundary(
   ${CMAKE_CURRENT_SOURCE_DIR}
-  "${_player_upper_layer_regex}|#include \"player/(contact|execution)/")
+  "${_player_upper_layer_regex}|#include \"(football/)?player/(contact|execution)/|#include \"(football/)?contact/")
+football_player_check_boundary(
+  ${PROJECT_SOURCE_DIR}/include/football/player/command
+  "${_player_upper_layer_regex}|#include \"(football/)?player/(contact|execution)/|#include \"(football/)?contact/")
