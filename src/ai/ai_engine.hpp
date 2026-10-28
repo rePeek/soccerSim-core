@@ -22,8 +22,12 @@
 namespace football::ai {
 
 // The AI composition root. It owns the persistent tactical boards (the coach's
-// intent) and the one active IPlayerPolicy, and never owns actors, match state
-// or RNG. GameEnv drives the whole AI layer through Update().
+// intent) and the autonomous coach loop, and never owns actors, match state or
+// RNG. GameEnv drives the whole AI layer through Update().
+//
+// There is deliberately no player-decision layer: until the Intent Runtime
+// lands, an update emits no control, so Player/Simulation execute their
+// neutral idle state instead of an autonomous heuristic.
 class AIEngine {
  public:
   AIEngine(const football::sim::TeamSetup& home,
@@ -33,24 +37,24 @@ class AIEngine {
   ~AIEngine();
   AIEngine(const AIEngine&) = delete;
   AIEngine& operator=(const AIEngine&) = delete;
-
-  // Fully replaces this tick's control output via the active policy. The boards
-  // are passed read-only; the engine never mutates them here.
+  // Applies committed coach commands, runs the coach turn and fully replaces
+  // this tick's control output. With no player intent producer, the output is
+  // cleared every tick: absent control is the simulation's neutral idle state.
   void Update(const WorldState& world, PlayerControlSet& output);
 
-  // Coach-facing tactical intent. A future Coach AI edits these values; the
-  // Player policy only reads the copy the engine hands it.
+  // Coach-facing tactical intent. A future Coach AI and the Tactical Planner
+  // edit these values; the board stays the single tactical authority.
   TacticalBoard& tactics(football::sim::TeamSide side);
   const TacticalBoard& tactics(football::sim::TeamSide side) const;
 
   // Queue a typed coach command. It is validated and committed at the top of
-  // the next Update, exactly once per tick, before the policy reads the boards.
+  // the next Update, exactly once per tick, before the boards are read.
   bool SubmitCoachCommand(const CoachCommandEnvelope& envelope);
   const std::vector<CoachCommandRecord>& CoachLog() const;
 
   // RFE-6: hand the coach loop the formal events Runtime confirmed since the
-  // last Update. Consumed once at the next Update; the player policy never
-  // sees them and the simulation order is unchanged.
+  // last Update. Consumed once at the next Update; no player decision layer
+  // consumes them and the simulation order is unchanged.
   void ConsumeMatchEvents(
       std::span<const football::sim::event::MatchEventRecord> events);
   // Diagnostic: coach turns actually run for one side this match, bounded by
@@ -64,8 +68,7 @@ class AIEngine {
       football::sim::TeamSide side, football::player::PlayerId player) const;
 
 private:
-  // One autonomous coach turn per enabled side, after committed commands and
-  // before the player policy reads the boards.
+  // One autonomous coach turn per enabled side, after committed commands.
   void RunCoachTurn(const WorldState& world);
 
   std::array<TacticalBoard, 2> boards_;
@@ -77,8 +80,6 @@ private:
   bool coach_enabled_ = false;
   std::uint64_t next_command_id_ = 1;
   std::vector<football::sim::event::MatchEventRecord> pending_events_;
-  std::unique_ptr<IPlayerPolicy> policy_;
-  std::vector<PlayerMentalEffectEntry> mental_scratch_;
 };
 
 }  // namespace football::ai

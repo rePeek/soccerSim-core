@@ -12,7 +12,7 @@
 #include "ai/coach/coach_agent_loop.hpp"
 #include "ai/coach/coach_session.hpp"
 #include "ai/coach/coach_tool_executor.hpp"
-#include "eliza_test_world.hpp"
+#include "ai_test_world.hpp"
 #include "football/ai/tactical_board.hpp"
 #include "football/model/model_protocol.hpp"
 #include "model/mock/mock_model_provider.hpp"

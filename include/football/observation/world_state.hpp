@@ -26,9 +26,10 @@ struct WorldPlayerState {
   bool has_possession = false;
   bool lazy = false;
   float max_speed = 0.0f;
-  // P21.2 read-only summaries for the heuristic policy. They are base values,
-  // not mutable match state, and a future learned policy may consume the same
-  // fields. No PlayerDefinition, Player* or animation state is copied.
+  // Read-only per-player summaries for tactical consumers. They are base
+  // values, not mutable match state, and the future planner/learned policy may
+  // consume the same fields. No PlayerDefinition, Player* or animation state
+  // is copied.
   e_PlayerRole role = e_PlayerRole_GK;
   // 1 = fully rested, 0.01 = exhausted; the runtime fatigue factor as-is.
   float fatigue_inv = 1.0f;

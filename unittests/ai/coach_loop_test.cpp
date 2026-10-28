@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "ai/ai_engine.hpp"
-#include "eliza_test_world.hpp"
+#include "ai_test_world.hpp"
 #include "football/ai/ai_config.hpp"
 #include "football/ai/coach_command.hpp"
 #include "football/ai/tactical_board.hpp"
@@ -18,7 +18,6 @@ namespace {
 
 using football::ai::AIEngine;
 using football::ai::AIConfig;
-using football::ai::PlayerPolicyKind;
 using football::ai::TacticalBoard;
 using football::ai::TacticalPlan;
 using football::ai::TransitionOnLoss;
@@ -31,7 +30,6 @@ using football::sim::Tick;
 AIConfig CoachConfig(const football::sim::TeamSetup& home,
                      const football::sim::TeamSetup& away) {
   AIConfig config;
-  config.player_policy = PlayerPolicyKind::Heuristic;
   config.coach_enabled = true;
   config.initial_tactics[0] =
       football::ai::MakeTacticalBoard(home, TeamSide::Home, football::pitch::Pitch{});

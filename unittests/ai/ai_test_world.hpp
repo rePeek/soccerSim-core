@@ -4,14 +4,12 @@
 #include <string>
 #include <utility>
 
-#include "ai/ai_engine.hpp"
-#include "football/ai/ai_config.hpp"
 #include "football/observation/world_state.hpp"
 #include "football/player/player_role.hpp"
 
 namespace football::ai::test {
 
-// Shared synthetic 11v11 observation for the AI policy tests.
+// Shared synthetic 11v11 observation for the AI tests.
 inline constexpr int kPlayers = 11;
 
 inline constexpr e_PlayerRole kRoles[kPlayers] = {
@@ -74,17 +72,6 @@ inline WorldState MakeWorld(const football::sim::TeamSetup& home,
   AddTeam(world, home, football::sim::TeamSide::Home, -1.f);
   AddTeam(world, away, football::sim::TeamSide::Away, 1.f);
   return world;
-}
-
-inline PlayerControlSet RunEliza(const football::sim::TeamSetup& home,
-                                 const football::sim::TeamSetup& away,
-                                 const WorldState& world) {
-  football::ai::AIConfig config;
-  config.player_policy = football::ai::PlayerPolicyKind::Eliza;
-  football::ai::AIEngine engine(home, away, football::pitch::Pitch{}, config);
-  PlayerControlSet output;
-  engine.Update(world, output);
-  return output;
 }
 
 }  // namespace football::ai::test

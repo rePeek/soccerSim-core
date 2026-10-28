@@ -1,18 +1,11 @@
-# AI protocol acceptance: the frozen IPlayerPolicy contract and the Default
-# equivalence between AIEngine and the public DefaultAI baseline. AIEngine is an
-# internal header, so the target carries the src/ implementation root.
+# AI unit acceptance: tactical values/interpreter, the coach loop and the
+# neutral execution boundary (no player heuristic). AIEngine is an internal
+# header, so the target carries the src/ implementation root.
 add_executable(football_ai_unit_tests
-  default_policy_equivalence_test.cpp
-  eliza_off_ball_test.cpp
-  eliza_on_ball_test.cpp
-  eliza_keeper_tactics_test.cpp
-  eliza_frequency_test.cpp
-  policy_switch_test.cpp
   tactical_schema_test.cpp
   tactical_coordinate_test.cpp
   tactical_interpreter_test.cpp
-  tactical_response_test.cpp
-  heuristic_policy_test.cpp
+  neutral_execution_test.cpp
   coach_command_test.cpp
   coach_loop_test.cpp
   shout_lifecycle_test.cpp

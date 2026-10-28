@@ -23,7 +23,10 @@ while (!game.Finished()) game.Step();
 const MatchResult result = game.Result();
 ```
 
-`GameEnv` owns one Simulation and one opaque policy. Its running step is only:
+`GameEnv` owns one Simulation and one AI composition root (tactical boards and
+the coach loop). Until the Intent Runtime lands there is no player-decision
+policy, so `AI::Update` emits no control and Player executes its neutral idle
+state. Its running step is only:
 
 ```text
 Simulation::Observe -> AI::Update -> PlayerControlSet -> Simulation::Step
@@ -93,7 +96,7 @@ src/                (runtime implementation; public values live in include/footb
 ├── event/        EventRecognizer, TouchState, MatchEvent log
 ├── observation/  MentalImage, Snapshot/history, temporal graph, player slots
 ├── referee/      Referee over value facts, goal/period/offside/restart rules
-├── ai/           policies, tactical board/plan/interpreter, coach, eliza
+├── ai/           tactical board/plan/interpreter, coach
 └── testing/      SimulationAccess (internal, never product/actor-facing)
 ```
 

@@ -21,8 +21,8 @@ namespace football::ai {
 // transactional executor. Shouts never touch the boards.
 //
 // Applying happens once per simulation tick, at the top of AIEngine::Update,
-// before the Player policy reads the boards. Commit time is the tick, not the
-// tick the coach started thinking.
+// before the board is read by any intent consumer. Commit time is the tick,
+// not the tick the coach started thinking.
 class CoachRuntime {
  public:
   static constexpr std::size_t kQueueCapacity = 64;

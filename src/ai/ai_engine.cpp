@@ -1,31 +1,12 @@
 #include "ai_engine.hpp"
 
 #include <algorithm>
-#include <stdexcept>
 
-#include "default_policy.hpp"
-#include "eliza/eliza_policy.hpp"
-#include "player/heuristic_policy.hpp"
 #include "coach/heuristic_coach.hpp"
 
 namespace football::ai {
 namespace {
 
-std::unique_ptr<IPlayerPolicy> MakePlayerPolicy(PlayerPolicyKind kind) {
-  switch (kind) {
-    case PlayerPolicyKind::Default:
-      return std::make_unique<DefaultPolicy>();
-    case PlayerPolicyKind::Eliza:
-      return std::make_unique<ElizaPolicy>();
-    case PlayerPolicyKind::Heuristic:
-      return std::make_unique<HeuristicPolicy>();
-  }
-  throw std::invalid_argument("unknown PlayerPolicyKind");
-}
-
-}  // namespace
-
-namespace {
 // A command is only valid for a short window after its observation tick, so a
 // delayed or replayed turn can never edit a much later match state.
 constexpr std::uint64_t kCoachCommandExpiryTicks = 100;  // 1 s
@@ -57,8 +38,7 @@ AIEngine::AIEngine(const football::sim::TeamSetup& home,
       coach_policy_(config.coach_enabled
                         ? std::make_unique<HeuristicCoachPolicy>()
                         : nullptr),
-      coach_enabled_(config.coach_enabled),
-      policy_(MakePlayerPolicy(config.player_policy)) {
+      coach_enabled_(config.coach_enabled) {
   boards_[0].side = football::sim::TeamSide::Home;
   boards_[1].side = football::sim::TeamSide::Away;
 }
@@ -66,7 +46,7 @@ AIEngine::AIEngine(const football::sim::TeamSetup& home,
 AIEngine::~AIEngine() = default;
 
 void AIEngine::Update(const WorldState& world, PlayerControlSet& output) {
-  // Commit queued coach commands first, so this tick's policy reads the new
+  // Commit queued coach commands first, so the board carries this tick's
   // intent. A command never mutates the boards outside this single point.
   coach_.ApplyAtTick(world.tick, world);
   if (coach_enabled_) {
@@ -74,24 +54,10 @@ void AIEngine::Update(const WorldState& world, PlayerControlSet& output) {
   } else {
     pending_events_.clear();
   }
-  // Materialise the bounded transient effects once per tick, then hand the
-  // policy a read-only context. Shouts stay out of WorldState and boards.
-  mental_scratch_.clear();
-  for (unsigned index = 0; index < 2; ++index) {
-    const auto side = static_cast<football::sim::TeamSide>(index);
-    for (const WorldPlayerState& player : world.players) {
-      if (player.side != side) continue;
-      const PlayerMentalEffect effect = coach_.MentalEffect(side, player.id);
-      if (effect.motivation != 0.0f || effect.confidence != 0.0f ||
-          effect.focus != 0.0f || effect.composure != 0.0f)
-        mental_scratch_.push_back({side, player.id, effect});
-    }
-  }
-  PlayerAIContext context;
-  context.world = &world;
-  context.tactics = boards_;
-  context.mental_effects = mental_scratch_;
-  policy_->Update(context, output);
+  // No player-decision layer exists yet. Emit no control so Player and
+  // Simulation keep their deterministic neutral idle execution; a failed or
+  // absent intent never falls back to a heuristic.
+  output.Clear();
 }
 
 bool AIEngine::SubmitCoachCommand(const CoachCommandEnvelope& envelope) {

@@ -122,6 +122,10 @@ observation, controls and stored physics are all the Stadium Frame.
   deterministically as careless/reckless/excessive (no probability, no RNG);
   DOGSO and the Law 12 penalty double-jeopardy are explicit rules.
 - AI is a producer of `PlayerControl`; it owns no actor, match state or RNG.
+- There is no player heuristic and no default player policy. Without an
+  explicit intent (the Tactical Planner / Intent Runtime), AI emits no control
+  and Player executes the neutral idle state. A failure never falls back to a
+  renamed heuristic.
 
 ## Physics and numerical conventions
 
@@ -155,7 +159,7 @@ include/football/    public headers, one directory per module
 ├── observation/     WorldState, Snapshot, MentalImage and their builders
 ├── event/           MatchEvent, EventLog, touch/rule-touch values
 ├── referee/         rule values, rulings and the referee
-├── ai/              policies, tactical board/plan/interpreter, coach, eliza
+├── ai/              tactical board/plan/interpreter, coach commands and loop
 ├── model/           provider-neutral model protocol/seam (STL only)
 └── env.hpp          public autonomous-match facade
 
@@ -174,7 +178,7 @@ src/                 implementations; public headers live in include/football/
 ├── observation/     mental image, snapshot history, temporal graph, slots
 ├── event/           event recognizer/log, touch state
 ├── referee/         football::referee (rules over value facts)
-├── ai/              default_ai, tactical_*, eliza/, player/, coach/
+├── ai/              tactical_*, coach/
 ├── model/           football::model (header-only protocol/provider)
 ├── testing/         internal SimulationAccess (never product/actor-facing)
 └── env.cpp          public facade implementation

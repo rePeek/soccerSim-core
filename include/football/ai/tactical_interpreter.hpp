@@ -52,7 +52,7 @@ struct EffectivePlayerTactics {
   TacticalSlotId slot = 0;
   football::player::PlayerId player = football::player::kInvalidPlayerId;
   bool assigned = false;
-  // True when the plan's slot is the goalkeeper, so a policy never has to
+  // True when the plan's slot is the goalkeeper, so a consumer never has to
   // guess the role from the observation.
   bool goalkeeper = false;
   football::math::Vector3 target_anchor_metres = football::math::Vector3(0);
