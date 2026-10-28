@@ -10,7 +10,7 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/player/player_role.hpp"
+#include "football/player/state/player_role.hpp"
 
 namespace football::ball { class Ball; }
 

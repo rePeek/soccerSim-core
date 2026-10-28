@@ -18,7 +18,7 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
-#include "football/player/player_definition.hpp"
+#include "football/player/state/player_definition.hpp"
 #include "referee/referee_facts.hpp"
 #include "referee/referee_player_fact.hpp"
 

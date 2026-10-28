@@ -31,10 +31,12 @@
 #include "player/player.hpp"
 #include "player/command/reachability.hpp"
 #include "player/execution/player_diagnostics.hpp"
-#include "football/player/player_control_set.hpp"
-#include "football/player/player_definition.hpp"
-#include "player/command/player_motion.hpp"
-#include "player/command/player_motion_profile.hpp"
+#include "football/player/command/player_control_set.hpp"
+#include "football/player/state/player_definition.hpp"
+#include "football/player/command/player_motion.hpp"
+#include "player/command/player_locomotion.hpp"
+#include "player/execution/player_action_motion.hpp"
+#include "football/player/command/player_motion_profile.hpp"
 #include "football/observation/world_state.hpp"
 #include "football/runtime/match_config.hpp"
 #include "runtime/possession.hpp"
@@ -645,12 +647,12 @@ TEST_CASE("Runtime harness: PlayerMotion proposes, Player commits",
   for (std::size_t i = 1; i < clip.frames.size(); ++i) {
     clip.frames[i].local_displacement = Vector3(0.07f, 0, 0);
   }
-  const MotionSample baked = PlayerMotion::SampleClip(clip, 2.0f, 0.01f);
+  const MotionSample baked = PlayerActionMotion::SampleClip(clip, 2.0f, 0.01f);
   CHECK(baked.displacement.coords[0] == Approx(0.07f));
   CHECK(baked.displacement.coords[2] == Approx(0.0f));
   CHECK(baked.velocity.coords[0] == Approx(7.0f).margin(1e-4f));
-  CHECK(PlayerMotion::ClipDisplacement(clip, 0.0f).GetLength() == Approx(0.0f));
-  CHECK(PlayerMotion::ClipDisplacement(clip, 2.5f).coords[0] == Approx(0.07f));
+  CHECK(PlayerActionMotion::ClipDisplacement(clip, 0.0f).GetLength() == Approx(0.0f));
+  CHECK(PlayerActionMotion::ClipDisplacement(clip, 2.5f).coords[0] == Approx(0.07f));
 }
 
 TEST_CASE("Runtime harness: P2a motion step is bit-identical to the legacy call",

@@ -5,9 +5,9 @@
 #include <stdexcept>
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
-#include "player/state/player_kinematics.hpp"
-#include "player/contact/player_body_collider_motion.hpp"
-#include "player/state/player_body_profile.hpp"
+#include "football/player/state/player_kinematics.hpp"
+#include "football/player/contact/player_body_collider_motion.hpp"
+#include "football/player/state/player_body_profile.hpp"
 
 // PoseFrame contains LOCAL keyframe rotations, not 14 world-space joint points.
 // Animation::Apply rotates joints while retaining bind translations from

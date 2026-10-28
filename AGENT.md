@@ -184,6 +184,14 @@ Rules:
    order and numerical behavior during the split.
 5. `unittests/player_link` whole-archives all four libraries and separately
    links State, Command and Contact without Execution.
+6. Public headers are grouped as `include/football/player/{state,command,
+   contact,execution}/`; the old flat paths are forwarding compatibility
+   headers only. Lower-library consumers must compile from `include/` alone.
+7. `src/` is never a PUBLIC include directory. Each library uses it PRIVATE
+   for its own implementation; only `include/` is exported.
+8. `PlayerActionState` is State; `PlayerActionFeedback` is Execution.
+   Continuous `PlayerMotion` is Command; baked-animation
+   `PlayerActionMotion` is Execution.
 
 ## Physics and numerical conventions
 
@@ -211,7 +219,7 @@ include/football/    public headers, one directory per module
 ├── animation/       baked schema/library/selector, playback, touch and pose
 ├── ball/            Ball, BallModel, BallState, contact/impulse integration
 ├── pitch/           Pitch description and the static ground/post/crossbar scene
-├── player/          Player value types, control, touch facts, body profile
+├── player/          value contracts grouped as state/command/contact/execution
 ├── team/            TeamDefinition, formation templates, Player-owning Team
 ├── match/           neutral shared values (TeamSide, GameMode)
 ├── observation/     WorldState, Snapshot, MentalImage and their builders

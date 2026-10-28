@@ -12,16 +12,16 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/match/team_side.hpp"
-#include "football/player/formation_entry.hpp"
-#include "football/player/foul_assessment.hpp"
-#include "football/player/player_control.hpp"
-#include "football/player/player_control_set.hpp"
-#include "football/player/player_definition.hpp"
-#include "football/player/player_restart_facts.hpp"
-#include "football/player/player_role.hpp"
-#include "football/player/player_team_match_facts.hpp"
-#include "football/player/player_touch_facts.hpp"
-#include "football/player/player_touch_type.hpp"
+#include "football/player/state/formation_entry.hpp"
+#include "football/player/contact/foul_assessment.hpp"
+#include "football/player/command/player_control.hpp"
+#include "football/player/command/player_control_set.hpp"
+#include "football/player/state/player_definition.hpp"
+#include "football/player/execution/player_restart_facts.hpp"
+#include "football/player/state/player_role.hpp"
+#include "football/player/execution/player_team_match_facts.hpp"
+#include "football/player/execution/player_touch_facts.hpp"
+#include "football/player/contact/player_touch_type.hpp"
 
 int main() {
   football::player::PlayerDefinition definition;

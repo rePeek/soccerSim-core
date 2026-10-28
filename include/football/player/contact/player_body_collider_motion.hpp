@@ -1,0 +1,121 @@
+//
+//  player_body_collider_motion.hpp
+//  football
+//
+//  Copyright 2026
+//
+
+#ifndef _HPP_PLAYER_BODY_COLLIDER_MOTION
+#define _HPP_PLAYER_BODY_COLLIDER_MOTION
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <span>
+#include <stdexcept>
+#include <limits>
+
+#include "football/foundation/geometry/collider.hpp"
+#include "football/player/contact/player_body_collider.hpp"
+
+// The three coarse passive body shapes intentionally match PlayerBodyCollider.
+// They are not action volumes and they do not describe the posed skeleton.
+enum class PlayerBodyPart : std::uint8_t {
+  UpperBody = 0,
+  LowerBody = 1,
+  Head = 2,
+};
+
+inline constexpr std::size_t kPlayerBodyPartCount = 3;
+inline constexpr football::geometry::ColliderId kFirstDynamicBodyColliderId =
+    0x80000000u;
+inline constexpr football::geometry::ColliderId kFirstBakedBodyColliderId = 0xc0000000u;
+
+// Dynamic ids occupy a range disjoint from the pitch's 1--7 ids. The slot is
+// a Simulation-owned fixed match slot, never a roster traversal position or a
+// player name. Keeping the encoding here makes contact identities stable when
+// collider construction is later parallelized or reordered.
+inline football::geometry::ColliderId PlayerBodyColliderId(
+    std::uint32_t player_slot, PlayerBodyPart part) {
+  constexpr std::uint64_t kParts = kPlayerBodyPartCount;
+  const std::uint64_t id =
+      static_cast<std::uint64_t>(kFirstDynamicBodyColliderId) +
+      static_cast<std::uint64_t>(player_slot) * kParts +
+      static_cast<std::uint8_t>(part);
+  if (static_cast<std::uint8_t>(part) >= kPlayerBodyPartCount || id >= kFirstBakedBodyColliderId) {
+    throw std::out_of_range("coarse body collider exceeds its reserved id range or part count");
+  }
+  return static_cast<football::geometry::ColliderId>(id);
+}
+
+struct PlayerBodyColliderMotionIds {
+  std::array<football::geometry::ColliderId, kPlayerBodyPartCount> values;
+
+  football::geometry::ColliderId operator[](PlayerBodyPart part) const {
+    return values[static_cast<std::size_t>(part)];
+  }
+};
+
+inline PlayerBodyColliderMotionIds PlayerBodyColliderIdsForSlot(
+    std::uint32_t player_slot) {
+  return {{PlayerBodyColliderId(player_slot, PlayerBodyPart::UpperBody),
+           PlayerBodyColliderId(player_slot, PlayerBodyPart::LowerBody),
+           PlayerBodyColliderId(player_slot, PlayerBodyPart::Head)}};
+}
+
+inline football::geometry::Capsule BodyVolumeCapsule(const BodyVolume& volume) {
+  return {volume.center - football::math::Vector3(0.0f, 0.0f, volume.halfHeight),
+          volume.center + football::math::Vector3(0.0f, 0.0f, volume.halfHeight),
+          volume.radius};
+}
+
+// Provisional coarse-body material, explicitly owned by Player geometry.
+// Analytical response tests pin restitution/friction; not a realism calibration.
+inline constexpr football::geometry::ContactMaterial kPlayerBodyContactMaterial{0.35f, 0.45f};
+
+// Fills three motions in UpperBody, LowerBody, Head order. Callers establish
+// ids before this pure geometry conversion; geometry itself has no Player,
+// Team, animation, RNG, or Simulation dependency.
+inline void BuildBodyColliderMotions(
+    const PlayerKinematicState& start, const PlayerKinematicState& end,
+    std::span<football::geometry::ColliderMotion> output,
+    const PlayerBodyColliderParameters& parameters =
+        PlayerBodyColliderParameters(),
+    const football::geometry::ContactMaterial& material = kPlayerBodyContactMaterial) {
+  if (output.size() != kPlayerBodyPartCount) {
+    throw std::invalid_argument("body collider motion output must contain three shapes");
+  }
+
+  const PlayerBodyCollider start_body = BuildBodyCollider(start, parameters);
+  const PlayerBodyCollider end_body = BuildBodyCollider(end, parameters);
+  const std::array<const BodyVolume*, kPlayerBodyPartCount> starts =
+      start_body.GetVolumes();
+  const std::array<const BodyVolume*, kPlayerBodyPartCount> ends =
+      end_body.GetVolumes();
+  for (std::size_t i = 0; i < kPlayerBodyPartCount; ++i) {
+    output[i].material = material;
+    if (i == static_cast<std::size_t>(PlayerBodyPart::Head)) {
+      output[i].start = football::geometry::Sphere{starts[i]->center, starts[i]->radius};
+      output[i].end = football::geometry::Sphere{ends[i]->center, ends[i]->radius};
+    } else {
+      output[i].start = BodyVolumeCapsule(*starts[i]);
+      output[i].end = BodyVolumeCapsule(*ends[i]);
+    }
+  }
+}
+
+inline void BuildBodyColliderMotions(
+    const PlayerKinematicState& start, const PlayerKinematicState& end,
+    const PlayerBodyColliderMotionIds& ids,
+    std::span<football::geometry::ColliderMotion> output,
+    const PlayerBodyColliderParameters& parameters =
+        PlayerBodyColliderParameters(),
+    const football::geometry::ContactMaterial& material = kPlayerBodyContactMaterial) {
+  if (output.size() != kPlayerBodyPartCount) {
+    throw std::invalid_argument("body collider motion output must contain three shapes");
+  }
+  for (std::size_t i = 0; i < kPlayerBodyPartCount; ++i) output[i].id = ids.values[i];
+  BuildBodyColliderMotions(start, end, output, parameters, material);
+}
+
+#endif  // _HPP_PLAYER_BODY_COLLIDER_MOTION

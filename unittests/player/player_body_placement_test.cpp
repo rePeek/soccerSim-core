@@ -26,8 +26,8 @@
 #include "football/pitch/pitch.hpp"
 #include "player/contact/player_baked_body_pose.hpp"
 #include "player/contact/player_baked_contact_regions.hpp"
-#include "player/state/player_body_profile.hpp"
-#include "player/state/player_kinematics.hpp"
+#include "football/player/state/player_body_profile.hpp"
+#include "football/player/state/player_kinematics.hpp"
 
 using football::geometry::Capsule;
 using football::geometry::ColliderShape;

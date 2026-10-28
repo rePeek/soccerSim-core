@@ -18,7 +18,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/animation/types.hpp"
-#include "player/state/player_kinematics.hpp"
+#include "football/player/state/player_kinematics.hpp"
 #include "player/command/player_motion_constants.hpp"
 #include <optional>
 

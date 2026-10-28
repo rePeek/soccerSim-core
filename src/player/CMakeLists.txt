@@ -38,7 +38,21 @@ add_library(football::player_state ALIAS football_player_state)
 target_include_directories(football_player_state
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
+  PRIVATE
+    ${PROJECT_SOURCE_DIR}/src)
+target_sources(football_player_state PUBLIC FILE_SET HEADERS
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/player/state/player_definition.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/state/player_role.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/state/formation_entry.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/state/player_kinematics.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/state/player_action.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/state/player_body_profile.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/state/player_command_status.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_definition.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_role.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/formation_entry.hpp)
 target_link_libraries(football_player_state
   PUBLIC
     football::foundation
@@ -58,6 +72,19 @@ add_library(football_player_command STATIC
   command/reachability.cpp
   command/player_pass_solver.cpp)
 add_library(football::player_command ALIAS football_player_command)
+target_include_directories(football_player_command
+  PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_sources(football_player_command PUBLIC FILE_SET HEADERS
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/player/command/player_control.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/command/player_control_set.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/command/player_motion.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/command/player_motion_profile.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/command/player_body_facing.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/command/player_pass_solver.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_control.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_control_set.hpp)
 target_link_libraries(football_player_command
   PUBLIC
     football::player_state
@@ -76,6 +103,19 @@ add_library(football_player_contact STATIC
   contact/player_active_touch_model.cpp
   contact/player_active_impulse.cpp)
 add_library(football::player_contact ALIAS football_player_contact)
+target_include_directories(football_player_contact
+  PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_sources(football_player_contact PUBLIC FILE_SET HEADERS
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/player/contact/foul_assessment.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_touch_type.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_active_touch_model.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_active_impulse.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_body_collider.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_body_collider_motion.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/foul_assessment.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_type.hpp)
 target_link_libraries(football_player_contact
   PUBLIC
     football::player_state
@@ -110,16 +150,15 @@ add_library(football_player_execution STATIC
   player.cpp
   player_tick.cpp)
 add_library(football::player_execution ALIAS football_player_execution)
+target_include_directories(football_player_execution
+  PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_sources(football_player_execution PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
   FILES
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_definition.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/foul_assessment.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_control.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_control_set.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_role.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/formation_entry.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_type.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_touch_facts.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_team_match_facts.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_restart_facts.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_action_feedback.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_team_match_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_restart_facts.hpp)
@@ -151,4 +190,8 @@ endforeach()
 # Compatibility aggregate. It is an INTERFACE target, not a fifth library.
 add_library(football_player INTERFACE)
 add_library(football::player ALIAS football_player)
-target_link_libraries(football_player INTERFACE football_player_execution)
+target_link_libraries(football_player INTERFACE
+  football_player_state
+  football_player_command
+  football_player_contact
+  football_player_execution)

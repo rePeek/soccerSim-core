@@ -18,7 +18,7 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/animation/types.hpp"
-#include "football/player/player_control.hpp"
+#include "football/player/command/player_control.hpp"
 
 using namespace football::math;
 

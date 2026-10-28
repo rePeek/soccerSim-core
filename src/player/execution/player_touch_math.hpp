@@ -10,8 +10,8 @@
 #include "football/ball/ball.hpp"
 #include "football/foundation/math/vector3.hpp"
 
-#include "football/player/player_touch_facts.hpp"
-#include "football/player/player_touch_type.hpp"
+#include "football/player/execution/player_touch_facts.hpp"
+#include "football/player/contact/player_touch_type.hpp"
 #include "player/execution/player_action_execution_state.hpp"
 #include "player/state/player_spatial_state.hpp"
 #include "player/execution/player_team_view.hpp"

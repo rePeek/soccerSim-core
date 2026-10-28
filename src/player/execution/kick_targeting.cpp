@@ -15,7 +15,7 @@
 
 #include <cassert>
 
-#include "player/command/player_pass_solver.hpp"
+#include "football/player/command/player_pass_solver.hpp"
 #include "player/player.hpp"
 
 namespace football::sim::mechanics {

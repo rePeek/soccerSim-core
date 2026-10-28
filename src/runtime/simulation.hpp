@@ -9,7 +9,7 @@
 #include <map>
 #include <vector>
 
-#include "football/player/player_control_set.hpp"
+#include "football/player/command/player_control_set.hpp"
 #include "football/runtime/match_config.hpp"
 #include "football/team/team.hpp"
 #include "football/runtime/active_lineup.hpp"
@@ -40,7 +40,7 @@
 #include "player/execution/player_tick_context.hpp"
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_send_off_sink.hpp"
-#include "football/player/foul_assessment.hpp"
+#include "football/player/contact/foul_assessment.hpp"
 #include "player/contact/player_body_collision_shadow.hpp"
 #include "player/contact/player_active_touch_shadow.hpp"
 #include "player/execution/player_baked_pose_sample.hpp"

@@ -23,7 +23,8 @@
 #include "football/animation/movement_math.hpp"
 #include "football/animation/selector.hpp"
 #include "football/animation/selection_math.hpp"
-#include "player/command/player_motion.hpp"
+#include "football/player/command/player_motion.hpp"
+#include "player/execution/player_action_motion.hpp"
 #include "player/execution/player_touch_math.hpp"
 #include "player/command/player_motion_constants.hpp"
 #include "player/execution/player_runtime_sink.hpp"
@@ -314,7 +315,7 @@ void Player::ProjectMovementState(
 Vector3 Player::CalculatePhysicsVector(football::sim::Tick now, int animID, bool useDesiredMovement, const Vector3 &desiredMovement, bool useDesiredBodyDirection, const Vector3 &desiredBodyDirectionRel, std::vector<Vector3> &positions_ret, radian &rotationOffset_ret) const {
   // ANIM-1 A6.4 A8.0: the candidate reference-motion kernel now lives in
   // kinematic/capability inputs and writes the plan back; the algorithm itself
-  // is unchanged (see PlayerMotion::BuildActionMotionPlan).
+  // is unchanged (see PlayerActionMotion::BuildActionMotionPlan).
   const AnimationClip &clip = GetBakedClip(animID);
 
   ActionMotionInput input;
@@ -336,7 +337,7 @@ Vector3 Player::CalculatePhysicsVector(football::sim::Tick now, int animID, bool
   input.parameters.last_touch_bias_1000 = GetLastTouchBias(1000, now);
   input.parameters.decaying_position_offset_length = decayingPositionOffset.GetLength();
 
-  const ActionMotionPlan plan = PlayerMotion::BuildActionMotionPlan(clip, input);
+  const ActionMotionPlan plan = PlayerActionMotion::BuildActionMotionPlan(clip, input);
 
   positions_ret = plan.positions;
   rotationOffset_ret = plan.rotation_offset;
@@ -848,7 +849,7 @@ void Player::ApplyPostActionTick(ActionTickFrame& frame) {
   smuggle_input.rotation_smuggle_end = legacy_anim_state_.rotationSmuggle.end;
   smuggle_input.allow_pre_touch_rotation_smuggle = allowPreTouchRotationSmuggle;
   const ActionSmuggleTickResult smuggle =
-      PlayerMotion::ActionSmuggleTick(smuggle_input);
+      PlayerActionMotion::ActionSmuggleTick(smuggle_input);
 
   legacy_spatial_state_.actionSmuggleMovement = smuggle.action_smuggle_movement;
   legacy_anim_state_.actionSmuggleOffset += smuggle.action_smuggle_offset_delta;

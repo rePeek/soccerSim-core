@@ -15,9 +15,9 @@
 #include "football/foundation/math/vector3.hpp"
 using namespace football::math;  // player_locomotion.hpp expects the legacy global namespace
 #include "football/foundation/time/tick_boundary.hpp"
-#include "player/state/player_kinematics.hpp"
-#include "player/command/player_motion.hpp"
-#include "player/command/player_motion_profile.hpp"
+#include "football/player/state/player_kinematics.hpp"
+#include "football/player/command/player_motion.hpp"
+#include "football/player/command/player_motion_profile.hpp"
 
 using football::math::Vector3;
 

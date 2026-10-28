@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "football/player/player_role.hpp"
+#include "football/player/state/player_role.hpp"
 
 // Parses a role token ("GK", "CB", ...) from external configuration. Unknown
 // tokens fall back to CM. This is import/lookup, not player behaviour.

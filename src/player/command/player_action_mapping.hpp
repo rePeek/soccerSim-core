@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_PLAYER_ACTION_MAPPING_HPP
 
 #include "football/animation/types.hpp"
-#include "football/player/player_control.hpp"
+#include "football/player/command/player_control.hpp"
 
 namespace football::sim::player {
 

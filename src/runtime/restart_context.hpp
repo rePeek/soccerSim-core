@@ -7,8 +7,8 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/match/game_mode.hpp"
-#include "football/player/player_definition.hpp"
-#include "football/player/player_restart_facts.hpp"
+#include "football/player/state/player_definition.hpp"
+#include "football/player/execution/player_restart_facts.hpp"
 #include "referee/restart_phase.hpp"
 
 class Player;

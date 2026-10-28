@@ -5,7 +5,7 @@
 #include <optional>
 
 #include "football/foundation/time/tick.hpp"
-#include "football/player/player_definition.hpp"
+#include "football/player/state/player_definition.hpp"
 #include "football/runtime/match_config.hpp"
 
 namespace football::sim::event {

@@ -2,7 +2,7 @@
 #define FOOTBALL_SIM_RULES_REFEREE_FACTS_HPP
 
 #include "football/foundation/math/vector3.hpp"
-#include "football/player/player_definition.hpp"
+#include "football/player/state/player_definition.hpp"
 #include "football/match/game_mode.hpp"
 #include "football/match/team_side.hpp"
 #include "referee/restart_phase.hpp"

@@ -6,7 +6,8 @@
 
 #include "football/animation/movement_math.hpp"
 #include "football/animation/movement_selection.hpp"
-#include "player/command/player_motion.hpp"
+#include "football/player/command/player_motion.hpp"
+#include "player/execution/player_action_motion.hpp"
 
 using Catch::Approx;
 using football::animation::CalculateMovementAtFrame;
@@ -74,7 +75,7 @@ TEST_CASE("A8.0: a zero-motion, zero-spatial Shot plans nothing",
   const AnimationClip clip =
       MakeClip(e_DefString_Shot, 10, 0.0f, Vector3(0), 0.0f, 0.0f);
   ActionMotionInput input = BaseInput();
-  const ActionMotionPlan plan = PlayerMotion::BuildActionMotionPlan(clip, input);
+  const ActionMotionPlan plan = PlayerActionMotion::BuildActionMotionPlan(clip, input);
   REQUIRE(plan.positions.size() == 10u);
   for (const Vector3& p : plan.positions) {
     CHECK(p.coords[0] == 0.0f);
@@ -90,7 +91,7 @@ TEST_CASE("A8.0: a forward Movement clip generates a forward trajectory",
   const AnimationClip clip =
       MakeClip(e_DefString_Movement, 20, -0.05f, outgoing, 5.0f, 0.0f);
   ActionMotionInput input = BaseInput();
-  const ActionMotionPlan plan = PlayerMotion::BuildActionMotionPlan(clip, input);
+  const ActionMotionPlan plan = PlayerActionMotion::BuildActionMotionPlan(clip, input);
   REQUIRE(plan.positions.size() == 20u);
   // The plan follows the clip's local motion (world +x is unchanged here).
   CHECK(plan.positions.back().coords[0] == 0.0f);
@@ -112,8 +113,8 @@ TEST_CASE("A8.0: the plan is deterministic for identical inputs",
   input.parameters.stat_technical_ballcontrol = 0.8f;
   input.parameters.last_touch_bias_1000 = 0.25f;
   input.parameters.decaying_position_offset_length = 0.1f;
-  const ActionMotionPlan a = PlayerMotion::BuildActionMotionPlan(clip, input);
-  const ActionMotionPlan b = PlayerMotion::BuildActionMotionPlan(clip, input);
+  const ActionMotionPlan a = PlayerActionMotion::BuildActionMotionPlan(clip, input);
+  const ActionMotionPlan b = PlayerActionMotion::BuildActionMotionPlan(clip, input);
   REQUIRE(a.positions.size() == b.positions.size());
   for (std::size_t i = 0; i < a.positions.size(); ++i) {
     CHECK(a.positions[i] == b.positions[i]);
@@ -129,7 +130,7 @@ TEST_CASE("A8.0: Trip with a pass-through trip type still plans its root motion"
   const AnimationClip clip = MakeClip(e_DefString_Trip, 16, -0.05f,
                                       Vector3(0, -5.0f, 0), 5.0f, 0.0f, -1, 1);
   ActionMotionInput input = BaseInput();
-  const ActionMotionPlan plan = PlayerMotion::BuildActionMotionPlan(clip, input);
+  const ActionMotionPlan plan = PlayerActionMotion::BuildActionMotionPlan(clip, input);
   CHECK(plan.positions.size() == 16u);
 }
 
@@ -138,7 +139,7 @@ TEST_CASE("A8.0: Sliding plans a trajectory from a standstill",
   const AnimationClip clip = MakeClip(e_DefString_Sliding, 18, -0.05f,
                                       Vector3(0, -5.0f, 0), 5.0f, 0.0f);
   ActionMotionInput input = BaseInput();
-  const ActionMotionPlan plan = PlayerMotion::BuildActionMotionPlan(clip, input);
+  const ActionMotionPlan plan = PlayerActionMotion::BuildActionMotionPlan(clip, input);
   REQUIRE(plan.positions.size() == 18u);
   CHECK(plan.positions.back().coords[1] < 0.0f);
 }
@@ -153,7 +154,7 @@ TEST_CASE("A8.0: a non-idle outgoing clip rotates to its native exit direction",
   ActionMotionInput input = BaseInput();
   input.use_desired_movement = true;
   input.desired_movement = outgoing;
-  const ActionMotionPlan plan = PlayerMotion::BuildActionMotionPlan(clip, input);
+  const ActionMotionPlan plan = PlayerActionMotion::BuildActionMotionPlan(clip, input);
   CHECK(plan.rotation_offset == Approx(0.0f).margin(0.01f));
 }
 
@@ -177,7 +178,7 @@ TEST_CASE("A8.1: action position sums the frame displacement and smuggle offsets
   in.position_offset_movement = Vector3(0.1f, 0, 0);
   in.root_positions = roots;
 
-  const ActionMotionVectorResult r = PlayerMotion::ActionMotionVector(in);
+  const ActionMotionVectorResult r = PlayerActionMotion::ActionMotionVector(in);
   CHECK(r.position.coords[0] == Approx(1.6f));
   CHECK(r.position.coords[1] == Approx(2.0f));
   // actual = (position - previous) * 100
@@ -203,7 +204,7 @@ TEST_CASE("A8.1: a missing frame falls back to the baked pose root",
   in.baked_pose_position = Vector3(0, 1, 0);
   in.previous_position_2d = Vector3(0, 0, 0);
 
-  const ActionMotionVectorResult r = PlayerMotion::ActionMotionVector(in);
+  const ActionMotionVectorResult r = PlayerActionMotion::ActionMotionVector(in);
   CHECK(r.position.coords[0] == Approx(0.0f));
   CHECK(r.position.coords[1] == Approx(1.0f));
   // With no planned positions, anim movement is the physics movement.
@@ -220,7 +221,7 @@ TEST_CASE("A8.1: the baked pose root is rotated by the start angle",
   in.frame_num = 0;
   in.baked_pose_position = Vector3(0, 2, 0);  // local +y, rotated 90 deg -> -x
 
-  const ActionMotionVectorResult r = PlayerMotion::ActionMotionVector(in);
+  const ActionMotionVectorResult r = PlayerActionMotion::ActionMotionVector(in);
   CHECK(r.position.coords[0] == Approx(-2.0f).margin(0.0001f));
   CHECK(r.position.coords[1] == Approx(0.0f).margin(0.0001f));
 }
@@ -233,7 +234,7 @@ TEST_CASE("A8.3: an idle action uses the baked body direction",
   in.rotation_smuggle_offset = 0.0f;
   in.baked_body_orientation = Quaternion();  // identity -> body +x? z == 0
 
-  const ActionBodyStateResult r = PlayerMotion::ActionBodyState(in);
+  const ActionBodyStateResult r = PlayerActionMotion::ActionBodyState(in);
   CHECK(r.enum_velocity == e_Velocity_Idle);
   CHECK(r.direction_vec == Vector3(0, -1, 0));
   CHECK(r.rel_body_direction_vec == Vector3(0, -1, 0));
@@ -248,7 +249,7 @@ TEST_CASE("A8.3: a moving action derives direction and quantized body facing",
   in.start_angle = 0.0f;
   in.baked_body_orientation = Quaternion();
 
-  const ActionBodyStateResult r = PlayerMotion::ActionBodyState(in);
+  const ActionBodyStateResult r = PlayerActionMotion::ActionBodyState(in);
   CHECK(r.enum_velocity == FloatToEnumVelocity(3.0f));
   CHECK(r.direction_vec == Vector3(3, 0, 0).GetNormalized());
   CHECK(r.body_direction_vec == r.rel_body_direction_vec.GetRotated2D(r.angle));
@@ -276,7 +277,7 @@ TEST_CASE("A9.2: an action smuggle evolves towards its touch frame",
   in.rotation_smuggle_end = 1.0f;
   in.allow_pre_touch_rotation_smuggle = false;
 
-  const ActionSmuggleTickResult r = PlayerMotion::ActionSmuggleTick(in);
+  const ActionSmuggleTickResult r = PlayerActionMotion::ActionSmuggleTick(in);
   // value = cos((0/11 - 0.5) * 2pi) + 1 = 0, then * 0.1 + 0.9 = 0.9
   const float expected = (1.0f / 11.0f) * 0.9f * 100.0f;
   CHECK(r.action_smuggle_movement.coords[0] == Approx(expected));
@@ -297,7 +298,7 @@ TEST_CASE("A9.2: a no-touch clip evolves the movement smuggle",
   in.rotation_smuggle_begin = 0.5f;
   in.rotation_smuggle_end = 1.0f;
 
-  const ActionSmuggleTickResult r = PlayerMotion::ActionSmuggleTick(in);
+  const ActionSmuggleTickResult r = PlayerActionMotion::ActionSmuggleTick(in);
   const float expected = (1.0f / 11.0f) * 0.9f * 100.0f;
   CHECK(r.movement_smuggle_movement.coords[0] == Approx(expected));
   CHECK(r.movement_smuggle_offset_delta.coords[0] == Approx(expected / 100.0f));
@@ -316,7 +317,7 @@ TEST_CASE("A9.2: the smuggle evolution is zero after the touch frame",
   in.action_smuggle = Vector3(1, 0, 0);
   in.movement_smuggle = Vector3(1, 0, 0);
 
-  const ActionSmuggleTickResult r = PlayerMotion::ActionSmuggleTick(in);
+  const ActionSmuggleTickResult r = PlayerActionMotion::ActionSmuggleTick(in);
   CHECK(r.action_smuggle_movement == Vector3(0));
   CHECK(r.movement_smuggle_movement == Vector3(0));
 }
@@ -334,7 +335,7 @@ TEST_CASE("A18.4: a non-zero entry still accumulates the whole action smuggle",
     in.touch_frame = kTouchFrame;
     in.start_frame = kStartFrame;
     in.action_smuggle = target;
-    accumulated += PlayerMotion::ActionSmuggleTick(in).action_smuggle_offset_delta;
+    accumulated += PlayerActionMotion::ActionSmuggleTick(in).action_smuggle_offset_delta;
   }
   // The whole target is delivered by the touch frame.
   CHECK(accumulated.coords[0] == Approx(target.coords[0]).epsilon(0.02));
@@ -361,7 +362,7 @@ TEST_CASE("A18.4: start_frame 0 keeps the legacy action-smuggle formula",
     in.frame_num = frame;
     in.touch_frame = kTouchFrame;
     in.action_smuggle = target;
-    const ActionSmuggleTickResult r = PlayerMotion::ActionSmuggleTick(in);
+    const ActionSmuggleTickResult r = PlayerActionMotion::ActionSmuggleTick(in);
     float value =
         std::cos((frame / (float)(kTouchFrame + 1) - 0.5f) * football::math::pi * 2.0f) +
         1.0f;

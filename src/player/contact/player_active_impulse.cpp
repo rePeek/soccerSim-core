@@ -1,4 +1,4 @@
-#include "player/contact/player_active_impulse.hpp"
+#include "football/player/contact/player_active_impulse.hpp"
 
 std::optional<ActiveImpulseCandidate> ArbitrateActiveImpulse(
     std::span<const ActiveImpulseCandidate> candidates) {

@@ -7,8 +7,8 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include "player/state/player_body_profile.hpp"
-#include "player/state/player_kinematics.hpp"
+#include "football/player/state/player_body_profile.hpp"
+#include "football/player/state/player_kinematics.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
 
 using football::math::Vector3;

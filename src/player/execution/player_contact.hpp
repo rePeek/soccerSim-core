@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "football/foundation/time/tick.hpp"
-#include "football/player/foul_assessment.hpp"
+#include "football/player/contact/foul_assessment.hpp"
 
 namespace football::ball { class Ball; }
 class Player;

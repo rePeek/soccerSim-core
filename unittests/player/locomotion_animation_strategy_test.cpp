@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "football/animation/clip.hpp"
-#include "player/state/player_kinematics.hpp"
+#include "football/player/state/player_kinematics.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
 #include "player/execution/locomotion_animation_strategy.hpp"
 

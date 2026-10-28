@@ -6,7 +6,7 @@
 #include <optional>
 #include <vector>
 
-#include "football/player/player_definition.hpp"
+#include "football/player/state/player_definition.hpp"
 
 namespace football::team {
 

@@ -1,5 +1,5 @@
-#include "player/contact/player_active_impulse.hpp"
-#include "player/contact/player_active_touch_model.hpp"
+#include "football/player/contact/player_active_impulse.hpp"
+#include "football/player/contact/player_active_touch_model.hpp"
 
 int main() {
   football::sim::player::TouchProposalInput input;

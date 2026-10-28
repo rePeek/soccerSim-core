@@ -26,7 +26,7 @@
 #include <span>
 #include <stdexcept>
 #include <vector>
-#include "football/player/player_definition.hpp"
+#include "football/player/state/player_definition.hpp"
 #include "football/pitch/pitch.hpp"
 // ANIM-1 A9.4: the execution-state, spatial-state, interrupt and diagnostic
 // types used to come in through the Humanoid header. They are Player-owned
@@ -38,12 +38,13 @@
 #include "player/execution/player_baked_pose_sample.hpp"
 #include "player/execution/player_touch_choice.hpp"
 #include "football/animation/selection_query.hpp"
-#include "player/state/player_kinematics.hpp"
-#include "player/command/player_motion_profile.hpp"
-#include "player/state/player_body_profile.hpp"
+#include "football/player/state/player_kinematics.hpp"
+#include "football/player/command/player_motion_profile.hpp"
+#include "football/player/state/player_body_profile.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
 #include "player/contact/player_ground_collider.hpp"
-#include "player/state/player_action.hpp"
+#include "football/player/state/player_action.hpp"
+#include "player/execution/player_action_feedback.hpp"
 #include "player/command/player_action_request.hpp"
 #include "player/execution/player_control_builder.hpp"
 #include "player/execution/player_selected_action.hpp"
@@ -55,11 +56,11 @@
 #include "football/animation/select_movement.hpp"
 #include "player/command/locomotion_intent_scheduler.hpp"
 #include "player/command/player_decision_scheduler.hpp"
-#include "football/player/player_control.hpp"
-#include "football/player/formation_entry.hpp"
+#include "football/player/command/player_control.hpp"
+#include "football/player/state/formation_entry.hpp"
 #include "football/match/team_side.hpp"
-#include "football/player/player_team_match_facts.hpp"
-#include "football/player/player_touch_type.hpp"
+#include "football/player/execution/player_team_match_facts.hpp"
+#include "football/player/contact/player_touch_type.hpp"
 #include "player/state/player_observation.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 #include "player/execution/player_tick_context.hpp"

@@ -1,0 +1,6 @@
+#ifndef FOOTBALL_SIM_PLAYER_ACTION_FEEDBACK_COMPAT_HPP
+#define FOOTBALL_SIM_PLAYER_ACTION_FEEDBACK_COMPAT_HPP
+
+#include "football/player/execution/player_action_feedback.hpp"
+
+#endif  // FOOTBALL_SIM_PLAYER_ACTION_FEEDBACK_COMPAT_HPP

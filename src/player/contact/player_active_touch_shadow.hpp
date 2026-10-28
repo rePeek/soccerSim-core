@@ -7,13 +7,13 @@
 #include <cmath>
 #include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_response.hpp"
-#include "football/player/player_definition.hpp"
-#include "player/state/player_action.hpp"
-#include "player/contact/player_body_collider_motion.hpp"
-#include "football/player/player_touch_type.hpp"
+#include "football/player/state/player_definition.hpp"
+#include "football/player/state/player_action.hpp"
+#include "football/player/contact/player_body_collider_motion.hpp"
+#include "football/player/contact/player_touch_type.hpp"
 #include "football/ball/ball.hpp"
-#include "player/contact/player_active_touch_model.hpp"
-#include "player/contact/player_active_impulse.hpp"
+#include "football/player/contact/player_active_touch_model.hpp"
+#include "football/player/contact/player_active_impulse.hpp"
 #include "football/foundation/time/tick.hpp"
 
 // Diagnostic stages, NOT another football action enum.

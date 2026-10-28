@@ -2,8 +2,8 @@
 #ifndef FOOTBALL_PLAYER_BODY_POSE_SHADOW_HPP
 #define FOOTBALL_PLAYER_BODY_POSE_SHADOW_HPP
 #include <type_traits>
-#include "player/state/player_action.hpp"
-#include "player/contact/player_body_collider_motion.hpp"
+#include "football/player/state/player_action.hpp"
+#include "football/player/contact/player_body_collider_motion.hpp"
 
 // Axis must be in the same Stadium Frame as positions.
 inline void BuildShadowPosedBodyMotions(

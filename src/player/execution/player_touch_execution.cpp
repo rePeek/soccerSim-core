@@ -23,7 +23,7 @@
 #include "player/contact/player_touch_event.hpp"
 #include "player/execution/player_touch_query.hpp"
 #include "player/execution/kick_targeting.hpp"
-#include "player/contact/player_active_touch_model.hpp"
+#include "football/player/contact/player_active_touch_model.hpp"
 #include "player/contact/player_active_touch_shadow.hpp"
 #include "player/execution/player_control_builder.hpp"
 #include "player/command/player_motion_constants.hpp"

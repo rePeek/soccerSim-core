@@ -15,7 +15,8 @@
 #include "football/animation/selector.hpp"
 #include "football/ball/ball.hpp"
 #include "player/execution/player_touch_math.hpp"
-#include "player/command/player_motion.hpp"
+#include "football/player/command/player_motion.hpp"
+#include "player/execution/player_action_motion.hpp"
 #include "player/execution/locomotion_animation_strategy.hpp"
 #include "player/command/player_motion_constants.hpp"
 
@@ -838,7 +839,7 @@ void Player::ComputeAndCommitActionMotion() {
   motion_input.root_positions = clip.root_positions;
 
   const ActionMotionVectorResult motion =
-      PlayerMotion::ActionMotionVector(motion_input);
+      PlayerActionMotion::ActionMotionVector(motion_input);
   const Vector3 position = motion.position;
 
   if (currentAnim.frameNum > 12) {
@@ -859,7 +860,7 @@ void Player::ComputeAndCommitActionMotion() {
   body_input.baked_body_orientation =
       clip.poses[currentAnim.frameNum].orientations[body];
   const ActionBodyStateResult body_state =
-      PlayerMotion::ActionBodyState(body_input);
+      PlayerActionMotion::ActionBodyState(body_input);
 
   spatialState.directionVec = body_state.direction_vec;
   spatialState.angle = body_state.angle;

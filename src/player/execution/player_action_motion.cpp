@@ -1,7 +1,7 @@
 // ANIM-1 A6.4 A8.0: the pure candidate reference-motion kernel. It lives in its
 // own translation unit so the value-only unit test can exercise it without the
 // locomotion runtime.
-#include "player/command/player_motion.hpp"
+#include "player/execution/player_action_motion.hpp"
 
 #include "football/animation/movement_math.hpp"
 #include "football/animation/selection_math.hpp"
@@ -20,7 +20,7 @@ using football::animation::StretchSprintTo;
 // order, same floating-point expressions and same boundary behaviour. It is a
 // candidate plan, not a position commit: it never calls CommitKinematicState and
 // never handles a Ball impulse.
-ActionMotionPlan PlayerMotion::BuildActionMotionPlan(const AnimationClip& clip,
+ActionMotionPlan PlayerActionMotion::BuildActionMotionPlan(const AnimationClip& clip,
                                                      const ActionMotionInput& input) {
   ActionMotionPlan plan;
 
@@ -538,7 +538,7 @@ ActionMotionPlan PlayerMotion::BuildActionMotionPlan(const AnimationClip& clip,
 // decomposition, relocated line-for-line from the non-procedural branch of
 // `HumanoidBase::CalculateSpatialState`. Pure: it never reads Player, Humanoid,
 // Ball or RNG; the caller commits the result.
-ActionMotionVectorResult PlayerMotion::ActionMotionVector(
+ActionMotionVectorResult PlayerActionMotion::ActionMotionVector(
     const ActionMotionVectorInput& input) {
   ActionMotionVectorResult result;
 
@@ -585,7 +585,7 @@ ActionMotionVectorResult PlayerMotion::ActionMotionVector(
 // ANIM-1 A8 step 3: the body direction / velocity quantization of a
 // non-procedural tick, relocated line-for-line from `CalculateSpatialState`'s
 // body block. Pure; the caller writes it back to the legacy spatial state.
-ActionBodyStateResult PlayerMotion::ActionBodyState(
+ActionBodyStateResult PlayerActionMotion::ActionBodyState(
     const ActionBodyStateInput& input) {
   ActionBodyStateResult result;
 
@@ -658,7 +658,7 @@ ActionBodyStateResult PlayerMotion::ActionBodyState(
 // ANIM-1 A9 step 2: the per-tick action/movement/rotation smuggle evolution,
 // relocated line-for-line from Humanoid::Process. Pure; the caller applies the
 // offset deltas so the legacy mutation order is unchanged.
-ActionSmuggleTickResult PlayerMotion::ActionSmuggleTick(
+ActionSmuggleTickResult PlayerActionMotion::ActionSmuggleTick(
     const ActionSmuggleTickInput& input) {
   ActionSmuggleTickResult result;
 
@@ -729,4 +729,24 @@ ActionSmuggleTickResult PlayerMotion::ActionSmuggleTick(
       input.rotation_smuggle_end * endFrameBias;
 
   return result;
+}
+
+football::math::Vector3 PlayerActionMotion::ClipDisplacement(
+    const MotionClip& clip, float frame) {
+  if (clip.frames.empty() || frame <= 0.0f) return football::math::Vector3(0);
+  const float last = static_cast<float>(clip.frames.size() - 1);
+  const float clamped = std::fmin(frame, last);
+  const auto lower = static_cast<std::size_t>(std::floor(clamped));
+  const auto upper = static_cast<std::size_t>(std::ceil(clamped));
+  const float fraction = clamped - static_cast<float>(lower);
+  return clip.frames[lower].local_displacement * (1.0f - fraction) +
+         clip.frames[upper].local_displacement * fraction;
+}
+
+MotionSample PlayerActionMotion::SampleClip(const MotionClip& clip, float frame,
+                                            float dt) {
+  MotionSample sample;
+  sample.displacement = ClipDisplacement(clip, frame);
+  if (dt > 0.0f) sample.velocity = sample.displacement * (1.0f / dt);
+  return sample;
 }

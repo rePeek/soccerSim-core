@@ -24,7 +24,7 @@
 #include "football/match/game_mode.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/runtime/phase.hpp"
-#include "football/player/foul_assessment.hpp"
+#include "football/player/contact/foul_assessment.hpp"
 #include "referee/ball_touch_facts.hpp"
 #include "referee/referee_facts.hpp"
 #include "referee/referee_tick_facts.hpp"

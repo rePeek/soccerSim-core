@@ -2,8 +2,8 @@
 #define FOOTBALL_SIM_PLAYER_PLAYER_LOCOMOTION_ANIMATION_HPP
 
 #include "football/animation/types.hpp"
-#include "player/state/player_body_profile.hpp"
-#include "player/state/player_kinematics.hpp"
+#include "football/player/state/player_body_profile.hpp"
+#include "football/player/state/player_kinematics.hpp"
 
 // LOCO-2.2: read-only interface between the off-ball motion authority and the
 // animation adapter.

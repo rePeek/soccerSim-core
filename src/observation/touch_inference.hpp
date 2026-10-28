@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "football/player/player_definition.hpp"
+#include "football/player/state/player_definition.hpp"
 #include "football/animation/library.hpp"
 #include "football/observation/snapshot.hpp"
 

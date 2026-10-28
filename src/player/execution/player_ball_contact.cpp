@@ -4,9 +4,9 @@
 
 #include "football/ball/ball.hpp"
 #include "player/contact/player_touch_event.hpp"
-#include "football/player/player_touch_type.hpp"
+#include "football/player/contact/player_touch_type.hpp"
 #include "player/player.hpp"
-#include "player/contact/player_body_collider.hpp"
+#include "football/player/contact/player_body_collider.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 #include "player/execution/player_touch_query.hpp"
 

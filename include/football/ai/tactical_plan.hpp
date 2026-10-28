@@ -7,7 +7,7 @@
 #include <optional>
 
 #include "football/pitch/pitch.hpp"
-#include "football/player/player_definition.hpp"
+#include "football/player/state/player_definition.hpp"
 #include "football/runtime/match_config.hpp"
 #include "football/team/lineup.hpp"
 

@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_RULES_FOUL_SANCTION_HPP
 #define FOOTBALL_SIM_RULES_FOUL_SANCTION_HPP
 
-#include "football/player/foul_assessment.hpp"
+#include "football/player/contact/foul_assessment.hpp"
 
 namespace football::sim::rules {
 

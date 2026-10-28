@@ -8,10 +8,10 @@
 #ifndef _HPP_PLAYER_ACTION_VOLUME
 #define _HPP_PLAYER_ACTION_VOLUME
 
-#include "player/state/player_action.hpp"
+#include "football/player/state/player_action.hpp"
 #include "football/foundation/collision/penetration2d.hpp"
 #include "player/contact/player_ground_collider.hpp"
-#include "player/state/player_kinematics.hpp"
+#include "football/player/state/player_kinematics.hpp"
 
 // Contact volume for actions that reach out beyond the base body collider
 // (slide tackles, standing tackles). It is derived purely from simulation

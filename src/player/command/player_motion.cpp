@@ -1,8 +1,9 @@
-#include "player/command/player_motion.hpp"
+#include "football/player/command/player_motion.hpp"
 
-#include <cmath>
+#include "player/command/player_locomotion.hpp"
 
-PlayerLocomotionParameters PlayerMotion::LocomotionParameters(
+namespace {
+PlayerLocomotionParameters ToLocomotionParameters(
     const PlayerMotionProfile& profile) {
   PlayerLocomotionParameters parameters;
   parameters.maxSpeed = profile.max_speed;
@@ -11,6 +12,7 @@ PlayerLocomotionParameters PlayerMotion::LocomotionParameters(
   parameters.maxTurnRate = profile.turn_rate;
   return parameters;
 }
+}  // namespace
 
 MotionStep PlayerMotion::StepContinuous(
     const PlayerKinematicState& current, const PlayerMotionProfile& profile,
@@ -21,7 +23,7 @@ MotionStep PlayerMotion::StepContinuous(
   PlayerLocomotionInput input;
   input.desiredVelocity = desired_velocity;
   input.idleFacing = idle_facing;
-  PlayerLocomotion::Step(step.state, input, LocomotionParameters(profile), dt);
+  PlayerLocomotion::Step(step.state, input, ToLocomotionParameters(profile), dt);
   step.sample.displacement = step.state.position - current.position;
   step.sample.velocity = step.state.velocity;
   return step;
@@ -33,24 +35,4 @@ MotionSample PlayerMotion::SampleContinuous(
     const football::math::Vector3& idle_facing, float dt) {
   return StepContinuous(current, profile, desired_velocity, idle_facing, dt)
       .sample;
-}
-
-football::math::Vector3 PlayerMotion::ClipDisplacement(const MotionClip& clip,
-                                                       float frame) {
-  if (clip.frames.empty() || frame <= 0.0f) return football::math::Vector3(0);
-  const float last = static_cast<float>(clip.frames.size() - 1);
-  const float clamped = std::fmin(frame, last);
-  const auto lower = static_cast<std::size_t>(std::floor(clamped));
-  const auto upper = static_cast<std::size_t>(std::ceil(clamped));
-  const float fraction = clamped - static_cast<float>(lower);
-  return clip.frames[lower].local_displacement * (1.0f - fraction) +
-         clip.frames[upper].local_displacement * fraction;
-}
-
-MotionSample PlayerMotion::SampleClip(const MotionClip& clip, float frame,
-                                      float dt) {
-  MotionSample sample;
-  sample.displacement = ClipDisplacement(clip, frame);
-  if (dt > 0.0f) sample.velocity = sample.displacement * (1.0f / dt);
-  return sample;
 }

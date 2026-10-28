@@ -1,15 +1,8 @@
-// Touch classification. The actor that produces a touch owns the vocabulary;
-// Event/Referee consume it. Kept in a Player-owned value header so the Player
-// module never has to include the Event implementation module.
-#ifndef FOOTBALL_PLAYER_PLAYER_TOUCH_TYPE_HPP
-#define FOOTBALL_PLAYER_PLAYER_TOUCH_TYPE_HPP
+#ifndef FOOTBALL_PLAYER_COMPAT_PLAYER_TOUCH_TYPE_HPP
+#define FOOTBALL_PLAYER_COMPAT_PLAYER_TOUCH_TYPE_HPP
 
-enum e_TouchType {
-  e_TouchType_Intentional_Kicked,  // goalies can't touch this
-  e_TouchType_Intentional_Nonkicked,  // headers and such
-  e_TouchType_Accidental,  // collisions
-  e_TouchType_None,
-  e_TouchType_SIZE
-};
+// Compatibility forwarding header. New code should include
+// "football/player/contact/player_touch_type.hpp".
+#include "football/player/contact/player_touch_type.hpp"
 
-#endif  // FOOTBALL_PLAYER_PLAYER_TOUCH_TYPE_HPP
+#endif  // FOOTBALL_PLAYER_COMPAT_PLAYER_TOUCH_TYPE_HPP

@@ -5,7 +5,7 @@
 #include <utility>
 
 #include "football/observation/world_state.hpp"
-#include "football/player/player_role.hpp"
+#include "football/player/state/player_role.hpp"
 
 namespace football::ai::test {
 
