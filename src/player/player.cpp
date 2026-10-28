@@ -16,29 +16,30 @@
 // i do not offer support, so don't ask. to be used for inspiration :)
 
 #include "player/player.hpp"
-#include "football/animation/library.hpp"
-#include "football/pitch/pitch.hpp"
 
-#include <cmath>
 #include <cassert>
+#include <cmath>
 #include <cstring>
 
+#include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "football/ball/ball_timing.hpp"
+#include "football/player/execution/player_body_facing.hpp"
+#include "football/player/execution/player_motion.hpp"
+#include "player/execution/player_execution.hpp"
+#include "player/execution/player_locomotion.hpp"
 #include "player/execution/player_motion_constants.hpp"
 #include "player/execution/reachability.hpp"
 #include "player/execution/roster_query.hpp"
-#include "player/execution/player_action_executor.hpp"
-#include "player/execution/player_locomotion.hpp"
-#include "football/player/execution/player_motion.hpp"
-#include "football/player/execution/player_body_facing.hpp"
-#include "player/execution/locomotion_intent_scheduler.hpp"
-#include "player/execution/player_control_builder.hpp"
 #include "player/execution/player_send_off_sink.hpp"
 
 using football::ball::Ball;
 
 namespace {
+
+// Execute every 10 ms; refresh the intercept belief every 100 ms, staggered
+// by the dense match-local index. Between refreshes the estimate is retained.
+constexpr football::sim::TickSpan kReachabilityRefresh{10};
 
 // Compatibility adapter from the legacy PlayerCommand to the continuous
 // locomotion model. This is execution semantics, not a Command solver: the
@@ -64,85 +65,11 @@ PlayerLocomotionInput BuildLegacyLocomotionInput(
   return input;
 }
 
-}  // namespace
-
-
-int &SimulationOnlyGateMismatchForResetContext(int context) {
-  static int records[kResetSituationCallContextCount] = {};
-  return records[context];
-}
-
-const char *ResetSituationCallContextName(int context) {
-  switch (context) {
-    case kResetSituationInitialBeforeFirstPlayerTick: return "initial";
-    case kResetSituationRuntime: return "runtime";
-    case kResetSituationPlayerDeactivateFirst: return "player_deactivate_first";
-    case kResetSituationPlayerDeactivateSecond: return "player_deactivate_second";
-    default: return "unknown";
-  }
-}
-int &MovementOracleConsumesForSource(int source) {
-  static int records[5] = {};
-  return records[source];
-}
-int &DecisionLocomotionIntentPresentTicks() { static int value = 0; return value; }
-int &DecisionLocomotionIntentMissingTicks() { static int value = 0; return value; }
-int &DecisionLocomotionIntentMissingForSource(int source) {
-  static int records[5] = {};
-  return records[source];
-}
-int &ActionCoupledLegacyMismatch() { static int value = 0; return value; }
-int &DecisionLocomotionIntentMissingForSourceLegacyGateFalse(int source) {
-  static int records[5] = {};
-  return records[source];
-}
-int &LocomotionActionExitCount() { static int value = 0; return value; }
-int &ContinuityRepairAttempts() { static int value = 0; return value; }
-int &ContinuityRepairPublications() { static int value = 0; return value; }
-int &ContinuityRepairCandidatesMissing() { static int value = 0; return value; }
-int &DecisionPublicationCauseCount(int cause) { static int records[3] = {}; return records[cause]; }
-
-
-
-
-
-int &DecisionLocomotionIntentPresentTicksLegacyGateFalse() {
-  static int value = 0;
-  return value;
-}
-int &DecisionLocomotionIntentMissingTicksLegacyGateFalse() {
-  static int value = 0;
-  return value;
-}
-LocomotionReentryAudit &LocomotionReentryAuditFor(int category) {
-  static LocomotionReentryAudit records[4];
-  return records[category];
-}
-const char *LocomotionReentryCategoryName(int category) {
-  switch (category) {
-    case 0: return "initial";
-    case 1: return "continuous";
-    case 2: return "action_reentry";
-    case 3: return "reset_reentry";
-    default: return "unknown";
-  }
-}
-
-namespace {
-
-// Execute every 10 ms; refresh the intercept belief every 100 ms, staggered
-// by the dense match-local index. Between refreshes the estimate is retained.
-constexpr football::sim::TickSpan kReachabilityRefresh{10};
-
-// Bit comparison, not an epsilon: a movement projection that is only approximately
+// Bit comparison, not an epsilon: a projection that is only approximately
 // right is a synchronization bug, and masking it would let a later procedural
 // producer inherit an inconsistent baseline.
 bool Vector3BitsEqual(const Vector3 &a, const Vector3 &b) {
   return std::memcmp(a.coords, b.coords, sizeof(a.coords)) == 0;
-}
-
-bool FloatBitsEqual(float a, float b) {
-  return std::memcmp(&a, &b, sizeof(float)) == 0;
 }
 
 }  // namespace
@@ -152,14 +79,18 @@ Player::Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
                const FormationEntry& formation_entry,
                std::uint8_t schedule_phase,
                const AnimationLibrary& animations, const football::pitch::Pitch& pitch)
-    : animations_(animations), pitch_(pitch),
-      model_(std::move(model)),
+      : model_(std::move(model)),
       body_profile_(football::player::MakePlayerBodyProfile(model_)),
       schedule_phase_(schedule_phase % 10),
       team_id_(team_id),
       side_(side),
       ai_difficulty_(ai_difficulty),
-      formationEntry_(formation_entry) {
+      formationEntry_(formation_entry),
+      execution_(std::make_unique<PlayerExecution>(animations)) {
+  // `pitch` is part of the construction contract (the actor is placed in the
+  // pitch frame before its first tick) but the Player keeps no borrowed
+  // reference to it: geometry arrives through the tick context.
+  (void)pitch;
   last_touch_tick_ = {};
   lastTouchType = e_TouchType_None;
   fatigueFactorInv = 1.0;
@@ -171,30 +102,35 @@ Player::Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
 
 Player::~Player() = default;
 
+PlayerExecutionPort& Player::Port() const {
+  // Observation queries bind the port read-only; commits use the same
+  // interface. The borrow is expressed here, in the entity, exactly once.
+  return const_cast<PlayerExecutionPort&>(
+      static_cast<const PlayerExecutionPort&>(*this));
+}
+
 void Player::Exit(football::sim::Tick now) {
-  if (isActive) {
+  if (is_active_) {
     // Preserve the former base destructor's reset window without invoking
     // roster callbacks: Team::Exit may already have deleted other players.
-    SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
-    ResetRuntimeState(GetPosition(), now);
-    isActive = false;
+    execution_->Exit(Port(), now);
+    is_active_ = false;
   }
 }
 
 bool Player::IsSpatialProjectionConsistent() const {
-  return Vector3BitsEqual(kinematicState.position, legacy_spatial_state_.position) &&
-         Vector3BitsEqual(kinematicState.velocity, legacy_spatial_state_.movement) &&
-         Vector3BitsEqual(kinematicState.bodyFacing,
-                          legacy_spatial_state_.bodyDirectionVec) &&
-         Vector3BitsEqual(groundCollider.center,
-                          kinematicState.position.Get2D());
+  const PlayerExecution::Projection projection = execution_->CompatibilityProjection();
+  return Vector3BitsEqual(kinematic_state_.position, projection.position) &&
+         Vector3BitsEqual(kinematic_state_.velocity, projection.movement) &&
+         Vector3BitsEqual(kinematic_state_.bodyFacing, projection.body_facing) &&
+         Vector3BitsEqual(ground_collider_.center,
+                          kinematic_state_.position.Get2D());
 }
 
 void Player::CheckSimulationKinematicOracle() const {
   assert(IsSpatialProjectionConsistent() &&
          "gameplay kinematic state diverged from the compatibility spatial state");
 }
-
 
 PlayerKinematicState Player::CommitLocomotion(
     const PlayerCommand &command, const PlayerKinematicState &tick_start,
@@ -229,22 +165,22 @@ PlayerKinematicState Player::CommitLocomotion(
         (command.desiredLookAt - next.position).Get2D().GetNormalized(next.GetFacing());
   }
   PlayerBodyFacing::Step(next, bodyInput, PlayerBodyFacingParameters{}, dt);
-  // LOCO-2.3b: capture the snapshot the animation adapter reads later this
-  // tick. next already reflects bodyFacing, so the adapter sees the committed
-  // motion without re-running the physics model.
-  locomotion_animation_input_ =
-      MakeLocomotionAnimationInput(tick_start, next, input.desiredVelocity, body_profile_);
-  CommitKinematicState(next);
+  // LOCO-2.3b: hand the snapshot the animation adapter reads later this tick to
+  // the executor. `next` already reflects bodyFacing, so the adapter sees the
+  // committed motion without re-running the physics model.
+  execution_->RecordLocomotionAnimationInput(
+      MakeLocomotionAnimationInput(tick_start, next, input.desiredVelocity, body_profile_));
+  CommitKinematics(next);
   return next;
 }
 
-void Player::CommitKinematicState(const PlayerKinematicState& next) {
+void Player::CommitKinematics(const PlayerKinematicState& next) {
   // Full-state commit: the caller computed every field, including `speed`; this
   // point only installs it and keeps the ground collider consistent. No oracle
-  // here: the compatibility projection is refreshed by the caller's sync step, and the
-  // two sides are momentarily allowed to disagree.
-  kinematicState = next;
-  groundCollider.SetCenter(kinematicState.position);
+  // here: the compatibility projection is refreshed by the caller's sync step,
+  // and the two sides are momentarily allowed to disagree.
+  kinematic_state_ = next;
+  ground_collider_.SetCenter(kinematic_state_.position);
 }
 
 void Player::CommitLegacyActionMotion() {
@@ -254,78 +190,13 @@ void Player::CommitLegacyActionMotion() {
   // become the authority for a tick the Player already computed. The commit
   // still goes through the single write point, which also keeps the ground
   // collider in step.
+  const PlayerExecution::Projection projection = execution_->CompatibilityProjection();
   PlayerKinematicState next;
-  next.position = legacy_spatial_state_.position;
-  next.velocity = legacy_spatial_state_.movement;
-  next.bodyFacing = legacy_spatial_state_.bodyDirectionVec;
-  CommitKinematicState(next);
+  next.position = projection.position;
+  next.velocity = projection.movement;
+  next.bodyFacing = projection.body_facing;
+  CommitKinematics(next);
   CheckSimulationKinematicOracle();
-}
-
-
-
-
-
-
-static int t4opp_queries = 0, t4opp_with_candidate = 0;
-static int t4opp_cand_not_due = 0, t4opp_cand_due_ineligible = 0, t4opp_cand_due_eligible = 0;
-static int t4opp_nocand_not_due = 0, t4opp_nocand_other = 0;
-
-void DumpQueryOpportunities() {
-  printf("4opp-SUMMARY queries=%d with_candidate=%d\n", t4opp_queries, t4opp_with_candidate);
-  printf("4opp-SUMMARY candidate: not_due=%d due+ineligible=%d due+eligible=%d\n",
-         t4opp_cand_not_due, t4opp_cand_due_ineligible, t4opp_cand_due_eligible);
-  printf("4opp-SUMMARY no_candidate: not_due=%d other=%d\n", t4opp_nocand_not_due,
-         t4opp_nocand_other);
-  fflush(stdout);
-}
-void Player::NoteControllerQuery(bool had_movement_candidate, football::sim::Tick now, bool retaining_ball) {
-  const bool due = locomotionIntentScheduler.Due(now);
-  const bool eligible = IsEligibleForProceduralLocomotion(retaining_ball);
-  ++t4opp_queries;
-  if (had_movement_candidate) {
-    ++t4opp_with_candidate;
-    if (!due) ++t4opp_cand_not_due;
-    else if (!eligible) ++t4opp_cand_due_ineligible;
-    else ++t4opp_cand_due_eligible;
-  } else {
-    if (!due) ++t4opp_nocand_not_due;
-    else ++t4opp_nocand_other;
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {
-  return actionState.IsPureLocomotion(retaining_ball);
-}
-
-
-void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
-  ResetLegacyPosition(newPos, focusPos);
-  // ANIM-1.1: re-placement clears any pending active/passive request.
-  pending_action_request_.reset();
-  playback_state_.Reset();
-  pending_reaction_.reset();
-  pending_passive_trip_.reset();
-  CommitLegacyActionMotion();
-  // ANIM-1 A6.3c.1: a reset is a special action install, not an out-of-band
-  // cursor write. Route it through the same Player install entry so
-  // `installed_action_` stays valid and the deterministic entry frame is
-  // carried in the selection.
-  InstallSelectedAction(CurrentSelectedAction());
 }
 
 void Player::ApplyPositionCorrection(const Vector3 &offset) {
@@ -334,17 +205,16 @@ void Player::ApplyPositionCorrection(const Vector3 &offset) {
   // clamps inside the action tick). Commit it first, then let the compatibility
   // bookkeeping adopt the same offset (startPos, previous position, smuggle
   // offsets) without re-deriving the Player state.
-  // previous position, smuggle offsets) without re-deriving the Player state.
   //
   // Only the position changes. Velocity, facing and bodyFacing stay exactly the
   // values the previous commit installed, and `speed` is deliberately not
   // recomputed: a position correction is an instantaneous displacement, not new
-  // motion. That is also what the legacy path produced, since the projection never
-  // changed its movement/direction for an offset.
-  PlayerKinematicState corrected = kinematicState;
+  // motion. That is also what the legacy path produced, since the projection
+  // never changed its movement/direction for an offset.
+  PlayerKinematicState corrected = kinematic_state_;
   corrected.position += offset;
-  CommitKinematicState(corrected);
-  ApplyLegacyPositionOffset(offset);
+  CommitKinematics(corrected);
+  execution_->ApplyCompatibilityPositionOffset(offset);
   // No kinematic oracle here: this is not a sync point. A standalone
   // CommitLocomotion leaves the Player ahead of the not-yet-projected state by
   // design, and the oracle is asserted where a sync completes
@@ -356,37 +226,36 @@ void Player::OffsetPosition(const Vector3 &offset) {
   // state still matches its legacy oracle. Corrections evaluated inside the
   // compatibility pass cannot: the animation state is mid-update there.
   ApplyPositionCorrection(offset);
-  CheckSimulationActionOracle();
+  execution_->CheckSimulationActionOracle();
 }
 
-void Player::SetNextResetSituationAuditContext(int context) {
-  resetSituationAuditContext = context;
+void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
+  execution_->ResetPosition(Port(), newPos, focusPos);
 }
 
 void Player::Deactivate(const Ball& ball, football::sim::Tick now) {
-  SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateFirst);
-  ResetSituation(GetPosition(), now);
   // Preserve both historical resets, including their epochs.
-  SetNextResetSituationAuditContext(kResetSituationPlayerDeactivateSecond);
-  ResetSituation(GetPosition(), now);
-  isActive = false;
+  execution_->Deactivate(Port(), now);
+  is_active_ = false;
 }
 
-int Player::GetReactionTime_ms() {
+int Player::GetReactionTime_ms() const {
   int reaction = int(std::round(80.f - GetStat(football::player::PlayerStat::physical_reaction) * 40.f));
   reaction += (1.f - ai_difficulty_) * 100;
   return reaction;
 }
 
-float Player::GetControlSpeed() {
-  if (control_) return control_->desired_speed;
-  return 0.f;
+float Player::GetControlSpeed() const {
+  return execution_->ControlSpeed();
 }
 
+void Player::SetControl(const PlayerControl& control) {
+  execution_->SetControl(Port(), control);
+}
 
-
-
-
+void Player::ClearControl() {
+  execution_->ClearControl(Port());
+}
 
 void Player::Process(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation, football::sim::player::PlayerTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
   const float distance = PrepareTick(tick, observation, touch_sink, runtime_sink);
@@ -394,23 +263,23 @@ void Player::Process(const football::sim::PlayerTickContext& tick, const footbal
 }
 
 float Player::PrepareTick(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation, football::sim::player::PlayerTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
-  if (isActive) {
+  if (is_active_) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
-    Vector3 posBefore = legacy_spatial_state_.position;
-    RunActionTick(tick.now, tick, observation, touch_sink, runtime_sink);
+    const Vector3 posBefore = execution_->CompatibilityPosition();
+    execution_->RunActionTick(Port(), tick.now, tick, observation, touch_sink, runtime_sink);
     // S0.3: no adoption here. Every path already finished its own write inside
     // the action tick -- the pure-locomotion branch committed and projected, and
     // each legacy root-motion branch adopted at the point where it produced the
     // position. Adopting again would silently re-read a stale projection after
     // the Player had authority.
-    CheckSimulationActionOracle();
-    return (legacy_spatial_state_.position - posBefore).GetLength();
+    execution_->CheckSimulationActionOracle();
+    return (execution_->CompatibilityPosition() - posBefore).GetLength();
   }
   return 0;
 }
 
 void Player::CommitTick(const football::sim::PlayerTickContext& tick, float distance) {
-  if (!isActive) return;
+  if (!is_active_) return;
   // Clock gate is sampled after authoritative touches (opening kick included).
   if (tick.half_underway) {
     fatigueFactorInv -= distance * 0.00003f * (2.0f - GetStaminaStat());
@@ -456,64 +325,21 @@ float Player::GetLastTouchBias(int decay_ms, football::sim::Tick time) const {
   return 1.0f - clamp(football::sim::ToMilliseconds(age) / (float)decay_ms, 0.0f, 1.0f);
 }
 
-void Player::ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now) {
-  last_touch_tick_ = {};
-  lastTouchType = e_TouchType_None;
-  // ANIM-1.1: a reset must not leave a stale active/passive request behind.
-  pending_action_request_.reset();
-  playback_state_.Reset();
-  pending_reaction_.reset();
-  pending_passive_trip_.reset();
-  if (IsActive()) {
-    // The reset itself is the discontinuity, so it anchors the generation that
-    // a later reset re-entry compares against.
-    resetDecisionGeneration = decisionLocomotionAuditGeneration;
-    resetGenerationAnchorValid = true;
-    last_reset_tick_ = now;
-    resetSinceLastPlayerTick = true;
-    // A reset is also a continuity break, so any earlier intent is invalid.
-    ++decisionLocomotionState.continuityEpoch;
-    if (resetSituationAuditContext == kResetSituationUnspecified) {
-      resetSituationAuditContext = hasProcessedPlayerTick
-          ? kResetSituationRuntime
-          : kResetSituationInitialBeforeFirstPlayerTick;
-    }
-    ResetLegacySituation(focusPos);
-    CommitLegacyActionMotion();
-    // ANIM-1 A6.3c.1: the runtime reset is the same special action install.
-    InstallSelectedAction(CurrentSelectedAction());
-  }
-  resetSituationAuditContext = kResetSituationUnspecified;
-}
-
-
-
 Vector3 Player::GetPitchPosition() {
   return GetPosition();
 }
 
 void Player::Activate() {
-  assert(!isActive);
-  isActive = true;
-  // A fresh actor must start from fresh compatibility storage, exactly as a
-  // newly-constructed Humanoid did before the storage became Player-owned.
-  legacy_anim_state_ = Anim{};
-  legacy_spatial_state_ = SpatialState{};
+  assert(!is_active_);
+  is_active_ = true;
   // The old Humanoid constructor performed one zero-position reset before the
-  // explicit formation-position reset. Keep both, in order, so the resulting
-  // idle entry frame is unchanged.
-  ResetLegacyPosition(Vector3(0), Vector3(0));
-  ResetLegacyPosition(
+  // explicit formation-position reset, and a fresh actor must start from fresh
+  // compatibility storage. Both resets and the special action install stay in
+  // the executor, so the resulting idle entry frame is unchanged.
+  const Vector3 spawn_position =
       GetFormationEntry().position * 25 *
-          Vector3(-team_facts_.defending_direction, -team_facts_.defending_direction, 0),
-      Vector3(0));
-  legacy_state_initialized_ = true;
-  CommitLegacyActionMotion();
-  // ANIM-1 A6.3c.1: a reset is a special action install, not an out-of-band
-  // cursor write. Route it through the same Player install entry so
-  // `installed_action_` stays valid and the deterministic entry frame is
-  // carried in the selection.
-  InstallSelectedAction(CurrentSelectedAction());
+      Vector3(-team_facts_.defending_direction, -team_facts_.defending_direction, 0);
+  execution_->Activate(Port(), spawn_position);
   SetDynamicFormationEntry(GetFormationEntry());
 }
 
@@ -529,7 +355,7 @@ bool Player::AllowLastDitch(bool includingPossessionAmount) const {
 void Player::UpdatePossessionStats(Ball& ball, const football::player::PlayerTeamMatchFacts& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own) {
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
   const e_FunctionType action_type = GetCurrentFunctionType();
-  const bool pure_locomotion = actionState.IsPureLocomotion(retainer == this);
+  const bool pure_locomotion = GetSimulationActionState().IsPureLocomotion(retainer == this);
   bool recompute = false;
   if (pure_locomotion) {
     // H3e1c-3c: solve on the staggered 100 ms cadence, retaining the capability
@@ -587,8 +413,6 @@ float Player::GetClosestOpponentDistance(const PlayerTeamView& opponent) const {
   return opp->GetPosition().GetDistance(GetPosition());
 }
 
-
-
 void Player::SendOff(const Ball& ball, football::sim::Tick now, football::sim::PlayerSendOffSink* send_off) {
   Deactivate(ball, now);
   // Runtime owns the roster/formation/possession follow-up: the trigger stays
@@ -601,7 +425,7 @@ float Player::GetStaminaStat() const {
 }
 
 void Player::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
-  ResetRuntimeState(focusPos, now);
+  execution_->ResetSituation(Port(), focusPos, now);
   hasPossession = false;
   hasBestPossession = false;
   hasUniquePossession = false;
@@ -610,3 +434,157 @@ void Player::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
   SetDesiredTimeToBall_ms(0);
   triggerControlledBallCollision = false;
 }
+
+// ---------------------------------------------------------------------------
+// Read-only forwards. The execution process owns these values; the Player keeps
+// the gameplay-facing names so Runtime and the contact layer never depend on
+// the executor type.
+// ---------------------------------------------------------------------------
+
+const std::optional<LocomotionAnimationInput>& Player::LocomotionAnimationInputSnapshot() const {
+  return execution_->LocomotionAnimationInputSnapshot();
+}
+
+bool Player::LocomotionAnimationAdaptation() const {
+  return execution_->LocomotionAnimationAdaptation();
+}
+
+void Player::SetLocomotionAnimationAdaptation(bool enabled) {
+  execution_->SetLocomotionAnimationAdaptation(enabled);
+}
+
+void Player::SetMovementPoseBlend(bool enabled) {
+  execution_->SetMovementPoseBlend(enabled);
+}
+
+bool Player::MovementPoseBlend() const { return execution_->MovementPoseBlend(); }
+
+radian Player::GetRelBodyAngle() const { return execution_->RelBodyAngle(); }
+e_Velocity Player::GetEnumVelocity() const { return execution_->EnumVelocity(); }
+float Player::GetFloatVelocity() const { return execution_->FloatVelocity(); }
+e_FunctionType Player::GetPreviousFunctionType() const {
+  return execution_->PreviousFunctionType();
+}
+
+bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {
+  return execution_->IsEligibleForProceduralLocomotion(retaining_ball);
+}
+
+const PlayerActionState &Player::GetSimulationActionState() const {
+  return execution_->ActionState();
+}
+
+RequestOutcome Player::Play(const PlayerActionRequest& request) {
+  return execution_->Play(Port(), request);
+}
+
+RequestOutcome Player::React(const PlayerReaction& reaction, const Player* ball_retainer) {
+  return execution_->React(Port(), reaction, ball_retainer);
+}
+
+const std::optional<PlayerActionRequest>& Player::PendingActionRequest() const {
+  return execution_->PendingActionRequest();
+}
+
+const std::optional<PlayerReaction>& Player::PendingReaction() const {
+  return execution_->PendingReaction();
+}
+
+RequestOutcome Player::LastActionRequestOutcome() const {
+  return execution_->LastActionRequestOutcome();
+}
+
+RequestOutcome Player::LastReactionOutcome() const {
+  return execution_->LastReactionOutcome();
+}
+
+int Player::ActionRequestAttempts() const { return execution_->ActionRequestAttempts(); }
+int Player::ActionRequestAccepts() const { return execution_->ActionRequestAccepts(); }
+int Player::ActionRequestDefers() const { return execution_->ActionRequestDefers(); }
+int Player::ActionRequestRejects() const { return execution_->ActionRequestRejects(); }
+int Player::ActionRequestBuildFailures() const {
+  return execution_->ActionRequestBuildFailures();
+}
+int Player::ActionRequestInputsConsumed() const {
+  return execution_->ActionRequestInputsConsumed();
+}
+int Player::ReactionTripInterruptsScheduled() const {
+  return execution_->ReactionTripInterruptsScheduled();
+}
+int Player::ActionRequestPreemptions() const {
+  return execution_->ActionRequestPreemptions();
+}
+
+int Player::AuthorityChecks() const { return execution_->AuthorityChecks(); }
+int Player::AuthorityMatches() const { return execution_->AuthorityMatches(); }
+int Player::AuthorityMismatches() const { return execution_->AuthorityMismatches(); }
+
+const football::sim::TouchChoice &Player::TouchSelection() const {
+  return execution_->TouchSelection();
+}
+
+int Player::TouchSelectionSuccesses() const {
+  return execution_->TouchSelectionSuccesses();
+}
+
+const PoseFrame& Player::PlaybackPose() const { return execution_->PlaybackPose(); }
+float Player::PlaybackBaseAngle() const { return execution_->PlaybackBaseAngle(); }
+const football::animation::PlaybackState& Player::PlaybackState() const {
+  return execution_->Playback();
+}
+
+PoseFrame Player::Pose() const {
+  if (!is_active_) return PoseFrame{};
+  return execution_->Pose(Port());
+}
+
+const football::sim::SelectedAction& Player::InstalledAction() const {
+  return execution_->InstalledAction();
+}
+
+const PlayerActionFeedback& Player::ActionFeedback() const {
+  return execution_->Feedback();
+}
+
+int Player::InstallChecks() const { return execution_->InstallChecks(); }
+int Player::InstallMatches() const { return execution_->InstallMatches(); }
+int Player::InstallMismatches() const { return execution_->InstallMismatches(); }
+int Player::InstallCursorChecks() const { return execution_->InstallCursorChecks(); }
+int Player::InstallCursorMatches() const { return execution_->InstallCursorMatches(); }
+int Player::InstallCursorMismatches() const {
+  return execution_->InstallCursorMismatches();
+}
+
+void Player::CheckSimulationActionOracle() const {
+  execution_->CheckSimulationActionOracle();
+}
+
+const Vector3 &Player::GetDecayingPositionOffset() const {
+  return execution_->DecayingPositionOffset();
+}
+
+float Player::GetDecayingPositionOffsetLength() const {
+  return execution_->DecayingPositionOffsetLength();
+}
+
+AnimationId Player::GetCurrentAnimationId() const {
+  return execution_->CurrentAnimationId();
+}
+
+PlayerBakedPoseSample Player::GetBakedPoseSample() const {
+  return execution_->BakedPoseSample(Port());
+}
+
+PlayerBakedPoseSample Player::PreviewRawPose(int frame_offset) const {
+  return execution_->PreviewRawPose(Port(), frame_offset);
+}
+
+bool Player::TouchPending() const { return GetSimulationActionState().IsContactPending(); }
+bool Player::TouchAnim() const { return GetSimulationActionState().HasScheduledContact(); }
+Vector3 Player::GetTouchPos() const { return GetSimulationActionState().contactPosition; }
+int Player::GetTouchFrame() const { return GetSimulationActionState().ContactFrame(); }
+int Player::GetCurrentFrame() const { return GetSimulationActionState().Frame(); }
+int Player::GetFrameNum() const { return execution_->FrameNum(); }
+int Player::GetFrameCount() const { return execution_->FrameCount(); }
+
+void Player::SelectRetainAnim() { execution_->SelectRetainAnim(Port()); }

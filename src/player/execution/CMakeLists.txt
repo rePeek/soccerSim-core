@@ -19,8 +19,10 @@ add_library(football_player_execution STATIC
   player_diagnostics.cpp
   player_team_view.cpp
   roster_query.cpp
-  ${PROJECT_SOURCE_DIR}/src/player/player.cpp
-  ${PROJECT_SOURCE_DIR}/src/player/player_tick.cpp)
+  player_execution.cpp
+  player_execution_compat.cpp
+  player_execution_diagnostics.cpp
+  ${PROJECT_SOURCE_DIR}/src/player/player.cpp)
 add_library(football::player_execution ALIAS football_player_execution)
 target_include_directories(football_player_execution
   PRIVATE ${PROJECT_SOURCE_DIR}/src)
@@ -62,8 +64,7 @@ football_player_check_boundary(
   "${_player_upper_layer_regex}")
 foreach(_root_file
     ${PROJECT_SOURCE_DIR}/src/player/player.cpp
-    ${PROJECT_SOURCE_DIR}/src/player/player.hpp
-    ${PROJECT_SOURCE_DIR}/src/player/player_tick.cpp)
+    ${PROJECT_SOURCE_DIR}/src/player/player.hpp)
   file(READ "${_root_file}" _content)
   if(_content MATCHES "${_player_upper_layer_regex}")
     message(FATAL_ERROR

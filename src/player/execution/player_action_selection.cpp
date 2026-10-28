@@ -4,6 +4,8 @@
 // reference-motion kernel (A8.0). No candidate, touch order or early exit was
 // changed.
 
+#include "player/execution/player_execution.hpp"
+#include "player/execution/player_diagnostics.hpp"
 #include "player/player.hpp"
 
 #include "football/animation/movement_math.hpp"
@@ -58,7 +60,7 @@ struct FunctionQueries final : football::animation::TouchMatchQueries {
 }  // namespace
 
 
-int Player::SelectBestTouchAnim(
+int PlayerExecution::SelectBestTouchAnim(
     football::sim::Tick now, const football::sim::PlayerTickContext &tick,
     const football::sim::player::PlayerObservation& observation, const DataSet &sortedDataSet,
     bool useDesiredMovement, const Vector3 &desiredDirection,
@@ -69,18 +71,18 @@ int Player::SelectBestTouchAnim(
   (void)localInterruptAnim;
 
   // never allow touchanims when someone else is holding the ball in his/her hands
-  if (tick.ball_retainer != 0 && tick.ball_retainer != this) return -1;
+  if (tick.ball_retainer != 0 && tick.ball_retainer != self()) return -1;
 
   // ANIM-2 A10.4c: Animation::MatchTouch is the only touch-selection path.
   // The Player only supplies the tick facts through the context and the query
   // port; it never runs a candidate loop of its own.
   const Vector3 incomingMovement =
-      legacy_spatial_state_.movement.GetRotated2D(-legacy_spatial_state_.angle);
+      state_.legacy_spatial_state_.movement.GetRotated2D(-state_.legacy_spatial_state_.angle);
   const Vector3 desiredMovement = desiredDirection * desiredVelocityFloat;
 
   FunctionQueries queries;
   queries.ball_prediction_ms = [&](int ms) -> Vector3 {
-    return observation.BallPrediction(mentalImageTime, ms, now, tick.ball);
+    return observation.BallPrediction(state_.mentalImageTime, ms, now, tick.ball);
   };
   queries.ball_predict_ticks = [&](int ticks) -> Vector3 {
     return tick.ball
@@ -88,7 +90,7 @@ int Player::SelectBestTouchAnim(
         .position;
   };
   queries.last_touch_bias = [&](int ticks) -> float {
-    return GetLastTouchBias(
+    return port().GetLastTouchBias(
         600, now + football::sim::TickSpan{static_cast<std::uint64_t>(ticks)});
   };
   queries.motion_plan = [&](AnimationId clip,
@@ -106,31 +108,31 @@ int Player::SelectBestTouchAnim(
 
   football::animation::TouchMatchContext context;
   context.candidates = sortedDataSet;
-  context.spatial_angle = legacy_spatial_state_.angle;
-  context.spatial_position = legacy_spatial_state_.position;
+  context.spatial_angle = state_.legacy_spatial_state_.angle;
+  context.spatial_position = state_.legacy_spatial_state_.position;
   context.incoming_movement = incomingMovement;
   context.desired_movement = desiredMovement;
   context.use_desired_movement = useDesiredMovement;
   context.use_desired_body_direction = useDesiredBodyDirection;
   context.desired_body_direction_rel = desiredBodyDirectionRel;
-  context.height_scale = BodyProfile().height_scale;
+  context.height_scale = port().BodyProfile().height_scale;
   context.technical_ballcontrol =
-      GetStat(football::player::PlayerStat::technical_ballcontrol);
+      port().GetStat(football::player::PlayerStat::technical_ballcontrol);
   context.pitch_half_length = tick.pitch.half_length();
   context.pitch_half_width = tick.pitch.half_width();
   context.pitch_line_half_width = tick.pitch.line_half_width();
-  context.ball_retained_by_player = (tick.ball_retainer == this);
+  context.ball_retained_by_player = (tick.ball_retainer == self());
   context.ball_retained_by_other =
-      (tick.ball_retainer != 0 && tick.ball_retainer != this);
+      (tick.ball_retainer != 0 && tick.ball_retainer != self());
   context.allow_pre_touch_rotation_smuggle = allowPreTouchRotationSmuggle;
   context.use_continuous_ball_check = useContinuousBallCheck;
   context.prefer_pass_and_shot = preferPassAndShot;
   context.touch_offset_ms = static_cast<float>(defaultTouchOffset_ms);
   context.closest_opponent_distance =
-      GetClosestOpponentDistance(tick.opponent_team);
+      port().GetClosestOpponentDistance(tick.opponent_team);
   // ANIM-2 A18: match the entry frame inside MatchTouch, so the ball prediction,
   // the reference motion and the touch geometry share the entry-frame basis.
-  context.reference_pose = Pose();
+  context.reference_pose = Pose(port());
   context.has_reference_pose = true;
   context.min_remaining_frames = 1;
 

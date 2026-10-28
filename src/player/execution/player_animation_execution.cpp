@@ -1,3 +1,4 @@
+#include "player/execution/player_execution.hpp"
 #include "player/player.hpp"
 
 #include <algorithm>
@@ -12,6 +13,7 @@
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "football/player/execution/player_motion.hpp"
+#include "player/execution/player_diagnostics.hpp"
 #include "player/execution/player_motion_constants.hpp"
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_touch_math.hpp"
@@ -27,32 +29,32 @@ constexpr float bodyRotationSmoothingMaxAngle =
 }  // namespace
 
 
-PlayerActionState Player::CaptureLegacyActionState() const {
+PlayerActionState PlayerExecution::CaptureLegacyActionState() const {
   PlayerActionState legacy;
-  legacy.type = legacy_anim_state_.functionType;
-  legacy.elapsed = {static_cast<std::uint64_t>(legacy_anim_state_.frameNum)};
-  legacy.duration = {static_cast<std::uint64_t>(GetFrameCount())};
-  const Anim *anim = &legacy_anim_state_;
+  legacy.type = state_.legacy_anim_state_.functionType;
+  legacy.elapsed = {static_cast<std::uint64_t>(state_.legacy_anim_state_.frameNum)};
+  legacy.duration = {static_cast<std::uint64_t>(FrameCount())};
+  const Anim *anim = &state_.legacy_anim_state_;
   if (anim->touchFrame >= 0)
     legacy.contact = football::sim::TickSpan{static_cast<std::uint64_t>(anim->touchFrame)};
   legacy.contactPosition = anim->touchPos;
   return legacy;
 }
 
-void Player::CheckSimulationActionOracle() const {
+void PlayerExecution::CheckSimulationActionOracle() const {
   const PlayerActionState legacy = CaptureLegacyActionState();
   const bool contactPositionMatches =
-      std::memcmp(actionState.contactPosition.coords,
+      std::memcmp(state_.actionState.contactPosition.coords,
                   legacy.contactPosition.coords,
-                  sizeof(actionState.contactPosition.coords)) == 0;
+                  sizeof(state_.actionState.contactPosition.coords)) == 0;
   std::string mismatch;
-  if (actionState.type != legacy.type) {
+  if (state_.actionState.type != legacy.type) {
     mismatch = "type";
-  } else if (actionState.elapsed != legacy.elapsed) {
+  } else if (state_.actionState.elapsed != legacy.elapsed) {
     mismatch = "frame";
-  } else if (actionState.duration != legacy.duration) {
+  } else if (state_.actionState.duration != legacy.duration) {
     mismatch = "frame count";
-  } else if (actionState.contact != legacy.contact) {
+  } else if (state_.actionState.contact != legacy.contact) {
     mismatch = "contact frame";
   } else if (!contactPositionMatches) {
     mismatch = "contact position bits";
@@ -61,24 +63,24 @@ void Player::CheckSimulationActionOracle() const {
          "authoritative action state diverged from legacy oracle");
 }
 
-void Player::BeginSimulationAction() {
-  const Anim *anim = &legacy_anim_state_;
+void PlayerExecution::BeginSimulationAction() {
+  const Anim *anim = &state_.legacy_anim_state_;
   PlayerActionDefinition definition;
-  definition.type = legacy_anim_state_.functionType;
-  definition.duration = {static_cast<std::uint64_t>(GetFrameCount())};
+  definition.type = state_.legacy_anim_state_.functionType;
+  definition.duration = {static_cast<std::uint64_t>(FrameCount())};
   if (anim->touchFrame >= 0)
     definition.contact = football::sim::TickSpan{static_cast<std::uint64_t>(anim->touchFrame)};
   definition.contactPosition = anim->touchPos;
-  last_begun_definition_ = definition;
-  last_begun_start_frame_ = legacy_anim_state_.frameNum;
-  PlayerActionExecutor::Begin(actionState, definition);
+  state_.last_begun_definition_ = definition;
+  state_.last_begun_start_frame_ = state_.legacy_anim_state_.frameNum;
+  PlayerActionExecutor::Begin(state_.actionState, definition);
 
   // ResetPosition can deliberately start an idle animation at a non-zero
   // legacy frame. Establish that initial cursor once; normal ticks never derive
   // executor time from the compatibility projection.
-  const football::sim::TickSpan initial_elapsed{static_cast<std::uint64_t>(legacy_anim_state_.frameNum)};
+  const football::sim::TickSpan initial_elapsed{static_cast<std::uint64_t>(state_.legacy_anim_state_.frameNum)};
   if (initial_elapsed.value > 0) {
-    PlayerActionExecutor::Step(actionState, initial_elapsed);
+    PlayerActionExecutor::Step(state_.actionState, initial_elapsed);
   }
   CheckSimulationActionOracle();
 }
@@ -86,7 +88,7 @@ void Player::BeginSimulationAction() {
 // ANIM-1 A6.4 step 4: single Player entry point for touch-animation selection.
   // The evaluation runs against the Player's own touch math; the Player owns
   // the decision and retains the result.
-int Player::SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
+int PlayerExecution::SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
                               const football::sim::player::PlayerObservation& observation, const DataSet &sorted_data_set,
                               bool use_desired_movement, const Vector3 &desired_direction,
                               float desired_velocity_float, bool use_desired_body_direction,
@@ -105,13 +107,13 @@ int Player::SelectTouchAction(football::sim::Tick now, const football::sim::Play
       choice, local_interrupt_anim, prefer_pass_and_shot,
       allow_pre_touch_rotation_smuggle, use_continuous_ball_check);
   if (anim_id != -1) {
-    touch_choice_ = choice;
-    ++touch_selection_successes_;
+    state_.touch_choice_ = choice;
+    ++state_.touch_selection_successes_;
   }
   return anim_id;
 }
 
-bool Player::CommitSelectedAction(int selected_anim_id,
+bool PlayerExecution::CommitSelectedAction(int selected_anim_id,
                                   const football::sim::TouchChoice &touch_choice,
                                   const PlayerCommand &command,
                                   const football::sim::PlayerTickContext &tick,
@@ -124,30 +126,30 @@ bool Player::CommitSelectedAction(int selected_anim_id,
   // projection writes the legacy currentAnim; the Player then installs through
   // the one install entry, and only then records the scheduled-contact audit.
   const bool interrupted =
-      actionState.type != e_FunctionType_Movement &&
-      !actionState.IsComplete() && !actionState.IsAtLastFrame() &&
+      state_.actionState.type != e_FunctionType_Movement &&
+      !state_.actionState.IsComplete() && !state_.actionState.IsAtLastFrame() &&
       local_interrupt_anim != e_InterruptAnim_None;
   ProjectSelectedActionCompat(selected_anim_id, touch_choice, command, tick, now,
                               observation, local_interrupt_anim, material_candidate,
                               start_frame);
   InstallSelectedAction(CurrentSelectedAction());
-  action_feedback_.source_action = command.source_action;
-  action_feedback_.command_status =
+  state_.action_feedback_.source_action = command.source_action;
+  state_.action_feedback_.command_status =
       command.source_action == ControlAction::None
           ? football::sim::player::CommandBuildStatus::MovementOnly
           : football::sim::player::CommandBuildStatus::Accepted;
-  action_feedback_.interrupted = interrupted;
+  state_.action_feedback_.interrupted = interrupted;
   RecordSelectedContactAudit(command);
   return true;
 }
 
-void Player::InstallSelectedAction(const football::sim::SelectedAction &selection) {
+void PlayerExecution::InstallSelectedAction(const football::sim::SelectedAction &selection) {
   // ANIM-1 A6.3b.3 (second cut): the Player is now the authority for the action
   // definition - it is built from the Player-owned `SelectedAction`, not read
   // back from the compatibility projection. The compat projection is synced by
   // selector before this call and is cross-checked below. The entry never
   // re-selects a clip or vetoes an interrupt.
-  installed_action_ = selection;
+  state_.installed_action_ = selection;
 
   PlayerActionDefinition definition;
   definition.type = selection.function_type;
@@ -155,26 +157,26 @@ void Player::InstallSelectedAction(const football::sim::SelectedAction &selectio
   if (selection.touch_frame >= 0)
     definition.contact = football::sim::TickSpan{static_cast<std::uint64_t>(selection.touch_frame)};
   definition.contactPosition = selection.touch_position;
-  last_begun_definition_ = definition;
-  last_begun_start_frame_ = selection.start_frame;
-  PlayerActionExecutor::Begin(actionState, definition);
+  state_.last_begun_definition_ = definition;
+  state_.last_begun_start_frame_ = selection.start_frame;
+  PlayerActionExecutor::Begin(state_.actionState, definition);
   if (selection.start_frame > 0) {
     PlayerActionExecutor::Step(
-        actionState, football::sim::TickSpan{static_cast<std::uint64_t>(selection.start_frame)});
+        state_.actionState, football::sim::TickSpan{static_cast<std::uint64_t>(selection.start_frame)});
   }
-  action_feedback_.source_action = ControlAction::None;
-  action_feedback_.command_status =
+  state_.action_feedback_.source_action = ControlAction::None;
+  state_.action_feedback_.command_status =
       football::sim::player::CommandBuildStatus::MovementOnly;
-  action_feedback_.type = selection.function_type;
-  action_feedback_.installed = selection.function_type != e_FunctionType_None;
-  action_feedback_.contact_due = false;
-  action_feedback_.touch_prepared = false;
-  action_feedback_.touch_accepted = false;
-  action_feedback_.completed = false;
-  action_feedback_.interrupted = false;
-  action_feedback_.start_frame = selection.start_frame;
-  action_feedback_.touch_frame = selection.touch_frame;
-  action_feedback_.prepared_touch_tick = {};
+  state_.action_feedback_.type = selection.function_type;
+  state_.action_feedback_.installed = selection.function_type != e_FunctionType_None;
+  state_.action_feedback_.contact_due = false;
+  state_.action_feedback_.touch_prepared = false;
+  state_.action_feedback_.touch_accepted = false;
+  state_.action_feedback_.completed = false;
+  state_.action_feedback_.interrupted = false;
+  state_.action_feedback_.start_frame = selection.start_frame;
+  state_.action_feedback_.touch_frame = selection.touch_frame;
+  state_.action_feedback_.prepared_touch_tick = {};
   CheckSimulationActionOracle();
 
   // Oracle during migration: the compat projection must still agree with
@@ -183,74 +185,96 @@ void Player::InstallSelectedAction(const football::sim::SelectedAction &selectio
   // Same-tick consistency: the committed cursor, the scheduled contact and the
   // compat projection must all agree with the selection immediately, so an
   // install followed by a sample in the same tick cannot be one tick off.
-  ++install_cursor_checks_;
+  ++state_.install_cursor_checks_;
   const bool cursor_same =
-      actionState.Frame() == selection.start_frame &&
-      actionState.FrameCount() == selection.frame_count &&
-      actionState.HasScheduledContact() == (selection.touch_frame >= 0) &&
-      actionState.ContactFrame() == selection.touch_frame;
+      state_.actionState.Frame() == selection.start_frame &&
+      state_.actionState.FrameCount() == selection.frame_count &&
+      state_.actionState.HasScheduledContact() == (selection.touch_frame >= 0) &&
+      state_.actionState.ContactFrame() == selection.touch_frame;
   if (cursor_same) {
-    ++install_cursor_matches_;
+    ++state_.install_cursor_matches_;
   } else {
-    ++install_cursor_mismatches_;
+    ++state_.install_cursor_mismatches_;
   }
-  ++install_checks_;
-  const Anim *anim = &legacy_anim_state_;
+  ++state_.install_checks_;
+  const Anim *anim = &state_.legacy_anim_state_;
   const bool same =
-      selection.function_type == legacy_anim_state_.functionType &&
-      selection.frame_count == GetFrameCount() &&
-      selection.start_frame == legacy_anim_state_.frameNum &&
+      selection.function_type == state_.legacy_anim_state_.functionType &&
+      selection.frame_count == FrameCount() &&
+      selection.start_frame == state_.legacy_anim_state_.frameNum &&
       selection.touch_frame == anim->touchFrame &&
       selection.touch_position == anim->touchPos;
   if (same) {
-    ++install_matches_;
+    ++state_.install_matches_;
   } else {
-    ++install_mismatches_;
+    ++state_.install_mismatches_;
   }
 
 }
 
-void Player::StepSimulationAction(football::sim::TickSpan elapsed) {
-  PlayerActionExecutor::Step(actionState, elapsed);
+void PlayerExecution::StepSimulationAction(football::sim::TickSpan elapsed) {
+  PlayerActionExecutor::Step(state_.actionState, elapsed);
   CheckSimulationActionOracle();
 }
 
-void Player::UpdatePlayback(AnimationId clip_id, int frame, float base_angle,
+void PlayerExecution::UpdatePlayback(AnimationId clip_id, int frame, float base_angle,
                             int blend_ticks) {
   const AnimationClip& clip = animations_.Get(static_cast<std::uint32_t>(clip_id));
-  playback_state_.Play(clip, frame, base_angle,
-                         playback_blend_enabled_ ? blend_ticks : 0);
+  state_.playback_state_.Play(clip, frame, base_angle,
+                         state_.playback_blend_enabled_ ? blend_ticks : 0);
 }
 
-void Player::AdvanceActionTick() {
+void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
+                                                 float base_angle, int blend_ticks) {
+  const AnimationId authority_clip = state_.installed_action_.clip_id;
+  const int authority_frame = state_.actionState.Frame();
+  // ANIM-2 A10.1: at most one real playback update per tick. A repeated call
+  // in the same tick is a pure read and must not advance the transition twice.
+  if (state_.last_playback_tick_ && *state_.last_playback_tick_ == now) return;
+  state_.last_playback_tick_ = now;
+  UpdatePlayback(authority_clip, authority_frame, base_angle, blend_ticks);
+  // ANIM-1 A6.3d: the compat projection no longer decides the clip or the
+  // action time. Verify the three executor-owned artefacts agree - the
+  // installed selection, the action cursor and the pose that was sampled.
+  ++state_.authority_checks_;
+  const bool same = state_.playback_state_.clip_id == authority_clip &&
+                    state_.playback_state_.frame == authority_frame;
+  if (same) {
+    ++state_.authority_matches_;
+  } else {
+    ++state_.authority_mismatches_;
+  }
+}
+
+void PlayerExecution::AdvanceActionTick() {
   // ANIM-1 A6.3c.2: one real time advance. The PlayerActionState cursor is the
   // authority; the compatibility integer frame is a read-only projection.
-  PlayerActionExecutor::Step(actionState, football::sim::TickSpan{1});
-  legacy_anim_state_.frameNum = actionState.Frame();
-  action_feedback_.type = actionState.type;
-  action_feedback_.contact_due =
-      actionState.HasScheduledContact() && actionState.IsContactDue();
-  action_feedback_.completed = actionState.IsComplete();
+  PlayerActionExecutor::Step(state_.actionState, football::sim::TickSpan{1});
+  state_.legacy_anim_state_.frameNum = state_.actionState.Frame();
+  state_.action_feedback_.type = state_.actionState.type;
+  state_.action_feedback_.contact_due =
+      state_.actionState.HasScheduledContact() && state_.actionState.IsContactDue();
+  state_.action_feedback_.completed = state_.actionState.IsComplete();
   CheckSimulationActionOracle();
 }
 
-const AnimationClip &Player::GetBakedClip(AnimationId id) const {
+const AnimationClip &PlayerExecution::GetBakedClip(AnimationId id) const {
   return animations_.Get(static_cast<uint32_t>(id));
 }
 
-football::sim::SelectedAction Player::CurrentSelectedAction() const {
+football::sim::SelectedAction PlayerExecution::CurrentSelectedAction() const {
   football::sim::SelectedAction selection;
-  selection.clip_id = legacy_anim_state_.animationId;
-  selection.function_type = legacy_anim_state_.functionType;
-  selection.start_frame = legacy_anim_state_.frameNum;
-  selection.frame_count = static_cast<int>(GetBakedClip(legacy_anim_state_.animationId).frame_count);
-  selection.touch_frame = legacy_anim_state_.touchFrame;
-  selection.touch_position = legacy_anim_state_.touchPos;
+  selection.clip_id = state_.legacy_anim_state_.animationId;
+  selection.function_type = state_.legacy_anim_state_.functionType;
+  selection.start_frame = state_.legacy_anim_state_.frameNum;
+  selection.frame_count = static_cast<int>(GetBakedClip(state_.legacy_anim_state_.animationId).frame_count);
+  selection.touch_frame = state_.legacy_anim_state_.touchFrame;
+  selection.touch_position = state_.legacy_anim_state_.touchPos;
   return selection;
 }
 
-const AnimationClip &Player::GetCurrentBakedClip() const {
-  return GetBakedClip(legacy_anim_state_.animationId);
+const AnimationClip &PlayerExecution::GetCurrentBakedClip() const {
+  return GetBakedClip(state_.legacy_anim_state_.animationId);
 }
 
 // ---------------------------------------------------------------------------
@@ -258,23 +282,23 @@ const AnimationClip &Player::GetCurrentBakedClip() const {
 // relocated verbatim from Humanoid::ProjectSelectedActionCompat /
 // Humanoid::RecordSelectedContactAudit and HumanoidBase::SampleBakedPose.
 // ---------------------------------------------------------------------------
-PlayerBakedPoseSample Player::SampleBakedPose(
+PlayerBakedPoseSample PlayerExecution::SampleBakedPose(
     const PlayerKinematicState& state,
     const football::player::PlayerBodyProfile& profile) const {
   const auto& clip = GetCurrentBakedClip();
-  if (clip.poses.empty() || legacy_anim_state_.frameNum < 0)
+  if (clip.poses.empty() || state_.legacy_anim_state_.frameNum < 0)
     throw std::logic_error("missing runtime baked pose frame");
-  const auto frame = std::min(std::size_t(legacy_anim_state_.frameNum), clip.poses.size() - 1);
+  const auto frame = std::min(std::size_t(state_.legacy_anim_state_.frameNum), clip.poses.size() - 1);
   PlayerBakedPoseSample sample;
   sample.pose = clip.poses[frame];
   sample.state = state;
-  sample.animation_id = legacy_anim_state_.animationId;
-  sample.requested_frame = static_cast<std::int64_t>(legacy_anim_state_.frameNum);
+  sample.animation_id = state_.legacy_anim_state_.animationId;
+  sample.requested_frame = static_cast<std::int64_t>(state_.legacy_anim_state_.frameNum);
   sample.sampled_frame = static_cast<std::int64_t>(frame);
   sample.frame_clamped = sample.requested_frame != sample.sampled_frame;
-  sample.base_angle = startAngle + legacy_anim_state_.rotationSmuggleOffset;
+  sample.base_angle = state_.startAngle + state_.legacy_anim_state_.rotationSmuggleOffset;
   sample.body_profile = profile;
-  sample.action = legacy_anim_state_.functionType;
+  sample.action = state_.legacy_anim_state_.functionType;
   sample.outgoing_special_state = !clip.metadata.outgoing_special_state.empty();
   return sample;
 }
@@ -286,8 +310,9 @@ PlayerBakedPoseSample Player::SampleBakedPose(
 // by indexing the library itself. The offset is added in 64 bits and clamped to
 // the clip range in BOTH directions, so neither a negative offset nor an extreme
 // positive one can overflow or index out of bounds.
-PlayerBakedPoseSample Player::PreviewRawPose(int frame_offset) const {
-  PlayerBakedPoseSample sample = GetBakedPoseSample();
+PlayerBakedPoseSample PlayerExecution::PreviewRawPose(PlayerExecutionPort& owner,
+                                                 int frame_offset) const {
+  PlayerBakedPoseSample sample = BakedPoseSample(owner);
   const auto& clip =
       animations_.Get(static_cast<std::uint32_t>(sample.animation_id));
   const std::int64_t requested =
@@ -304,58 +329,58 @@ PlayerBakedPoseSample Player::PreviewRawPose(int frame_offset) const {
   return sample;
 }
 
-void Player::ProjectSelectedActionCompat(
+void PlayerExecution::ProjectSelectedActionCompat(
     int selectedAnimID, const football::sim::TouchChoice &touch_choice,
     const PlayerCommand &command, const football::sim::PlayerTickContext &tick,
     football::sim::Tick now, const football::sim::player::PlayerObservation& observation,
     e_InterruptAnim localInterruptAnim, bool material_candidate,
     int start_frame) {
-  const PlayerActionState &action = this->GetSimulationActionState();
-  previousAnim_functionType = legacy_anim_state_.functionType;
+  const PlayerActionState &action = ActionState();
+  state_.previousAnim_functionType = state_.legacy_anim_state_.functionType;
 
-  legacy_anim_state_.animationId = selectedAnimID;
-  legacy_anim_state_.functionType = command.desiredFunctionType;
+  state_.legacy_anim_state_.animationId = selectedAnimID;
+  state_.legacy_anim_state_.functionType = command.desiredFunctionType;
   // ANIM-2 A13: install at the matched entry frame. 0 is the legacy cursor.
-  legacy_anim_state_.frameNum = start_frame;
-  legacy_anim_state_.touchFrame = touch_choice.touch_frame;
-  legacy_anim_state_.touchPos = touch_choice.touch_position;
-  legacy_anim_state_.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, legacy_spatial_state_.relBodyAngleNonquantized - GetCurrentBakedClip().metadata.incoming_body_angle) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle * (legacy_anim_state_.functionType == e_FunctionType_Movement ? 1.0f : 0.5f), bodyRotationSmoothingMaxAngle * (legacy_anim_state_.functionType == e_FunctionType_Movement ? 1.0f : 0.5f));
-  legacy_anim_state_.rotationSmuggle.end = touch_choice.rotation_smuggle;
-  legacy_anim_state_.rotationSmuggleOffset = 0;
-  legacy_anim_state_.actionSmuggle = touch_choice.action_smuggle;
-  legacy_anim_state_.actionSmuggleOffset = Vector3(0);
-  legacy_anim_state_.actionSmuggleSustain = Vector3(0); // calculated below
-  legacy_anim_state_.actionSmuggleSustainOffset = Vector3(0);
-  legacy_anim_state_.movementSmuggle = Vector3(0); // needs to be reset here, else the previous calc is used in upcoming 'calculatemovementsmuggle'
-  legacy_anim_state_.movementSmuggleOffset = Vector3(0);
-  legacy_anim_state_.incomingMovement = legacy_spatial_state_.movement;
-  legacy_anim_state_.outgoingMovement = CalculateOutgoingMovement(touch_choice.positions);
-  legacy_anim_state_.positions.clear();
-  legacy_anim_state_.positions.assign(touch_choice.positions.begin(), touch_choice.positions.end());
+  state_.legacy_anim_state_.frameNum = start_frame;
+  state_.legacy_anim_state_.touchFrame = touch_choice.touch_frame;
+  state_.legacy_anim_state_.touchPos = touch_choice.touch_position;
+  state_.legacy_anim_state_.rotationSmuggle.begin = clamp(ModulateIntoRange(-pi, pi, state_.legacy_spatial_state_.relBodyAngleNonquantized - GetCurrentBakedClip().metadata.incoming_body_angle) * bodyRotationSmoothingFactor, -bodyRotationSmoothingMaxAngle * (state_.legacy_anim_state_.functionType == e_FunctionType_Movement ? 1.0f : 0.5f), bodyRotationSmoothingMaxAngle * (state_.legacy_anim_state_.functionType == e_FunctionType_Movement ? 1.0f : 0.5f));
+  state_.legacy_anim_state_.rotationSmuggle.end = touch_choice.rotation_smuggle;
+  state_.legacy_anim_state_.rotationSmuggleOffset = 0;
+  state_.legacy_anim_state_.actionSmuggle = touch_choice.action_smuggle;
+  state_.legacy_anim_state_.actionSmuggleOffset = Vector3(0);
+  state_.legacy_anim_state_.actionSmuggleSustain = Vector3(0); // calculated below
+  state_.legacy_anim_state_.actionSmuggleSustainOffset = Vector3(0);
+  state_.legacy_anim_state_.movementSmuggle = Vector3(0); // needs to be reset here, else the previous calc is used in upcoming 'calculatemovementsmuggle'
+  state_.legacy_anim_state_.movementSmuggleOffset = Vector3(0);
+  state_.legacy_anim_state_.incomingMovement = state_.legacy_spatial_state_.movement;
+  state_.legacy_anim_state_.outgoingMovement = CalculateOutgoingMovement(touch_choice.positions);
+  state_.legacy_anim_state_.positions.clear();
+  state_.legacy_anim_state_.positions.assign(touch_choice.positions.begin(), touch_choice.positions.end());
   // ANIM-2 A13: a non-zero entry frame skips the clip's earlier root motion, so
   // re-base the reference trajectory to the entry frame. Otherwise the first
   // committed tick would add the whole skipped displacement as a teleport. A
   // constant shift leaves every delta (outgoing movement, smuggles) unchanged.
-  if (start_frame > 0 && !legacy_anim_state_.positions.empty()) {
+  if (start_frame > 0 && !state_.legacy_anim_state_.positions.empty()) {
     const std::size_t index =
         std::min(static_cast<std::size_t>(start_frame),
-                 legacy_anim_state_.positions.size() - 1);
-    const Vector3 base = legacy_anim_state_.positions[index];
-    for (Vector3 &p : legacy_anim_state_.positions) p -= base;
+                 state_.legacy_anim_state_.positions.size() - 1);
+    const Vector3 base = state_.legacy_anim_state_.positions[index];
+    for (Vector3 &p : state_.legacy_anim_state_.positions) p -= base;
   }
-  legacy_anim_state_.positionOffset = Vector3(0);
-  legacy_anim_state_.originatingCommand = command;
+  state_.legacy_anim_state_.positionOffset = Vector3(0);
+  state_.legacy_anim_state_.originatingCommand = command;
   RecordMovementCommandAcceptance(material_candidate, action.type,
                                   static_cast<int>(football::sim::ToMilliseconds(action.elapsed)), localInterruptAnim,
                                   command, static_cast<int>(GetCurrentBakedClip().frame_count));
-  // Must run after the legacy_anim_state_ field writes above (it reads the new
+  // Must run after the state_.legacy_anim_state_ field writes above (it reads the new
   // animationId/positions/touchFrame and GetCurrentBakedClip), before install.
-  legacy_anim_state_.movementSmuggle = this->ComputeMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, observation);
-  legacy_anim_state_.movementSmuggleOffset = Vector3(0);
+  state_.legacy_anim_state_.movementSmuggle = ComputeMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, observation);
+  state_.legacy_anim_state_.movementSmuggleOffset = Vector3(0);
 }
 
-void Player::RecordSelectedContactAudit(const PlayerCommand &command) {
-  const PlayerActionState &scheduled = this->GetSimulationActionState();
+void PlayerExecution::RecordSelectedContactAudit(const PlayerCommand &command) {
+  const PlayerActionState &scheduled = ActionState();
   if (ContactAuthorityAuditEnabled() &&
       IsTrackedScheduledContact(scheduled.type) &&
       scheduled.HasScheduledContact()) {

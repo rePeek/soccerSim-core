@@ -4,7 +4,7 @@
 // ANIM-1 A6.4 step 6: the ReQueue gates that used to be inline in
 // `Humanoid::SelectAnim`, as explicit, inspectable value inputs. These are pure
 // decisions: no RNG, no state mutation, no candidate search. `Player` owns them
-// (`Player::CanAttemptActionSelection` / `CanCommitActionSelection`); the
+// (`PlayerExecution::CanAttemptActionSelection` / `CanCommitActionSelection`); the
 // Player still supplies the not-yet-migrated legacy facts through the context
 // structs. The value logic lives here so it can be unit-tested without linking
 // the actor runtime.

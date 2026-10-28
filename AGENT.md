@@ -149,10 +149,11 @@ observation, controls and stored physics are all the Stadium Frame.
 - Touch feedback distinguishes `contact_due` (animation frame reached),
   `touch_prepared` (Player proposed a touch) and `touch_accepted` (Runtime
   committed it). Only the last confirms a real touch.
-- Player::RunActionTick is an orchestrator: its named phase methods preserve
-  the original order. `kinematicState` and `actionState` are the movement and
-  action-clock authorities; `legacy_anim_state_` and `legacy_spatial_state_`
-  are compatibility projections, never a second authority.
+- PlayerExecution::RunActionTick is an orchestrator: its named phase methods
+  preserve the original order. The committed `PlayerKinematicState` and the
+  executor's `ActionState()` are the movement and action-clock authorities;
+  `legacy_anim_state_` and `legacy_spatial_state_` are compatibility
+  projections, never a second authority.
 
 ## Player and Contact libraries
 
@@ -165,15 +166,57 @@ Player's model and Command targets are declared in `src/player/CMakeLists.txt`;
 there are no state/command CMake subdirectories. Model/parser/private spatial
 and observation files live beside player.hpp. Only execution has a subdirectory.
 
+Player is the entity: identity, definition/body profile, capability, match
+state (possession, touch record, fatigue, cards, formation), the authoritative
+`PlayerKinematicState`/`PlayerGroundCollider` and the lifecycle. Everything
+between an accepted Control/Play/React input and the drawn pose is the
+execution process, owned by the internal `PlayerExecution` component
+(`execution/player_execution.*`) that `Player` composes privately:
+
+```text
+Player
+  ├── identity, definition, capability, match state
+  ├── authoritative kinematics + ground collider
+  └── PlayerExecution
+        ├── PlayerExecutionState  pending inputs, action timeline, playback,
+        │                         scheduling/epochs, compat projection, audit
+        ├── action tick phases    (PlayerExecution::RunActionTick)
+        └── PlayerExecutionPort   the narrow per-call view of the Player
+```
+
+Rules for that composition:
+
+- `PlayerExecutionState` is the single copy of every execution field. There is
+  never a second action timeline or motion state; `legacy_anim_state_` and
+  `legacy_spatial_state_` are projections of the committed kinematics.
+- Execution reads capability/match facts and submits authoritative changes
+  through `PlayerExecutionPort`, bound for one call
+  (`PlayerExecution::PortScope`) and released before returning. Execution
+  never stores the port or a `Player*`, so it cannot reach back into the entity
+  outside a call it was given. `PlayerExecutionPort::Actor()` exists only for
+  the pointer-keyed pass solver and the Runtime rule port.
+- `Player` remains the only writer of the kinematic state: execution computes
+  the locomotion proposal and calls `CommitKinematics`, `CommitLocomotion`,
+  `CommitLegacyActionMotion` or `ApplyPositionCorrection`.
+- Runtime, Contact and Observation never see `PlayerExecution`: they drive
+  `Player` (SetControl/Play/React/PrepareTick/CommitTick and the read-only
+  observation accessors), which forwards. `PlayerExecution` stays inside the
+  execution library.
+- Execution diagnostics (locomotion re-entry/publication audits, query
+  opportunity census) live in `execution/player_execution_diagnostics.*`, not
+  in the Player header. The Player's own counter accessors forward.
 - `football::player_state`: definitions, kinematics, action state, body profile,
   command status and role parser. No Command, Contact or Execution dependency.
 - `football::player_command`: Control/ControlSet, active requests, passive
   reaction inputs and input-parameter validation. Header-only protocol over
   State, never Ball, Contact, Animation runtime or Execution. It does not
   dispatch actions; Execution consumes these values.
-- `football::player_execution`: concrete Player, command realization, action
-  arbitration/mapping, cadence schedulers, continuous locomotion/body facing,
-  reachability and pass solving, animation matching and touch preparation.
+- `football::player_execution`: the concrete Player entity, its internal
+  `PlayerExecution` component (control/request consumption, action tick phases,
+  action timeline and playback, scheduling/epochs, compatibility projection) and
+  command realization: action arbitration/mapping, cadence schedulers,
+  continuous locomotion/body facing, reachability and pass solving, animation
+  matching and touch preparation.
   May depend on Command, State, Contact, Ball and Animation. Pure motion and
   prediction APIs remain value-only and usable without a concrete Player.
 - `football::contact`: value-only pair-contact and active/passive touch models,

@@ -1,108 +1,83 @@
-#include "player/player.hpp"
+#include "player/execution/player_execution.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <optional>
 
 #include "football/ball/ball.hpp"
-#include "player/execution/player_command.hpp"
-#include "player/execution/player_control_builder.hpp"
 #include "football/player/player_kinematics.hpp"
 #include "player/execution/player_action_arbitration.hpp"
+#include "player/execution/player_command.hpp"
+#include "player/execution/player_control_builder.hpp"
+#include "player/execution/player_execution_diagnostics.hpp"
+#include "player/execution/player_diagnostics.hpp"
 
 using football::ball::Ball;
 
-
-void Player::NoteDecisionPublicationCause(int cause) { pendingPublicationCause = cause; }
-int &DecisionPublicationViaSimulationCadence() { static int value = 0; return value; }
-int &DecisionPublicationViaLegacyOpportunityOnly() { static int value = 0; return value; }
-int &DecisionPublicationWhileIneligible() { static int value = 0; return value; }
-int &ReentryFreshViaSimulationCadence() { static int value = 0; return value; }
-int &ReentryFreshViaLegacyOpportunityOnly() { static int value = 0; return value; }
-int &ReentryFreshWhileIneligible() { static int value = 0; return value; }
-
-int &LocomotionNegativeDecisionAgeSamples() { static int value = 0; return value; }
-int &LocomotionReentryMeasurementEpoch() { static int value = 0; return value; }
-void ResetLocomotionReentryAudits() {
-  for (int category = 0; category < 4; ++category) {
-    LocomotionReentryAuditFor(category) = LocomotionReentryAudit();
-  }
-  LocomotionActionExitCount() = 0;
-  LocomotionNegativeDecisionAgeSamples() = 0;
-  DecisionPublicationViaSimulationCadence() = 0;
-  DecisionPublicationViaLegacyOpportunityOnly() = 0;
-  DecisionPublicationWhileIneligible() = 0;
-  ReentryFreshViaSimulationCadence() = 0;
-  ReentryFreshViaLegacyOpportunityOnly() = 0;
-  ReentryFreshWhileIneligible() = 0;
-  // Per-player provenance is scoped by epoch, so a player resets its own audit
-  // state on its next tick without iterating the roster.
-  ++LocomotionReentryMeasurementEpoch();
-}
-
-void Player::CheckDecisionLocomotionIntentOracle() const {
+void PlayerExecution::CheckDecisionLocomotionIntentOracle() const {
   // Debug producer invariant; executability is checked separately.
-  const PlayerCommand &command = decisionLocomotionState.command;
-  assert(decisionLocomotionState.initialized && command.useDesiredMovement &&
+  const PlayerCommand &command = state_.decisionLocomotionState.command;
+  assert(state_.decisionLocomotionState.initialized && command.useDesiredMovement &&
          command.desiredFunctionType == e_FunctionType_Movement &&
-         decisionLocomotionState.publishedEpoch ==
-             decisionLocomotionState.continuityEpoch &&
+         state_.decisionLocomotionState.publishedEpoch ==
+             state_.decisionLocomotionState.continuityEpoch &&
          "executed locomotion intent must be a current-epoch Movement intent");
 }
 
-void Player::AdvanceLocomotionContinuity(bool eligible) {
+void PlayerExecution::AdvanceLocomotionContinuity(bool eligible) {
   // Gameplay transition. The audit below observes eligibility and must never
   // decide the epoch, or telemetry bookkeeping would drive a controller query.
-  if (!decisionLocomotionState.continuityStarted) {
-    decisionLocomotionState.continuityStarted = true;
-    decisionLocomotionState.wasEligibleLastTick = eligible;
+  if (!state_.decisionLocomotionState.continuityStarted) {
+    state_.decisionLocomotionState.continuityStarted = true;
+    state_.decisionLocomotionState.wasEligibleLastTick = eligible;
     return;
   }
-  if (decisionLocomotionState.wasEligibleLastTick && !eligible) {
-    ++decisionLocomotionState.continuityEpoch;
+  if (state_.decisionLocomotionState.wasEligibleLastTick && !eligible) {
+    ++state_.decisionLocomotionState.continuityEpoch;
   }
-  decisionLocomotionState.wasEligibleLastTick = eligible;
+  state_.decisionLocomotionState.wasEligibleLastTick = eligible;
 }
 
-void Player::NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
+void PlayerExecution::NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
                                           football::sim::Tick now) {
   // Measurement epoch: telemetry is transient and not serialized, so state
   // restore can rewind the match clock behind it. Scope the audit to the epoch
   // instead of letting earlier scenarios pollute it.
-  if (reentryAuditEpoch != LocomotionReentryMeasurementEpoch()) {
-    reentryAuditEpoch = LocomotionReentryMeasurementEpoch();
-    reentryAuditStarted = false;
-    locomotionExitRecorded = false;
+  if (state_.reentryAuditEpoch != LocomotionReentryMeasurementEpoch()) {
+    state_.reentryAuditEpoch = LocomotionReentryMeasurementEpoch();
+    state_.reentryAuditStarted = false;
+    state_.locomotionExitRecorded = false;
   }
-  const unsigned long long generation = decisionLocomotionAuditGeneration;
-  if (!reentryAuditStarted) {
-    reentryAuditStarted = true;
-    wasPureLocomotionLastTick = eligible;
-    resetSinceLastPlayerTick = false;
+  const unsigned long long generation = state_.decisionLocomotionAuditGeneration;
+  if (!state_.reentryAuditStarted) {
+    state_.reentryAuditStarted = true;
+    state_.wasPureLocomotionLastTick = eligible;
+    state_.resetSinceLastPlayerTick = false;
     return;
   }
   if (!eligible) {
     // An ordinary non-locomotion tick is not a re-entry. Only leaving
     // locomotion is an event, and it arms the generation comparison.
-    if (wasPureLocomotionLastTick) {
-      decisionGenerationAtLocomotionExit = generation;
-      locomotionExitRecorded = true;
+    if (state_.wasPureLocomotionLastTick) {
+      state_.decisionGenerationAtLocomotionExit = generation;
+      state_.locomotionExitRecorded = true;
       // The epoch itself is advanced by AdvanceLocomotionContinuity(); this is
       // observation only.
       ++LocomotionActionExitCount();
     }
-    wasPureLocomotionLastTick = false;
+    state_.wasPureLocomotionLastTick = false;
     return;
   }
   // Eligible from here on. An actor that began the audit in an action and later
   // becomes locomotion-eligible has an initial transition, not an observed action
   // re-entry; reserve category 2 for a recorded locomotion exit.
   int category = 0;
-  if (resetSinceLastPlayerTick) {
+  if (state_.resetSinceLastPlayerTick) {
     category = 3;
-  } else if (wasPureLocomotionLastTick) {
+  } else if (state_.wasPureLocomotionLastTick) {
     category = 1;
-  } else if (locomotionExitRecorded) {
+  } else if (state_.locomotionExitRecorded) {
     category = 2;
   }
   LocomotionReentryAudit &audit = LocomotionReentryAuditFor(category);
@@ -110,13 +85,13 @@ void Player::NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
   if (scheduler_due) ++audit.scheduler_due; else ++audit.scheduler_not_due;
   // Shadow of the epoch rule. Continuous locomotion must never require a fresh
   // decision just because the cadence is due.
-  if (decisionLocomotionState.publishedEpoch !=
-      decisionLocomotionState.continuityEpoch) {
+  if (state_.decisionLocomotionState.publishedEpoch !=
+      state_.decisionLocomotionState.continuityEpoch) {
     ++audit.would_require_fresh;
-    if (last_reset_tick_ && (!last_locomotion_publication_tick_ ||
-        *last_reset_tick_ > *last_locomotion_publication_tick_)) {
+    if (state_.last_reset_tick_ && (!state_.last_locomotion_publication_tick_ ||
+        *state_.last_reset_tick_ > *state_.last_locomotion_publication_tick_)) {
       ++audit.stale_after_reset;
-    } else if (category == 2 && locomotionExitRecorded) {
+    } else if (category == 2 && state_.locomotionExitRecorded) {
       // a3b2 no longer lets animation opportunities publish the missing axis.
       // A stale action re-entry is repaired by the forced Player Decision tick
       // later in this same Process() call, before locomotion execution.
@@ -128,42 +103,42 @@ void Player::NoteLocomotionReentryTick(bool eligible, bool scheduler_due,
   if (category >= 2) {
     // Reset is itself the discontinuity, so it anchors the comparison; other
     // re-entries require an observed locomotion exit.
-    const bool anchor_valid = category == 3 ? resetGenerationAnchorValid
-                                            : locomotionExitRecorded;
+    const bool anchor_valid = category == 3 ? state_.resetGenerationAnchorValid
+                                            : state_.locomotionExitRecorded;
     const unsigned long long anchor = category == 3
-        ? resetDecisionGeneration
-        : decisionGenerationAtLocomotionExit;
+        ? state_.resetDecisionGeneration
+        : state_.decisionGenerationAtLocomotionExit;
     if (anchor_valid && generation != anchor) {
       ++audit.generation_advanced;
-      if (lastPublicationViaSimulationCadence) {
+      if (state_.lastPublicationViaSimulationCadence) {
         ++ReentryFreshViaSimulationCadence();
       } else {
         ++ReentryFreshViaLegacyOpportunityOnly();
       }
-      if (lastPublicationWhileIneligible) ++ReentryFreshWhileIneligible();
+      if (state_.lastPublicationWhileIneligible) ++ReentryFreshWhileIneligible();
     } else if (anchor_valid) {
       ++audit.generation_unchanged;
     }
   }
-  if (last_locomotion_publication_tick_) {
-    if (now < *last_locomotion_publication_tick_) {
+  if (state_.last_locomotion_publication_tick_) {
+    if (now < *state_.last_locomotion_publication_tick_) {
       // A restorable clock cannot precede a publication in normal forward play.
       ++LocomotionNegativeDecisionAgeSamples();
     } else {
-      const auto age = now - *last_locomotion_publication_tick_;
+      const auto age = now - *state_.last_locomotion_publication_tick_;
       audit.decision_age_sum += age;
       ++audit.decision_age_count;
       if (!audit.decision_age_max || age > *audit.decision_age_max) audit.decision_age_max = age;
     }
   }
-  wasPureLocomotionLastTick = true;
-  resetSinceLastPlayerTick = false;
+  state_.wasPureLocomotionLastTick = true;
+  state_.resetSinceLastPlayerTick = false;
 }
 
-bool Player::NoteLocomotionIntentCadence(bool legacy_opportunity, football::sim::Tick now, bool retaining_ball) {
-  decisionMovementSelection = false;
-  const bool due = locomotionIntentScheduler.Due(now);
-  locomotionIntentDueThisTick = false;
+bool PlayerExecution::NoteLocomotionIntentCadence(bool legacy_opportunity, football::sim::Tick now, bool retaining_ball) {
+  state_.decisionMovementSelection = false;
+  const bool due = state_.locomotionIntentScheduler.Due(now);
+  state_.locomotionIntentDueThisTick = false;
   if (due) {
     ++PlayerLocomotionIntentDueTicks();
     // A due tick during a non-locomotion action is not consumed: querying the
@@ -173,30 +148,30 @@ bool Player::NoteLocomotionIntentCadence(bool legacy_opportunity, football::sim:
     if (!IsEligibleForProceduralLocomotion(retaining_ball)) {
       ++PlayerLocomotionIntentDueIneligibleTicks();
     } else {
-      locomotionIntentDueThisTick = true;
+      state_.locomotionIntentDueThisTick = true;
     }
   }
   if (legacy_opportunity) {
     ++PlayerLocomotionIntentLegacyOpportunityTicks();
-    if (locomotionIntentDueThisTick) ++PlayerLocomotionIntentOverlapTicks();
+    if (state_.locomotionIntentDueThisTick) ++PlayerLocomotionIntentOverlapTicks();
   }
-  return locomotionIntentDueThisTick;
+  return state_.locomotionIntentDueThisTick;
 }
 
-void Player::PublishPlayerDecisionQueue(
+void PlayerExecution::PublishPlayerDecisionQueue(
     const PlayerCommandQueue &commands, football::sim::Tick now) {
-  playerDecisionQueue.commands = commands;
-  playerDecisionQueue.initialized = true;
-  ++playerDecisionQueue.generation;
-  playerDecisionScheduler.Commit(now);
+  state_.playerDecisionQueue.commands = commands;
+  state_.playerDecisionQueue.initialized = true;
+  ++state_.playerDecisionQueue.generation;
+  state_.playerDecisionScheduler.Commit(now);
 }
 
-void Player::CommitLocomotionIntentRefresh(const Ball& ball, football::sim::Tick now, bool retaining_ball) {
+void PlayerExecution::CommitLocomotionIntentRefresh(const Ball& ball, football::sim::Tick now, bool retaining_ball) {
   ++HumanoidIntentRefreshCommits();
   const float distance_to_ball =
-      (ball.state().position.Get2D() - kinematicState.position).GetLength();
+      (ball.state().position.Get2D() - port().GetKinematicState().position).GetLength();
   ++PlayerLocomotionIntentConsumedTicks();
-  locomotionIntentScheduler.Schedule(
+  state_.locomotionIntentScheduler.Schedule(
       now,
       LocomotionIntentScheduler::CadenceForDistance(
           distance_to_ball, retaining_ball));
@@ -205,39 +180,35 @@ void Player::CommitLocomotionIntentRefresh(const Ball& ball, football::sim::Tick
 // 4b': intent refresh is held back purely because execution is not pure. This is
 // the conflation under measurement: the scheduler is due, but the execution gate
 // blocks the refresh.
-bool Player::LocomotionIntentRefreshHeldIneligible(football::sim::Tick now, bool retaining_ball) const {
-  return locomotionIntentScheduler.Due(now) &&
+bool PlayerExecution::LocomotionIntentRefreshHeldIneligible(football::sim::Tick now, bool retaining_ball) const {
+  return state_.locomotionIntentScheduler.Due(now) &&
          !IsEligibleForProceduralLocomotion(retaining_ball);
-}
-
-void Player::NoteDecisionMovementSelection(bool movement_selected) {
-  decisionMovementSelection = movement_selected;
 }
 
 // c2a: the Player Decision Clock's single publication entry point. It owns the
 // decision locomotion state and the publication telemetry, and never touches the
 // compatibility movement command slot.
-void Player::PublishDecisionLocomotionIntent(const PlayerCommand &command, football::sim::Tick now, bool retaining_ball) {
+void PlayerExecution::PublishDecisionLocomotionIntent(const PlayerCommand &command, football::sim::Tick now, bool retaining_ball) {
   assert(command.desiredFunctionType == e_FunctionType_Movement &&
          command.useDesiredMovement &&
          "Player Decision Clock published a non-Movement intent");
   // 4f-a1: whether this publication materially rewrites the decision already in
   // force. Only animation-owned (legacy-only) publications are counted, so the
   // number answers how often a requeue actually moved the decision clock.
-  const int publication_cause = pendingPublicationCause;
+  const int publication_cause = state_.pendingPublicationCause;
   const bool decision_materially_changed =
-      decisionLocomotionState.initialized &&
-      MovementCommandDiffersMaterially(decisionLocomotionState.command, command);
+      state_.decisionLocomotionState.initialized &&
+      MovementCommandDiffersMaterially(state_.decisionLocomotionState.command, command);
   ++PlayerMovementCommandDirectAdoptions();
-  last_locomotion_publication_tick_ = now;
+  state_.last_locomotion_publication_tick_ = now;
   // Cause split without changing the player path: a publication on a tick where
   // the simulation cadence was not due can only have come from the animation
   // lifecycle's query opportunity.
-  lastPublicationViaSimulationCadence = pendingPublicationCause == 0;
-  ++DecisionPublicationCauseCount(pendingPublicationCause);
-  pendingPublicationCause = 0;
-  lastPublicationWhileIneligible = !IsEligibleForProceduralLocomotion(retaining_ball);
-  if (lastPublicationViaSimulationCadence) {
+  state_.lastPublicationViaSimulationCadence = state_.pendingPublicationCause == 0;
+  ++DecisionPublicationCauseCount(state_.pendingPublicationCause);
+  state_.pendingPublicationCause = 0;
+  state_.lastPublicationWhileIneligible = !IsEligibleForProceduralLocomotion(retaining_ball);
+  if (state_.lastPublicationViaSimulationCadence) {
     ++DecisionPublicationViaSimulationCadence();
   } else {
     ++DecisionPublicationViaLegacyOpportunityOnly();
@@ -245,27 +216,27 @@ void Player::PublishDecisionLocomotionIntent(const PlayerCommand &command, footb
   if (publication_cause == 1) {
     ++LegacyOnlyDecisionPublications();
     if (decision_materially_changed) ++LegacyOnlyDecisionMaterialChanges();
-    if (decisionMovementSelection) {
+    if (state_.decisionMovementSelection) {
       ++LegacyOnlyDecisionMovementSelectionPublications();
       if (decision_materially_changed) {
         ++LegacyOnlyDecisionMovementSelectionMaterialChanges();
       }
     }
   }
-  if (lastPublicationWhileIneligible) ++DecisionPublicationWhileIneligible();
+  if (state_.lastPublicationWhileIneligible) ++DecisionPublicationWhileIneligible();
   // A publication belongs to the continuity epoch it was produced in, which is
   // what makes it usable for this epoch's locomotion execution.
-  decisionLocomotionState.command = command;
-  decisionLocomotionState.initialized = true;
-  ++decisionLocomotionAuditGeneration;
-  decisionLocomotionState.publishedEpoch =
-      decisionLocomotionState.continuityEpoch;
+  state_.decisionLocomotionState.command = command;
+  state_.decisionLocomotionState.initialized = true;
+  ++state_.decisionLocomotionAuditGeneration;
+  state_.decisionLocomotionState.publishedEpoch =
+      state_.decisionLocomotionState.continuityEpoch;
 }
 
 // Single place that turns a controller queue into a published locomotion intent.
 // Returns true only when a Movement candidate with useDesiredMovement was
 // published, so callers commit the scheduler refresh only on a real publication.
-bool Player::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue, football::sim::Tick now, bool retaining_ball) {
+bool PlayerExecution::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue, football::sim::Tick now, bool retaining_ball) {
   for (const PlayerCommand &candidate : queue) {
     if (candidate.desiredFunctionType == e_FunctionType_Movement &&
         candidate.useDesiredMovement) {
@@ -284,11 +255,12 @@ bool Player::PublishMovementIntentFromQueue(const PlayerCommandQueue &queue, foo
 // `Play(ControlAction::None)` is rejected on purpose: continuous movement
 // intent belongs to SetControl/PlayerMotion, and selecting a Movement clip
 // through Play would not change the authoritative locomotion intent.
-RequestOutcome Player::Play(const PlayerActionRequest& request) {
+RequestOutcome PlayerExecution::Play(PlayerExecutionPort& owner, const PlayerActionRequest& request) {
+  PortScope scope(*this, owner);
   if (request.action == ControlAction::None) {
-    action_request_outcome_ = RequestOutcome::Rejected;
-    ++action_request_attempts_;
-    ++action_request_rejects_;
+    state_.action_request_outcome_ = RequestOutcome::Rejected;
+    ++state_.action_request_attempts_;
+    ++state_.action_request_rejects_;
     return RequestOutcome::Rejected;
   }
   // Reject contract violations synchronously. Conditions that need the live
@@ -300,22 +272,22 @@ RequestOutcome Player::Play(const PlayerActionRequest& request) {
       (request.action == ControlAction::Shoot &&
        !request.has_target_position &&
        request.direction.GetLength() <= 0.000001f)) {
-    action_request_outcome_ = RequestOutcome::Rejected;
-    ++action_request_attempts_;
-    ++action_request_rejects_;
+    state_.action_request_outcome_ = RequestOutcome::Rejected;
+    ++state_.action_request_attempts_;
+    ++state_.action_request_rejects_;
     return RequestOutcome::Rejected;
   }
   const RequestOutcome outcome =
-      ArbitrateActionRequest(actionState, request.action);
-  action_request_outcome_ = outcome;
-  ++action_request_attempts_;
+      ArbitrateActionRequest(state_.actionState, request.action);
+  state_.action_request_outcome_ = outcome;
+  ++state_.action_request_attempts_;
   if (outcome == RequestOutcome::Accepted) {
-    ++action_request_accepts_;
-    pending_action_request_ = request;
+    ++state_.action_request_accepts_;
+    state_.pending_action_request_ = request;
   } else if (outcome == RequestOutcome::Deferred) {
-    ++action_request_defers_;
+    ++state_.action_request_defers_;
   } else {
-    ++action_request_rejects_;
+    ++state_.action_request_rejects_;
   }
   return outcome;
 }
@@ -325,53 +297,54 @@ RequestOutcome Player::Play(const PlayerActionRequest& request) {
 // first accepted trip, and a non-trip reaction never replaces a staged trip
 // (the first valid trip wins). The physical collision fact is already applied
 // by the contact phase; only the animation reaction is staged here.
-RequestOutcome Player::React(const PlayerReaction& reaction,
-                             const Player* ball_retainer) {
-  const RequestOutcome outcome = ArbitrateReaction(actionState, reaction.kind);
-  reaction_outcome_ = outcome;
+RequestOutcome PlayerExecution::React(PlayerExecutionPort& owner, const PlayerReaction& reaction,
+                      const Player* ball_retainer) {
+  PortScope scope(*this, owner);
+  const RequestOutcome outcome = ArbitrateReaction(state_.actionState, reaction.kind);
+  state_.reaction_outcome_ = outcome;
   if (outcome == RequestOutcome::Rejected) return outcome;
   if (reaction.kind == ReactionKind::Trip) {
-    if (!this->StagePassiveTrip(reaction, ball_retainer)) {
+    if (!StagePassiveTrip(reaction, ball_retainer)) {
       // Already staged or refused by the guard: keep the existing reaction.
-      reaction_outcome_ = RequestOutcome::Deferred;
+      state_.reaction_outcome_ = RequestOutcome::Deferred;
       return RequestOutcome::Deferred;
     }
-    pending_reaction_ = reaction;
+    state_.pending_reaction_ = reaction;
   }
   // Non-trip reactions have no animation execution yet, so they never touch the
   // pending executable slot; they are recorded through the outcome only.
   return outcome;
 }
 
-std::optional<PlayerReaction> Player::ConsumePendingReaction() {
-  std::optional<PlayerReaction> reaction = pending_reaction_;
-  pending_reaction_.reset();
+std::optional<PlayerReaction> PlayerExecution::ConsumePendingReaction() {
+  std::optional<PlayerReaction> reaction = state_.pending_reaction_;
+  state_.pending_reaction_.reset();
   return reaction;
 }
 
-std::optional<PlayerActionRequest> Player::ConsumePendingActionRequest() {
-  std::optional<PlayerActionRequest> request = pending_action_request_;
-  pending_action_request_.reset();
+std::optional<PlayerActionRequest> PlayerExecution::ConsumePendingActionRequest() {
+  std::optional<PlayerActionRequest> request = state_.pending_action_request_;
+  state_.pending_action_request_.reset();
   return request;
 }
 
-CommandBuildResult Player::RequestCommand(const PlayerCommandInputs& inputs) {
-  if (control_) return BuildPlayerCommands(*control_, *this, inputs);
+CommandBuildResult PlayerExecution::RequestCommand(const PlayerCommandInputs& inputs) {
+  if (state_.control_) return BuildPlayerCommands(*state_.control_, *self(), inputs);
   // No implicit policy in sim: absent control is an idle movement intent.
   PlayerControl idle;
-  idle.player = GetID();
-  idle.move_direction = GetDirectionVec();
-  return BuildPlayerCommands(idle, *this, inputs);
+  idle.player = port().GetID();
+  idle.move_direction = port().GetDirectionVec();
+  return BuildPlayerCommands(idle, *self(), inputs);
 }
 
 // ANIM-2 A11.5: an accepted active request enters the same pipeline as the
 // controller. The request is in the actor's runtime frame, so convert into the
 // home value domain and reuse BuildPlayerCommands, the one translation boundary.
-CommandBuildResult Player::BuildCommandQueueForRequest(
+CommandBuildResult PlayerExecution::BuildCommandQueueForRequest(
     const PlayerActionRequest& request,
     const football::sim::PlayerTickContext& tick) {
   PlayerControl control;
-  control.player = GetID();
+  control.player = port().GetID();
   // The request is already in the single Stadium Frame.
   control.move_direction = request.direction.Get2D();
   control.desired_speed = std::max(0.0f, request.speed);
@@ -384,5 +357,5 @@ CommandBuildResult Player::BuildCommandQueueForRequest(
   const PlayerCommandInputs inputs{
       tick.ball, tick.ball_retainer, tick.pitch, tick.own_team,
       tick.authorization};
-  return BuildPlayerCommands(control, *this, inputs);
+  return BuildPlayerCommands(control, *self(), inputs);
 }
