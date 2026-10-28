@@ -4,8 +4,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "player/player_action_mapping.hpp"
-#include "player/player_action_request.hpp"
+#include "player/command/player_action_mapping.hpp"
+#include "player/command/player_action_request.hpp"
 
 using football::sim::player::ControlActionFunctionType;
 using football::sim::player::ControlActionRequiresAim;

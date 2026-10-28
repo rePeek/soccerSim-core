@@ -3,7 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "football/foundation/time/tick.hpp"
-#include "player/player_action_request.hpp"
+#include "player/command/player_action_request.hpp"
 
 using football::sim::TickSpan;
 

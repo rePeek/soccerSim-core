@@ -4,7 +4,7 @@
 
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
-#include "player/roster_query.hpp"
+#include "player/state/roster_query.hpp"
 #include "runtime/team_facts.hpp"
 
 using football::ball::Ball;

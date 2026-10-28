@@ -1,7 +1,7 @@
 #include <algorithm>
 #include "runtime/simulation.hpp"
 #include "player/player.hpp"
-#include "player/player_active_touch_shadow.hpp"
+#include "player/contact/player_active_touch_shadow.hpp"
 
 class Simulation::ActiveTouchEvents final : public ActiveTouchShadowSink {
  public:

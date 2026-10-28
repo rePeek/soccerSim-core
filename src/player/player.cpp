@@ -25,17 +25,17 @@
 
 #include "football/ball/ball.hpp"
 #include "football/ball/ball_timing.hpp"
-#include "player/player_motion_constants.hpp"
-#include "player/reachability.hpp"
-#include "player/roster_query.hpp"
-#include "player/player_action_executor.hpp"
-#include "player/player_locomotion.hpp"
-#include "player/player_motion.hpp"
-#include "player/player_body_facing.hpp"
-#include "player/locomotion_intent_scheduler.hpp"
-#include "player/legacy_locomotion_command.hpp"
-#include "player/player_control_builder.hpp"
-#include "player/player_send_off_sink.hpp"
+#include "player/command/player_motion_constants.hpp"
+#include "player/command/reachability.hpp"
+#include "player/state/roster_query.hpp"
+#include "player/command/player_action_executor.hpp"
+#include "player/command/player_locomotion.hpp"
+#include "player/command/player_motion.hpp"
+#include "player/command/player_body_facing.hpp"
+#include "player/command/locomotion_intent_scheduler.hpp"
+#include "player/command/legacy_locomotion_command.hpp"
+#include "player/command/player_control_builder.hpp"
+#include "player/contact/player_send_off_sink.hpp"
 
 using football::ball::Ball;
 

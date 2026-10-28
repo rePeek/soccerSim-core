@@ -21,10 +21,10 @@
 #include "football/foundation/math/vector3.hpp"
 using namespace football::math;  // player_body_facing.hpp expects the legacy global namespace
 #include "football/foundation/time/tick_boundary.hpp"
-#include "player/player_body_facing.hpp"
-#include "player/player_kinematics.hpp"
-#include "player/player_motion.hpp"
-#include "player/player_motion_profile.hpp"
+#include "player/command/player_body_facing.hpp"
+#include "player/state/player_kinematics.hpp"
+#include "player/command/player_motion.hpp"
+#include "player/command/player_motion_profile.hpp"
 
 using football::math::Vector3;
 

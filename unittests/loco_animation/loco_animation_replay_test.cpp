@@ -17,11 +17,11 @@
 #include "football/animation/library.hpp"
 #include "football/animation/transition.hpp"
 using namespace football::animation;
-#include "player/player_baked_body_pose.hpp"
-#include "player/player_body_profile.hpp"
-#include "player/player_kinematics.hpp"
-#include "player/player_locomotion_animation.hpp"
-#include "player/locomotion_animation_strategy.hpp"
+#include "player/contact/player_baked_body_pose.hpp"
+#include "player/state/player_body_profile.hpp"
+#include "player/state/player_kinematics.hpp"
+#include "player/execution/player_locomotion_animation.hpp"
+#include "player/execution/locomotion_animation_strategy.hpp"
 
 using football::math::Vector3;
 using football::player::MakePlayerBodyProfile;

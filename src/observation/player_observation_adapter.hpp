@@ -9,7 +9,7 @@
 #include <span>
 #include <vector>
 
-#include "player/player_observation.hpp"
+#include "player/state/player_observation.hpp"
 
 class MentalImage;
 

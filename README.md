@@ -88,7 +88,7 @@ src/                (runtime implementation; public values live in include/footb
 ├── animation/    baked clip schema/library/selector, playback, touch, pose
 ├── pitch/        Pitch description and static physics scene
 ├── ball/         Ball physics: impulse/response, integration, prediction
-├── player/       Player state, locomotion, contacts, baked body/pose
+├── player/       Player: command/ execution/ contact/ state/ + root tick
 ├── team/         Static Team entity, lineup/orders/presets, Player ownership
 ├── runtime/      Simulation, clocks/phases/result, TeamOrientation/TeamView,
 │                 possession, restart context/controller/planner/placement,

@@ -1,6 +1,6 @@
 #include "runtime/simulation.hpp"
 #include "player/player.hpp"
-#include "player/player_body_pose_shadow.hpp"
+#include "player/contact/player_body_pose_shadow.hpp"
 #include "referee/referee.hpp"
 #include "runtime/touch_evidence_classification.hpp"
 #include <algorithm>

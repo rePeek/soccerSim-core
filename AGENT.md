@@ -183,7 +183,7 @@ src/                 implementations; public headers live in include/football/
 ├── animation/       football::animation_base (baker-shared) + football::animation
 ├── pitch/           football::pitch (pitch.cpp)
 ├── ball/            football::ball
-├── player/          football::player (Player + motion/contact/animation)
+├── player/          football::player: Player + command/ execution/ contact/ state/
 ├── team/            football::team (validation, presets, team_players.cpp)
 ├── runtime/         football::sim_contracts + football_sim_domain:
 │                      Simulation (clock/phase/score, ball, Teams, referee,

@@ -3,7 +3,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "player/player_selection_decisions.hpp"
+#include "player/execution/player_selection_decisions.hpp"
 
 using football::sim::AttemptActionSelectionAllowed;
 using football::sim::CommitActionSelectionAllowed;

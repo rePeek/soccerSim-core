@@ -12,11 +12,11 @@
 
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
-#include "player/player_ball_contact.hpp"
+#include "player/contact/player_ball_contact.hpp"
 #include "event/touch_query.hpp"
 #include "observation/mentalimage_sampling.hpp"
 #include "observation/world_state_builder.hpp"
-#include "player/player_contact.hpp"
+#include "player/contact/player_contact.hpp"
 #include "runtime/team_possession.hpp"
 #include "referee/goal.hpp"
 #include "referee/period.hpp"

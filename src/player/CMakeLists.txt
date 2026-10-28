@@ -2,28 +2,34 @@
 # selection, motion and the per-tick behaviour. The public Player value
 # contracts live in include/football/player/.
 #
+# Internal responsibility layout, still one football_player target:
+#   command/   Command intake, motion and discrete-action arbitration
+#   execution/ Player<->Animation matching, install and playback
+#   contact/   body contact, ball touch and collision feedback
+#   state/     authoritative motion/action state and read-only contracts
+#
 # Dependency direction: foundation/geometry/pitch + ball/animation -> player.
 # Player must never link Runtime/Referee/AI/Event/Observation implementation.
 add_library(football_player STATIC
-  kick_targeting.cpp
-  player_action_motion.cpp
-  player_action_selection.cpp
-  player_anim_selection.cpp
-  player_ball_contact.cpp
-  player_contact.cpp
-  player_control_builder.cpp
+  command/kick_targeting.cpp
+  command/player_action_motion.cpp
+  command/player_control_builder.cpp
+  command/player_locomotion.cpp
+  command/player_motion.cpp
+  command/reachability.cpp
+  execution/player_action_selection.cpp
+  execution/player_anim_selection.cpp
+  contact/player_ball_contact.cpp
+  contact/player_contact.cpp
+  contact/player_touch_execution.cpp
+  contact/player_touch_math.cpp
+  contact/player_touch_query.cpp
+  state/player_diagnostics.cpp
+  state/player_team_view.cpp
+  state/role_parser.cpp
+  state/roster_query.cpp
   player.cpp
-  player_diagnostics.cpp
-  player_locomotion.cpp
-  player_motion.cpp
-  player_team_view.cpp
-  player_tick.cpp
-  player_touch_execution.cpp
-  player_touch_math.cpp
-  player_touch_query.cpp
-  reachability.cpp
-  role_parser.cpp
-  roster_query.cpp)
+  player_tick.cpp)
 add_library(football::player ALIAS football_player)
 target_sources(football_player PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include

@@ -5,7 +5,7 @@
 #define FOOTBALL_SIM_RUNTIME_PLAYER_AUTHORIZATION_PORT_HPP
 
 #include "event/touch_state.hpp"
-#include "player/player_authorization.hpp"
+#include "player/command/player_authorization.hpp"
 #include "runtime/restart_context.hpp"
 
 namespace football::sim {
