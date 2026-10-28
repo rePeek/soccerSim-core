@@ -14,7 +14,7 @@
 //     it across simulations; promotion to a Simulation-scoped census is the
 //     remaining step and is deliberately not bundled with P19.
 //   - per-Player state: the Player's own counters and the private
-//     anim_state_/spatial_state_ compatibility projection. Those have no writer
+//     legacy_anim_state_/legacy_spatial_state_ compatibility projection. Those have no writer
 //     outside the Player, so they are already single-owner.
 //   - per-Simulation diagnostics: the Simulation-owned shadow reports
 //     (body/active-touch/snapshot) live in Simulation, not here.

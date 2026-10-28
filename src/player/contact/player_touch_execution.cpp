@@ -72,14 +72,14 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
          PlayerBodyPart::LowerBody : PlayerBodyPart::UpperBody);
     observation.candidate.scheduled_tick = now + football::sim::TickSpan{1};
     observation.legacy_rule_tick = now;
-    observation.animation_id = anim_state_.animationId;
+    observation.animation_id = legacy_anim_state_.animationId;
     observation.contact_frame = state.ContactFrame();
     observation.elapsed = state.Frame();
     observation.origin = origin;
     observation.stage = ActiveTouchStage::NoImpulse;
     observation.before = tick.ball.state();
-    observation.raw_animation_point = anim_state_.touchPos + anim_state_.positionOffset;
-    observation.player_position = spatial_state_.position;
+    observation.raw_animation_point = legacy_anim_state_.touchPos + legacy_anim_state_.positionOffset;
+    observation.player_position = legacy_spatial_state_.position;
     active_observation = observation;
   };
   const auto flush_active_observation = [&] {
@@ -134,10 +134,10 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
         tick.touch_preparation->PrepareTouch({
             {now, this->GetID(), this->GetTeamSide(), type, tick.ball.state().position,
              *prepared_velocity, static_cast<int>(this->GetSimulationActionState().type)},
-            body_part, prepared_anchor.value_or(anim_state_.touchPos + anim_state_.positionOffset),
+            body_part, prepared_anchor.value_or(legacy_anim_state_.touchPos + legacy_anim_state_.positionOffset),
             *prepared_velocity, prepared_anchor.has_value(),
             strike_point, strike_radius, strike_foot,
-            anim_state_.animationId,
+            legacy_anim_state_.animationId,
             this->GetSimulationActionState().ContactFrame(),
             this->GetSimulationActionState().Frame()});
       }
@@ -153,8 +153,8 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
     apply_touch(touchVec);
     return true;
   };
-  float ballDistanceNow = (tick.ball.state().position.Get2D() - spatial_state_.position).GetLength();
-  float ballDistanceFuture = (tick.ball.Predict(football::sim::TickSpan{20}).position.Get2D() - (spatial_state_.position + spatial_state_.movement * 0.2f)).GetLength();
+  float ballDistanceNow = (tick.ball.state().position.Get2D() - legacy_spatial_state_.position).GetLength();
+  float ballDistanceFuture = (tick.ball.Predict(football::sim::TickSpan{20}).position.Get2D() - (legacy_spatial_state_.position + legacy_spatial_state_.movement * 0.2f)).GetLength();
   float lastTouchBias = this->GetLastTouchBias(1500, now);
   float oppLastTouchBias = football::sim::player::TeamTouchBias(tick.touches,
       tick.opponent_team.team_id, tick.opponent_team.teammates, 240, now);
@@ -175,7 +175,7 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
       tick.ball.state().position.coords[2] < 1.6f) {
 
     this->TriggerControlledBallCollision();
-    //SetGreenDebugPilon(spatial_state_.position);
+    //SetGreenDebugPilon(legacy_spatial_state_.position);
   }
 
   // ------------------------ EXPERIMENTAL ------------------------------------------------
@@ -188,12 +188,12 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
     begin_active_observation(ActiveTouchOrigin::Controlled);
     if (active_observation) active_observation->candidate.reachable = true;
     Vector3 currentBallVec = tick.ball.state().velocity;
-    radian nextBodyAngle = startAngle + GetCurrentBakedClip().metadata.outgoing_angle + GetCurrentBakedClip().metadata.outgoing_body_angle + anim_state_.rotationSmuggle.end;
+    radian nextBodyAngle = startAngle + GetCurrentBakedClip().metadata.outgoing_angle + GetCurrentBakedClip().metadata.outgoing_body_angle + legacy_anim_state_.rotationSmuggle.end;
 
     radian xRot = 0;
     radian yRot = 0;
-    Vector3 touchVec = GetTrapVector(&tick.ball, this, tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(anim_state_.positions), anim_state_, anim_state_.frameNum, spatial_state_, decayingPositionOffset, xRot, yRot);
-    if (anim_state_.originatingCommand.modifier &
+    Vector3 touchVec = GetTrapVector(&tick.ball, this, tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(legacy_anim_state_.positions), legacy_anim_state_, legacy_anim_state_.frameNum, legacy_spatial_state_, decayingPositionOffset, xRot, yRot);
+    if (legacy_anim_state_.originatingCommand.modifier &
         e_PlayerCommandModifier_KnockOn) {
       touchVec *= 1.35f;//1.2f;
     }
@@ -229,9 +229,9 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
     if (contact_audit) ++contact_audit->at_contact_frame;
     if (contact_audit) {
       contact_audit->observed_elapsed_ms.push_back(static_cast<int>(football::sim::ToMilliseconds(action.elapsed)));
-      if (anim_state_.positionOffset.GetLength() > 0.0f)
+      if (legacy_anim_state_.positionOffset.GetLength() > 0.0f)
         ++contact_audit->contact_position_offset_nonzero;
-      if (!anim_state_.positions.empty())
+      if (!legacy_anim_state_.positions.empty())
         ++contact_audit->animation_positions_present;
     }
 
@@ -245,7 +245,7 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
 
     float touchableDistance = 0.4f;
 
-    float fullBallDistance = (tick.ball.state().position - (anim_state_.touchPos + anim_state_.positionOffset)).GetLength();
+    float fullBallDistance = (tick.ball.state().position - (legacy_anim_state_.touchPos + legacy_anim_state_.positionOffset)).GetLength();
 
     if (!GetCurrentBakedClip().metadata.incoming_retain_state.empty()) {
       fullBallDistance = 0.0f;
@@ -299,23 +299,23 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
         std::fabs(desiredBallHeight - tick.ball.state().position.coords[2]) <
             1.0f) {
 
-      radian nextBodyAngle = startAngle + GetCurrentBakedClip().metadata.outgoing_angle + GetCurrentBakedClip().metadata.outgoing_body_angle + anim_state_.rotationSmuggle.end;
+      radian nextBodyAngle = startAngle + GetCurrentBakedClip().metadata.outgoing_angle + GetCurrentBakedClip().metadata.outgoing_body_angle + legacy_anim_state_.rotationSmuggle.end;
 
-      if (anim_state_.functionType == e_FunctionType_Trap ||
-          (anim_state_.functionType == e_FunctionType_BallControl &&
+      if (legacy_anim_state_.functionType == e_FunctionType_Trap ||
+          (legacy_anim_state_.functionType == e_FunctionType_BallControl &&
            this->HasPossession() == false)) {
         //printf("trap!\n");
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetTrapVector(&tick.ball, this, tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(anim_state_.positions), anim_state_, anim_state_.frameNum, spatial_state_, decayingPositionOffset, xRot, yRot);
-        if (anim_state_.originatingCommand.modifier &
+        Vector3 touchVec = GetTrapVector(&tick.ball, this, tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(legacy_anim_state_.positions), legacy_anim_state_, legacy_anim_state_.frameNum, legacy_spatial_state_, decayingPositionOffset, xRot, yRot);
+        if (legacy_anim_state_.originatingCommand.modifier &
             e_PlayerCommandModifier_KnockOn) {
           touchVec *= 1.35f;
         }
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        const bool physical = physical_touch(anim_state_.functionType, touchVec);
+        const bool physical = physical_touch(legacy_anim_state_.functionType, touchVec);
         if (!physical) {
           apply_touch(touchVec);
           set_rotation(xRot, yRot, 0, 0.5f * (1.0f - bumpyRideBias));
@@ -325,11 +325,11 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
-      else if (anim_state_.functionType == e_FunctionType_BallControl) {
+      else if (legacy_anim_state_.functionType == e_FunctionType_BallControl) {
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetBallControlVector(&tick.ball, this, tick.opponent_team, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(anim_state_.positions), anim_state_, anim_state_.frameNum, spatial_state_, decayingPositionOffset, xRot, yRot);
-        if (anim_state_.originatingCommand.modifier &
+        Vector3 touchVec = GetBallControlVector(&tick.ball, this, tick.opponent_team, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(legacy_anim_state_.positions), legacy_anim_state_, legacy_anim_state_.frameNum, legacy_spatial_state_, decayingPositionOffset, xRot, yRot);
+        if (legacy_anim_state_.originatingCommand.modifier &
             e_PlayerCommandModifier_KnockOn) {
           touchVec *= 1.35f;
         }
@@ -343,25 +343,25 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
-      else if (anim_state_.functionType == e_FunctionType_ShortPass ||
-               anim_state_.functionType == e_FunctionType_LongPass ||
-               anim_state_.functionType == e_FunctionType_HighPass) {
+      else if (legacy_anim_state_.functionType == e_FunctionType_ShortPass ||
+               legacy_anim_state_.functionType == e_FunctionType_LongPass ||
+               legacy_anim_state_.functionType == e_FunctionType_HighPass) {
 
-        Vector3 ballDirection = anim_state_.originatingCommand.touchInfo.desiredDirection;
-        float ballPower = anim_state_.originatingCommand.touchInfo.desiredPower;
-        Player *targetPlayer = anim_state_.originatingCommand.touchInfo.targetPlayer;
+        Vector3 ballDirection = legacy_anim_state_.originatingCommand.touchInfo.desiredDirection;
+        float ballPower = legacy_anim_state_.originatingCommand.touchInfo.desiredPower;
+        Player *targetPlayer = legacy_anim_state_.originatingCommand.touchInfo.targetPlayer;
 
         // Refine the lead of the explicit target. Never select a receiver here.
         Vector3 tmpBallDirection = ballDirection;
         float tmpBallPower = ballPower;
         Player *tmpTargetPlayer = 0;
         const Vector3 *forcedTargetPosition =
-            anim_state_.originatingCommand.touchInfo.useForcedTargetPosition
-                ? &anim_state_.originatingCommand.touchInfo.forcedTargetPosition
+            legacy_anim_state_.originatingCommand.touchInfo.useForcedTargetPosition
+                ? &legacy_anim_state_.originatingCommand.touchInfo.forcedTargetPosition
                 : nullptr;
         const bool refined = football::sim::mechanics::GetPass(
-            this, anim_state_.originatingCommand.desiredFunctionType,
-            anim_state_.originatingCommand.touchInfo.forcedTargetPlayer,
+            this, legacy_anim_state_.originatingCommand.desiredFunctionType,
+            legacy_anim_state_.originatingCommand.touchInfo.forcedTargetPlayer,
             forcedTargetPosition, tmpBallDirection, tmpBallPower,
             tmpTargetPlayer);
         if (refined) {
@@ -405,15 +405,15 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
           if (contact_audit) ++contact_audit->pass_fiddling;
           //SetGreenDebugPilon(tick.ball.state().position.Get2D() + touchVec.Get2D() * 0.4f);
 
-          touchVec = GetBestPossibleTouch(now, tick, touchVec, anim_state_.functionType);
+          touchVec = GetBestPossibleTouch(now, tick, touchVec, legacy_anim_state_.functionType);
 
           // add a little curve for aesthetics & realism
-          radian bodyTouchAngle = spatial_state_.bodyDirectionVec.GetAngle2D(touchVec) / pi;
+          radian bodyTouchAngle = legacy_spatial_state_.bodyDirectionVec.GetAngle2D(touchVec) / pi;
           if (std::fabs(bodyTouchAngle) > 0.5f) bodyTouchAngle = (1.0f - std::fabs(bodyTouchAngle)) * signSide(bodyTouchAngle);
           bodyTouchAngle *= 2.0f;
           //printf("bodyTouchAngle: %f\n", bodyTouchAngle);
           radian amount = bodyTouchAngle * 0.25f;
-          if (anim_state_.functionType == e_FunctionType_HighPass) amount *= 0.2f;
+          if (legacy_anim_state_.functionType == e_FunctionType_HighPass) amount *= 0.2f;
           touchVec.Rotate2D(amount * (0.4f + 0.6f * NormalizedClamp(touchVec.GetLength(), 0.0f, 70.0f)));
           zcurve = amount * -340;//-600;
 
@@ -422,11 +422,11 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        const bool physical = physical_touch(anim_state_.functionType, touchVec);
+        const bool physical = physical_touch(legacy_anim_state_.functionType, touchVec);
         if (!physical) apply_touch(touchVec);
         record_contact_impulse(touchVec);
         float forwardness = 3.5f;
-        if (anim_state_.functionType == e_FunctionType_HighPass) forwardness = -1.3f;
+        if (legacy_anim_state_.functionType == e_FunctionType_HighPass) forwardness = -1.3f;
         radian xRot = touchVec.GetNormalized(0).coords[1] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
         radian yRot = touchVec.GetNormalized(0).coords[0] * (clamp(touchVec.GetLength(), 0.0, 15.0) * forwardness);
         if (!physical) set_rotation(xRot, yRot, zcurve, 0.9f * (1.0f - bumpyRideBias));
@@ -434,18 +434,18 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
-      else if (anim_state_.functionType == e_FunctionType_Shot) {
+      else if (legacy_anim_state_.functionType == e_FunctionType_Shot) {
         // The explicit desiredDirection is the aim. Execution only solves the
         // touch vector from it; it never selects a shot target.
 
         radian xRot = 0;
         radian yRot = 0;
         radian zRot = 0;
-        Vector3 touchVec = GetShotVector(&tick.ball, this, GetCurrentBakedClip(), anim_state_, spatial_state_, decayingPositionOffset, xRot, yRot, zRot);
+        Vector3 touchVec = GetShotVector(&tick.ball, this, GetCurrentBakedClip(), legacy_anim_state_, legacy_spatial_state_, decayingPositionOffset, xRot, yRot, zRot);
 
         touchVec = touchVec * (1.0f - bumpyRideBias) + currentBallVec * bumpyRideBias;
 
-        const bool physical = physical_touch(anim_state_.functionType, touchVec);
+        const bool physical = physical_touch(legacy_anim_state_.functionType, touchVec);
         if (!physical) {
           apply_touch(touchVec);
           set_rotation(xRot, yRot, zRot, 0.7f * (1.0f - bumpyRideBias));
@@ -454,13 +454,13 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
         notify_touch(GetTouchTypeForBodyPart(GetCurrentBakedClip().metadata.touch_bodypart));
       }
 
-      else if (anim_state_.functionType == e_FunctionType_Interfere) {
+      else if (legacy_anim_state_.functionType == e_FunctionType_Interfere) {
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetTrapVector(&tick.ball, this, tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(anim_state_.positions), anim_state_, anim_state_.frameNum, spatial_state_, decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetTrapVector(&tick.ball, this, tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), nextStartPos, nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(legacy_anim_state_.positions), legacy_anim_state_, legacy_anim_state_.frameNum, legacy_spatial_state_, decayingPositionOffset, xRot, yRot);
         touchVec =
             touchVec * 0.5f +
-            (tick.ball.state().position.Get2D() - spatial_state_.position)
+            (tick.ball.state().position.Get2D() - legacy_spatial_state_.position)
                     .GetNormalized() *
                 4.0f +
             Vector3(0, 0, 0.5f + 0.5f * NormalizedClamp(tick.ball.state().velocity.GetLength(), 0.0f, 10.0f));  // was random 1 .. 6
@@ -473,12 +473,12 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
         notify_touch(e_TouchType_Accidental); // it's not truly accidental, but the resulting direction somewhat is, so goalies may fetch these balls
       }
 
-      else if (anim_state_.functionType == e_FunctionType_Deflect) {
+      else if (legacy_anim_state_.functionType == e_FunctionType_Deflect) {
         bool canRetain = true; // can we grab hold of the ball?
         if (GetCurrentBakedClip().metadata.outgoing_retain_state.compare("") == 0) canRetain = false; // not the right anim, hopeless!
         if (ball_retainer != 0) canRetain = false; // somebody is already holding the ball :( (dafuq, this should not happen, right?)
 
-        float veloDifficulty = NormalizedClamp((tick.ball.state().velocity - spatial_state_.movement).GetLength(), 0.0f, 40.0f);
+        float veloDifficulty = NormalizedClamp((tick.ball.state().velocity - legacy_spatial_state_.movement).GetLength(), 0.0f, 40.0f);
         float reactionDifficulty = 0.0f;
         Player *lastTouchPlayer = football::sim::player::LastTouchPlayer(tick.touches,
             tick.opponent_team.team_id, tick.opponent_team.teammates);
@@ -499,14 +499,14 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
           ball_retainer = this;
         } else {
           Vector3 currentBallMovement = tick.ball.state().velocity.Get2D();
-          Vector3 playerMovement = spatial_state_.movement;
+          Vector3 playerMovement = legacy_spatial_state_.movement;
           // Deterministic scatter side: the ball leaves to the side it already
           // sits on relative to the body, so the same contact repeats.
           const Vector3 toBall2D =
-              tick.ball.state().position.Get2D() - spatial_state_.position;
+              tick.ball.state().position.Get2D() - legacy_spatial_state_.position;
           const float scatterSide = signSide(toBall2D.GetDotProduct(
-              Vector3(-spatial_state_.directionVec.coords[1],
-                      spatial_state_.directionVec.coords[0], 0.0f)));
+              Vector3(-legacy_spatial_state_.directionVec.coords[1],
+                      legacy_spatial_state_.directionVec.coords[0], 0.0f)));
           Vector3 touchVec =
               (-currentBallMovement * 0.1f + playerMovement * 2.0f +
                Vector3(-this->GetDefendingDirection(), 0, 0) * 4.0f +
@@ -524,8 +524,8 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
         notify_touch(e_TouchType_Accidental);
       }
 
-      else if (anim_state_.functionType == e_FunctionType_Sliding) {
-        Vector3 touchVec = GetCurrentBakedClip().metadata.outgoing_ball_direction.GetRotated2D(spatial_state_.angle);
+      else if (legacy_anim_state_.functionType == e_FunctionType_Sliding) {
+        Vector3 touchVec = GetCurrentBakedClip().metadata.outgoing_ball_direction.GetRotated2D(legacy_spatial_state_.angle);
         touchVec = touchVec * 6.0f + tick.ball.state().velocity * -0.28f;
         touchVec += Vector3(0, 0, 6);
 
@@ -573,7 +573,7 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
       if (active_observation) active_observation->stage = ActiveTouchStage::Constraint;
       set_rotation(0, 0, 0, 1.0);
       const auto anchor_position = ComputeRetainAnchor(
-          spatial_state_.position, spatial_state_.bodyDirectionVec, anchor);
+          legacy_spatial_state_.position, legacy_spatial_state_.bodyDirectionVec, anchor);
       prepared_anchor = anchor_position;
       notify_touch(e_TouchType_Intentional_Nonkicked);
     } else {
@@ -625,14 +625,14 @@ Vector3 Player::GetBestPossibleTouch(football::sim::Tick now, const football::si
   float distanceFactor = 0.0f;
   float heightFactor = 0.0f;
   float ballMovementFactor = 0.0f;
-  GetDifficultyFactors(&tick.ball, this, tick.touches, tick.opponent_team, now, spatial_state_, decayingPositionOffset, distanceFactor, heightFactor, ballMovementFactor);
+  GetDifficultyFactors(&tick.ball, this, tick.touches, tick.opponent_team, now, legacy_spatial_state_, decayingPositionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // difficult balls may go into a less controlled orientation, or, if the anim
   // has a default outgoing direction, it may converge towards that (since it is
   // the easiest direction for that anim)
   radian randomRotation = 0.0f;
   randomRotation = distanceFactor * 0.15f + heightFactor * 0.15f + ballMovementFactor * 0.3f + difficultyFactor * 0.5f;
-  Vector3 animBallDirection = GetCurrentBakedClip().metadata.outgoing_ball_direction.GetRotated2D(startAngle + anim_state_.rotationSmuggleOffset);
+  Vector3 animBallDirection = GetCurrentBakedClip().metadata.outgoing_ball_direction.GetRotated2D(startAngle + legacy_anim_state_.rotationSmuggleOffset);
   if (animBallDirection.GetLength() > 0.01f) {
     float bias = clamp(randomRotation * 1.5f, 0.0f, 1.0f);
     Vector3 nativeTouch = animBallDirection.GetNormalized(resultTouch).Get2D() * resultTouch.GetLength() + resultTouch * Vector3(0, 0, 1);
@@ -641,9 +641,9 @@ Vector3 Player::GetBestPossibleTouch(football::sim::Tick now, const football::si
     // Deterministic deflection: the ball leaves to the side it already sits on
     // relative to the body, so the same contact geometry always repeats.
     const Vector3 toBall =
-        tick.ball.state().position.Get2D() - spatial_state_.position;
+        tick.ball.state().position.Get2D() - legacy_spatial_state_.position;
     const float lateralSign =
-        signSide(toBall.GetAngle2D(spatial_state_.directionVec));
+        signSide(toBall.GetAngle2D(legacy_spatial_state_.directionVec));
     radian rotation =
         std::min((real) randomRotation, 0.5f) * lateralSign;
     resultTouch.Rotate2D(rotation);

@@ -43,7 +43,7 @@ using std::placeholders::_2;
 CrudeSelectionQuery Player::BuildCrudeSelectionQuery(
     const PlayerCommand &command, const football::sim::PlayerTickContext &tick,
     football::sim::Tick now, const football::sim::player::PlayerObservation& observation) {
-  const SpatialState &spatialState = spatial_state_;
+  const SpatialState &spatialState = legacy_spatial_state_;
   CrudeSelectionQuery query;
   query.byFunctionType = true;
   query.functionType = command.desiredFunctionType;
@@ -157,7 +157,7 @@ bool Player::NeedTouch(football::sim::Tick now,
                        const football::sim::PlayerTickContext &tick, int animID,
                        const PlayerCommand &command,
                        const football::sim::player::PlayerObservation& observation) {
-  const SpatialState &spatialState = spatial_state_;
+  const SpatialState &spatialState = legacy_spatial_state_;
 
   // when idle (and desiredvelo is idle as well), don't want to touch the ball every frame
 
@@ -202,7 +202,7 @@ bool Player::CanCommitMatchedSelection(
   football::sim::CommitSelectionContext commit_gate;
   commit_gate.is_requeue = (local_interrupt_anim == e_InterruptAnim_ReQueue);
   commit_gate.has_selection = (selected_anim_id != -1);
-  commit_gate.current_positions_sufficient = anim_state_.positions.size() > 1;
+  commit_gate.current_positions_sufficient = legacy_anim_state_.positions.size() > 1;
   commit_gate.selected_positions_sufficient = touch_choice.positions.size() > 1;
   commit_gate.action_type = actionState.type;
   commit_gate.command_type = command.desiredFunctionType;
@@ -235,8 +235,8 @@ bool Player::TrySelectAction(football::sim::Tick now,
                              bool preferPassAndShot,
                              bool allowPreTouchRotationSmuggle,
                              bool useContinuousBallCheck) {
-  const SpatialState &spatialState = spatial_state_;
-  Anim &currentAnim = anim_state_;
+  const SpatialState &spatialState = legacy_spatial_state_;
+  Anim &currentAnim = legacy_anim_state_;
 
   // returns false on no applicable anim found
   assert(command.desiredDirection.coords[2] == 0.0f);
@@ -708,20 +708,20 @@ void Player::SelectRetainAnim() {
 
   startAngle = FixAngle((Vector3(0) - startPos).GetAngle2D());  // 0.5 * pi; (facing right)
 
-  anim_state_.positions.clear();
-  anim_state_.animationId = retain_clip;
-  anim_state_.frameNum = 0;
-  anim_state_.touchFrame = -1;
-  anim_state_.actionSmuggle = Vector3(0);
-  anim_state_.actionSmuggleOffset = Vector3(0);
-  anim_state_.actionSmuggleSustain = Vector3(0);
-  anim_state_.actionSmuggleSustainOffset = Vector3(0);
-  anim_state_.movementSmuggle = Vector3(0);
-  anim_state_.movementSmuggleOffset = Vector3(0);
-  anim_state_.rotationSmuggle.begin = 0;
-  anim_state_.rotationSmuggle.end = 0;
-  anim_state_.rotationSmuggleOffset = 0;
-  anim_state_.functionType = e_FunctionType_Movement;
+  legacy_anim_state_.positions.clear();
+  legacy_anim_state_.animationId = retain_clip;
+  legacy_anim_state_.frameNum = 0;
+  legacy_anim_state_.touchFrame = -1;
+  legacy_anim_state_.actionSmuggle = Vector3(0);
+  legacy_anim_state_.actionSmuggleOffset = Vector3(0);
+  legacy_anim_state_.actionSmuggleSustain = Vector3(0);
+  legacy_anim_state_.actionSmuggleSustainOffset = Vector3(0);
+  legacy_anim_state_.movementSmuggle = Vector3(0);
+  legacy_anim_state_.movementSmuggleOffset = Vector3(0);
+  legacy_anim_state_.rotationSmuggle.begin = 0;
+  legacy_anim_state_.rotationSmuggle.end = 0;
+  legacy_anim_state_.rotationSmuggleOffset = 0;
+  legacy_anim_state_.functionType = e_FunctionType_Movement;
   InstallSelectedAction(CurrentSelectedAction());
 }
 
@@ -814,8 +814,8 @@ void Player::BuildTripSelectionCommands(PlayerCommandQueue &queue,
 // compatibility projection that this writes.
 // ---------------------------------------------------------------------------
 void Player::ComputeAndCommitActionMotion() {
-  Anim &currentAnim = anim_state_;
-  SpatialState &spatialState = spatial_state_;
+  Anim &currentAnim = legacy_anim_state_;
+  SpatialState &spatialState = legacy_spatial_state_;
   const AnimationClip &clip = GetCurrentBakedClip();
 
   ActionMotionVectorInput motion_input;
@@ -889,7 +889,7 @@ Vector3 Player::ComputeMovementSmuggle(
     football::sim::Tick now, const football::sim::PlayerTickContext &tick,
     const Vector3 &desiredDirection, float desiredVelocityFloat,
     const football::sim::player::PlayerObservation& observation) {
-  Anim &currentAnim = anim_state_;
+  Anim &currentAnim = legacy_anim_state_;
 
   if (!kEnableMovementSmuggle) return Vector3(0);
 
@@ -978,7 +978,7 @@ Vector3 Player::ComputeMovementSmuggle(
 // HumanoidBase::CalculateFactualSpatialState.
 // ---------------------------------------------------------------------------
 void Player::ApplyFactualSpatialState() {
-  SpatialState &spatialState = spatial_state_;
+  SpatialState &spatialState = legacy_spatial_state_;
   const AnimationClip &clip = GetCurrentBakedClip();
 
   spatialState.foot = static_cast<e_Foot>(clip.metadata.outgoing_foot);

@@ -289,12 +289,12 @@ class Player final {
     // the producer contract, which stays fatal rather than being folded into the
     // gate predicate.
     void CheckDecisionLocomotionIntentOracle() const;
-    int GetFrameNum() const { return anim_state_.frameNum; }
+    int GetFrameNum() const { return legacy_anim_state_.frameNum; }
     int GetFrameCount() const { return static_cast<int>(GetCurrentBakedClip().frame_count); }
 
     // Gameplay-facing movement state. It is the single public reader: position,
     // velocity and orientation all come from `kinematicState`, the committed
-    // authoritative state. `spatial_state_` is the Player-owned animation /
+    // authoritative state. `legacy_spatial_state_` is the Player-owned animation /
     // compatibility projection that the not-yet-migrated action math still
     // produces; every mutation of it refreshes the projection at the mutation
     // point (CalculateSpatialState, ApplyFactualSpatialState, OffsetPosition,
@@ -311,11 +311,11 @@ class Player final {
     // Gameplay reads continuous relative orientation. The quantized
     // relBodyAngle remains animation-selection compatibility only.
     inline radian GetRelBodyAngle() const {
-      return spatial_state_.relBodyAngleNonquantized;
+      return legacy_spatial_state_.relBodyAngleNonquantized;
     }
-    inline e_Velocity GetEnumVelocity() const { return spatial_state_.enumVelocity; }
+    inline e_Velocity GetEnumVelocity() const { return legacy_spatial_state_.enumVelocity; }
     inline float GetFloatVelocity() const {
-      return EnumToFloatVelocity(spatial_state_.enumVelocity);
+      return EnumToFloatVelocity(legacy_spatial_state_.enumVelocity);
     }
     inline e_FunctionType GetCurrentFunctionType() const {
       return GetSimulationActionState().type;
@@ -521,7 +521,7 @@ class Player final {
 
     // P19.3: the single read-only clip identity for runtime consumers. The
     // legacy Anim storage is no longer exposed as a mutable pointer.
-    AnimationId GetCurrentAnimationId() const { return anim_state_.animationId; }
+    AnimationId GetCurrentAnimationId() const { return legacy_anim_state_.animationId; }
     PlayerBakedPoseSample GetBakedPoseSample() const {
       PlayerBakedPoseSample sample = SampleBakedPose(kinematicState, body_profile_);
       // ANIM-1 A5: the Player owns the final pose; SampleBakedPose supplies the
@@ -714,6 +714,37 @@ class Player final {
     // these resolve through the stable AnimationId into the read-only library.
     const AnimationClip &GetBakedClip(AnimationId id) const;
     const AnimationClip &GetCurrentBakedClip() const;
+    // Stack-local frame for one RunActionTick. It is not persistent state: it
+    // carries the values the orchestration phases already used as locals, so
+    // each phase can be a named member without widening the Player state.
+    struct ActionTickFrame {
+      football::sim::Tick now{};
+      const football::sim::PlayerTickContext* tick = nullptr;
+      const football::sim::player::PlayerObservation* observation = nullptr;
+      football::sim::player::PlayerTouchSink* touch_sink = nullptr;
+      football::sim::PlayerRuntimeSink* runtime_sink = nullptr;
+      Player* ball_retainer = nullptr;
+      const PlayerActionState* action = nullptr;
+      PlayerKinematicState tick_start_state;
+      std::chrono::milliseconds mental_image_age{};
+      PlayerCommandQueue request_command_queue;
+      bool has_request_input = false;
+      bool reaction_executed = false;
+      bool movement_published_this_tick = false;
+      bool decision_queue_selection_movement = false;
+      bool continuity_repair_due = false;
+      bool legacy_opportunity = false;
+      bool simulation_due = false;
+      bool legacy_only = false;
+    };
+    void ConsumeActionInputs(ActionTickFrame& frame);
+    void BeginActionTick(ActionTickFrame& frame);
+    void RefreshDecisionQueue(ActionTickFrame& frame);
+    void AdvanceActionAndMovement(ActionTickFrame& frame);
+    void EvaluateActionRequeue(ActionTickFrame& frame);
+    void SelectActionForFrame(ActionTickFrame& frame);
+    void PublishCadenceLocomotion(ActionTickFrame& frame);
+    void ApplyPostActionTick(ActionTickFrame& frame);
     // ANIM-1 A9.7: the per-tick action orchestration (former Humanoid::Process).
     void RunActionTick(football::sim::Tick now,
                        const football::sim::PlayerTickContext& tick,
@@ -816,9 +847,17 @@ class Player final {
     FormationEntry formationEntry_;
     PlayerTeamFacts team_facts_;
 
+    // Authority map:
+    //   kinematicState       position / velocity / body-facing authority
+    //   actionState          action-clock authority
+    //   installed_action_    the selected clip/entry/touch contract
+    //   playback_state_      final pose sampling/blending
+    //   legacy_anim_state_ / legacy_spatial_state_ are compatibility
+    //       projections for the not-yet-migrated animation path. They are
+    //       never a second movement or action-clock authority.
     // ANIM-1 A9: the animation/spatial compatibility storage, Player-owned.
-    Anim anim_state_;
-    SpatialState spatial_state_;
+    Anim legacy_anim_state_;
+    SpatialState legacy_spatial_state_;
     // ANIM-1 A9.5-A9.8: runtime bookkeeping and selection predicates relocated
     // from HumanoidBase. Same values, same evaluation order; the Player is the
     // only owner now.

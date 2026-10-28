@@ -141,6 +141,10 @@ observation, controls and stored physics are all the Stadium Frame.
   `Tackle` to `Interfere`, `SlideTackle` to `Sliding`; `Pull` is a defined but
   Unsupported Command. `Player::ActionFeedback()` reports the source Command,
   installed `e_FunctionType`, contact and completion.
+- Player::RunActionTick is an orchestrator: its named phase methods preserve
+  the original order. `kinematicState` and `actionState` are the movement and
+  action-clock authorities; `legacy_anim_state_` and `legacy_spatial_state_`
+  are compatibility projections, never a second authority.
 
 ## Physics and numerical conventions
 

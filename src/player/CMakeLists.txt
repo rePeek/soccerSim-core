@@ -11,12 +11,14 @@
 # Dependency direction: foundation/geometry/pitch + ball/animation -> player.
 # Player must never link Runtime/Referee/AI/Event/Observation implementation.
 add_library(football_player STATIC
+  command/player_command_execution.cpp
   command/kick_targeting.cpp
   command/player_action_motion.cpp
   command/player_control_builder.cpp
   command/player_locomotion.cpp
   command/player_motion.cpp
   command/reachability.cpp
+  execution/player_animation_execution.cpp
   execution/player_action_selection.cpp
   execution/player_anim_selection.cpp
   contact/player_ball_contact.cpp

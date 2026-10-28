@@ -75,7 +75,7 @@ int Player::SelectBestTouchAnim(
   // The Player only supplies the tick facts through the context and the query
   // port; it never runs a candidate loop of its own.
   const Vector3 incomingMovement =
-      spatial_state_.movement.GetRotated2D(-spatial_state_.angle);
+      legacy_spatial_state_.movement.GetRotated2D(-legacy_spatial_state_.angle);
   const Vector3 desiredMovement = desiredDirection * desiredVelocityFloat;
 
   FunctionQueries queries;
@@ -106,8 +106,8 @@ int Player::SelectBestTouchAnim(
 
   football::animation::TouchMatchContext context;
   context.candidates = sortedDataSet;
-  context.spatial_angle = spatial_state_.angle;
-  context.spatial_position = spatial_state_.position;
+  context.spatial_angle = legacy_spatial_state_.angle;
+  context.spatial_position = legacy_spatial_state_.position;
   context.incoming_movement = incomingMovement;
   context.desired_movement = desiredMovement;
   context.use_desired_movement = useDesiredMovement;
