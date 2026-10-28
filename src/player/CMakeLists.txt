@@ -1,39 +1,116 @@
-# Independent football::player module: actor state, locomotion, contact,
-# selection, motion and the per-tick behaviour. The public Player value
-# contracts live in include/football/player/.
+# Football Player is four compiled STATIC libraries with one-way dependencies:
 #
-# Internal responsibility layout, still one football_player target:
-#   command/   Command intake, motion and discrete-action arbitration
-#   execution/ Player<->Animation matching, install and playback
-#   contact/   body contact, ball touch and collision feedback
-#   state/     authoritative motion/action state and read-only contracts
+#   execution -> command -> state
+#   execution -> contact -> state
+#   execution -> state
 #
-# Dependency direction: foundation/geometry/pitch + ball/animation -> player.
-# Player must never link Runtime/Referee/AI/Event/Observation implementation.
-add_library(football_player STATIC
-  command/player_command_execution.cpp
-  command/kick_targeting.cpp
-  command/player_action_motion.cpp
-  command/player_control_builder.cpp
-  command/player_locomotion.cpp
+# Only execution owns the concrete Player actor. command/contact contain pure
+# value-level computation; every Player-member definition and every adapter that
+# needs a live Player lives in execution.
+#
+# The public include/football/player contract is carried by the execution
+# target; the internal src/ root is exposed only because the four libraries
+# share the same internal header paths during this migration.
+
+# Configure-time library-boundary guards. A lower layer may include state and
+# its own directory, never a sibling implementation directory or an upper layer.
+function(football_player_check_boundary target_root forbidden_regex)
+  file(GLOB_RECURSE _files
+    ${target_root}/*.hpp
+    ${target_root}/*.cpp)
+  foreach(_file ${_files})
+    file(READ "${_file}" _content)
+    if(_content MATCHES "${forbidden_regex}")
+      message(FATAL_ERROR
+        "Player library boundary violation in ${_file}: matches ${forbidden_regex}")
+    endif()
+  endforeach()
+endfunction()
+
+set(_player_upper_layer_regex "#include \"(event|observation|runtime|referee|ai|team)/")
+
+# ---------------------------------------------------------------------------
+# State: value contracts and pure state utilities.
+# ---------------------------------------------------------------------------
+add_library(football_player_state STATIC
+  state/role_parser.cpp)
+add_library(football::player_state ALIAS football_player_state)
+target_include_directories(football_player_state
+  PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>)
+target_link_libraries(football_player_state
+  PUBLIC
+    football::foundation
+    football::animation_base)
+target_compile_features(football_player_state PUBLIC cxx_std_23)
+football_configure_target(football_player_state)
+football_player_check_boundary(
+  ${PROJECT_SOURCE_DIR}/src/player/state
+  "${_player_upper_layer_regex}|#include \"player/(command|contact|execution)/")
+
+# ---------------------------------------------------------------------------
+# Command: pure continuous motion, locomotion and reachability. No Player.
+# ---------------------------------------------------------------------------
+add_library(football_player_command STATIC
   command/player_motion.cpp
+  command/player_locomotion.cpp
   command/reachability.cpp
-  execution/player_animation_execution.cpp
+  command/player_pass_solver.cpp)
+add_library(football::player_command ALIAS football_player_command)
+target_link_libraries(football_player_command
+  PUBLIC
+    football::player_state
+    football::ball)
+target_compile_features(football_player_command PUBLIC cxx_std_23)
+football_configure_target(football_player_command)
+football_player_check_boundary(
+  ${PROJECT_SOURCE_DIR}/src/player/command
+  "${_player_upper_layer_regex}|#include \"player/(contact|execution)/")
+
+# ---------------------------------------------------------------------------
+# Contact: pure touch proposal, impulse arbitration and geometry kernels.
+# No Player, no Command dependency.
+# ---------------------------------------------------------------------------
+add_library(football_player_contact STATIC
+  contact/player_active_touch_model.cpp
+  contact/player_active_impulse.cpp)
+add_library(football::player_contact ALIAS football_player_contact)
+target_link_libraries(football_player_contact
+  PUBLIC
+    football::player_state
+    football::ball
+    football::geometry)
+target_compile_features(football_player_contact PUBLIC cxx_std_23)
+football_configure_target(football_player_contact)
+football_player_check_boundary(
+  ${PROJECT_SOURCE_DIR}/src/player/contact
+  "${_player_upper_layer_regex}|#include \"player/(command|execution)/")
+
+# ---------------------------------------------------------------------------
+# Execution: the concrete Player actor, tick orchestration and every adapter
+# that needs a live Player or an animation runtime.
+# ---------------------------------------------------------------------------
+add_library(football_player_execution STATIC
+  execution/player_command_execution.cpp
+  execution/player_control_builder.cpp
+  execution/kick_targeting.cpp
+  execution/player_action_motion.cpp
   execution/player_action_selection.cpp
   execution/player_anim_selection.cpp
-  contact/player_ball_contact.cpp
-  contact/player_contact.cpp
-  contact/player_touch_execution.cpp
-  contact/player_touch_math.cpp
-  contact/player_touch_query.cpp
-  state/player_diagnostics.cpp
-  state/player_team_view.cpp
-  state/role_parser.cpp
-  state/roster_query.cpp
+  execution/player_animation_execution.cpp
+  execution/player_ball_contact.cpp
+  execution/player_contact.cpp
+  execution/player_touch_execution.cpp
+  execution/player_touch_math.cpp
+  execution/player_touch_query.cpp
+  execution/player_diagnostics.cpp
+  execution/player_team_view.cpp
+  execution/roster_query.cpp
   player.cpp
   player_tick.cpp)
-add_library(football::player ALIAS football_player)
-target_sources(football_player PUBLIC FILE_SET HEADERS
+add_library(football::player_execution ALIAS football_player_execution)
+target_sources(football_player_execution PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
   FILES
     ${PROJECT_SOURCE_DIR}/include/football/player/player_definition.hpp
@@ -46,21 +123,32 @@ target_sources(football_player PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_team_match_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_restart_facts.hpp)
-target_include_directories(football_player
+target_link_libraries(football_player_execution
   PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    football::player_state
   PRIVATE
-    ${PROJECT_SOURCE_DIR}/src)
-target_compile_features(football_player PUBLIC cxx_std_23)
-
-# Declared lower-layer closure. Player is self-contained: the boundary suite
-# (unittests/player_link) force-links every object without Runtime/Referee/
-# Event/Observation, and a configure-time guard rejects upper-layer includes.
-target_link_libraries(football_player
-  PUBLIC
-    football::foundation football::geometry football::pitch
-    football::ball football::animation
-  PRIVATE
+    football::player_command
+    football::player_contact
+    football::geometry football::pitch football::ball football::animation
     football::collision BqLog)
+target_compile_features(football_player_execution PUBLIC cxx_std_23)
+football_configure_target(football_player_execution)
+football_player_check_boundary(
+  ${PROJECT_SOURCE_DIR}/src/player/execution
+  "${_player_upper_layer_regex}")
+# Root Player files are execution sources too.
+foreach(_root_file
+    ${PROJECT_SOURCE_DIR}/src/player/player.cpp
+    ${PROJECT_SOURCE_DIR}/src/player/player.hpp
+    ${PROJECT_SOURCE_DIR}/src/player/player_tick.cpp)
+  file(READ "${_root_file}" _content)
+  if(_content MATCHES "${_player_upper_layer_regex}")
+    message(FATAL_ERROR
+      "Player library boundary violation in ${_root_file}: upper-layer include")
+  endif()
+endforeach()
 
-football_configure_target(football_player)
+# Compatibility aggregate. It is an INTERFACE target, not a fifth library.
+add_library(football_player INTERFACE)
+add_library(football::player ALIAS football_player)
+target_link_libraries(football_player INTERFACE football_player_execution)

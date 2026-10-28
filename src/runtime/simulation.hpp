@@ -37,9 +37,9 @@
 
 #include "referee/referee_tick_facts.hpp"
 #include "runtime/rule_command_sink.hpp"
-#include "player/state/player_tick_context.hpp"
-#include "player/contact/player_runtime_sink.hpp"
-#include "player/contact/player_send_off_sink.hpp"
+#include "player/execution/player_tick_context.hpp"
+#include "player/execution/player_runtime_sink.hpp"
+#include "player/execution/player_send_off_sink.hpp"
 #include "football/player/foul_assessment.hpp"
 #include "player/contact/player_body_collision_shadow.hpp"
 #include "player/contact/player_active_touch_shadow.hpp"

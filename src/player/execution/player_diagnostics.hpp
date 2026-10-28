@@ -23,7 +23,7 @@
 
 #include <vector>
 
-#include "player/command/player_command.hpp"
+#include "player/execution/player_command.hpp"
 #include "football/player/player_definition.hpp"
 #include "player/command/player_interrupt.hpp"
 

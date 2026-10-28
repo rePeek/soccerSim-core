@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "player/state/roster_query.hpp"
+#include "player/execution/roster_query.hpp"
 
 #include <map>
 

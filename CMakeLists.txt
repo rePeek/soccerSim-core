@@ -76,9 +76,12 @@ target_link_libraries(simcore
   PRIVATE football::ai BqLog
     # Keep the existing runtime exports, including unreferenced GetRoleFromString.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim_domain>"
-    # Player is a sibling archive now; whole-archive it so its own exports and
-    # its references to runtime symbols stay exactly as before.
-    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player>")
+    # Player is four static archives now. Whole-archive them so their exports
+    # and their references to runtime symbols stay exactly as before.
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_execution>"
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_command>"
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_contact>"
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_state>")
 # env.cpp includes the internal runtime/simulation.hpp; the src/ root is a
 # PRIVATE implementation include, never exported to simcore consumers.
 target_include_directories(simcore PRIVATE ${PROJECT_SOURCE_DIR}/src)

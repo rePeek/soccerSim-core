@@ -3,10 +3,10 @@
 
 #include "football/player/player_control.hpp"
 #include "football/pitch/pitch.hpp"
-#include "player/command/player_authorization.hpp"
-#include "player/command/player_command.hpp"
+#include "player/execution/player_authorization.hpp"
+#include "player/execution/player_command.hpp"
 #include "player/state/player_command_status.hpp"
-#include "player/state/player_team_view.hpp"
+#include "player/execution/player_team_view.hpp"
 
 class Player;
 namespace football::ball { class Ball; }

@@ -14,7 +14,7 @@
 #include "football/animation/selection_math.hpp"
 #include "football/animation/selector.hpp"
 #include "football/ball/ball.hpp"
-#include "player/contact/player_touch_math.hpp"
+#include "player/execution/player_touch_math.hpp"
 #include "player/command/player_motion.hpp"
 #include "player/execution/locomotion_animation_strategy.hpp"
 #include "player/command/player_motion_constants.hpp"

@@ -5,8 +5,8 @@
 #include <optional>
 
 #include "football/ball/ball.hpp"
-#include "player/command/player_command.hpp"
-#include "player/command/player_control_builder.hpp"
+#include "player/execution/player_command.hpp"
+#include "player/execution/player_control_builder.hpp"
 #include "player/state/player_kinematics.hpp"
 
 using football::ball::Ball;

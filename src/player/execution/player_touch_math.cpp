@@ -1,14 +1,14 @@
 // ANIM-1 A9.9: Player-side touch/animation math helpers, relocated from
 // humanoid_utils.cpp. Bodies are verbatim moves; only the owning include and
 // the unused NeedDefendingMovement helper (zero callers) changed.
-#include "player/contact/player_touch_math.hpp"
+#include "player/execution/player_touch_math.hpp"
 
 #include <cmath>
 
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
 
-#include "player/contact/player_touch_query.hpp"
+#include "player/execution/player_touch_query.hpp"
 #include "player/player.hpp"
 #include "player/command/player_motion_constants.hpp"
 

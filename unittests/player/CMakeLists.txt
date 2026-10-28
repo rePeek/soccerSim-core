@@ -21,12 +21,9 @@ add_executable(football_player_unit_tests
 target_include_directories(football_player_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/../animation)
-# The A8.0 kernel lives in the player module but only needs animation +
-# foundation values, so the value-only test target compiles just that TU.
-target_sources(football_player_unit_tests PRIVATE
-  ${PROJECT_SOURCE_DIR}/src/player/command/player_action_motion.cpp)
 target_link_libraries(football_player_unit_tests
   PRIVATE
+    football::player_execution
     football::collision
     football::animation
     football::pitch

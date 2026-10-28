@@ -4,8 +4,8 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/player/player_touch_facts.hpp"
-#include "player/command/player_authorization.hpp"
-#include "player/state/player_team_view.hpp"
+#include "player/execution/player_authorization.hpp"
+#include "player/execution/player_team_view.hpp"
 #include "player/contact/player_touch_preparation.hpp"
 #include "football/player/player_restart_facts.hpp"
 

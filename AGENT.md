@@ -154,6 +154,37 @@ observation, controls and stored physics are all the Stadium Frame.
   action-clock authorities; `legacy_anim_state_` and `legacy_spatial_state_`
   are compatibility projections, never a second authority.
 
+## Player internal libraries
+
+`src/player/` builds exactly four STATIC libraries plus one INTERFACE
+aggregate (`football::player`). The aggregate is not a fifth library.
+
+- `football::player_state`: value types, kinematics, action state, body profile,
+  command status, role parser. Must not depend on command, contact or
+  execution.
+- `football::player_command`: pure continuous motion, locomotion and
+  reachability. May depend on state and Ball; must not depend on contact or
+  execution.
+- `football::player_contact`: pure touch proposal, impulse arbitration and
+  contact geometry. May depend on state, Ball and geometry; must not depend on
+  command or execution.
+- `football::player_execution`: the concrete Player actor, tick orchestration,
+  animation matching and every adapter that needs a live Player. It is the only
+  layer that owns Player and the only layer that may depend on command,
+  contact and animation.
+
+Rules:
+
+1. No circular static-library linking or linker-group workaround.
+2. State, Command and Contact interfaces must not require the concrete Player
+   class; Player-member definitions and Player* adapters live in Execution.
+3. No Player library may depend on Runtime, Referee, AI, Event, Observation or
+   Team implementation headers.
+4. Preserve 100 Hz tick order, authoritative movement/action state, contact
+   order and numerical behavior during the split.
+5. `unittests/player_link` whole-archives all four libraries and separately
+   links State, Command and Contact without Execution.
+
 ## Physics and numerical conventions
 
 - SI units: metres, seconds, kilograms, radians. The native tick is 100 Hz
@@ -195,7 +226,7 @@ src/                 implementations; public headers live in include/football/
 ├── animation/       football::animation_base (baker-shared) + football::animation
 ├── pitch/           football::pitch (pitch.cpp)
 ├── ball/            football::ball
-├── player/          football::player: Player + command/ execution/ contact/ state/
+├── player/          four static libs: state, command, contact, execution
 ├── team/            football::team (validation, presets, team_players.cpp)
 ├── runtime/         football::sim_contracts + football_sim_domain:
 │                      Simulation (clock/phase/score, ball, Teams, referee,

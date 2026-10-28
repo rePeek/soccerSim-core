@@ -30,7 +30,7 @@
 #include "football/pitch/pitch.hpp"
 #include "player/player.hpp"
 #include "player/command/reachability.hpp"
-#include "player/state/player_diagnostics.hpp"
+#include "player/execution/player_diagnostics.hpp"
 #include "football/player/player_control_set.hpp"
 #include "football/player/player_definition.hpp"
 #include "player/command/player_motion.hpp"
@@ -1249,6 +1249,8 @@ TEST_CASE("Runtime harness: players keep independent animation state across team
 
   PlayerActionRequest shoot;
   shoot.action = ControlAction::Shoot;
+  shoot.direction = Vector3(1, 0, 0);
+  shoot.power = 1.0f;
   PlayerActionRequest pass;
   pass.action = ControlAction::ShortPass;
   pass.target_player = h_pass->GetID();

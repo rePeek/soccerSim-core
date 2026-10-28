@@ -1,4 +1,4 @@
-#include "player/command/player_control_builder.hpp"
+#include "player/execution/player_control_builder.hpp"
 
 #include <algorithm>
 
@@ -6,7 +6,7 @@
 #include "football/pitch/pitch.hpp"
 #include "player/player.hpp"
 #include "player/command/player_action_mapping.hpp"
-#include "player/command/kick_targeting.hpp"
+#include "player/execution/kick_targeting.hpp"
 
 
 CommandBuildResult BuildPlayerCommands(const PlayerControl& input,

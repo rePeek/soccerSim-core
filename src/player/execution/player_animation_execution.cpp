@@ -13,8 +13,8 @@
 #include "football/ball/ball.hpp"
 #include "player/command/player_motion.hpp"
 #include "player/command/player_motion_constants.hpp"
-#include "player/contact/player_runtime_sink.hpp"
-#include "player/contact/player_touch_math.hpp"
+#include "player/execution/player_runtime_sink.hpp"
+#include "player/execution/player_touch_math.hpp"
 
 using namespace football::math;
 using football::ball::Ball;

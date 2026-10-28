@@ -1,6 +1,6 @@
 #include "runtime/simulation.hpp"
 #include "player/player.hpp"
-#include "player/state/player_diagnostics.hpp"
+#include "player/execution/player_diagnostics.hpp"
 #include "player/command/player_motion_constants.hpp"
 #include "player/execution/player_baked_pose_realization.hpp"
 #include "football/animation/library.hpp"

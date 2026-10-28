@@ -15,7 +15,7 @@
 #include "runtime/restart_placement.hpp"
 #include "football/pitch/pitch.hpp"
 #include "runtime/rule_command_sink.hpp"
-#include "player/state/roster_query.hpp"
+#include "player/execution/roster_query.hpp"
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
 #include <cmath>

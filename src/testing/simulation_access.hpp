@@ -10,8 +10,8 @@
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
-#include "player/command/player_control_builder.hpp"
-#include "player/state/player_team_view.hpp"
+#include "player/execution/player_control_builder.hpp"
+#include "player/execution/player_team_view.hpp"
 #include "referee/referee.hpp"
 
 namespace football::sim::testing {

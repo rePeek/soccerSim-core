@@ -32,7 +32,7 @@
 // types used to come in through the Humanoid header. They are Player-owned
 // types now, so the Player (and nothing else) includes them directly.
 #include "player/execution/player_action_execution_state.hpp"
-#include "player/state/player_diagnostics.hpp"
+#include "player/execution/player_diagnostics.hpp"
 #include "player/command/player_interrupt.hpp"
 #include "player/state/player_spatial_state.hpp"
 #include "player/execution/player_baked_pose_sample.hpp"
@@ -45,7 +45,7 @@
 #include "player/contact/player_ground_collider.hpp"
 #include "player/state/player_action.hpp"
 #include "player/command/player_action_request.hpp"
-#include "player/command/player_control_builder.hpp"
+#include "player/execution/player_control_builder.hpp"
 #include "player/execution/player_selected_action.hpp"
 #include "player/execution/player_selection_decisions.hpp"
 #include "player/command/player_action_executor.hpp"
@@ -62,7 +62,7 @@
 #include "football/player/player_touch_type.hpp"
 #include "player/state/player_observation.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
-#include "player/state/player_tick_context.hpp"
+#include "player/execution/player_tick_context.hpp"
 
 // Caller scope for the remaining ResetSituation instrumentation. This is
 // observation only; Deactivate's double reset is deliberately not changed here.

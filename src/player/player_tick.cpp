@@ -9,7 +9,7 @@
 #include <bq_log/bq_log.h>
 
 #include "football/ball/ball.hpp"
-#include "player/command/player_control_builder.hpp"
+#include "player/execution/player_control_builder.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -24,9 +24,9 @@
 #include "football/animation/selector.hpp"
 #include "football/animation/selection_math.hpp"
 #include "player/command/player_motion.hpp"
-#include "player/contact/player_touch_math.hpp"
+#include "player/execution/player_touch_math.hpp"
 #include "player/command/player_motion_constants.hpp"
-#include "player/contact/player_runtime_sink.hpp"
+#include "player/execution/player_runtime_sink.hpp"
 
 using namespace football::math;
 using football::ball::Ball;

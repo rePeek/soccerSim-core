@@ -1,4 +1,4 @@
-#include "player/contact/player_ball_contact.hpp"
+#include "player/execution/player_ball_contact.hpp"
 
 #include <cmath>
 
@@ -8,7 +8,7 @@
 #include "player/player.hpp"
 #include "player/contact/player_body_collider.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
-#include "player/contact/player_touch_query.hpp"
+#include "player/execution/player_touch_query.hpp"
 
 using football::ball::Ball;
 

@@ -4,7 +4,7 @@
 // Humanoid was the code that incremented them. They are measurement-only
 // counters and provenance helpers, never simulation state, so they now live in
 // their own translation unit. Definitions are verbatim moves.
-#include "player/state/player_diagnostics.hpp"
+#include "player/execution/player_diagnostics.hpp"
 
 #include <algorithm>
 #include <cmath>

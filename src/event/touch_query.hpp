@@ -5,7 +5,7 @@
 
 #include "event/touch_state.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "player/contact/player_touch_query.hpp"
+#include "player/execution/player_touch_query.hpp"
 
 class Player;
 

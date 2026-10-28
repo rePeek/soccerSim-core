@@ -21,15 +21,15 @@
 #include "football/animation/touch_geometry.hpp"
 #include "football/animation/touch_scoring.hpp"
 #include "player/contact/player_touch_event.hpp"
-#include "player/contact/player_touch_query.hpp"
-#include "player/command/kick_targeting.hpp"
+#include "player/execution/player_touch_query.hpp"
+#include "player/execution/kick_targeting.hpp"
 #include "player/contact/player_active_touch_model.hpp"
 #include "player/contact/player_active_touch_shadow.hpp"
-#include "player/command/player_control_builder.hpp"
+#include "player/execution/player_control_builder.hpp"
 #include "player/command/player_motion_constants.hpp"
 #include "player/contact/player_retain_anchor.hpp"
-#include "player/contact/player_runtime_sink.hpp"
-#include "player/contact/player_touch_math.hpp"
+#include "player/execution/player_runtime_sink.hpp"
+#include "player/execution/player_touch_math.hpp"
 
 using namespace football::math;
 

@@ -32,21 +32,8 @@ struct ActiveImpulseCandidate {
 // largest closing speed wins, with lower PlayerId then lower body part as
 // stable tie-breakers. Returns no impulse when nothing remains, so a tick can
 // carry at most one active endpoint impulse.
-inline std::optional<ActiveImpulseCandidate> ArbitrateActiveImpulse(
-    std::span<const ActiveImpulseCandidate> candidates) {
-  std::optional<ActiveImpulseCandidate> winner;
-  for (const ActiveImpulseCandidate& candidate : candidates) {
-    if (candidate.passive_same_part) continue;
-    if (!winner.has_value() || candidate.velocity_change_magnitude > winner->velocity_change_magnitude ||
-        (candidate.velocity_change_magnitude == winner->velocity_change_magnitude &&
-         (candidate.player < winner->player ||
-          (candidate.player == winner->player &&
-           candidate.body_part < winner->body_part)))) {
-      winner = candidate;
-    }
-  }
-  return winner;
-}
+std::optional<ActiveImpulseCandidate> ArbitrateActiveImpulse(
+    std::span<const ActiveImpulseCandidate> candidates);
 
 // P4d-2 prerequisite: who owns this tick's ball contact. A *real* passive body
 // impact (nonzero normal impulse) precedes an active strike, whether it is the
@@ -61,10 +48,6 @@ struct ContactAuthorityInput {
   bool active_candidate_valid = false;
 };
 
-inline ContactAuthority DecideContactAuthority(const ContactAuthorityInput& input) {
-  if (input.passive_impact_exists) return ContactAuthority::PassiveImpact;
-  if (input.active_candidate_valid) return ContactAuthority::ActiveTouch;
-  return ContactAuthority::None;
-}
+ContactAuthority DecideContactAuthority(const ContactAuthorityInput& input);
 
 #endif
