@@ -9,7 +9,7 @@
 #include <map>
 #include <vector>
 
-#include "football/player/command/player_control_set.hpp"
+#include "football/player/player_control_set.hpp"
 #include "football/runtime/match_config.hpp"
 #include "football/team/team.hpp"
 #include "football/runtime/active_lineup.hpp"

@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "football/player/state/player_role.hpp"
+#include "football/player/player_role.hpp"
 
 namespace football::team {
 

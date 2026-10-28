@@ -161,6 +161,9 @@ Command INTERFACE target and the `football::player` INTERFACE aggregate.
 `src/contact/` owns the independent `football_contact` STATIC library
 (`football::contact`), its sources and public FILE_SET. Execution's declared
 Contact dependency supplies the aggregate's link closure.
+Player's model and Command targets are declared in `src/player/CMakeLists.txt`;
+there are no state/command CMake subdirectories. Model/parser/private spatial
+and observation files live beside player.hpp. Only execution has a subdirectory.
 
 - `football::player_state`: definitions, kinematics, action state, body profile,
   command status and role parser. No Command, Contact or Execution dependency.
@@ -197,12 +200,13 @@ Rules:
    Command protocol alone, and tests Execution's public prediction API without
    actors, assets or Runtime. Protocol headers compile separately using only
    exported includes. `unittests/contact` links Contact without Execution.
-7. Canonical headers live in `include/football/contact/` and
-   `include/football/player/{state,command,execution}/`. Old motion/body/pass
-   paths under player/command are forwarding compatibility headers owned by
-   Execution; their consumers link Execution, not the Command protocol.
-   Contact's nested player/contact paths are not supported; consumers use
-   football/contact/. Old flat paths remain forwarding compatibility headers.
+7. Player model and input headers are flat in `include/football/player/`;
+   execution contracts live in its execution/ subdirectory. Contact contracts
+   live in `include/football/contact/`. Nested state/command/contact Player
+   include paths are not supported. Flat motion/body/pass forwarding headers
+   remain owned by Execution; their consumers link Execution, not Command.
+   Model/Command/Contact boundary guards check exact FILE_SET ownership rather
+   than inferring dependencies from directory names.
 8. `src/` is never a PUBLIC include directory. Lower-library consumers compile
    from `include/` alone.
 9. PlayerActionState is State. Input request/reaction values are Command; their
@@ -238,7 +242,7 @@ include/football/    public headers, one directory per module
 ├── ball/            Ball, BallModel, BallState, contact/impulse integration
 ├── pitch/           Pitch description and the static ground/post/crossbar scene
 ├── contact/         value-only contact models, colliders, impulses and evidence
-├── player/          value contracts grouped as state/command/execution
+├── player/          flat model/input contracts + execution/ capability APIs
 ├── team/            TeamDefinition, formation templates, Player-owning Team
 ├── match/           neutral shared values (TeamSide, GameMode)
 ├── observation/     WorldState, Snapshot, MentalImage and their builders
@@ -255,6 +259,7 @@ src/                 implementations; public headers live in include/football/
 ├── ball/            football::ball
 ├── contact/         football::contact (no concrete Player or Runtime)
 ├── player/          State/Execution static libs + Command protocol + aggregate
+│                      flat model/parser + actor files; execution/ implementation
 ├── team/            football::team (validation, presets, team_players.cpp)
 ├── runtime/         football::sim_contracts + football_sim_domain:
 │                      Simulation (clock/phase/score, ball, Teams, referee,

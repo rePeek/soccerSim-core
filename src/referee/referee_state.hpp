@@ -3,7 +3,7 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "referee/foul_sanction.hpp"
 
 using namespace football::math;

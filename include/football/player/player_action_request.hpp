@@ -2,7 +2,7 @@
 #define FOOTBALL_PLAYER_COMMAND_ACTION_REQUEST_HPP
 
 #include <cstdint>
-#include "football/player/command/player_control.hpp"
+#include "football/player/player_control.hpp"
 
 // One-shot active input. Continuous movement belongs to SetControl; both use
 // the same ControlAction vocabulary. Acceptance is not execution or contact.

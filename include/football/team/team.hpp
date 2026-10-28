@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "football/team/formation.hpp"
 #include "football/team/formation_preset.hpp"
 #include "football/team/leadership.hpp"

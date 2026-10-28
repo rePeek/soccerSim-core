@@ -32,9 +32,9 @@ file(GLOB_RECURSE _contact_files
   ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
   ${PROJECT_SOURCE_DIR}/include/football/contact/*.hpp)
-foreach(_file ${_contact_files})
-  file(READ "${_file}" _content)
-  if(_content MATCHES "#include \"(football/)?(runtime|referee|ai|event|observation|team)/|#include \"(football/)?player/(execution|command|contact)/|#include \"player/player.hpp\"")
-    message(FATAL_ERROR "Contact boundary violation in ${_file}")
-  endif()
-endforeach()
+# Player's flat headers have separate owners: Contact may consume only the
+# model FILE_SET, not a same-directory input or execution forwarding header.
+get_target_property(_contact_model_headers football_player_state HEADER_SET)
+football_player_check_contract_files(
+  "#include \"(football/)?(runtime|referee|ai|event|observation|team)/|#include \"(football/)?player/(execution|command|contact)/|#include \"player/player.hpp\""
+  "${_contact_model_headers}" ${_contact_files})

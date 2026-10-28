@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_PLAYER_PLAYER_MOTION_PROFILE_HPP
 #define FOOTBALL_SIM_PLAYER_PLAYER_MOTION_PROFILE_HPP
 
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 
 // Public reference values. They mirror PlayerLocomotionParameters defaults and
 // the baked sprint reference without exposing the locomotion implementation.

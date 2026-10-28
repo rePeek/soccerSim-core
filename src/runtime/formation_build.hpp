@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "football/player/state/formation_entry.hpp"
+#include "football/player/formation_entry.hpp"
 #include "football/team/team.hpp"
 
 // Runtime initialization: turns a team's static declaration into concrete

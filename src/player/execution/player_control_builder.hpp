@@ -1,11 +1,11 @@
 #ifndef FOOTBALL_SIM_PLAYER_PLAYER_CONTROL_BUILDER_HPP
 #define FOOTBALL_SIM_PLAYER_PLAYER_CONTROL_BUILDER_HPP
 
-#include "football/player/command/player_control.hpp"
+#include "football/player/player_control.hpp"
 #include "football/pitch/pitch.hpp"
 #include "player/execution/player_authorization.hpp"
 #include "player/execution/player_command.hpp"
-#include "football/player/state/player_command_status.hpp"
+#include "football/player/player_command_status.hpp"
 #include "player/execution/player_team_view.hpp"
 
 class Player;

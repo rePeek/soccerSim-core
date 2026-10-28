@@ -7,8 +7,8 @@
 #include <cmath>
 #include "football/ball/ball_impulse.hpp"
 #include "football/ball/ball_response.hpp"
-#include "football/player/state/player_definition.hpp"
-#include "football/player/state/player_action.hpp"
+#include "football/player/player_definition.hpp"
+#include "football/player/player_action.hpp"
 #include "football/contact/player_body_collider_motion.hpp"
 #include "football/contact/player_touch_type.hpp"
 #include "football/ball/ball.hpp"

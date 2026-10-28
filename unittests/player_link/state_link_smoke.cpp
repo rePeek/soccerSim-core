@@ -1,5 +1,5 @@
-#include "football/player/state/player_action.hpp"
-#include "football/player/state/player_kinematics.hpp"
+#include "football/player/player_action.hpp"
+#include "football/player/player_kinematics.hpp"
 
 int main() {
   PlayerKinematicState state;

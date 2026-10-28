@@ -11,7 +11,7 @@
 #include <cmath>
 
 #include <cassert>
-#include "football/player/state/player_kinematics.hpp"
+#include "football/player/player_kinematics.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 #include <optional>
 

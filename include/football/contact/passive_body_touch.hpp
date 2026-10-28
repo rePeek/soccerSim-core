@@ -3,7 +3,7 @@
 
 #include <optional>
 #include "football/foundation/math/vector3.hpp"
-#include "football/player/state/player_action.hpp"
+#include "football/player/player_action.hpp"
 
 namespace football::contact {
 

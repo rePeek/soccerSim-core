@@ -24,7 +24,7 @@
 #include <vector>
 
 #include "player/execution/player_command.hpp"
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "player/execution/player_interrupt.hpp"
 
 namespace football::sim { class PlayerRuntimeSink; }

@@ -6,7 +6,7 @@
 #include <cassert>
 #include <limits>
 
-#include "football/player/state/player_action.hpp"
+#include "football/player/player_action.hpp"
 
 struct PlayerActionDefinition {
   e_FunctionType type = e_FunctionType_None;

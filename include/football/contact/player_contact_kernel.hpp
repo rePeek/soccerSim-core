@@ -4,8 +4,8 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/contact/player_body_collider.hpp"
 #include "football/contact/player_ground_collider.hpp"
-#include "football/player/state/player_action.hpp"
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_action.hpp"
+#include "football/player/player_definition.hpp"
 
 namespace football::sim::player {
 

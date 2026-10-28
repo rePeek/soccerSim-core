@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <limits>
 #include <vector>
-#include "football/player/state/player_action.hpp"
+#include "football/player/player_action.hpp"
 #include "football/foundation/geometry/collider.hpp"
 
 inline constexpr std::size_t kBodyActionCount = e_FunctionType_Special + 1;

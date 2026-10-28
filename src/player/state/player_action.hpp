@@ -1,6 +1,0 @@
-#ifndef FOOTBALL_SIM_PLAYER_PLAYER_ACTION_COMPAT_HPP
-#define FOOTBALL_SIM_PLAYER_PLAYER_ACTION_COMPAT_HPP
-
-#include "football/player/state/player_action.hpp"
-
-#endif  // FOOTBALL_SIM_PLAYER_PLAYER_ACTION_COMPAT_HPP

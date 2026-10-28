@@ -9,7 +9,7 @@
 #include "football/animation/clip.hpp"
 #include "football/animation/selector.hpp"
 #include "football/animation/types.hpp"
-#include "football/player/state/player_kinematics.hpp"
+#include "football/player/player_kinematics.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
 
 // LOCO-2.3a — pure, deterministic locomotion-animation selection strategy.

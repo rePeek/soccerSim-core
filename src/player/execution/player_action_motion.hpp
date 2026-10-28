@@ -8,7 +8,7 @@
 #include "football/animation/motion_clip.hpp"
 #include "football/animation/types.hpp"
 #include "football/player/execution/player_motion.hpp"
-#include "football/player/state/player_kinematics.hpp"
+#include "football/player/player_kinematics.hpp"
 
 // Baked action/reference-motion model. Unlike continuous PlayerMotion, these
 // execution helpers need baked Animation data.

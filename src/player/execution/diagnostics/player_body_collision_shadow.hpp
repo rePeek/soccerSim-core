@@ -7,8 +7,8 @@
 #include <optional>
 
 #include "football/ball/ball_contact.hpp"
-#include "football/player/state/player_definition.hpp"
-#include "football/player/state/player_action.hpp"
+#include "football/player/player_definition.hpp"
+#include "football/player/player_action.hpp"
 #include "football/contact/player_body_collider_motion.hpp"
 #include "player/execution/diagnostics/player_body_contact_diagnostics.hpp"
 #include "football/foundation/time/tick.hpp"

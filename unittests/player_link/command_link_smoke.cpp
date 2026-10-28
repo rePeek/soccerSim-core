@@ -1,7 +1,7 @@
-#include "football/player/command/player_control.hpp"
-#include "football/player/command/player_control_set.hpp"
-#include "football/player/command/player_action_request.hpp"
-#include "football/player/command/player_command_validation.hpp"
+#include "football/player/player_control.hpp"
+#include "football/player/player_control_set.hpp"
+#include "football/player/player_action_request.hpp"
+#include "football/player/player_command_validation.hpp"
 
 int main() {
   PlayerControl control;

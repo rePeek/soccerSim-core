@@ -8,7 +8,7 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/player/execution/player_touch_facts.hpp"
 #include "player/execution/player_touch_event.hpp"
-#include "player/state/player_observation.hpp"
+#include "player/player_observation.hpp"
 
 namespace football::ball { class Ball; }
 class Player;

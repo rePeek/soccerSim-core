@@ -3,7 +3,7 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/player/execution/player_motion_profile.hpp"
-#include "football/player/state/player_kinematics.hpp"
+#include "football/player/player_kinematics.hpp"
 
 struct MotionSample {
   football::math::Vector3 displacement = football::math::Vector3(0);

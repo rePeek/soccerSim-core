@@ -1,8 +1,37 @@
-#ifndef FOOTBALL_PLAYER_COMPAT_PLAYER_CONTROL_SET_HPP
-#define FOOTBALL_PLAYER_COMPAT_PLAYER_CONTROL_SET_HPP
+#ifndef FOOTBALL_SIM_PLAYER_CONTROL_SET_HPP
+#define FOOTBALL_SIM_PLAYER_CONTROL_SET_HPP
 
-// Compatibility forwarding header. New code should include
-// "football/player/command/player_control_set.hpp".
-#include "football/player/command/player_control_set.hpp"
+#include <span>
+#include <vector>
+#include <utility>
 
-#endif  // FOOTBALL_PLAYER_COMPAT_PLAYER_CONTROL_SET_HPP
+#include "football/player/player_control.hpp"
+
+class PlayerControlSet {
+ public:
+  void Set(football::player::PlayerId player, PlayerControl control) {
+    control.player = player;
+    for (PlayerControl& existing : controls_) {
+      if (existing.player == player) {
+        existing = std::move(control);
+        return;
+      }
+    }
+    controls_.push_back(std::move(control));
+  }
+
+  const PlayerControl* Get(football::player::PlayerId player) const {
+    for (const PlayerControl& control : controls_) {
+      if (control.player == player) return &control;
+    }
+    return nullptr;
+  }
+
+  std::span<const PlayerControl> controls() const { return controls_; }
+  void Clear() { controls_.clear(); }
+
+ private:
+  std::vector<PlayerControl> controls_;
+};
+
+#endif  // FOOTBALL_SIM_PLAYER_CONTROL_SET_HPP

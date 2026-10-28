@@ -7,7 +7,7 @@
 
 #include "football/ai/tactical_board.hpp"
 #include "football/ai/tactical_plan.hpp"
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "football/runtime/match_config.hpp"
 
 namespace football::ai {

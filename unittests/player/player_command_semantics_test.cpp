@@ -4,7 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "football/player/command/player_command_validation.hpp"
+#include "football/player/player_command_validation.hpp"
 #include "player/execution/player_action_mapping.hpp"
 #include "player/execution/player_action_arbitration.hpp"
 

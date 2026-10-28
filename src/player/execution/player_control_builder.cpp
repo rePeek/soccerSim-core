@@ -5,7 +5,7 @@
 #include "football/ball/ball.hpp"
 #include "football/pitch/pitch.hpp"
 #include "player/player.hpp"
-#include "football/player/command/player_command_validation.hpp"
+#include "football/player/player_command_validation.hpp"
 #include "player/execution/player_action_mapping.hpp"
 #include "player/execution/kick_targeting.hpp"
 

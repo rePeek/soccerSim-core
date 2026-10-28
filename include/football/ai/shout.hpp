@@ -4,7 +4,7 @@
 #include <cstdint>
 
 #include "football/ai/coach_command.hpp"
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "football/runtime/match_config.hpp"
 
 namespace football::ai {

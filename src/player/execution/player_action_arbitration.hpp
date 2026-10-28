@@ -1,8 +1,8 @@
 #ifndef FOOTBALL_PLAYER_EXECUTION_ACTION_ARBITRATION_HPP
 #define FOOTBALL_PLAYER_EXECUTION_ACTION_ARBITRATION_HPP
 
-#include "football/player/command/player_action_request.hpp"
-#include "football/player/state/player_action.hpp"
+#include "football/player/player_action_request.hpp"
+#include "football/player/player_action.hpp"
 #include "player/execution/player_action_mapping.hpp"
 
 // Nominal execution family for duplicate detection; the actual ThroughPass

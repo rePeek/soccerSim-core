@@ -3,7 +3,7 @@
 #include <array>
 #include <optional>
 
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "football/team/lineup.hpp"
 
 namespace football::sim {

@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_PLAYER_COMMAND_VALIDATION_HPP
 #define FOOTBALL_PLAYER_COMMAND_VALIDATION_HPP
 
-#include "football/player/command/player_control.hpp"
+#include "football/player/player_control.hpp"
 
 
 namespace football::sim::player {

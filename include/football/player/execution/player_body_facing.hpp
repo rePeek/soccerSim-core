@@ -8,7 +8,7 @@
 #include <cassert>
 #include "football/foundation/math/scalar.hpp"
 #include "football/foundation/math/vector3.hpp"
-#include "football/player/state/player_kinematics.hpp"
+#include "football/player/player_kinematics.hpp"
 
 // Simulation-owned torso/orientation model. It is intentionally separate from
 // PlayerLocomotion: locomotion writes position, velocity and facing; this model

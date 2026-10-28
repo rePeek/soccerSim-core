@@ -4,7 +4,7 @@
 #ifndef FOOTBALL_PLAYER_PLAYER_TEAM_MATCH_FACTS_HPP
 #define FOOTBALL_PLAYER_PLAYER_TEAM_MATCH_FACTS_HPP
 
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 
 namespace football::player {
 

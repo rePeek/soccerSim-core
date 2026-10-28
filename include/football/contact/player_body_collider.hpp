@@ -12,7 +12,7 @@
 
 #include "football/foundation/collision/sweep.hpp"
 #include "football/foundation/geometry/shapes.hpp"
-#include "football/player/state/player_kinematics.hpp"
+#include "football/player/player_kinematics.hpp"
 
 // Approximate body volume used for *passive* ball-body collisions.
 //

@@ -3,7 +3,7 @@
 #include <optional>
 #include <span>
 
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 
 namespace football::team {
 

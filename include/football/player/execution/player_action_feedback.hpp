@@ -3,8 +3,8 @@
 
 #include "football/animation/types.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/player/command/player_control.hpp"
-#include "football/player/state/player_command_status.hpp"
+#include "football/player/player_control.hpp"
+#include "football/player/player_command_status.hpp"
 
 // Execution feedback for the last discrete Command attempt. Command ->
 // animation is not one-to-one, so both the source Command and the concrete

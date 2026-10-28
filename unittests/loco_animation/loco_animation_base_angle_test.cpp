@@ -18,8 +18,8 @@
 using namespace football::animation;
 #include "football/animation/types.hpp"
 #include "player/execution/player_baked_body_pose.hpp"
-#include "football/player/state/player_body_profile.hpp"
-#include "football/player/state/player_kinematics.hpp"
+#include "football/player/player_body_profile.hpp"
+#include "football/player/player_kinematics.hpp"
 
 using football::math::Vector3;
 using football::player::MakePlayerBodyProfile;

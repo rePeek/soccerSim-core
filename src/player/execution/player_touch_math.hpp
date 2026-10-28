@@ -13,7 +13,7 @@
 #include "football/player/execution/player_touch_facts.hpp"
 #include "football/contact/player_touch_type.hpp"
 #include "player/execution/player_action_execution_state.hpp"
-#include "player/state/player_spatial_state.hpp"
+#include "player/player_spatial_state.hpp"
 #include "player/execution/player_team_view.hpp"
 
 using namespace football::math;

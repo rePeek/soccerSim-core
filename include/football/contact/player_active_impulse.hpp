@@ -6,9 +6,9 @@
 #include <span>
 
 #include "football/ball/ball_impulse.hpp"
-#include "football/player/state/player_definition.hpp"
+#include "football/player/player_definition.hpp"
 #include "football/contact/player_body_collider_motion.hpp"
-#include "football/player/state/player_action.hpp"
+#include "football/player/player_action.hpp"
 
 // P5b: deterministic arbitration of active endpoint impulses. Simulation owns
 // the candidate list and the passive-impact facts; this header only selects at
