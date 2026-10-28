@@ -1,7 +1,6 @@
 #include "player/player_control_builder.hpp"
 
 #include <algorithm>
-#include <cmath>
 
 #include "football/ball/ball.hpp"
 #include "football/pitch/pitch.hpp"
@@ -71,36 +70,44 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     command.useDesiredMovement = false;
     command.useDesiredLookAt = false;
     command.useTouchInfo = true;
-    command.touchInfo.inputDirection = command.desiredDirection;
-    command.touchInfo.inputPower = std::max(0.f, control.power);
-    command.touchInfo.autoDirectionBias = control.target_position ? 0.f : 1.f;
-    command.touchInfo.autoPowerBias = control.power > 0.f ? 0.f : 1.f;
     if (control.target_player) {
       for (Player *candidate : inputs.own_team.teammates) {
         if (candidate->IsActive() && candidate->GetID() == *control.target_player &&
             candidate != &player) {
-          command.touchInfo.targetPlayer = candidate;
           command.touchInfo.forcedTargetPlayer = candidate;
           break;
         }
       }
     }
     if (control.target_position) {
-      command.touchInfo.desiredDirection = (*control.target_position - player.GetPosition())
-          .GetNormalized(command.desiredDirection);
-      command.touchInfo.desiredPower = control.power;
-      command.touchInfo.inputDirection = command.touchInfo.desiredDirection;
+      command.touchInfo.useForcedTargetPosition = true;
+      command.touchInfo.forcedTargetPosition = *control.target_position;
     }
     if (control.action == ControlAction::Shoot) {
-      command.touchInfo.desiredDirection = football::sim::mechanics::GetShotDirection(
-          &player, inputs.pitch, command.touchInfo.inputDirection, command.touchInfo.autoDirectionBias);
-      command.touchInfo.desiredPower = control.power;
+      // Aim is explicit: the requested direction or target point, never an
+      // automatic goal-centre selection.
+      command.touchInfo.desiredDirection =
+          command.touchInfo.useForcedTargetPosition
+              ? (command.touchInfo.forcedTargetPosition - player.GetPosition())
+                    .GetNormalized(command.desiredDirection)
+              : command.desiredDirection;
+      command.touchInfo.desiredPower = std::max(0.f, control.power);
     } else {
-      football::sim::mechanics::GetPass(&player, inputs.own_team.teammates, command.desiredFunctionType,
-          command.touchInfo.inputDirection, command.touchInfo.inputPower,
-          command.touchInfo.autoDirectionBias, command.touchInfo.autoPowerBias,
-          command.touchInfo.desiredDirection, command.touchInfo.desiredPower,
-          command.touchInfo.targetPlayer, command.touchInfo.forcedTargetPlayer);
+      const Vector3* forcedTargetPosition =
+          command.touchInfo.useForcedTargetPosition
+              ? &command.touchInfo.forcedTargetPosition
+              : nullptr;
+      Player* targetPlayer = nullptr;
+      if (!football::sim::mechanics::GetPass(
+              &player, command.desiredFunctionType,
+              command.touchInfo.forcedTargetPlayer, forcedTargetPosition,
+              command.touchInfo.desiredDirection,
+              command.touchInfo.desiredPower, targetPlayer)) {
+        // A pass without an explicit target is not executable. Never fall
+        // back to selecting a teammate here.
+        return {movement};
+      }
+      command.touchInfo.targetPlayer = targetPlayer;
     }
   }
   if (control.action == ControlAction::Save) {

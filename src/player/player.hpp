@@ -164,13 +164,6 @@ namespace football::sim::player { class PlayerTouchSink; }
 class AnimationLibrary;
 struct PlayerCommandInputs;
 
-struct TacticalPlayerSituation {
-  float forwardSpaceRating = 0.0f;
-  float toGoalSpaceRating = 0.0f;
-  float spaceRating = 0.0f;
-  float forwardRating = 0.0f;
-};
-
 class Player;
 
 // Facts Runtime publishes to each Player. This is a per-tick projection of its
@@ -609,7 +602,6 @@ class Player final {
     void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
     void UpdatePossessionStats(football::ball::Ball& ball, const football::player::PlayerTeamMatchFacts& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own);
     float GetClosestOpponentDistance(const PlayerTeamView& opponent) const;
-    const TacticalPlayerSituation &GetTacticalSituation() { return tacticalSituation; }
     void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
     void GiveRedCard(football::sim::Tick effective_tick) { cards += 3; card_effective_tick_ = effective_tick; }
     bool HasCards() { return cards > 0; }
@@ -695,7 +687,6 @@ class Player final {
     void AdvanceActionTick();
     void RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs);
     void ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now);
-    void _CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation);
     // ANIM-2 A11.5: the pending-input boundary. `React` stages the passive trip
     // through the ANIM-1 A7 guard; the action tick consumes the reaction and the
     // staged trip together. An accepted active request is translated here into
@@ -955,7 +946,6 @@ class Player final {
     unsigned int timeNeededToGetToBall_optimistic_ms = 1000;
     unsigned int timeNeededToGetToBall_previous_ms = 1000;
     bool triggerControlledBallCollision = false;
-    TacticalPlayerSituation tacticalSituation;
     int desiredTimeToBall_ms = 0;
     int cards = 0; // 1: yellow; 2: second yellow; >=3: red
     football::sim::Tick card_effective_tick_{};

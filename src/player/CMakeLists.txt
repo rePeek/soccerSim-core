@@ -6,7 +6,6 @@
 # Player must never link Runtime/Referee/AI/Event/Observation implementation.
 add_library(football_player STATIC
   kick_targeting.cpp
-  perception.cpp
   player_action_motion.cpp
   player_action_selection.cpp
   player_anim_selection.cpp

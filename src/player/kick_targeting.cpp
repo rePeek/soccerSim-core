@@ -13,10 +13,9 @@
 
 
 #include "player/kick_targeting.hpp"
-#include "football/pitch/pitch.hpp"
 
-#include <cmath>
 #include <cassert>
+#include <cmath>
 
 #include "player/player.hpp"
 
@@ -42,157 +41,50 @@ void CalculatePassDirectionAndPower(e_FunctionType passType, const Vector3 &vect
 
 }  // namespace
 
-void GetPass(Player *player, std::span<Player *const> teammates,
-             e_FunctionType passType,
-                const Vector3 &inputDirection, float inputPower,
-                float autoDirectionBias, float autoPowerBias,
-                Vector3 &resultingDirection, float &resultingPower,
-                Player *&targetPlayer, Player *forcedTargetPlayer) {
-
-  // Assistance is specified by the executable request, never its input source.
-  float adaptedAutoDirectionBias = autoDirectionBias;
-  float adaptedAutoPowerBias = autoPowerBias;
+bool GetPass(Player *player, e_FunctionType passType,
+             Player *forcedTargetPlayer,
+             const Vector3 *forcedTargetPosition,
+             Vector3 &resultingDirection, float &resultingPower,
+             Player *&targetPlayer) {
 
   assert(forcedTargetPlayer != player);
   // A value control may outlive the recipient's activation until contact.
-  if (forcedTargetPlayer && !forcedTargetPlayer->IsActive()) forcedTargetPlayer = nullptr;
+  if (forcedTargetPlayer && !forcedTargetPlayer->IsActive())
+    forcedTargetPlayer = nullptr;
 
-
-  // find out what player we intend to play to
-
-  Vector playerPos = player->GetPosition() + player->GetMovement().GetNormalized(0) * 0.2f; // + ffo. don't need movement for future stuff, since getpass is recalled at moment of passing, for refinement
+  // The target is always explicit. This solver only predicts the receiver's
+  // lead, never chooses which teammate to play to.
+  Vector3 playerPos = player->GetPosition() +
+      player->GetMovement().GetNormalized(0) * 0.2f;
   if (player->TouchAnim()) {
     playerPos = player->GetTouchPos().Get2D();
   }
-  Vector3 manualTarget = playerPos + inputDirection * clamp(inputPower * 60.0f, 1.0f, 100.0f);
 
-  std::vector<Player*> players;
-  for (Player* candidate : teammates) {
-    if (candidate->IsActive()) players.push_back(candidate);
-  }
-
-  if (players.size() < 2) {
-    resultingDirection = player->GetDirectionVec();
-    resultingPower = 1.0f;
-    targetPlayer = player;
-    adaptedAutoDirectionBias = 0.0f;
-    adaptedAutoPowerBias = 0.0f;
-  }
-
-  Player *bestTargetPlayer = player;
-  Vector3 autoTarget = manualTarget;
-
+  targetPlayer = nullptr;
+  Vector3 target;
   if (forcedTargetPlayer) {
-
-    bestTargetPlayer = forcedTargetPlayer;
-
-    float passDuration = 0.3f + (forcedTargetPlayer->GetPosition() - playerPos).GetLength() * 0.05f; // educated guess
+    float passDuration =
+        0.3f + (forcedTargetPlayer->GetPosition() - playerPos).GetLength() * 0.05f;
     passDuration = std::pow(clamp(passDuration, 0.0f, 1.0f), 0.7f) *
                    0.7f;  // after this time, the player is supposed to have
                           // been able to stop
-
-    autoTarget = forcedTargetPlayer->GetPosition() +
-                 forcedTargetPlayer->GetMovement() * passDuration; // correct for pass duration
-
+    target = forcedTargetPlayer->GetPosition() +
+             forcedTargetPlayer->GetMovement() * passDuration;
+    targetPlayer = forcedTargetPlayer;
+  } else if (forcedTargetPosition != nullptr) {
+    target = *forcedTargetPosition;
   } else {
-    float bestRating = 10000;
-    autoTarget = playerPos;
-
-    for (int i = 0; i < (signed int)players.size(); i++) {
-      if (players[i] != player /* && players[i]->IsActive()*/) {
-
-        float passDuration = 0.3f + (players[i]->GetPosition() - playerPos).GetLength() * 0.05f; // educated guess
-        passDuration = std::pow(clamp(passDuration, 0.0f, 1.0f), 0.7f) *
-                       0.7f;  // after this time, the player is supposed to have
-                              // been able to stop
-
-        Vector3 targetPos = players[i]->GetPosition() +
-                            players[i]->GetMovement() * passDuration; // correct for pass duration
-        // rate
-        float distanceRating =
-            std::pow(NormalizedClamp((targetPos - manualTarget).GetLength(),
-                                     0.0f, 70.0f),
-                     0.8f) *
-            0.8f;  // std::pow() this so small differences matter more - from some
-                   // point on, it just doesn't really matter that much anymore
-        float angleRating = std::fabs((targetPos - playerPos).GetNormalized(0).GetAngle2D(inputDirection) / (1.0f * pi)) * 1.0f;
-        if (distanceRating + angleRating < bestRating) {
-          bestRating = distanceRating + angleRating;
-          bestTargetPlayer = players[i];
-          autoTarget = targetPos;
-        }
-      }
-    }
+    return false;
   }
 
-  targetPlayer = bestTargetPlayer;
-  assert(targetPlayer);
-
-  Vector3 autoTargetRel = autoTarget - playerPos;
-  Vector3 manualTargetRel = manualTarget - playerPos;
-
-  if (forcedTargetPlayer) {
-    adaptedAutoDirectionBias = 1.0;
-    adaptedAutoPowerBias = 1.0;
-  } else {
-    // only help when at least somewhat close to target
-    float maxAllowedDistance = 50.0f;
-    float distanceFactor =
-        1.0 - std::pow(clamp((autoTargetRel - manualTargetRel).GetLength() /
-                                 maxAllowedDistance,
-                             0.0f, 1.0f),
-                       1.5f);
-    // extra help with power on close targets (because people can only physicaly press the pass button so short)
-    float proximityBonus =
-        std::pow(1.0f - NormalizedClamp((playerPos - autoTarget).GetLength(),
-                                        0.0f, 12.0f),
-                 0.5f);
-
-    adaptedAutoDirectionBias *= distanceFactor;
-    adaptedAutoDirectionBias =
-        std::pow(adaptedAutoDirectionBias, 1.0f - proximityBonus * 0.9f);
-    adaptedAutoPowerBias *= distanceFactor;
-    adaptedAutoPowerBias = clamp(adaptedAutoPowerBias * (1.0 + proximityBonus), 0.0f, 1.0f);
-    //printf("adaptedAutoPowerBias: %f\n", adaptedAutoPowerBias);
-  }
-
-  Vector3 offset;
+  Vector3 targetRel = target - playerPos;
   if (passType == e_FunctionType_LongPass) {
-    float targetDistance = autoTargetRel.GetLength()   * adaptedAutoDirectionBias +
-                           manualTargetRel.GetLength() * (1.0f - adaptedAutoDirectionBias);
-    offset = Vector3(
-        -player->GetDefendingDirection() * targetDistance * 0.2f, 0, 0);
-    autoTargetRel += offset;
-    manualTargetRel += offset;
+    targetRel += Vector3(
+        -player->GetDefendingDirection() * targetRel.GetLength() * 0.2f, 0, 0);
   }
-  Vector3 resultingTargetRel = (autoTargetRel.GetNormalized(0) * adaptedAutoDirectionBias + manualTargetRel.GetNormalized(0) * (1.0f - adaptedAutoDirectionBias)).GetNormalized(manualTarget);
-  resultingTargetRel *= float(autoTargetRel.GetLength() * adaptedAutoPowerBias + manualTargetRel.GetLength() * (1.0f - adaptedAutoPowerBias));
-
-  CalculatePassDirectionAndPower(passType, resultingTargetRel, resultingDirection, resultingPower);
+  CalculatePassDirectionAndPower(passType, targetRel, resultingDirection,
+                                 resultingPower);
+  return true;
 }
-
-Vector3 GetShotDirection(Player *player, const football::pitch::Pitch& pitch,
-                            const Vector3 &inputDirection,
-                            float autoDirectionBias) {
-
-  Vector3 manualDirection = inputDirection;
-
-  Vector3 goalPos =
-      Vector3(player->GetDefendingDirection() * -pitch.half_length(), 0, 0);
-  Vector3 toGoal = (goalPos - (player->GetPosition() + player->GetMovement() * 0.12f)).GetNormalized(0);
-  // if inputDirection ~== toGoal, it is considered as aiming 'through the middle'. so, get the deviation from inputDirection to toGoal, and make 90 degrees the maximum
-  radian relAngle = toGoal.GetAngle2D(inputDirection);
-  float sideFactor = clamp((relAngle / pi) / 0.5f, -1.0f, 1.0f);
-  // more attenuation towards the sides
-  sideFactor = std::pow(std::fabs(sideFactor), 0.7f) * signSide(sideFactor);
-
-  goalPos.coords[1] =
-      sideFactor * pitch.goal_half_width() * 0.9f * player->GetDefendingDirection();
-  Vector3 autoDirection = (goalPos - (player->GetPosition() + player->GetMovement() * 0.12f)).GetNormalized(0);
-
-  return (manualDirection * (1.0f - autoDirectionBias) + autoDirection * autoDirectionBias).GetNormalized(inputDirection);
-}
-
-// get the offensiveness of a role
 
 }  // namespace football::sim::mechanics

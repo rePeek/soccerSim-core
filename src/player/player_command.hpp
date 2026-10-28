@@ -30,16 +30,12 @@ enum e_PlayerCommandModifier {
 };
 
 struct TouchInfo {
-  Vector3         inputDirection;
-  float           inputPower = 0;
-
-  float           autoDirectionBias = 0;
-  float           autoPowerBias = 0;
-
-  Vector3         desiredDirection; // inputdirection after pass function
+  Vector3         desiredDirection; // explicit aim after target resolution
   float           desiredPower = 0;
-  Player          *targetPlayer = 0; // null == do not use
-  Player          *forcedTargetPlayer = 0; // null == do not use
+  Player          *targetPlayer = 0; // resolved receiver; null == none
+  Player          *forcedTargetPlayer = 0; // null == no player target
+  bool            useForcedTargetPosition = false;
+  Vector3         forcedTargetPosition; // explicit static target point
 };
 
 enum e_StrictMovement {

@@ -350,37 +350,50 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
         Vector3 ballDirection = anim_state_.originatingCommand.touchInfo.desiredDirection;
         float ballPower = anim_state_.originatingCommand.touchInfo.desiredPower;
         Player *targetPlayer = anim_state_.originatingCommand.touchInfo.targetPlayer;
-        Vector3 inputDirection = anim_state_.originatingCommand.touchInfo.inputDirection;
 
-        // refine/change target, if new target is close enough to old target
-
-        //targetPlayer = 0;//anim_state_.originatingCommand.touchInfo.targetPlayer;
+        // Refine the lead of the explicit target. Never select a receiver here.
         Vector3 tmpBallDirection = ballDirection;
         float tmpBallPower = ballPower;
         Player *tmpTargetPlayer = 0;
-        Player *forcedTargetPlayer = 0;
-        football::sim::mechanics::GetPass(this, tick.own_team.teammates, anim_state_.originatingCommand.desiredFunctionType, inputDirection, anim_state_.originatingCommand.touchInfo.inputPower, anim_state_.originatingCommand.touchInfo.autoDirectionBias, anim_state_.originatingCommand.touchInfo.autoPowerBias, tmpBallDirection, tmpBallPower, tmpTargetPlayer, anim_state_.originatingCommand.touchInfo.forcedTargetPlayer);
-        float maxDeviationAngle = 0.15f * pi;
-        radian angleDiff = tmpBallDirection.Get2D().GetAngle2D(ballDirection.Get2D());
-        if (std::fabs(angleDiff) <= maxDeviationAngle) {
-          ballDirection = tmpBallDirection;
-          ballPower = tmpBallPower;
-          targetPlayer = tmpTargetPlayer;
-        } else if (std::fabs(angleDiff) < 2.0f * maxDeviationAngle) {
-          // get as close as possible
-          float clampedAngleDiff = clamp(angleDiff, -maxDeviationAngle, maxDeviationAngle);
-          ballDirection = ballDirection.GetRotated2D(clampedAngleDiff);
-
-          if (tmpTargetPlayer != targetPlayer) {
-            // if we can't make it to our refined target at all, just stick with original ballpower (think about refined target at ~180 deg, would be weird to pass forward with the power of that (unreachable) target)
-            float refinedBias = NormalizedClamp(std::fabs(clampedAngleDiff), 0.0f, std::fabs(angleDiff));
-            ballPower = ballPower * (1.0f - refinedBias) + tmpBallPower * refinedBias;
-            targetPlayer = tmpTargetPlayer; // new, and removed line below
-          } else {
+        const Vector3 *forcedTargetPosition =
+            anim_state_.originatingCommand.touchInfo.useForcedTargetPosition
+                ? &anim_state_.originatingCommand.touchInfo.forcedTargetPosition
+                : nullptr;
+        const bool refined = football::sim::mechanics::GetPass(
+            this, anim_state_.originatingCommand.desiredFunctionType,
+            anim_state_.originatingCommand.touchInfo.forcedTargetPlayer,
+            forcedTargetPosition, tmpBallDirection, tmpBallPower,
+            tmpTargetPlayer);
+        if (refined) {
+          float maxDeviationAngle = 0.15f * pi;
+          radian angleDiff =
+              tmpBallDirection.Get2D().GetAngle2D(ballDirection.Get2D());
+          if (std::fabs(angleDiff) <= maxDeviationAngle) {
+            ballDirection = tmpBallDirection;
             ballPower = tmpBallPower;
-          }
+            targetPlayer = tmpTargetPlayer;
+          } else if (std::fabs(angleDiff) < 2.0f * maxDeviationAngle) {
+            // get as close as possible
+            float clampedAngleDiff =
+                clamp(angleDiff, -maxDeviationAngle, maxDeviationAngle);
+            ballDirection = ballDirection.GetRotated2D(clampedAngleDiff);
 
-        }  // else: just stick to original
+            if (tmpTargetPlayer != targetPlayer) {
+              // if we can't make it to our refined target at all, just stick
+              // with original ballpower (think about refined target at ~180 deg,
+              // would be weird to pass forward with the power of that
+              // (unreachable) target)
+              float refinedBias =
+                  NormalizedClamp(std::fabs(clampedAngleDiff), 0.0f,
+                                  std::fabs(angleDiff));
+              ballPower =
+                  ballPower * (1.0f - refinedBias) + tmpBallPower * refinedBias;
+              targetPlayer = tmpTargetPlayer;
+            } else {
+              ballPower = tmpBallPower;
+            }
+          }  // else: just stick to the queued explicit solution
+        }
 
         if (targetPlayer) {
           runtime_sink.SetDesignatedPlayer(GetTeamID(), targetPlayer);
@@ -422,21 +435,8 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
       }
 
       else if (anim_state_.functionType == e_FunctionType_Shot) {
-
-        // alter direction, if needed
-        Vector3 ballDirection = anim_state_.originatingCommand.touchInfo.desiredDirection;
-        Vector3 inputDirection = anim_state_.originatingCommand.touchInfo.inputDirection;
-        Vector3 ballDirectionAltered = football::sim::mechanics::GetShotDirection(this, tick.pitch, inputDirection, anim_state_.originatingCommand.touchInfo.autoDirectionBias);
-
-        float maxDeviationAngle = 0.1f * pi;
-        radian angleDiff = ballDirectionAltered.Get2D().GetAngle2D(ballDirection.Get2D());
-        if (std::fabs(angleDiff) > maxDeviationAngle) {
-          // get as close as possible
-          float clampedAngleDiff = clamp(angleDiff, -maxDeviationAngle, maxDeviationAngle);
-          ballDirection = ballDirection.GetRotated2D(clampedAngleDiff);
-        } else {
-          ballDirection = ballDirectionAltered;
-        }
+        // The explicit desiredDirection is the aim. Execution only solves the
+        // touch vector from it; it never selects a shot target.
 
         radian xRot = 0;
         radian yRot = 0;

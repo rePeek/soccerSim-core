@@ -26,7 +26,6 @@
 #include "football/ball/ball.hpp"
 #include "football/ball/ball_timing.hpp"
 #include "player/player_motion_constants.hpp"
-#include "player/perception.hpp"
 #include "player/reachability.hpp"
 #include "player/roster_query.hpp"
 #include "player/player_action_executor.hpp"
@@ -282,9 +281,6 @@ Player::Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
   fatigueFactorInv = 1.0;
   SetDesiredTimeToBall_ms(0);
   triggerControlledBallCollision = false;
-  tacticalSituation.forwardSpaceRating = 0;
-  tacticalSituation.toGoalSpaceRating = 0;
-  tacticalSituation.spaceRating = 0;
   cards = 0;
   card_effective_tick_ = {};
 }
@@ -867,13 +863,6 @@ void Player::Process(const football::sim::PlayerTickContext& tick, const footbal
 float Player::PrepareTick(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation, football::sim::player::PlayerTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
   if (isActive) {
     desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
-    if (tick.play_authorized) {
-      if (football::sim::player_timing::StaggeredRefreshDue(
-          tick.now, football::sim::player_timing::kTacticalRefresh,
-          football::sim::TickSpan{schedule_phase_})) {
-        _CalculateTacticalSituation(tick, observation);
-      }
-    }
     Vector3 posBefore = spatial_state_.position;
     RunActionTick(tick.now, tick, observation, touch_sink, runtime_sink);
     // S0.3: no adoption here. Every path already finished its own write inside
@@ -1087,29 +1076,4 @@ void Player::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
   timeNeededToGetToBall_optimistic_ms = 1000;
   SetDesiredTimeToBall_ms(0);
   triggerControlledBallCollision = false;
-  tacticalSituation.forwardSpaceRating = 0;
-  tacticalSituation.toGoalSpaceRating = 0;
-  tacticalSituation.spaceRating = 0;
-}
-
-void Player::_CalculateTacticalSituation(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation) {
-  // Sample only when needed. Reaction estimates keep their sub-tick precision;
-  // the adapter, not stored Player state, owns nearest-capture rounding.
-  const bool own_touch = tick.last_touch_player == this && lastTouchType != e_TouchType_Accidental;
-  // TickSpan{} and milliseconds{0} round to the same capture slot; use the
-  // continuous-delay form so the Player has a single age kind.
-  const std::chrono::milliseconds observation_age =
-      own_touch ? std::chrono::milliseconds{0}
-               : std::chrono::milliseconds{GetReactionTime_ms()};
-  assert(IsActive());
-  float time_sec = 0.5f;
-  Vector3 checkPos = GetPosition() + Vector3(-team_facts_.defending_direction, 0, 0) * sprintVelocity * time_sec;
-  tacticalSituation.forwardSpaceRating = football::sim::player::CalculateFreeSpace(tick.now, observation, observation_age, team_id_, checkPos, 5.0f, time_sec);
-  time_sec = 0.1f;
-  checkPos = GetPosition() + GetMovement() * time_sec;
-  tacticalSituation.spaceRating = football::sim::player::CalculateFreeSpace(tick.now, observation, observation_age, team_id_, checkPos, 5.0f, time_sec);
-  tacticalSituation.forwardRating =
-      1.0f - clamp((Vector3(pitch_.half_length() * -team_facts_.defending_direction, 0, 0) - GetPosition()).GetLength() /
-                       (pitch_.half_length() * 2.0f), 0.0f, 1.0f);
-  tacticalSituation.forwardRating = std::pow(tacticalSituation.forwardRating, 1.5f);
 }

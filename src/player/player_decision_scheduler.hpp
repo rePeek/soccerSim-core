@@ -11,7 +11,6 @@ inline constexpr TickSpan kTeamOwner{4};
 inline constexpr TickSpan kNearBall{5};
 inline constexpr TickSpan kApproachingBall{8};
 inline constexpr TickSpan kIdle{24};
-inline constexpr TickSpan kTacticalRefresh{10};
 
 // Staggered owner-local work. Reduce before adding so phase offsets cannot
 // overflow even at the largest representable timeline instant.

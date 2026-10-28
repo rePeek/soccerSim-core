@@ -126,6 +126,11 @@ observation, controls and stored physics are all the Stadium Frame.
   explicit intent (the Tactical Planner / Intent Runtime), AI emits no control
   and Player executes the neutral idle state. A failure never falls back to a
   renamed heuristic.
+- Execution never selects a target. A pass requires an explicit
+  `target_player` or `target_position` and is rejected otherwise; shot aim is
+  the explicit direction/target, never an automatic goal-centre solve. Player
+  also owns no periodic tactical-space rating: spatial queries belong to a
+  separate SpaceAnalyzer, not a Player tick.
 
 ## Physics and numerical conventions
 

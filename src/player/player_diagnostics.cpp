@@ -140,14 +140,15 @@ bool PlayerCommandsDecisionEqual(const PlayerCommand &a, const PlayerCommand &b)
   if (a.useDesiredLookAt != b.useDesiredLookAt) return false;
   if (!DecisionCommandVectorBitsEqual(a.desiredLookAt, b.desiredLookAt)) return false;
   if (a.useTouchInfo != b.useTouchInfo) return false;
-  if (!DecisionCommandVectorBitsEqual(a.touchInfo.inputDirection, b.touchInfo.inputDirection)) return false;
-  if (!DecisionCommandFloatBitsEqual(a.touchInfo.inputPower, b.touchInfo.inputPower)) return false;
-  if (!DecisionCommandFloatBitsEqual(a.touchInfo.autoDirectionBias, b.touchInfo.autoDirectionBias)) return false;
-  if (!DecisionCommandFloatBitsEqual(a.touchInfo.autoPowerBias, b.touchInfo.autoPowerBias)) return false;
   if (!DecisionCommandVectorBitsEqual(a.touchInfo.desiredDirection, b.touchInfo.desiredDirection)) return false;
   if (!DecisionCommandFloatBitsEqual(a.touchInfo.desiredPower, b.touchInfo.desiredPower)) return false;
   if (a.touchInfo.targetPlayer != b.touchInfo.targetPlayer) return false;
   if (a.touchInfo.forcedTargetPlayer != b.touchInfo.forcedTargetPlayer) return false;
+  if (a.touchInfo.useForcedTargetPosition != b.touchInfo.useForcedTargetPosition) return false;
+  if (a.touchInfo.useForcedTargetPosition &&
+      !DecisionCommandVectorBitsEqual(a.touchInfo.forcedTargetPosition,
+                                       b.touchInfo.forcedTargetPosition))
+    return false;
   if (a.onlyDeflectAnimsThatPickupBall != b.onlyDeflectAnimsThatPickupBall) return false;
   if (a.useTripType != b.useTripType) return false;
   if (a.tripType != b.tripType) return false;

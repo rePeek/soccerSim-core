@@ -1971,3 +1971,71 @@ TEST_CASE("Runtime harness: the Player pose preview drives the body forecast",
   CHECK(sim.Stop());
 }
 
+
+TEST_CASE("Runtime harness: a pass without an explicit target is rejected",
+          "[runtime][sim]") {
+  // REMOVE-2: the execution layer never picks a receiver. A ShortPass with
+  // neither target_player nor target_position must be rejected, not resolved by
+  // searching teammates for the closest/best-rated option.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  int in_play_tick = -1;
+  bool pass_installed = false;
+  for (int tick = 0; tick < 300; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    const bool drive = in_play_tick >= 0 && tick > in_play_tick + 2;
+
+    PlayerControlSet controls;
+    PlayerControl control;
+    control.move_direction = Vector3(0, -1, 0);
+    control.desired_speed = drive ? 3.0f : 0.0f;
+    if (drive) {
+      SimulationAccess::SetBallRetainer(sim, player);
+      SimulationAccess::ResetBall(
+          sim, player->GetPosition() + Vector3(0, -0.4f, 0));
+      control.action = ControlAction::ShortPass;
+      control.power = 0.6f;
+      // Deliberately no target_player and no target_position.
+    }
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+
+    if (player->GetSimulationActionState().type == e_FunctionType_ShortPass)
+      pass_installed = true;
+  }
+
+  CHECK(in_play_tick > 0);
+  CHECK_FALSE(pass_installed);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: absent control never starts a pass, shot or tackle",
+          "[runtime][sim]") {
+  // No intent producer is wired in this harness. Idle execution may still
+  // collide, decelerate and animate, but it must never start an attacking or
+  // tackling action on its own.
+  Simulation sim;
+  InitMatch(sim);
+
+  bool autonomous_action = false;
+  for (int tick = 0; tick < 300; ++tick) {
+    sim.Step(PlayerControlSet{});
+    for (int team = 0; team < 2; ++team) {
+      for (Player* player : SimulationAccess::TeamOf(sim, team).Players()) {
+        const e_FunctionType type = player->GetSimulationActionState().type;
+        if (type == e_FunctionType_ShortPass ||
+            type == e_FunctionType_LongPass ||
+            type == e_FunctionType_HighPass ||
+            type == e_FunctionType_Shot ||
+            type == e_FunctionType_Sliding)
+          autonomous_action = true;
+      }
+    }
+  }
+
+  CHECK_FALSE(autonomous_action);
+  CHECK(sim.Stop());
+}
