@@ -5,6 +5,7 @@
 #include "football/ball/ball.hpp"
 #include "football/pitch/pitch.hpp"
 #include "player/player.hpp"
+#include "football/player/command/player_command_validation.hpp"
 #include "player/command/player_action_mapping.hpp"
 #include "player/execution/kick_targeting.hpp"
 
@@ -65,13 +66,8 @@ CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
 
   const bool pass_action =
       football::sim::player::IsPassControlAction(control.action);
-  if (pass_action && !control.target_player && !control.target_position) {
-    // A pass must name its receiver or its target point.
-    return result(CommandBuildStatus::Rejected, {movement});
-  }
-  if (control.action == ControlAction::Shoot && !control.target_position &&
-      control.move_direction.GetLength() <= 0.000001f) {
-    // A shot needs an explicit aim direction or target point.
+  if (!football::sim::player::ControlActionTargetIsExplicit(control) ||
+      !football::sim::player::ControlActionAimIsExplicit(control)) {
     return result(CommandBuildStatus::Rejected, {movement});
   }
 
@@ -106,10 +102,8 @@ CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
       // Aim is explicit: the requested direction or target point, never an
       // automatic goal-centre selection.
       command.touchInfo.desiredDirection =
-          command.touchInfo.useForcedTargetPosition
-              ? (command.touchInfo.forcedTargetPosition - player.GetPosition())
-                    .GetNormalized(command.desiredDirection)
-              : command.desiredDirection;
+          football::sim::player::ResolveExplicitShotDirection(
+              control, player.GetPosition(), command.desiredDirection);
       command.touchInfo.desiredPower = std::max(0.f, control.power);
     } else {
       const Vector3* forcedTargetPosition =

@@ -21,10 +21,13 @@
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
 #include "player/contact/player_action_volume.hpp"
+#include "football/player/contact/player_contact_kernel.hpp"
 #include "player/command/player_motion_constants.hpp"
 
 namespace football::sim {
 namespace {
+
+using namespace football::sim::player;
 
 // How close the ball must be to the offender's contact for the challenge to
 // count as an attempt to play the ball (Law 12 double jeopardy).
@@ -106,280 +109,83 @@ FoulAssessment MakeSlidingAssessment(Player* victim, Player* tackler,
   fact.score = NormalizedClamp(fact.severity, 1.0f, 2.0f);
   return fact;
 }
+ContactActorSnapshot CaptureContactActor(const Player& player,
+                                        const PlayerContactInputs& inputs) {
+  ContactActorSnapshot snapshot;
+  snapshot.id = player.GetID();
+  snapshot.team_id = player.GetTeamID();
+  snapshot.position = player.GetPosition();
+  snapshot.collider = player.GetGroundCollider();
+  const PlayerKinematicState& kinematics = player.GetKinematicState();
+  snapshot.velocity = kinematics.velocity;
+  snapshot.facing = kinematics.GetFacing();
+  snapshot.direction_vec = player.GetDirectionVec();
+  snapshot.relative_body_angle = player.GetRelBodyAngle();
+  snapshot.float_velocity = player.GetFloatVelocity();
+  snapshot.action = player.GetSimulationActionState();
+  snapshot.technical_standingtackle = player.GetStat(
+      football::player::PlayerStat::technical_standingtackle);
+  snapshot.technical_slidingtackle = player.GetStat(
+      football::player::PlayerStat::technical_slidingtackle);
+  snapshot.physical_balance =
+      player.GetStat(football::player::PlayerStat::physical_balance);
+  snapshot.decaying_position_offset = player.GetDecayingPositionOffset();
+  snapshot.has_possession = player.HasPossession();
+  snapshot.has_best_possession = player.HasBestPossession();
+  snapshot.global_designated_possession =
+      &player == inputs.designated_possession_player;
+  snapshot.team_designated_possession =
+      &player == player.GetTeamDesignatedPossessionPlayer();
+  return snapshot;
+}
 
 void ResolvePlayerPair(Player *p1, Player *p2,
                        std::vector<PlayerBounce> &p1Bounce,
                        std::vector<PlayerBounce> &p2Bounce,
                        const PlayerContactInputs& inputs,
                        std::vector<FoulAssessment>* assessments) {
-  constexpr float distanceFactor = 0.72f;
-  constexpr float bouncePlayerRadius = 0.5f * distanceFactor;
-  constexpr float similarPlayerRadius = 0.8f * distanceFactor;
-  constexpr float similarExp = 0.2f;//0.8f;
-  constexpr float similarForceFactor = 0.25f; // 0.5f would be the full effect
+  ContactPairEnvironment environment;
+  environment.ball_next_position =
+      inputs.ball.Predict(football::sim::TickSpan{1}).position.Get2D();
 
-  const PlayerGroundCollider &p1Collider = p1->GetGroundCollider();
-  const PlayerGroundCollider &p2Collider = p2->GetGroundCollider();
-  Vector3 p1pos = p1Collider.center;
-  Vector3 p2pos = p2Collider.center;
-  float distance = (p1pos - p2pos).GetLength();
+  const ContactActorSnapshot first = CaptureContactActor(*p1, inputs);
+  const ContactActorSnapshot second = CaptureContactActor(*p2, inputs);
+  const ContactPairResult resolved =
+      football::sim::player::ResolveContactPair(first, second, environment);
 
-  Vector3 p1movement = p1->GetKinematicState().velocity;
-  Vector3 p2movement = p2->GetKinematicState().velocity;
-  assert(p1movement.coords[2] == 0.0f);
-  assert(p2movement.coords[2] == 0.0f);
+  if (resolved.first_has_offset) p1->OffsetPosition(resolved.first_offset);
+  if (resolved.second_has_offset) p2->OffsetPosition(resolved.second_offset);
 
-  float bounceBias = 0.0f;
-  Vector3 bounceVec;
-  float p1backFacing = 0.5f;
-  float p2backFacing = 0.5f;
+  if (resolved.first_similar)
+    p1Bounce.push_back({p2, resolved.first_similar_force});
+  if (resolved.second_similar)
+    p2Bounce.push_back({p1, resolved.second_similar_force});
 
-  if (distance < bouncePlayerRadius * 2.0f ||
-      distance < (bouncePlayerRadius + similarPlayerRadius) * 2.0f) {
-
-    bounceVec = (p1pos - p2pos).GetNormalized(Vector3(0, -1, 0));
-
-    // back facing
-    Vector3 p1facing = p1->GetKinematicState().GetFacing().GetRotated2D(p1->GetRelBodyAngle() * 0.7f);
-    Vector3 p2facing = p2->GetKinematicState().GetFacing().GetRotated2D(p2->GetRelBodyAngle() * 0.7f);
-    p1backFacing = clamp(p1facing.GetDotProduct( bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f); // 0 .. 1 == worst .. best
-    p2backFacing = clamp(p2facing.GetDotProduct(-bounceVec) * 0.5f + 0.5f, 0.0f, 1.0f);
-
-    if (p1->GetGroundCollider().Intersects(p2->GetGroundCollider())) {
-
-      bounceBias += p1backFacing * 0.8f;
-      bounceBias -= p2backFacing * 0.8f;
-
-      // velocity, faster is worse
-      float p1velocity = p1->GetFloatVelocity();
-      float p2velocity = p2->GetFloatVelocity();
-      const PlayerActionState &p1Action = p1->GetSimulationActionState();
-      const PlayerActionState &p2Action = p2->GetSimulationActionState();
-      bounceBias -= clamp(((p1velocity - p2velocity) / sprintVelocity) * 0.2f, -0.2f, 0.2f);
-
-      if (p1Action.IsContactPending() && p1Action.type == e_FunctionType_Interfere) bounceBias += 0.1f + 0.4f * p1->GetStat(football::player::PlayerStat::technical_standingtackle);
-      if (p1Action.IsContactPending() && p1Action.type == e_FunctionType_Sliding)   bounceBias += 0.1f + 0.4f * p1->GetStat(football::player::PlayerStat::technical_slidingtackle);
-      if (p2Action.IsContactPending() && p2Action.type == e_FunctionType_Interfere) bounceBias -= 0.1f + 0.4f * p2->GetStat(football::player::PlayerStat::technical_standingtackle);
-      if (p2Action.IsContactPending() && p2Action.type == e_FunctionType_Sliding)   bounceBias -= 0.1f + 0.4f * p2->GetStat(football::player::PlayerStat::technical_slidingtackle);
-
-      // problem is, once possession is lost (usually directly after ball is touched), bias may turn around the other way. (well, maybe that's not a problem. dunno.)
-      // if (p1->HasPossession() == true) bounceBias -= 0.3f;
-      // if (p2->HasPossession() == true) bounceBias += 0.3f;
-
-      if (p1 == inputs.designated_possession_player) bounceBias += 0.4f;
-      if (p2 == inputs.designated_possession_player) bounceBias -= 0.4f;
-
-      // closest to ball
-      if (p1 == p1->GetTeamDesignatedPossessionPlayer() &&
-          p2 == p2->GetTeamDesignatedPossessionPlayer()) {
-        float p1BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}).position.Get2D() - p1->GetPosition()).GetLength();
-        float p2BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}).position.Get2D() - p2->GetPosition()).GetLength();
-        float ballDistanceDiffFactor = clamp(std::min(p2BallDistance, 1.2f) - std::min(p1BallDistance, 1.2f), -0.6f, 0.6f) * 1.0f; // std::min is cap so difference won't matter if ball is far away (so only used in battles about the ball)
-        bounceBias += ballDistanceDiffFactor;
-      }
-
-      bounceBias += p1->GetStat(football::player::PlayerStat::physical_balance) * 1.0f;
-      bounceBias -= p2->GetStat(football::player::PlayerStat::physical_balance) * 1.0f;
-
-      bounceBias = clamp(bounceBias, -1.0f, 1.0f);
-      bounceBias *= 0.5f;
-
-      // convert bounceBias to 0 .. 1 instead of -1 .. 1
-      float bounceBias0to1 = bounceBias * 0.5f + 0.5f;
-      //bounceBias0to1 = curve(bounceBias0to1, 0.5f); // more binary
-
-      Vector3 offset1 = (p1pos - p2pos).GetNormalized(0) * (bouncePlayerRadius - distance * 0.5f) * (1.0f - bounceBias0to1) * 2.0f;
-      Vector3 offset2 = (p2pos - p1pos).GetNormalized(0) * (bouncePlayerRadius - distance * 0.5f) * bounceBias0to1 * 2.0f;
-
-      // slow down on contact
-      /*
-      Vector3 averageMomentum = (p1movement + p2movement) * 0.5f;
-      offset1 -= averageMomentum * 0.001f;
-      offset2 -= averageMomentum * 0.001f;
-      */
-
-      // make players snap to the side of opponents (rather, just a bit in front of them too)
-
-
-      if (inputs.designated_possession_player == p2 && p2->HasPossession()) {
-        Vector3 p2_leftside = p2pos + p2->GetKinematicState().GetFacing().GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
-        Vector3 p2_rightside = p2pos + p2->GetKinematicState().GetFacing().GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
-        float p1_to_p2_left = (p1pos - p2_leftside).GetLength();
-        float p1_to_p2_right = (p1pos - p2_rightside).GetLength();
-        Vector3 p2side = p1_to_p2_left < p1_to_p2_right ? p2_leftside : p2_rightside;
-        // SetYellowDebugPilon(p2side);
-        offset1 += (p2side - p1pos).GetNormalizedMax(0.01f) * p1->GetStat(football::player::PlayerStat::physical_balance) * 0.3f;
-      }
-
-      else if (inputs.designated_possession_player == p1 && p1->HasPossession()) {
-        Vector3 p1_leftside = p1pos + p1->GetKinematicState().GetFacing().GetRotated2D(0.3f * pi) * bouncePlayerRadius * 2;
-        Vector3 p1_rightside = p1pos + p1->GetKinematicState().GetFacing().GetRotated2D(-0.3f * pi) * bouncePlayerRadius * 2;
-        float p2_to_p1_left = (p2pos - p1_leftside).GetLength();
-        float p2_to_p1_right = (p2pos - p1_rightside).GetLength();
-        Vector3 p1side = p2_to_p1_left < p2_to_p1_right ? p1_leftside : p1_rightside;
-        // SetRedDebugPilon(p1side);
-        offset2 += (p1side - p2pos).GetNormalizedMax(0.01f) * p2->GetStat(football::player::PlayerStat::physical_balance) * 0.3f;
-      }
-
-      // can not bump faster than sprint
-      offset1.NormalizeMax(sprintVelocity * 0.01f);
-      offset2.NormalizeMax(sprintVelocity * 0.01f);
-
-
-      p1->OffsetPosition(offset1);
-      p2->OffsetPosition(offset2);
+  if (resolved.trip_range && assessments != nullptr) {
+    if (auto assessment = AssessCollision(
+            p1, p2, resolved.first_sensitivity, resolved.second_sensitivity,
+            inputs.ball, inputs.now)) {
+      assessments->push_back(*assessment);
     }
-
-    // take over each others movement a bit (precalc phase)
-
-    float similarBias = 0.0f;
-
-    if (similarForceFactor > 0.0f &&
-        distance < (bouncePlayerRadius + similarPlayerRadius) * 2.0f) {
-      float shellDistance = std::max(0.0f, distance - bouncePlayerRadius * 2.0f);
-
-      similarBias += p1backFacing * 0.8f;
-      similarBias -= p2backFacing * 0.8f;
-
-      // velocity, faster is worse
-      float p1velocity = p1->GetFloatVelocity();
-      float p2velocity = p2->GetFloatVelocity();
-      similarBias -= clamp(((p1velocity - p2velocity) / sprintVelocity) * 0.2f, -0.2f, 0.2f);
-
-      if (p1 == inputs.designated_possession_player) similarBias += 0.6f;
-      if (p2 == inputs.designated_possession_player) similarBias -= 0.6f;
-
-      // closest to ball
-      if (p1 == p1->GetTeamDesignatedPossessionPlayer() &&
-          p2 == p2->GetTeamDesignatedPossessionPlayer()) {
-        float p1BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}).position.Get2D() - p1->GetPosition()).GetLength();
-        float p2BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}).position.Get2D() - p2->GetPosition()).GetLength();
-        float ballDistanceDiffFactor = clamp(std::min(p2BallDistance, 1.2f) - std::min(p1BallDistance, 1.2f), -0.6f, 0.6f) * 1.0f; // std::min is cap so difference won't matter if ball is far away (so only used in battles about the ball)
-        similarBias += ballDistanceDiffFactor;
-      }
-
-      similarBias += p1->GetStat(football::player::PlayerStat::physical_balance) * 1.0f;
-      similarBias -= p2->GetStat(football::player::PlayerStat::physical_balance) * 1.0f;
-
-      similarBias = clamp(similarBias, -1.0f, 1.0f);
-      similarBias *= 0.9f;
-
-      float similarForce = clamp(1.0f - (shellDistance / (similarPlayerRadius * 2.0f)), 0.0f, 1.0f);
-      similarForce = std::pow(similarForce, similarExp);
-      similarForce *= similarForceFactor;
-
-      assert(similarForce >= 0.0f && similarForce <= 1.0f);
-
-      float similarBias0to1 = similarBias * 0.5f + 0.5f;
-
-
-      PlayerBounce player1Bounce;
-      player1Bounce.opp = p2;
-      player1Bounce.force = similarForce * (1.0f - similarBias0to1);
-      p1Bounce.push_back(player1Bounce);
-
-      PlayerBounce player2Bounce;
-      player2Bounce.opp = p1;
-      player2Bounce.force = similarForce * similarBias0to1;
-      p2Bounce.push_back(player2Bounce);
-    }
-
-    // u b trippin?
-
-    if (distance < bouncePlayerRadius * 2.0f) {
-
-      float p1sensitivity = 0.0f;
-      float p2sensitivity = 0.0f;
-
-      p1sensitivity += (1.0f - p1backFacing) * 1.0f;
-      p2sensitivity += (1.0f - p2backFacing) * 1.0f;
-
-      // velocity, faster is worse
-      float p1velocity = p1->GetFloatVelocity();
-      float p2velocity = p2->GetFloatVelocity();
-      p1sensitivity += NormalizedClamp(p1velocity, idleVelocity, sprintVelocity) * 1.0f;
-      p2sensitivity += NormalizedClamp(p2velocity, idleVelocity, sprintVelocity) * 1.0f;
-
-      if (p1->HasBestPossession() == true) p1sensitivity += 1.0f;
-      if (p2->HasBestPossession() == true) p2sensitivity += 1.0f;
-
-      float balanceWeight = 3.0f;
-      p1sensitivity += (1.0f - p1->GetStat(football::player::PlayerStat::physical_balance) * 1.0f) * balanceWeight;
-      p2sensitivity += (1.0f - p2->GetStat(football::player::PlayerStat::physical_balance) * 1.0f) * balanceWeight;
-
-      p1sensitivity += clamp(p1->GetDecayingPositionOffsetLength() * 10.0f, 0.0f, 1.0f);
-      p2sensitivity += clamp(p2->GetDecayingPositionOffsetLength() * 10.0f, 0.0f, 1.0f);
-
-      // penetration
-      float penetrationWeight = 6.0f;
-      float penetration = ( (p1->GetPosition() + p1->GetKinematicState().velocity * 0.03f) - (p2->GetPosition() + p2->GetKinematicState().velocity * 0.03f) ).GetLength();
-      //if (p1->GetDebug() || p2->GetDebug()) printf("penetration: %f\n", pow(1.0f - NormalizedClamp(penetration, 0.0f, bouncePlayerRadius * 2.0f), 0.4f));
-      p1sensitivity +=
-          std::pow(1.0f - NormalizedClamp(penetration, 0.0f,
-                                          bouncePlayerRadius * 2.0f),
-                   0.4f) *
-          penetrationWeight;
-      p2sensitivity +=
-          std::pow(1.0f - NormalizedClamp(penetration, 0.0f,
-                                          bouncePlayerRadius * 2.0f),
-                   0.4f) *
-          penetrationWeight;
-
-      // ball proximity (usually means: stability is less because we sacrifice balance to control the ball)
-      float p1BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}).position.Get2D() - p1->GetPosition()).GetLength();
-      float p2BallDistance = (inputs.ball.Predict(football::sim::TickSpan{1}).position.Get2D() - p2->GetPosition()).GetLength();
-      p1sensitivity += 1.0f - NormalizedClamp(p1BallDistance, 0.0f, 0.7f);
-      p2sensitivity += 1.0f - NormalizedClamp(p2BallDistance, 0.0f, 0.7f);
-
-      // divided by elements active
-      p1sensitivity /= 5.0f + balanceWeight + penetrationWeight;
-      p2sensitivity /= 5.0f + balanceWeight + penetrationWeight;
-
-      // Independent of the physical fall, derive at most one foul suspicion
-      // from the same sensitivities. The referee owns what to do with it.
-      if (assessments != nullptr) {
-        if (auto assessment = AssessCollision(p1, p2, p1sensitivity, p2sensitivity,
-                                             inputs.ball, inputs.now)) {
-          assessments->push_back(*assessment);
-        }
-      }
-
-      float trip0threshold = 0.38f;
-      float trip1threshold = 0.48f;
-      float trip2threshold = 0.58f;
-
-      if (p1sensitivity > trip0threshold) {
-        int tripType = 0;
-        if (p1sensitivity > trip1threshold) tripType = 1;
-        if (p1sensitivity > trip2threshold) tripType = 2;
-        if (tripType > 0) {
-          const Vector3 trip_dir = (p1->GetKinematicState().velocity * 0.1f + p2->GetKinematicState().velocity * 0.06f + bounceVec * 1.0f).GetNormalized(bounceVec);
-          // ANIM-2 A11.5: React is the single passive-reaction entry. It
-          // arbitrates, stages the trip guard and defers execution to the next
-          // action tick, so the contact phase never writes animation state.
-          p1->React(PlayerReaction{ReactionKind::Trip, trip_dir, p1sensitivity, p2->GetID(), tripType},
-                    inputs.ball_retainer);
-        }
-      }
-      if (p2sensitivity > trip0threshold) {
-        int tripType = 0;
-        if (p2sensitivity > trip1threshold) tripType = 1;
-        if (p2sensitivity > trip2threshold) tripType = 2;
-        if (tripType > 0) {
-          const Vector3 trip_dir = (p2->GetKinematicState().velocity * 0.1f + p1->GetKinematicState().velocity * 0.06f - bounceVec * 1.0f).GetNormalized(-bounceVec);
-          p2->React(PlayerReaction{ReactionKind::Trip, trip_dir, p2sensitivity, p1->GetID(), tripType},
-                    inputs.ball_retainer);
-        }
-      }
-
-    }  // within either bump, similar or trip range
   }
 
-  // check for tackling collisions
+  if (resolved.first_trip.active) {
+    p1->React(PlayerReaction{ReactionKind::Trip,
+                             resolved.first_trip.direction,
+                             resolved.first_trip.severity, p2->GetID(),
+                             resolved.first_trip.trip_type},
+              inputs.ball_retainer);
+  }
+  if (resolved.second_trip.active) {
+    p2->React(PlayerReaction{ReactionKind::Trip,
+                             resolved.second_trip.direction,
+                             resolved.second_trip.severity, p1->GetID(),
+                             resolved.second_trip.trip_type},
+              inputs.ball_retainer);
+  }
 
-  // The tackle contact test is a simulation-owned action volume (a forward
-  // capsule) against the victim's ground collider. It replaces the legacy
-  // per-body-part geometry AABB test, so no scene object is involved.
+  // Tackle contact volume remains an Execution-side action adapter. It reads
+  // the post-offset actors, preserving the legacy order.
   const PlayerActionState &p1Action = p1->GetSimulationActionState();
   const PlayerActionState &p2Action = p2->GetSimulationActionState();
   const PlayerActionVolume p1Tackle =
@@ -389,8 +195,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
   int tackle = 0;
   if (p1Tackle.active) tackle += 1;
   if (p2Tackle.active) tackle += 2;
-  if (distance < 2.0f && tackle > 0 && tackle < 3) {
-      // if tackle is 3, ignore both
+  if (resolved.distance < 2.0f && tackle > 0 && tackle < 3) {
     const PlayerActionVolume &tacklerVolume =
         tackle == 1 ? p1Tackle : p2Tackle;
     const PlayerActionState &tacklerAction =
@@ -402,14 +207,14 @@ void ResolvePlayerPair(Player *p1, Player *p2,
       if (tacklerAction.Frame() > 10 &&
           tacklerAction.Frame() < tacklerAction.FrameCount() - 6) {
         Vector3 tripVec = victim->GetKinematicState().GetFacing();
-        int tripType = 3;  // sliding
-        if (tacklerAction.type == e_FunctionType_Interfere)
-          tripType = 1;  // was 2
-        victim->React(PlayerReaction{ReactionKind::Trip, tripVec, 1.0f, tackler->GetID(), tripType},
+        int tripType = 3;
+        if (tacklerAction.type == e_FunctionType_Interfere) tripType = 1;
+        victim->React(PlayerReaction{ReactionKind::Trip, tripVec, 1.0f,
+                                     tackler->GetID(), tripType},
                       inputs.ball_retainer);
         if (tripType == 3 && assessments != nullptr) {
-          assessments->push_back(
-              MakeSlidingAssessment(victim, tackler, inputs.ball.state().position, inputs.now));
+          assessments->push_back(MakeSlidingAssessment(
+              victim, tackler, inputs.ball.state().position, inputs.now));
         }
       }
     }

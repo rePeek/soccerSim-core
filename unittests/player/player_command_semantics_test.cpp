@@ -4,9 +4,11 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "football/player/command/player_command_validation.hpp"
 #include "player/command/player_action_mapping.hpp"
 #include "player/command/player_action_request.hpp"
 
+using football::math::Vector3;
 using football::sim::player::ControlActionFunctionType;
 using football::sim::player::ControlActionRequiresAim;
 using football::sim::player::ControlActionRequiresExplicitTarget;
@@ -86,4 +88,26 @@ TEST_CASE("Play arbitration rejects Unsupported and duplicates") {
         RequestOutcome::Rejected);
   CHECK(ArbitrateActionRequest(ball_control, ControlAction::ThroughPass) ==
         RequestOutcome::Deferred);
+}
+
+TEST_CASE("Command validation accepts only explicit pass and shot parameters") {
+  PlayerControl pass;
+  pass.action = ControlAction::Pass;
+  CHECK_FALSE(football::sim::player::ControlActionTargetIsExplicit(pass));
+  pass.target_player = 7;
+  CHECK(football::sim::player::ControlActionTargetIsExplicit(pass));
+
+  PlayerControl shot;
+  shot.action = ControlAction::Shoot;
+  CHECK_FALSE(football::sim::player::ControlActionAimIsExplicit(shot));
+  shot.move_direction = Vector3(1, 0, 0);
+  CHECK(football::sim::player::ControlActionAimIsExplicit(shot));
+
+  PlayerControl aimed_shot;
+  aimed_shot.action = ControlAction::Shoot;
+  aimed_shot.target_position = Vector3(10, 5, 0);
+  CHECK(football::sim::player::ControlActionAimIsExplicit(aimed_shot));
+  const Vector3 direction = football::sim::player::ResolveExplicitShotDirection(
+      aimed_shot, Vector3(0, 0, 0), Vector3(0, -1, 0));
+  CHECK(direction.coords[0] > 0.8f);
 }

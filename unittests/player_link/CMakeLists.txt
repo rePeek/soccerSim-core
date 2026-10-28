@@ -37,7 +37,7 @@ set_tests_properties(player_link_smoke PROPERTIES
 # Independent link closure for each lower library.
 add_executable(football_player_state_link_smoke state_link_smoke.cpp)
 target_link_libraries(football_player_state_link_smoke
-  PRIVATE football::player_state)
+  PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_state>")
 football_configure_target(football_player_state_link_smoke)
 add_test(NAME player_state_link_smoke COMMAND football_player_state_link_smoke)
 set_tests_properties(player_state_link_smoke PROPERTIES
@@ -45,7 +45,7 @@ set_tests_properties(player_state_link_smoke PROPERTIES
 
 add_executable(football_player_command_link_smoke command_link_smoke.cpp)
 target_link_libraries(football_player_command_link_smoke
-  PRIVATE football::player_command)
+  PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_command>")
 football_configure_target(football_player_command_link_smoke)
 add_test(NAME player_command_link_smoke COMMAND football_player_command_link_smoke)
 set_tests_properties(player_command_link_smoke PROPERTIES
@@ -53,7 +53,7 @@ set_tests_properties(player_command_link_smoke PROPERTIES
 
 add_executable(football_player_contact_link_smoke contact_link_smoke.cpp)
 target_link_libraries(football_player_contact_link_smoke
-  PRIVATE football::player_contact)
+  PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_contact>")
 football_configure_target(football_player_contact_link_smoke)
 add_test(NAME player_contact_link_smoke COMMAND football_player_contact_link_smoke)
 set_tests_properties(player_contact_link_smoke PROPERTIES

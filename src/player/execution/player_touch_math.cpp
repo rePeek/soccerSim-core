@@ -9,6 +9,7 @@
 #include "football/animation/types.hpp"
 
 #include "player/execution/player_touch_query.hpp"
+#include "football/player/contact/player_touch_math_kernel.hpp"
 #include "player/player.hpp"
 #include "player/command/player_motion_constants.hpp"
 
@@ -49,70 +50,39 @@ float ExecutionError(float skill, float difficulty) {
 }
 
 }  // namespace
-
 void GetDifficultyFactors(const Ball *ball, Player *player,
-                          const football::player::PlayerTouchFacts& touches, const PlayerTeamView &opponent,
-                          football::sim::Tick now,
+                          const football::player::PlayerTouchFacts& touches,
+                          const PlayerTeamView &opponent, football::sim::Tick now,
                           const SpatialState &spatialState,
                           const Vector3 &positionOffset, float &distanceFactor,
                           float &heightFactor, float &ballMovementFactor) {
-
-
-  distanceFactor = 0.0f; // how far ball bounces off feet
-  heightFactor = 0.0f; // how high ball bounces off feet
-  ballMovementFactor = 0.0f; // how much of the current ball movement is maintained
-  // being pushed is tough
-  float positionOffsetPenalty = NormalizedClamp(positionOffset.GetLength(), 0.0f, 0.1f) * 2.0f; // was: 7.0f
-  // fast balls are harder
-  float ballBodyVeloPenalty =
-      std::pow(NormalizedClamp(
-                   (spatialState.movement - ball->state().velocity).GetLength(),
-                   10.0f, 50.0f),
-               1.5f) *
-      5.0f;
-  // balls farther away from body are harder
-  float fartherAwayPenalty =
-      std::pow(NormalizedClamp(
-                   ((spatialState.position + spatialState.directionVec * 0.2f) -
-                    ball->state().position.Get2D())
-                       .GetLength(),
-                   0.7f, 1.3f),
-               2.0f) *
-      2.0f;
-
-  distanceFactor += positionOffsetPenalty * 2.0f;
-  distanceFactor += ballBodyVeloPenalty;
-  distanceFactor += fartherAwayPenalty * 4.0f;
-
-  heightFactor += positionOffsetPenalty * 0.5f;
-  heightFactor += ballBodyVeloPenalty * 2.0f;
-  heightFactor += fartherAwayPenalty;
-
-  // make intercepting passes harder
+  float lastTouchBias = 0.0f;
   if (touches.last_team != player->GetTeamID()) {
     Player *lastTouchPlayer = football::sim::player::LastTouchPlayer(
         touches, opponent.team_id, opponent.teammates);
     if (lastTouchPlayer) {
-      float lastTouchBiasPenalty =
-          std::pow(lastTouchPlayer->GetLastTouchBias(
-                       1000 - player->GetStat(football::player::PlayerStat::physical_reaction) * 500, now),
-                   0.6f) *
-          5.0f;
-      distanceFactor += lastTouchBiasPenalty;
-      heightFactor += lastTouchBiasPenalty;
-      ballMovementFactor += lastTouchBiasPenalty * 0.1f;
+      lastTouchBias = lastTouchPlayer->GetLastTouchBias(
+          1000 - player->GetStat(football::player::PlayerStat::physical_reaction) * 500,
+          now);
     }
   }
-  ballMovementFactor = clamp(ballMovementFactor, 0.0f, 0.9f);
 
-  float skillPenaltyMultiplier =
-      (1.0f - player->GetStat(football::player::PlayerStat::technical_ballcontrol) * 0.5f);
-  distanceFactor *= skillPenaltyMultiplier;
-  heightFactor *= skillPenaltyMultiplier;
-  ballMovementFactor *= skillPenaltyMultiplier;
-  distanceFactor = clamp(distanceFactor, 0.0f, 1.0f);
-  heightFactor = clamp(heightFactor, 0.0f, 1.0f);
-  ballMovementFactor = clamp(ballMovementFactor, 0.0f, 1.0f);
+  football::sim::player::TouchDifficultyInput input;
+  input.position_offset = positionOffset;
+  input.ball_position_2d = ball->state().position.Get2D();
+  input.ball_velocity = ball->state().velocity;
+  input.spatial_movement = spatialState.movement;
+  input.spatial_position = spatialState.position;
+  input.spatial_direction = spatialState.directionVec;
+  input.technical_ballcontrol =
+      player->GetStat(football::player::PlayerStat::technical_ballcontrol);
+  input.last_touch_bias = lastTouchBias;
+
+  const football::sim::player::TouchDifficultyFactors factors =
+      football::sim::player::CalculateTouchDifficulty(input);
+  distanceFactor = factors.distance;
+  heightFactor = factors.height;
+  ballMovementFactor = factors.ball_movement;
 }
 
 Vector3 GetBallControlVector(const Ball *ball, Player *player, const PlayerTeamView &opponent, const AnimationClip& clip,

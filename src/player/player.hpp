@@ -42,7 +42,7 @@
 #include "football/player/command/player_motion_profile.hpp"
 #include "football/player/state/player_body_profile.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
-#include "player/contact/player_ground_collider.hpp"
+#include "football/player/contact/player_ground_collider.hpp"
 #include "football/player/state/player_action.hpp"
 #include "player/execution/player_action_feedback.hpp"
 #include "player/command/player_action_request.hpp"
@@ -503,6 +503,7 @@ class Player final {
     void CheckSimulationKinematicOracle() const;
 
     float GetDecayingPositionOffsetLength() const { return decayingPositionOffset.GetLength(); }
+    const Vector3 &GetDecayingPositionOffset() const { return decayingPositionOffset; }
 
     // Tick-local borrows; no history owner or persistent world port.
     void Process(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation, football::sim::player::PlayerTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink);

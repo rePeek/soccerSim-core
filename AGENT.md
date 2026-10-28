@@ -162,12 +162,12 @@ aggregate (`football::player`). The aggregate is not a fifth library.
 - `football::player_state`: value types, kinematics, action state, body profile,
   command status, role parser. Must not depend on command, contact or
   execution.
-- `football::player_command`: pure continuous motion, locomotion and
-  reachability. May depend on state and Ball; must not depend on contact or
-  execution.
-- `football::player_contact`: pure touch proposal, impulse arbitration and
-  contact geometry. May depend on state, Ball and geometry; must not depend on
-  command or execution.
+- `football::player_command`: pure continuous motion, locomotion,
+  reachability, command validation and pass solving. May depend on state and
+  Ball; must not depend on contact or execution.
+- `football::player_contact`: pure pair-contact kernel, touch proposal,
+  impulse arbitration, touch difficulty and contact geometry. May depend on
+  state, Ball and geometry; must not depend on command or execution.
 - `football::player_execution`: the concrete Player actor, tick orchestration,
   animation matching and every adapter that needs a live Player. It is the only
   layer that owns Player and the only layer that may depend on command,

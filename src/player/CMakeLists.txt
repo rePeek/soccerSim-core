@@ -83,6 +83,7 @@ target_sources(football_player_command PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/command/player_motion_profile.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/command/player_body_facing.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/command/player_pass_solver.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/command/player_command_validation.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_control.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_control_set.hpp)
 target_link_libraries(football_player_command
@@ -101,7 +102,9 @@ football_player_check_boundary(
 # ---------------------------------------------------------------------------
 add_library(football_player_contact STATIC
   contact/player_active_touch_model.cpp
-  contact/player_active_impulse.cpp)
+  contact/player_active_impulse.cpp
+  contact/player_contact_kernel.cpp
+  contact/player_touch_math_kernel.cpp)
 add_library(football::player_contact ALIAS football_player_contact)
 target_include_directories(football_player_contact
   PRIVATE ${PROJECT_SOURCE_DIR}/src)
@@ -113,6 +116,9 @@ target_sources(football_player_contact PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_active_touch_model.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_active_impulse.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_body_collider.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_ground_collider.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_contact_kernel.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_touch_math_kernel.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_body_collider_motion.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/foul_assessment.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_type.hpp)
@@ -165,8 +171,8 @@ target_sources(football_player_execution PUBLIC FILE_SET HEADERS
 target_link_libraries(football_player_execution
   PUBLIC
     football::player_state
-  PRIVATE
     football::player_command
+  PRIVATE
     football::player_contact
     football::geometry football::pitch football::ball football::animation
     football::collision BqLog)
