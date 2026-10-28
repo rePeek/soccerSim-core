@@ -131,6 +131,16 @@ observation, controls and stored physics are all the Stadium Frame.
   the explicit direction/target, never an automatic goal-centre solve. Player
   also owns no periodic tactical-space rating: spatial queries belong to a
   separate SpaceAnalyzer, not a Player tick.
+- `PlayerControl` is the one Command value. Continuous movement is
+  `move_direction` + `desired_speed` (no Move/Accelerate/Decelerate action
+  verb); discrete verbs are `ControlAction`. `Play()` accepts the same verbs, so
+  the controller and one-shot request paths share one action enum and one
+  command-build boundary.
+- Command and animation are not one-to-one. `ThroughPass` resolves to a
+  short/long pass from its target distance, `Beat` to the ball-control family,
+  `Tackle` to `Interfere`, `SlideTackle` to `Sliding`; `Pull` is a defined but
+  Unsupported Command. `Player::ActionFeedback()` reports the source Command,
+  installed `e_FunctionType`, contact and completion.
 
 ## Physics and numerical conventions
 

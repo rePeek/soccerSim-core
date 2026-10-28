@@ -1127,20 +1127,20 @@ TEST_CASE("Runtime harness: per-player Play/React/Pose contract", "[runtime][sim
 
   // 22 players hold independent requests; two are shown here.
   PlayerActionRequest shoot;
-  shoot.kind = ActionRequestKind::Shoot;
+  shoot.action = ControlAction::Shoot;
   shoot.direction = Vector3(1, 0, 0);
   shoot.power = 1.0f;
   CHECK(striker->Play(shoot) == RequestOutcome::Accepted);
 
   PlayerActionRequest pass;
-  pass.kind = ActionRequestKind::ShortPass;
+  pass.action = ControlAction::ShortPass;
   pass.target_player = teammate->GetID();
   CHECK(teammate->Play(pass) == RequestOutcome::Accepted);
 
   REQUIRE(striker->PendingActionRequest().has_value());
   REQUIRE(teammate->PendingActionRequest().has_value());
-  CHECK(striker->PendingActionRequest()->kind == ActionRequestKind::Shoot);
-  CHECK(teammate->PendingActionRequest()->kind == ActionRequestKind::ShortPass);
+  CHECK(striker->PendingActionRequest()->action == ControlAction::Shoot);
+  CHECK(teammate->PendingActionRequest()->action == ControlAction::ShortPass);
   CHECK(striker->ActionRequestAccepts() == 1);
   CHECK(teammate->ActionRequestAccepts() == 1);
 
@@ -1178,7 +1178,7 @@ TEST_CASE("Runtime harness: per-player Play/React/Pose contract", "[runtime][sim
   REQUIRE(keeper != nullptr);
   CHECK_FALSE(keeper->PendingActionRequest().has_value());
   PlayerActionRequest move;
-  move.kind = ActionRequestKind::Move;
+  move.action = ControlAction::None;
   move.direction = Vector3(0, -1, 0);
   move.speed = 6.0f;
   CHECK(keeper->Play(move) == RequestOutcome::Rejected);
@@ -1248,14 +1248,14 @@ TEST_CASE("Runtime harness: players keep independent animation state across team
   Player* a_trap = SimulationAccess::TeamOf(sim, 1).Players()[7];
 
   PlayerActionRequest shoot;
-  shoot.kind = ActionRequestKind::Shoot;
+  shoot.action = ControlAction::Shoot;
   PlayerActionRequest pass;
-  pass.kind = ActionRequestKind::ShortPass;
+  pass.action = ControlAction::ShortPass;
   pass.target_player = h_pass->GetID();
   PlayerActionRequest dribble;
-  dribble.kind = ActionRequestKind::Dribble;
+  dribble.action = ControlAction::Dribble;
   PlayerActionRequest trap;
-  trap.kind = ActionRequestKind::Trap;
+  trap.action = ControlAction::Trap;
 
   CHECK(h_shoot->Play(shoot) == RequestOutcome::Accepted);
   CHECK(h_pass->Play(pass) == RequestOutcome::Accepted);
@@ -1266,10 +1266,10 @@ TEST_CASE("Runtime harness: players keep independent animation state across team
   REQUIRE(h_pass->PendingActionRequest().has_value());
   REQUIRE(a_dribble->PendingActionRequest().has_value());
   REQUIRE(a_trap->PendingActionRequest().has_value());
-  CHECK(h_shoot->PendingActionRequest()->kind == ActionRequestKind::Shoot);
-  CHECK(h_pass->PendingActionRequest()->kind == ActionRequestKind::ShortPass);
-  CHECK(a_dribble->PendingActionRequest()->kind == ActionRequestKind::Dribble);
-  CHECK(a_trap->PendingActionRequest()->kind == ActionRequestKind::Trap);
+  CHECK(h_shoot->PendingActionRequest()->action == ControlAction::Shoot);
+  CHECK(h_pass->PendingActionRequest()->action == ControlAction::ShortPass);
+  CHECK(a_dribble->PendingActionRequest()->action == ControlAction::Dribble);
+  CHECK(a_trap->PendingActionRequest()->action == ControlAction::Trap);
 
   // Re-Init builds fresh actors with no residual request.
   CHECK(sim.Stop());
@@ -1816,7 +1816,7 @@ TEST_CASE("Runtime harness: an accepted Play request executes through the pipeli
       if (!submitted &&
           player->GetSimulationActionState().type == e_FunctionType_Movement) {
         PlayerActionRequest shoot;
-        shoot.kind = ActionRequestKind::Shoot;
+        shoot.action = ControlAction::Shoot;
         shoot.direction = Vector3(0, -1, 0);
         shoot.power = 0.7f;
         submit_outcome = player->Play(shoot);
@@ -1860,7 +1860,7 @@ TEST_CASE("Runtime harness: a Trip preempts an accepted active request",
     if (!armed && in_play_tick >= 0 && tick > in_play_tick + 3 &&
         player->GetSimulationActionState().type == e_FunctionType_Movement) {
       PlayerActionRequest shoot;
-      shoot.kind = ActionRequestKind::Shoot;
+      shoot.action = ControlAction::Shoot;
       shoot.direction = Vector3(0, -1, 0);
       shoot.power = 0.7f;
       play_outcome = player->Play(shoot);
@@ -2037,5 +2037,112 @@ TEST_CASE("Runtime harness: absent control never starts a pass, shot or tackle",
   }
 
   CHECK_FALSE(autonomous_action);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: ThroughPass executes and reports its Command source",
+          "[runtime][sim]") {
+  // CMD-1/CMD-3: ThroughPass is a pass-into-space Command, not a separate
+  // animation type. It resolves to a short/long pass, installs, and the
+  // execution feedback retains the original Command verb.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  int in_play_tick = -1;
+  PlayerActionFeedback observed;
+  for (int tick = 0; tick < 300; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    const bool drive = in_play_tick >= 0 && tick > in_play_tick + 2;
+
+    PlayerControlSet controls;
+    PlayerControl control;
+    control.move_direction = Vector3(0, -1, 0);
+    control.desired_speed = drive ? 3.0f : 0.0f;
+    if (drive) {
+      SimulationAccess::SetBallRetainer(sim, player);
+      SimulationAccess::ResetBall(
+          sim, player->GetPosition() + Vector3(0, -0.4f, 0));
+      control.action = ControlAction::ThroughPass;
+      control.target_position = player->GetPosition() + Vector3(0, -18.0f, 0);
+      control.power = 0.6f;
+    }
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+
+    const e_FunctionType type = player->GetSimulationActionState().type;
+    if (!observed.installed &&
+        (type == e_FunctionType_ShortPass ||
+         type == e_FunctionType_LongPass)) {
+      observed = player->ActionFeedback();
+    }
+  }
+
+  CHECK(in_play_tick > 0);
+  REQUIRE(observed.installed);
+  CHECK(observed.source_action == ControlAction::ThroughPass);
+  CHECK((observed.type == e_FunctionType_ShortPass ||
+         observed.type == e_FunctionType_LongPass));
+  CHECK(observed.start_frame >= 0);
+  CHECK(observed.touch_frame >= 0);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: Pull and CallSupport are unsupported Commands",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  PlayerActionRequest pull;
+  pull.action = ControlAction::Pull;
+  CHECK(player->Play(pull) == RequestOutcome::Unsupported);
+
+  PlayerActionRequest support;
+  support.action = ControlAction::CallSupport;
+  CHECK(player->Play(support) == RequestOutcome::Unsupported);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: Beat installs a ball-control escape action",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  int in_play_tick = -1;
+  PlayerActionFeedback observed;
+  for (int tick = 0; tick < 300; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    const bool drive = in_play_tick >= 0 && tick > in_play_tick + 2;
+
+    PlayerControlSet controls;
+    PlayerControl control;
+    control.move_direction = Vector3(0, -1, 0);
+    control.desired_speed = drive ? 5.0f : 0.0f;
+    if (drive) {
+      SimulationAccess::SetBallRetainer(sim, player);
+      SimulationAccess::ResetBall(
+          sim, player->GetPosition() + Vector3(0, -0.4f, 0));
+      control.action = ControlAction::Beat;
+      control.target_position = player->GetPosition() + Vector3(0, -12.0f, 0);
+      control.power = 0.6f;
+    }
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+
+    const e_FunctionType type = player->GetSimulationActionState().type;
+    if (!observed.installed && type == e_FunctionType_BallControl)
+      observed = player->ActionFeedback();
+  }
+
+  CHECK(in_play_tick > 0);
+  REQUIRE(observed.installed);
+  CHECK(observed.source_action == ControlAction::Beat);
+  CHECK(observed.type == e_FunctionType_BallControl);
+  CHECK(observed.start_frame >= 0);
   CHECK(sim.Stop());
 }

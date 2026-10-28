@@ -18,6 +18,7 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/animation/types.hpp"
+#include "football/player/player_control.hpp"
 
 using namespace football::math;
 
@@ -70,6 +71,10 @@ struct PlayerCommand {
     modifier = 0;
   }
 
+  // The public Command verb that produced this execution command. Retained so
+  // feedback can distinguish ThroughPass from the short/long clip it resolved
+  // to, and Beat from the ball-control clip it selected.
+  ControlAction source_action = ControlAction::None;
   e_FunctionType desiredFunctionType;
 
   bool           useDesiredMovement;

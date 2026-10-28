@@ -7,6 +7,7 @@
 #include "football/animation/types.hpp"
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
+#include "football/player/player_control.hpp"
 
 using namespace football::math;
 
@@ -40,6 +41,21 @@ struct PlayerActionState {
   bool IsPureLocomotion(bool retains_ball) const {
     return type == e_FunctionType_Movement && !HasScheduledContact() && !retains_ball;
   }
+};
+
+// Execution feedback for the last installed discrete action. Command ->
+// animation is not one-to-one, so both the source Command and the concrete
+// e_FunctionType are exposed. `interrupted` means a new action replaced an
+// incomplete one; a natural last-frame switch is not an interruption.
+struct PlayerActionFeedback {
+  ControlAction source_action = ControlAction::None;
+  e_FunctionType type = e_FunctionType_None;
+  bool installed = false;
+  bool contact = false;
+  bool completed = false;
+  bool interrupted = false;
+  int start_frame = -1;
+  int touch_frame = -1;
 };
 
 #endif

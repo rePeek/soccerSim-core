@@ -618,10 +618,16 @@ bool Player::CommitSelectedAction(int selected_anim_id,
   // ANIM-1 A6.4 step 7b: the Player owns the install dispatch. The compat
   // projection writes the legacy currentAnim; the Player then installs through
   // the one install entry, and only then records the scheduled-contact audit.
+  const bool interrupted =
+      actionState.type != e_FunctionType_Movement &&
+      !actionState.IsComplete() && !actionState.IsAtLastFrame() &&
+      local_interrupt_anim != e_InterruptAnim_None;
   ProjectSelectedActionCompat(selected_anim_id, touch_choice, command, tick, now,
                               observation, local_interrupt_anim, material_candidate,
                               start_frame);
   InstallSelectedAction(CurrentSelectedAction());
+  action_feedback_.source_action = command.source_action;
+  action_feedback_.interrupted = interrupted;
   RecordSelectedContactAudit(command);
   return true;
 }
@@ -648,6 +654,14 @@ void Player::InstallSelectedAction(const football::sim::SelectedAction &selectio
     PlayerActionExecutor::Step(
         actionState, football::sim::TickSpan{static_cast<std::uint64_t>(selection.start_frame)});
   }
+  action_feedback_.source_action = ControlAction::None;
+  action_feedback_.type = selection.function_type;
+  action_feedback_.installed = selection.function_type != e_FunctionType_None;
+  action_feedback_.contact = false;
+  action_feedback_.completed = false;
+  action_feedback_.interrupted = false;
+  action_feedback_.start_frame = selection.start_frame;
+  action_feedback_.touch_frame = selection.touch_frame;
   CheckSimulationActionOracle();
 
   // Oracle during migration: the compat projection must still agree with
@@ -706,6 +720,10 @@ void Player::AdvanceActionTick() {
   // authority; the compatibility integer frame is a read-only projection.
   PlayerActionExecutor::Step(actionState, football::sim::TickSpan{1});
   anim_state_.frameNum = actionState.Frame();
+  action_feedback_.type = actionState.type;
+  action_feedback_.contact =
+      actionState.HasScheduledContact() && actionState.IsContactDue();
+  action_feedback_.completed = actionState.IsComplete();
   CheckSimulationActionOracle();
 }
 
@@ -784,17 +802,18 @@ float Player::GetControlSpeed() {
 // execution input, so a deferred intent cannot be silently executed later; the
 // producer resubmits it when the window opens.
 //
-// `Play(Move)` is rejected on purpose: continuous movement intent belongs to
-// SetControl/PlayerMotion, and selecting a Movement clip through Play would not
-// change the authoritative locomotion intent. Use SetControl for movement.
+// `Play(ControlAction::None)` is rejected on purpose: continuous movement
+// intent belongs to SetControl/PlayerMotion, and selecting a Movement clip
+// through Play would not change the authoritative locomotion intent.
 RequestOutcome Player::Play(const PlayerActionRequest& request) {
-  if (request.kind == ActionRequestKind::Move) {
+  if (request.action == ControlAction::None) {
     action_request_outcome_ = RequestOutcome::Rejected;
     ++action_request_attempts_;
     ++action_request_rejects_;
     return RequestOutcome::Rejected;
   }
-  const RequestOutcome outcome = ArbitrateActionRequest(actionState, request.kind);
+  const RequestOutcome outcome =
+      ArbitrateActionRequest(actionState, request.action);
   action_request_outcome_ = outcome;
   ++action_request_attempts_;
   if (outcome == RequestOutcome::Accepted) {

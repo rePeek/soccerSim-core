@@ -49,26 +49,6 @@ enum class PlayerPathSelectionCommandProvenance {
   LocalTripMovementFallback
 };
 
-namespace {
-
-ControlAction ToControlAction(ActionRequestKind kind) {
-  switch (kind) {
-    case ActionRequestKind::Move: return ControlAction::None;
-    case ActionRequestKind::Shoot: return ControlAction::Shoot;
-    case ActionRequestKind::ShortPass: return ControlAction::ShortPass;
-    case ActionRequestKind::LongPass: return ControlAction::LongPass;
-    case ActionRequestKind::HighPass: return ControlAction::HighPass;
-    case ActionRequestKind::Dribble: return ControlAction::Dribble;
-    case ActionRequestKind::Trap: return ControlAction::Trap;
-    case ActionRequestKind::Tackle: return ControlAction::Tackle;
-    case ActionRequestKind::Save: return ControlAction::Save;
-    case ActionRequestKind::None: return ControlAction::None;
-  }
-  return ControlAction::None;
-}
-
-}  // namespace
-
 // ANIM-2 A11.5: an accepted active request enters the same pipeline as the
 // controller. The request is in the actor's runtime frame, so convert into the
 // home value domain and reuse BuildPlayerCommands, the one translation boundary.
@@ -80,7 +60,7 @@ PlayerCommandQueue Player::BuildCommandQueueForRequest(
   // The request is already in the single Stadium Frame.
   control.move_direction = request.direction.Get2D();
   control.desired_speed = std::max(0.0f, request.speed);
-  control.action = ToControlAction(request.kind);
+  control.action = request.action;
   control.power = request.power;
   if (request.has_target_position)
     control.target_position = request.target_position;
@@ -450,7 +430,7 @@ void Player::RunActionTick(football::sim::Tick now,
       // ANIM-2 A11.7: re-arbitrate at consumption. The request was accepted on
       // an earlier tick and the action state may have changed since, so a now-
       // illegal intent is dropped instead of force-switching the running action.
-      if (ArbitrateActionRequest(actionState, pending_request->kind) ==
+      if (ArbitrateActionRequest(actionState, pending_request->action) ==
           RequestOutcome::Accepted) {
         request_command_queue =
             this->BuildCommandQueueForRequest(*pending_request, tick);

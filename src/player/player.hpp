@@ -349,7 +349,7 @@ class Player final {
     //   SetControl() -> continuous movement intent (PlayerMotion authority).
     //   Play()       -> discrete actions (pass/shoot/tackle/...).
     //   React()      -> passive physics reactions (trips/bumps).
-    // `Play(ActionRequestKind::Move)` is REJECTED: continuous movement must go
+    // `Play(ControlAction::None)` is REJECTED: continuous movement must go
     // through SetControl, otherwise a Movement clip would be selected without
     // changing the authoritative locomotion intent.
     //
@@ -467,6 +467,9 @@ class Player final {
     bool PublishMovementIntentFromQueue(const PlayerCommandQueue &queue, football::sim::Tick now, bool retaining_ball);
     bool LocomotionIntentRefreshHeldIneligible(football::sim::Tick now, bool retaining_ball) const;
     const football::sim::SelectedAction& InstalledAction() const { return installed_action_; }
+    // Last discrete-action execution result: source Command, matched type,
+    // install/contact/completion and whether a new action interrupted it.
+    const PlayerActionFeedback& ActionFeedback() const { return action_feedback_; }
     int InstallChecks() const { return install_checks_; }
     int InstallMatches() const { return install_matches_; }
     int InstallMismatches() const { return install_mismatches_; }
@@ -858,6 +861,7 @@ class Player final {
     // install cross-check counters. `last_begun_definition_` is the definition
     // the executor actually committed, used only as an oracle during migration.
     football::sim::SelectedAction installed_action_;
+    PlayerActionFeedback action_feedback_;
     PlayerActionDefinition last_begun_definition_;
     int last_begun_start_frame_ = 0;
     int install_checks_ = 0;

@@ -7,6 +7,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "player/player_action.hpp"
 #include "football/player/player_definition.hpp"
+#include "player/player_action_mapping.hpp"
 
 // ANIM-1.1 / ANIM-2 A11.5/A11.7 — explicit per-player action request / reaction
 // contract.
@@ -15,8 +16,9 @@
 //   SetControl()  -> continuous movement intent (PlayerMotion authority).
 //   Play(request)-> discrete actions only (pass/shoot/tackle/...).
 //   React(...)    -> passive physics reactions (trips/bumps).
-// `Play(ActionRequestKind::Move)` is rejected: a Movement clip selected through
-// Play would not change the authoritative locomotion intent.
+// `Play(...)` is for discrete actions only; continuous movement uses SetControl
+// with ControlAction::None. Both entry points share the same ControlAction verb
+// and the same BuildPlayerCommands translation boundary.
 //
 // Both funnel through one arbitration so the accept/defer/reject reason is always
 // recorded. An accepted request/reaction is a real execution input: the next
@@ -26,41 +28,21 @@
 // arbitration window allows. Only the ACTION reaction is deferred here; the
 // physical collision impulse was already applied by the contact phase.
 
-enum class ActionRequestKind : std::uint8_t {
-  None = 0,
-  Move,
-  Shoot,
-  ShortPass,
-  LongPass,
-  HighPass,
-  Dribble,
-  Trap,
-  Tackle,
-  Save,
-};
-
-inline e_FunctionType ActionRequestFunctionType(ActionRequestKind kind) {
-  switch (kind) {
-    case ActionRequestKind::Move: return e_FunctionType_Movement;
-    case ActionRequestKind::Shoot: return e_FunctionType_Shot;
-    case ActionRequestKind::ShortPass: return e_FunctionType_ShortPass;
-    case ActionRequestKind::LongPass: return e_FunctionType_LongPass;
-    case ActionRequestKind::HighPass: return e_FunctionType_HighPass;
-    case ActionRequestKind::Dribble: return e_FunctionType_BallControl;
-    case ActionRequestKind::Trap: return e_FunctionType_Trap;
-    case ActionRequestKind::Tackle: return e_FunctionType_Sliding;
-    case ActionRequestKind::Save: return e_FunctionType_Deflect;
-    case ActionRequestKind::None: return e_FunctionType_None;
-  }
-  return e_FunctionType_None;
+// Nominal execution family for arbitration. ThroughPass resolves to short/long
+// from its target distance during command build; this value only identifies the
+// family for duplicate detection.
+inline e_FunctionType ActionRequestFunctionType(ControlAction action) {
+  if (action == ControlAction::None) return e_FunctionType_None;
+  return football::sim::player::ControlActionFunctionType(action);
 }
 
 struct PlayerActionRequest {
-  ActionRequestKind kind = ActionRequestKind::None;
+  ControlAction action = ControlAction::None;
   // Movement direction or shot/kick direction, in the actor's RUNTIME frame.
   // The execution boundary converts it once into the value/command domain.
   football::math::Vector3 direction = football::math::Vector3(0);
-  // Movement speed for a Move request; ignored by the one-shot actions.
+  // Movement speed or the desired approach speed for a discrete action; the
+  // action's own power is carried separately in `power`.
   float speed = 0.0f;
   // Absolute target position on the pitch for passes/shots (optional).
   football::math::Vector3 target_position = football::math::Vector3(0);
@@ -89,16 +71,23 @@ enum class RequestOutcome : std::uint8_t {
   Accepted = 0,
   Deferred,
   Rejected,
+  // Defined Command, but no execution path exists in the current build.
+  Unsupported,
 };
 
 // Active arbitration. A one-shot (non-Movement) action in flight rejects a
 // repeat of the same action (no restart from repeated input) and defers a
 // different one until it completes or reaches an interruptible window.
+// Pull and CallSupport are defined Commands with no Player execution path:
+// report Unsupported rather than accepting and silently doing something else.
 inline RequestOutcome ArbitrateActionRequest(const PlayerActionState& current,
-                                             ActionRequestKind kind) {
-  if (kind == ActionRequestKind::None) return RequestOutcome::Rejected;
+                                             ControlAction action) {
+  if (action == ControlAction::None) return RequestOutcome::Rejected;
+  if (action == ControlAction::Pull ||
+      action == ControlAction::CallSupport)
+    return RequestOutcome::Unsupported;
   if (current.type != e_FunctionType_Movement && !current.IsComplete()) {
-    if (current.type == ActionRequestFunctionType(kind)) {
+    if (current.type == ActionRequestFunctionType(action)) {
       return RequestOutcome::Rejected;  // already running this one-shot
     }
     return RequestOutcome::Deferred;    // wait for a legal switch window

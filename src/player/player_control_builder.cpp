@@ -5,24 +5,9 @@
 #include "football/ball/ball.hpp"
 #include "football/pitch/pitch.hpp"
 #include "player/player.hpp"
+#include "player/player_action_mapping.hpp"
 #include "player/kick_targeting.hpp"
 
-namespace {
-e_FunctionType ToFunctionType(ControlAction action) {
-  switch (action) {
-    case ControlAction::ShortPass: return e_FunctionType_ShortPass;
-    case ControlAction::LongPass: return e_FunctionType_LongPass;
-    case ControlAction::HighPass: return e_FunctionType_HighPass;
-    case ControlAction::Shoot: return e_FunctionType_Shot;
-    case ControlAction::Tackle: return e_FunctionType_Sliding;
-    case ControlAction::Dribble: return e_FunctionType_BallControl;
-    case ControlAction::Trap: return e_FunctionType_Trap;
-    case ControlAction::Save: return e_FunctionType_Deflect;
-    case ControlAction::None: return e_FunctionType_Movement;
-  }
-  return e_FunctionType_Movement;
-}
-}  // namespace
 
 PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
                                        Player& player, const PlayerCommandInputs& inputs) {
@@ -62,11 +47,36 @@ PlayerCommandQueue BuildPlayerCommands(const PlayerControl& input,
     return {movement};
   }
   if (control.action == ControlAction::None) return {movement};
+  if (control.action == ControlAction::Pull ||
+      control.action == ControlAction::CallSupport) {
+    // Defined Commands with no current execution path: Pull has no correct
+    // clip, and CallSupport must be resolved by Team/Planner into another
+    // player's Move Command. Never substitute an unrelated action.
+    return {movement};
+  }
+
+  const bool pass_action =
+      football::sim::player::IsPassControlAction(control.action);
+  if (pass_action && !control.target_player && !control.target_position) {
+    // A pass must name its receiver or its target point.
+    return {movement};
+  }
+  if (control.action == ControlAction::Shoot && !control.target_position &&
+      control.move_direction.GetLength() <= 0.000001f) {
+    // A shot needs an explicit aim direction or target point.
+    return {movement};
+  }
 
   PlayerCommand command = movement;
-  command.desiredFunctionType = ToFunctionType(control.action);
-  if (control.action == ControlAction::ShortPass || control.action == ControlAction::LongPass ||
-      control.action == ControlAction::HighPass || control.action == ControlAction::Shoot) {
+  command.source_action = control.action;
+  const float target_distance =
+      control.target_position
+          ? (*control.target_position - player.GetPosition()).GetLength()
+          : 0.0f;
+  command.desiredFunctionType =
+      football::sim::player::ControlActionFunctionType(control.action,
+                                                       target_distance);
+  if (pass_action || control.action == ControlAction::Shoot) {
     command.useDesiredMovement = false;
     command.useDesiredLookAt = false;
     command.useTouchInfo = true;
