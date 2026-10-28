@@ -2146,3 +2146,91 @@ TEST_CASE("Runtime harness: Beat installs a ball-control escape action",
   CHECK(observed.start_frame >= 0);
   CHECK(sim.Stop());
 }
+
+TEST_CASE("Runtime harness: accepted Play reports command-build failure accurately",
+          "[runtime][sim]") {
+  // A malformed Command is rejected synchronously by Play. A Command that
+  // needs live actor/ball state can pass arbitration yet fail the build; that
+  // is reported as FallbackMovement and never counted as executed input.
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  PlayerActionRequest malformed;
+  malformed.action = ControlAction::Pass;
+  CHECK(player->Play(malformed) == RequestOutcome::Rejected);
+
+  const int failures_before = player->ActionRequestBuildFailures();
+  bool submitted = false;
+  for (int tick = 0; tick < 240 && !submitted; ++tick) {
+    if (SimulationAccess::IsInPlayOf(sim) &&
+        player->GetSimulationActionState().type == e_FunctionType_Movement) {
+      PlayerActionRequest pass;
+      pass.action = ControlAction::Pass;
+      // A receiver id that is not in the roster: contract-valid at Play time,
+      // unsolvable during command build.
+      pass.target_player = static_cast<football::player::PlayerId>(999999);
+      REQUIRE(player->Play(pass) == RequestOutcome::Accepted);
+      submitted = true;
+    }
+    sim.Step(PlayerControlSet{});
+  }
+  REQUIRE(submitted);
+
+  for (int tick = 0; tick < 8 &&
+                     player->ActionRequestBuildFailures() == failures_before;
+       ++tick) {
+    sim.Step(PlayerControlSet{});
+  }
+
+  CHECK(player->ActionRequestBuildFailures() == failures_before + 1);
+  CHECK(player->ActionFeedback().command_status ==
+        football::sim::player::CommandBuildStatus::FallbackMovement);
+  CHECK_FALSE(player->ActionFeedback().installed);
+  CHECK(player->GetSimulationActionState().type != e_FunctionType_ShortPass);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime harness: touch due, prepared and accepted are distinct",
+          "[runtime][sim]") {
+  Simulation sim;
+  InitSmallMatch(sim);
+  Player* player = SimulationAccess::TeamOf(sim, 0).Players()[1];
+  REQUIRE(player != nullptr);
+
+  int in_play_tick = -1;
+  bool saw_due = false;
+  bool saw_prepared = false;
+  bool saw_accepted = false;
+  for (int tick = 0; tick < 300; ++tick) {
+    if (in_play_tick < 0 && SimulationAccess::IsInPlayOf(sim)) in_play_tick = tick;
+    const bool drive = in_play_tick >= 0 && tick > in_play_tick + 2;
+
+    PlayerControlSet controls;
+    PlayerControl control;
+    control.move_direction = Vector3(0, -1, 0);
+    control.desired_speed = drive ? 3.0f : 0.0f;
+    if (drive) {
+      SimulationAccess::SetBallRetainer(sim, player);
+      SimulationAccess::ResetBall(
+          sim, player->GetPosition() + Vector3(0, -0.4f, 0));
+      control.action = ControlAction::ShortPass;
+      control.target_position = player->GetPosition() + Vector3(0, -18.0f, 0);
+      control.power = 0.6f;
+    }
+    controls.Set(player->GetID(), control);
+    sim.Step(controls);
+
+    const PlayerActionFeedback& feedback = player->ActionFeedback();
+    saw_due |= feedback.contact_due;
+    saw_prepared |= feedback.touch_prepared;
+    saw_accepted |= feedback.touch_accepted;
+  }
+
+  CHECK(in_play_tick > 0);
+  CHECK(saw_due);
+  CHECK(saw_prepared);
+  CHECK(saw_accepted);
+  CHECK(sim.Stop());
+}

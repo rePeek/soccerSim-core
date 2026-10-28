@@ -8,6 +8,7 @@
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/player/player_control.hpp"
+#include "player/state/player_command_status.hpp"
 
 using namespace football::math;
 
@@ -43,19 +44,31 @@ struct PlayerActionState {
   }
 };
 
-// Execution feedback for the last installed discrete action. Command ->
+// Execution feedback for the last discrete Command attempt. Command ->
 // animation is not one-to-one, so both the source Command and the concrete
-// e_FunctionType are exposed. `interrupted` means a new action replaced an
-// incomplete one; a natural last-frame switch is not an interruption.
+// e_FunctionType are exposed. A failed build leaves installed=false and
+// carries command_status; `interrupted` means a new action replaced an
+// incomplete one (a natural last-frame switch is not an interruption).
 struct PlayerActionFeedback {
   ControlAction source_action = ControlAction::None;
+  // Status of the Command build that produced (or failed to produce) this
+  // execution. Accepted means the discrete action was executable.
+  football::sim::player::CommandBuildStatus command_status =
+      football::sim::player::CommandBuildStatus::MovementOnly;
   e_FunctionType type = e_FunctionType_None;
   bool installed = false;
-  bool contact = false;
+  // The action reached its scheduled animation contact frame. This is not
+  // proof that the ball was within reach or that a touch was accepted.
+  bool contact_due = false;
+  // Player produced an active-touch proposal for this action.
+  bool touch_prepared = false;
+  // Runtime accepted a touch by this player at or after prepared_touch_tick.
+  bool touch_accepted = false;
   bool completed = false;
   bool interrupted = false;
   int start_frame = -1;
   int touch_frame = -1;
+  football::sim::Tick prepared_touch_tick{};
 };
 
 #endif

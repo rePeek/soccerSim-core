@@ -5,6 +5,7 @@
 #include "football/pitch/pitch.hpp"
 #include "player/command/player_authorization.hpp"
 #include "player/command/player_command.hpp"
+#include "player/state/player_command_status.hpp"
 #include "player/state/player_team_view.hpp"
 
 class Player;
@@ -26,9 +27,19 @@ struct PlayerCommandInputs {
   const football::sim::player::PlayerAuthorizationPort* authorization = nullptr;
 };
 
+// The conversion result. A discrete action is only successful when status is
+// Accepted; a movement fallback keeps locomotion continuity but is not the
+// requested action.
+struct CommandBuildResult {
+  football::sim::player::CommandBuildStatus status =
+      football::sim::player::CommandBuildStatus::MovementOnly;
+  PlayerCommandQueue commands;
+};
+
 // Converts decision-domain values into the existing execution command format.
 // This is the only intentional control-to-simulation translation boundary.
-PlayerCommandQueue BuildPlayerCommands(const PlayerControl& control,
-                                       Player& player, const PlayerCommandInputs& inputs);
+CommandBuildResult BuildPlayerCommands(const PlayerControl& control,
+                                       Player& player,
+                                       const PlayerCommandInputs& inputs);
 
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_CONTROL_BUILDER_HPP

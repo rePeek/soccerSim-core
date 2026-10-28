@@ -132,6 +132,10 @@ bool Player::CommitSelectedAction(int selected_anim_id,
                               start_frame);
   InstallSelectedAction(CurrentSelectedAction());
   action_feedback_.source_action = command.source_action;
+  action_feedback_.command_status =
+      command.source_action == ControlAction::None
+          ? football::sim::player::CommandBuildStatus::MovementOnly
+          : football::sim::player::CommandBuildStatus::Accepted;
   action_feedback_.interrupted = interrupted;
   RecordSelectedContactAudit(command);
   return true;
@@ -159,13 +163,18 @@ void Player::InstallSelectedAction(const football::sim::SelectedAction &selectio
         actionState, football::sim::TickSpan{static_cast<std::uint64_t>(selection.start_frame)});
   }
   action_feedback_.source_action = ControlAction::None;
+  action_feedback_.command_status =
+      football::sim::player::CommandBuildStatus::MovementOnly;
   action_feedback_.type = selection.function_type;
   action_feedback_.installed = selection.function_type != e_FunctionType_None;
-  action_feedback_.contact = false;
+  action_feedback_.contact_due = false;
+  action_feedback_.touch_prepared = false;
+  action_feedback_.touch_accepted = false;
   action_feedback_.completed = false;
   action_feedback_.interrupted = false;
   action_feedback_.start_frame = selection.start_frame;
   action_feedback_.touch_frame = selection.touch_frame;
+  action_feedback_.prepared_touch_tick = {};
   CheckSimulationActionOracle();
 
   // Oracle during migration: the compat projection must still agree with
@@ -219,7 +228,7 @@ void Player::AdvanceActionTick() {
   PlayerActionExecutor::Step(actionState, football::sim::TickSpan{1});
   legacy_anim_state_.frameNum = actionState.Frame();
   action_feedback_.type = actionState.type;
-  action_feedback_.contact =
+  action_feedback_.contact_due =
       actionState.HasScheduledContact() && actionState.IsContactDue();
   action_feedback_.completed = actionState.IsComplete();
   CheckSimulationActionOracle();

@@ -45,6 +45,7 @@
 #include "player/contact/player_ground_collider.hpp"
 #include "player/state/player_action.hpp"
 #include "player/command/player_action_request.hpp"
+#include "player/command/player_control_builder.hpp"
 #include "player/execution/player_selected_action.hpp"
 #include "player/execution/player_selection_decisions.hpp"
 #include "player/command/player_action_executor.hpp"
@@ -375,6 +376,12 @@ class Player final {
     int ActionRequestAccepts() const { return action_request_accepts_; }
     int ActionRequestDefers() const { return action_request_defers_; }
     int ActionRequestRejects() const { return action_request_rejects_; }
+    // Accepted by arbitration but the command build produced no executable
+    // discrete action (Rejected/Fallback/Unsupported). The request is consumed
+    // but not counted as executed.
+    int ActionRequestBuildFailures() const {
+      return action_request_build_failures_;
+    }
     // ANIM-2 A11.5/A11.7: what was actually CONSUMED by the action tick, not
     // what was installed. Consuming a request builds a non-empty command queue;
     // scheduling a trip interrupt does not guarantee the trip clip installs.
@@ -688,7 +695,7 @@ class Player final {
         const Player *ball_retainer);
     void StepSimulationAction(football::sim::TickSpan elapsed);
     void AdvanceActionTick();
-    void RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs);
+    CommandBuildResult RequestCommand(const PlayerCommandInputs& inputs);
     void ResetRuntimeState(const Vector3 &focusPos, football::sim::Tick now);
     // ANIM-2 A11.5: the pending-input boundary. `React` stages the passive trip
     // through the ANIM-1 A7 guard; the action tick consumes the reaction and the
@@ -701,7 +708,7 @@ class Player final {
     std::optional<PendingPassiveTrip> ConsumePendingPassiveTrip();
     std::optional<PlayerReaction> ConsumePendingReaction();
     std::optional<PlayerActionRequest> ConsumePendingActionRequest();
-    PlayerCommandQueue BuildCommandQueueForRequest(
+    CommandBuildResult BuildCommandQueueForRequest(
         const PlayerActionRequest& request,
         const football::sim::PlayerTickContext& tick);
 
@@ -928,6 +935,7 @@ class Player final {
     int action_request_accepts_ = 0;
     int action_request_defers_ = 0;
     int action_request_rejects_ = 0;
+    int action_request_build_failures_ = 0;
     int action_request_inputs_consumed_ = 0;
     int reaction_trip_interrupts_scheduled_ = 0;
     int action_request_preemptions_ = 0;

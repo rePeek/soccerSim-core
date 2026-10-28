@@ -94,6 +94,13 @@ Player* Player::ProcessActionTouches(football::sim::Tick now,
     prepared_velocity = velocity;
   };
   const auto notify_touch = [&](e_TouchType type) {
+    if (prepared_velocity) {
+      // Contact due / prepared / accepted are distinct claims. This one only
+      // says the Player produced a proposal for Runtime arbitration.
+      action_feedback_.touch_prepared = true;
+      action_feedback_.prepared_touch_tick = now;
+      action_feedback_.touch_accepted = false;
+    }
     if (tick.touch_preparation) {
       if (prepared_velocity) {
         const auto& part = GetCurrentBakedClip().metadata.touch_bodypart;

@@ -140,7 +140,15 @@ observation, controls and stored physics are all the Stadium Frame.
   short/long pass from its target distance, `Beat` to the ball-control family,
   `Tackle` to `Interfere`, `SlideTackle` to `Sliding`; `Pull` is a defined but
   Unsupported Command. `Player::ActionFeedback()` reports the source Command,
-  installed `e_FunctionType`, contact and completion.
+  installed `e_FunctionType`, completion and the build status.
+- A `Play` request is only executed when the command build returns
+  `CommandBuildStatus::Accepted`. `Rejected`, `Unsupported` and
+  `FallbackMovement` are reported in `ActionFeedback::command_status` and never
+  counted as consumed action input, even though arbitration accepted the
+  request.
+- Touch feedback distinguishes `contact_due` (animation frame reached),
+  `touch_prepared` (Player proposed a touch) and `touch_accepted` (Runtime
+  committed it). Only the last confirms a real touch.
 - Player::RunActionTick is an orchestrator: its named phase methods preserve
   the original order. `kinematicState` and `actionState` are the movement and
   action-clock authorities; `legacy_anim_state_` and `legacy_spatial_state_`

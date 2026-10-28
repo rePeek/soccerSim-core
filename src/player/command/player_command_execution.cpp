@@ -290,6 +290,20 @@ RequestOutcome Player::Play(const PlayerActionRequest& request) {
     ++action_request_rejects_;
     return RequestOutcome::Rejected;
   }
+  // Reject contract violations synchronously. Conditions that need the live
+  // ball/team (inactive receiver, unsolvable trajectory, rule gate) are still
+  // reported later by CommandBuildResult.
+  const bool pass = football::sim::player::IsPassControlAction(request.action);
+  if ((pass && !request.has_target_position &&
+       request.target_player == football::player::kInvalidPlayerId) ||
+      (request.action == ControlAction::Shoot &&
+       !request.has_target_position &&
+       request.direction.GetLength() <= 0.000001f)) {
+    action_request_outcome_ = RequestOutcome::Rejected;
+    ++action_request_attempts_;
+    ++action_request_rejects_;
+    return RequestOutcome::Rejected;
+  }
   const RequestOutcome outcome =
       ArbitrateActionRequest(actionState, request.action);
   action_request_outcome_ = outcome;
@@ -340,22 +354,19 @@ std::optional<PlayerActionRequest> Player::ConsumePendingActionRequest() {
   return request;
 }
 
-void Player::RequestCommand(PlayerCommandQueue &commandQueue, const PlayerCommandInputs& inputs) {
-  if (control_) {
-    commandQueue = BuildPlayerCommands(*control_, *this, inputs);
-  } else {
-    // No implicit policy in sim: absent control is an idle movement intent.
-    PlayerControl idle;
-    idle.player = GetID();
-    idle.move_direction = GetDirectionVec();
-    commandQueue = BuildPlayerCommands(idle, *this, inputs);
-  }
+CommandBuildResult Player::RequestCommand(const PlayerCommandInputs& inputs) {
+  if (control_) return BuildPlayerCommands(*control_, *this, inputs);
+  // No implicit policy in sim: absent control is an idle movement intent.
+  PlayerControl idle;
+  idle.player = GetID();
+  idle.move_direction = GetDirectionVec();
+  return BuildPlayerCommands(idle, *this, inputs);
 }
 
 // ANIM-2 A11.5: an accepted active request enters the same pipeline as the
 // controller. The request is in the actor's runtime frame, so convert into the
 // home value domain and reuse BuildPlayerCommands, the one translation boundary.
-PlayerCommandQueue Player::BuildCommandQueueForRequest(
+CommandBuildResult Player::BuildCommandQueueForRequest(
     const PlayerActionRequest& request,
     const football::sim::PlayerTickContext& tick) {
   PlayerControl control;

@@ -418,13 +418,34 @@ void Player::ConsumeActionInputs(ActionTickFrame& frame) {
       // illegal intent is dropped instead of force-switching the running action.
       if (ArbitrateActionRequest(actionState, pending_request->action) ==
           RequestOutcome::Accepted) {
-        frame.request_command_queue =
+        const CommandBuildResult built =
             this->BuildCommandQueueForRequest(*pending_request, *frame.tick);
-        if (!frame.request_command_queue.empty()) {
-          frame.has_request_input = true;
-          // An explicit input is not a requeue opportunity: force the switch.
-          interruptAnim = e_InterruptAnim_Switch;
-          ++action_request_inputs_consumed_;
+        if (built.status ==
+            football::sim::player::CommandBuildStatus::Accepted) {
+          frame.request_command_queue = std::move(built.commands);
+          if (!frame.request_command_queue.empty()) {
+            frame.has_request_input = true;
+            // An explicit input is not a requeue opportunity: force the switch.
+            interruptAnim = e_InterruptAnim_Switch;
+            ++action_request_inputs_consumed_;
+          }
+        } else {
+          // Arbitration accepted the request, but the concrete Command is not
+          // executable. Consume it, report the build status, and keep the
+          // current action/movement instead of pretending the action ran.
+          ++action_request_build_failures_;
+          action_feedback_.source_action = pending_request->action;
+          action_feedback_.command_status = built.status;
+          action_feedback_.type = e_FunctionType_None;
+          action_feedback_.installed = false;
+          action_feedback_.contact_due = false;
+          action_feedback_.touch_prepared = false;
+          action_feedback_.touch_accepted = false;
+          action_feedback_.completed = false;
+          action_feedback_.interrupted = false;
+          action_feedback_.start_frame = -1;
+          action_feedback_.touch_frame = -1;
+          action_feedback_.prepared_touch_tick = {};
         }
       }
     }
@@ -432,6 +453,13 @@ void Player::ConsumeActionInputs(ActionTickFrame& frame) {
 }
 
 void Player::BeginActionTick(ActionTickFrame& frame) {
+  // A prepared touch is only proof of acceptance after Runtime has committed
+  // it. The touch record advances and names this player at the next tick.
+  if (action_feedback_.touch_prepared && !action_feedback_.touch_accepted &&
+      GetLastTouchTick() >= action_feedback_.prepared_touch_tick &&
+      frame.tick->touches.last_player_by_team[GetTeamID()] == GetID()) {
+    action_feedback_.touch_accepted = true;
+  }
   // The sample age is frozen here; the line below advances `mentalImageTime`
   // for the next tick, so later lookups must reuse this captured value.
   frame.mental_image_age = mentalImageTime;
@@ -492,12 +520,11 @@ void Player::RefreshDecisionQueue(ActionTickFrame& frame) {
           decision_now, player_decision_cadence);
   frame.continuity_repair_due = continuity_repair_due;
   if (continuity_repair_due || player_decision_due) {
-    PlayerCommandQueue player_decision_commands;
-    this->RequestCommand(player_decision_commands,
+    const CommandBuildResult built = this->RequestCommand(
         {frame.tick->ball, frame.ball_retainer, frame.tick->pitch,
          frame.tick->own_team, frame.tick->authorization});
-    this->PublishPlayerDecisionQueue(
-        player_decision_commands, decision_now);
+    PlayerCommandQueue player_decision_commands = std::move(built.commands);
+    this->PublishPlayerDecisionQueue(player_decision_commands, decision_now);
     bool has_movement = false;
     for (const PlayerCommand &command : player_decision_commands)
       has_movement |= command.desiredFunctionType == e_FunctionType_Movement &&
