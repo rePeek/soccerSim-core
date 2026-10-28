@@ -31,6 +31,14 @@ inline bool ControlActionRequiresAim(ControlAction action) {
   return action == ControlAction::Shoot;
 }
 
+inline football::math::Vector3 ResolveExplicitShotDirection(
+    const PlayerControl& control, const football::math::Vector3& player_position,
+    const football::math::Vector3& fallback_direction) {
+  if (!control.target_position) return fallback_direction;
+  return (*control.target_position - player_position)
+      .GetNormalized(fallback_direction);
+}
+
 inline e_FunctionType ControlActionFunctionType(ControlAction action,
                                                 float target_distance = 0.0f) {
   switch (action) {

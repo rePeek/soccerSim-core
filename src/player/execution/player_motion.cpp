@@ -1,6 +1,6 @@
-#include "football/player/command/player_motion.hpp"
+#include "football/player/execution/player_motion.hpp"
 
-#include "player/command/player_locomotion.hpp"
+#include "player/execution/player_locomotion.hpp"
 
 namespace {
 PlayerLocomotionParameters ToLocomotionParameters(

@@ -8,6 +8,7 @@
 #include "player/execution/player_command.hpp"
 #include "player/execution/player_control_builder.hpp"
 #include "football/player/state/player_kinematics.hpp"
+#include "player/execution/player_action_arbitration.hpp"
 
 using football::ball::Ball;
 

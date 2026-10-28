@@ -20,15 +20,7 @@ target_sources(football_contact PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/contact/foul_assessment.hpp
     ${PROJECT_SOURCE_DIR}/include/football/contact/passive_body_touch.hpp
     ${PROJECT_SOURCE_DIR}/include/football/contact/contact_evidence.hpp
-    # Transitional public paths are owned by Contact, not Player.
-    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_contact_kernel.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_active_touch_model.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_active_impulse.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_body_collider.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_body_collider_motion.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_ground_collider.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/contact/player_touch_type.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/contact/foul_assessment.hpp
+    # Flat compatibility paths; canonical headers live under football/contact/.
     ${PROJECT_SOURCE_DIR}/include/football/player/foul_assessment.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_type.hpp)
 target_link_libraries(football_contact PUBLIC
@@ -42,7 +34,7 @@ file(GLOB_RECURSE _contact_files
   ${PROJECT_SOURCE_DIR}/include/football/contact/*.hpp)
 foreach(_file ${_contact_files})
   file(READ "${_file}" _content)
-  if(_content MATCHES "#include \"(football/)?(runtime|referee|ai|event|observation|team)/|#include \"(football/)?player/(execution|command)/|#include \"player/player.hpp\"")
+  if(_content MATCHES "#include \"(football/)?(runtime|referee|ai|event|observation|team)/|#include \"(football/)?player/(execution|command|contact)/|#include \"player/player.hpp\"")
     message(FATAL_ERROR "Contact boundary violation in ${_file}")
   endif()
 endforeach()

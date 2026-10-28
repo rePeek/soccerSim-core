@@ -5,7 +5,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "player/command/player_action_executor.hpp"
+#include "player/execution/player_action_executor.hpp"
 
 namespace {
 PlayerActionDefinition MovementDefinition(std::uint64_t frames) {

@@ -12,7 +12,7 @@
 #include "football/animation/touch_scoring.hpp"
 #include "football/animation/touch_match.hpp"
 #include "football/ball/ball.hpp"
-#include "player/command/player_motion_constants.hpp"
+#include "player/execution/player_motion_constants.hpp"
 #include "player/execution/player_diagnostics.hpp"
 
 #include <algorithm>

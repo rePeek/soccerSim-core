@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-#include "player/command/reachability.hpp"
+#include "player/execution/reachability.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 #include "football/ball/ball_timing.hpp"
 
@@ -21,7 +21,7 @@
 
 #include "football/ball/ball.hpp"
 #include "football/foundation/math/scalar.hpp"
-#include "player/command/player_locomotion.hpp"
+#include "player/execution/player_locomotion.hpp"
 
 namespace football::sim::player {
 using football::math::clamp;

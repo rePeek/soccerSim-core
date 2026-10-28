@@ -5,8 +5,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "football/player/command/player_command_validation.hpp"
-#include "player/command/player_action_mapping.hpp"
-#include "player/command/player_action_request.hpp"
+#include "player/execution/player_action_mapping.hpp"
+#include "player/execution/player_action_arbitration.hpp"
 
 using football::math::Vector3;
 using football::sim::player::ControlActionFunctionType;

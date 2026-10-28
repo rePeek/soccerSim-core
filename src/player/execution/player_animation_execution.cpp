@@ -11,8 +11,8 @@
 
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
-#include "football/player/command/player_motion.hpp"
-#include "player/command/player_motion_constants.hpp"
+#include "football/player/execution/player_motion.hpp"
+#include "player/execution/player_motion_constants.hpp"
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_touch_math.hpp"
 

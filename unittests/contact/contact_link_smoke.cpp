@@ -4,9 +4,7 @@
 #include "football/contact/player_action_volume.hpp"
 #include "football/contact/passive_body_touch.hpp"
 #include "football/contact/contact_evidence.hpp"
-// Transitional public paths must still resolve to the same definitions.
-#include "football/player/contact/player_active_impulse.hpp"
-#include "football/player/contact/player_active_touch_model.hpp"
+// The flat compatibility path still resolves to the canonical Contact value.
 #include "football/player/foul_assessment.hpp"
 
 int main() {

@@ -26,7 +26,7 @@
 #include "football/contact/player_active_touch_model.hpp"
 #include "player/execution/diagnostics/player_active_touch_shadow.hpp"
 #include "player/execution/player_control_builder.hpp"
-#include "player/command/player_motion_constants.hpp"
+#include "player/execution/player_motion_constants.hpp"
 #include "player/execution/player_retain_anchor.hpp"
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_touch_math.hpp"

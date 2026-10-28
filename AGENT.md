@@ -156,20 +156,23 @@ observation, controls and stored physics are all the Stadium Frame.
 
 ## Player and Contact libraries
 
-`src/player/` builds three STATIC libraries plus the INTERFACE aggregate
-`football::player`. `src/contact/` owns the independent fourth STATIC library,
-`football_contact` (`football::contact`), its sources and public FILE_SET.
-The Player aggregate lists only its three libraries; Execution's declared
-Contact dependency supplies its link closure.
+`src/player/` owns two STATIC libraries (State and Execution), the header-only
+Command INTERFACE target and the `football::player` INTERFACE aggregate.
+`src/contact/` owns the independent `football_contact` STATIC library
+(`football::contact`), its sources and public FILE_SET. Execution's declared
+Contact dependency supplies the aggregate's link closure.
 
 - `football::player_state`: definitions, kinematics, action state, body profile,
   command status and role parser. No Command, Contact or Execution dependency.
-- `football::player_command`: continuous motion, locomotion, reachability,
-  command validation and pass solving. May depend on State and Ball; not
-  Contact or Execution.
-- `football::player_execution`: concrete Player, control/action execution,
-  animation matching, touch preparation and technical touch calculations.
-  May depend on Command, State, Contact and Animation.
+- `football::player_command`: Control/ControlSet, active requests, passive
+  reaction inputs and input-parameter validation. Header-only protocol over
+  State, never Ball, Contact, Animation runtime or Execution. It does not
+  dispatch actions; Execution consumes these values.
+- `football::player_execution`: concrete Player, command realization, action
+  arbitration/mapping, cadence schedulers, continuous locomotion/body facing,
+  reachability and pass solving, animation matching and touch preparation.
+  May depend on Command, State, Contact, Ball and Animation. Pure motion and
+  prediction APIs remain value-only and usable without a concrete Player.
 - `football::contact`: value-only pair-contact and active/passive touch models,
   impulse arbitration, contact evidence and body/action geometry. May depend
   on Player State, Ball and foundation geometry/collision. Never depends on
@@ -190,17 +193,23 @@ Rules:
 5. Contact evidence is not a foul verdict. Runtime freezes actor evidence and
    adds match context (including DOGSO); Referee adjudicates. A touch proposal
    is not acceptance: Player feedback confirms the committed fact later.
-6. `unittests/player_link` whole-archives the three Player libraries and Contact.
-   `unittests/contact` separately whole-archives Contact without Execution or
-   Runtime and compiles each public header using exported include roots only.
+6. `unittests/player_link` whole-archives State/Execution and Contact, links the
+   Command protocol alone, and tests Execution's public prediction API without
+   actors, assets or Runtime. Protocol headers compile separately using only
+   exported includes. `unittests/contact` links Contact without Execution.
 7. Canonical headers live in `include/football/contact/` and
-   `include/football/player/{state,command,execution}/`. Old Player Contact/flat
-   paths are compatibility forwarders; Contact owns its compatibility FILE_SET.
+   `include/football/player/{state,command,execution}/`. Old motion/body/pass
+   paths under player/command are forwarding compatibility headers owned by
+   Execution; their consumers link Execution, not the Command protocol.
+   Contact's nested player/contact paths are not supported; consumers use
+   football/contact/. Old flat paths remain forwarding compatibility headers.
 8. `src/` is never a PUBLIC include directory. Lower-library consumers compile
    from `include/` alone.
-9. PlayerActionState is State; feedback, baked action motion, touch preparation,
-   pose-to-body conversion and diagnostic shadows are Execution. Continuous
-   PlayerMotion is Command; contact geometry and impulse models are Contact.
+9. PlayerActionState is State. Input request/reaction values are Command; their
+   arbitration is Execution. Continuous motion, capability profiles, prediction,
+   pass solving, action scheduling, feedback, baked action motion, pose-to-body
+   conversion and diagnostic shadows are Execution. Contact owns contact
+   geometry and impulse models. Preserve algorithms and tick/publication timing.
 
 ## Physics and numerical conventions
 
@@ -245,7 +254,7 @@ src/                 implementations; public headers live in include/football/
 ├── pitch/           football::pitch (pitch.cpp)
 ├── ball/            football::ball
 ├── contact/         football::contact (no concrete Player or Runtime)
-├── player/          three static libs: state, command, execution
+├── player/          State/Execution static libs + Command protocol + aggregate
 ├── team/            football::team (validation, presets, team_players.cpp)
 ├── runtime/         football::sim_contracts + football_sim_domain:
 │                      Simulation (clock/phase/score, ball, Teams, referee,

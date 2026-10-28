@@ -77,9 +77,8 @@ target_link_libraries(simcore
   PRIVATE football::ai BqLog
     # Keep the existing runtime exports, including unreferenced GetRoleFromString.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim_domain>"
-    # Preserve exports from Player's three archives and the independent Contact.
+    # Preserve Player/Contact exports; Command is a header-only protocol.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_execution>"
-    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_command>"
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_contact>"
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_state>")
 # env.cpp includes the internal runtime/simulation.hpp; the src/ root is a

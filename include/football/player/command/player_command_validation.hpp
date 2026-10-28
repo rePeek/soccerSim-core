@@ -25,14 +25,6 @@ inline bool ControlActionAimIsExplicit(const PlayerControl& control) {
          control.move_direction.GetLength() > 0.000001f;
 }
 
-inline football::math::Vector3 ResolveExplicitShotDirection(
-    const PlayerControl& control, const football::math::Vector3& player_position,
-    const football::math::Vector3& fallback_direction) {
-  if (!control.target_position) return fallback_direction;
-  return (*control.target_position - player_position)
-      .GetNormalized(fallback_direction);
-}
-
 }  // namespace football::sim::player
 
 #endif  // FOOTBALL_PLAYER_COMMAND_VALIDATION_HPP

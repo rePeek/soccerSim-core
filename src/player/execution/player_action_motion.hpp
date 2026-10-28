@@ -7,11 +7,11 @@
 #include "football/animation/clip.hpp"
 #include "football/animation/motion_clip.hpp"
 #include "football/animation/types.hpp"
-#include "football/player/command/player_motion.hpp"
+#include "football/player/execution/player_motion.hpp"
 #include "football/player/state/player_kinematics.hpp"
 
-// Execution-only action/reference-motion adapter. The continuous model remains
-// in football::player_command; these methods need baked Animation data.
+// Baked action/reference-motion model. Unlike continuous PlayerMotion, these
+// execution helpers need baked Animation data.
 struct ActionMotionParameters {
   float max_velocity = 0.0f;
   float stat_agility = 0.0f;

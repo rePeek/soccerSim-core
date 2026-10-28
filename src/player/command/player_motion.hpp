@@ -1,6 +1,0 @@
-#ifndef FOOTBALL_SIM_PLAYER_PLAYER_MOTION_COMPAT_HPP
-#define FOOTBALL_SIM_PLAYER_PLAYER_MOTION_COMPAT_HPP
-
-#include "football/player/command/player_motion.hpp"
-
-#endif  // FOOTBALL_SIM_PLAYER_PLAYER_MOTION_COMPAT_HPP

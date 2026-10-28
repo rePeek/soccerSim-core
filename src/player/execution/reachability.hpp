@@ -19,13 +19,10 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/animation/types.hpp"
 #include "football/player/state/player_kinematics.hpp"
-#include "player/command/player_motion_constants.hpp"
+#include "player/execution/player_motion_constants.hpp"
 #include <optional>
 
 namespace football::ball { class Ball; }
-#include "football/foundation/time/tick.hpp"
-#include "player/command/player_motion_constants.hpp"
-#include <optional>
 
 using football::math::Vector3;
 

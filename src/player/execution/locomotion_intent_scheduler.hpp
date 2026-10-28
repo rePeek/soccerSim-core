@@ -2,7 +2,7 @@
 #ifndef FOOTBALL_SIM_LOCOMOTION_INTENT_SCHEDULER_HPP
 #define FOOTBALL_SIM_LOCOMOTION_INTENT_SCHEDULER_HPP
 
-#include "player/command/player_decision_scheduler.hpp"
+#include "player/execution/player_decision_scheduler.hpp"
 
 // Separate execution/publication cadence. Reuse the existing policy intervals
 // without tying refreshes to animation opportunities or a configurable dt.

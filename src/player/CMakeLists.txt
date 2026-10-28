@@ -1,5 +1,5 @@
-# Player owns three STATIC libraries with one-way dependencies:
-# execution -> command -> state. Execution may also use the independent Contact.
+# Player: State and Execution are STATIC; Command is an INTERFACE protocol.
+# Execution consumes Command and may use the independent Contact.
 # Only execution owns the concrete Player; Runtime owns cross-actor adapters.
 
 function(football_player_check_boundary target_root forbidden_regex)

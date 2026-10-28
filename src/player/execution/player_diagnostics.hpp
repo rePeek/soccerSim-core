@@ -25,7 +25,7 @@
 
 #include "player/execution/player_command.hpp"
 #include "football/player/state/player_definition.hpp"
-#include "player/command/player_interrupt.hpp"
+#include "player/execution/player_interrupt.hpp"
 
 namespace football::sim { class PlayerRuntimeSink; }
 namespace football::sim::player { class PlayerTouchSink; }

@@ -12,7 +12,7 @@
 #include "football/foundation/math/vector3.hpp"
 
 #include "player/execution/player_command.hpp"
-#include "player/command/player_interrupt.hpp"
+#include "player/execution/player_interrupt.hpp"
 
 using namespace football::math;
 

@@ -6,7 +6,7 @@
 
 #include "football/animation/movement_math.hpp"
 #include "football/animation/movement_selection.hpp"
-#include "football/player/command/player_motion.hpp"
+#include "football/player/execution/player_motion.hpp"
 #include "player/execution/player_action_motion.hpp"
 
 using Catch::Approx;
