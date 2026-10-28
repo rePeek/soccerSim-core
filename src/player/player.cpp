@@ -33,11 +33,38 @@
 #include "football/player/command/player_motion.hpp"
 #include "football/player/command/player_body_facing.hpp"
 #include "player/command/locomotion_intent_scheduler.hpp"
-#include "player/command/legacy_locomotion_command.hpp"
 #include "player/execution/player_control_builder.hpp"
 #include "player/execution/player_send_off_sink.hpp"
 
 using football::ball::Ball;
+
+namespace {
+
+// Compatibility adapter from the legacy PlayerCommand to the continuous
+// locomotion model. This is execution semantics, not a Command solver: the
+// legacy animation idle deadband is intentionally preserved for now. It should
+// be revisited when MoveSolver starts emitting low approach speeds.
+PlayerLocomotionInput BuildLegacyLocomotionInput(
+    const PlayerCommand& command, const PlayerKinematicState& state,
+    float maxSpeed, const Vector3& idle_facing_fallback) {
+  PlayerLocomotionInput input;
+  float desiredSpeed = clamp(command.desiredVelocityFloat, 0.0f, maxSpeed);
+  if (FloatToEnumVelocity(desiredSpeed) == e_Velocity_Idle) {
+    desiredSpeed = 0.0f;
+  }
+  input.desiredVelocity =
+      command.desiredDirection.Get2D().GetNormalized(state.GetFacing()) *
+      desiredSpeed;
+  input.idleFacing =
+      command.useDesiredLookAt
+          ? (command.desiredLookAt - state.position)
+                .Get2D()
+                .GetNormalized(state.GetFacing())
+          : idle_facing_fallback;
+  return input;
+}
+
+}  // namespace
 
 
 int &SimulationOnlyGateMismatchForResetContext(int context) {
