@@ -157,7 +157,10 @@ observation, controls and stored physics are all the Stadium Frame.
 ## Player internal libraries
 
 `src/player/` builds exactly four STATIC libraries plus one INTERFACE
-aggregate (`football::player`). The aggregate is not a fifth library.
+aggregate (`football::player`). The aggregate is not a fifth library. Each
+responsibility directory owns its `CMakeLists.txt`, target, sources and public
+FILE_SET; the root Player CMakeLists only defines the boundary checks and
+aggregate.
 
 - `football::player_state`: value types, kinematics, action state, body profile,
   command status, role parser. Must not depend on command, contact or
