@@ -21,7 +21,6 @@ add_library(football_player_execution STATIC
   roster_query.cpp
   player_execution.cpp
   player_execution_compat.cpp
-  player_execution_diagnostics.cpp
   ${PROJECT_SOURCE_DIR}/src/player/player.cpp)
 add_library(football::player_execution ALIAS football_player_execution)
 target_include_directories(football_player_execution

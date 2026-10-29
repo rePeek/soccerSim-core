@@ -22,7 +22,6 @@
 #include "player/execution/player_action_feedback.hpp"
 #include "player/execution/player_baked_pose_sample.hpp"
 #include "player/execution/player_command.hpp"
-#include "player/execution/player_execution_diagnostics.hpp"
 #include "player/execution/player_execution_port.hpp"
 #include "player/execution/player_execution_state.hpp"
 #include "player/execution/player_selection_decisions.hpp"
@@ -106,8 +105,7 @@ class PlayerExecution final {
     ApplyLegacyPositionOffset(offset);
   }
   void ResetSituation(PlayerExecutionPort& owner, const Vector3& focus_position,
-                      football::sim::Tick now,
-                      int audit_context = kResetSituationUnspecified);
+                      football::sim::Tick now);
   void SelectRetainAnim(PlayerExecutionPort& owner);
   // Retain-clip re-selection without a new borrow (the caller already holds one).
   void SelectRetainAnim();
@@ -197,10 +195,6 @@ class PlayerExecution final {
   Projection CompatibilityProjection() const;
   Vector3 CompatibilityPosition() const { return state_.legacy_spatial_state_.position; }
 
-  // --- reset accounting used by the Player's reset paths ----------------
-  std::optional<football::sim::Tick> LastResetTick() const { return state_.last_reset_tick_; }
-  bool HasProcessedPlayerTick() const { return state_.hasProcessedPlayerTick; }
-  void NoteResetTick(football::sim::Tick now) { state_.last_reset_tick_ = now; }
 
  private:
   // Binds the owning Player for the duration of one public call. Nested calls
@@ -258,7 +252,7 @@ class PlayerExecution final {
                             const football::sim::PlayerTickContext& tick,
                             football::sim::Tick now,
                             const football::sim::player::PlayerObservation& observation,
-                            e_InterruptAnim local_interrupt_anim, bool material_candidate,
+                            e_InterruptAnim local_interrupt_anim,
                             // ANIM-2 A13: the matched entry frame (0 = legacy).
                             int start_frame);
   void StepSimulationAction(football::sim::TickSpan elapsed);
@@ -319,7 +313,6 @@ class PlayerExecution final {
                                    const football::sim::PlayerTickContext& tick,
                                    football::sim::Tick now,
                                    const football::sim::player::PlayerObservation& observation,
-                                   e_InterruptAnim local_interrupt_anim, bool material_candidate,
                                    int start_frame);
   void RecordSelectedContactAudit(const PlayerCommand& command);
 
@@ -355,8 +348,7 @@ class PlayerExecution final {
   void ResetLegacyPosition(const Vector3& new_position, const Vector3& focus_position);
   void ResetLegacySituation(const Vector3& focus_position);
   void ApplyLegacyPositionOffset(const Vector3& offset);
-  void ResetRuntimeState(const Vector3& focus_position, football::sim::Tick now,
-                         int audit_context);
+  void ResetRuntimeState(const Vector3& focus_position, football::sim::Tick now);
 
   // --- decision clock and scheduling ------------------------------------
   CommandBuildResult RequestCommand(const PlayerCommandInputs& inputs);
@@ -366,22 +358,11 @@ class PlayerExecution final {
   std::optional<PendingPassiveTrip> ConsumePendingPassiveTrip();
   std::optional<PlayerReaction> ConsumePendingReaction();
   std::optional<PlayerActionRequest> ConsumePendingActionRequest();
-  bool NoteLocomotionIntentCadence(bool legacy_opportunity, football::sim::Tick now,
-                                   bool retaining_ball);
+  bool NoteLocomotionIntentCadence(football::sim::Tick now, bool retaining_ball);
   void CommitLocomotionIntentRefresh(const football::ball::Ball& ball, football::sim::Tick now,
                                      bool retaining_ball);
-  void NoteControllerQuery(bool had_movement_candidate, football::sim::Tick now,
-                           bool retaining_ball);
-  void PublishDecisionLocomotionIntent(const PlayerCommand& command, football::sim::Tick now,
-                                       bool retaining_ball);
-  bool PublishMovementIntentFromQueue(const PlayerCommandQueue& queue, football::sim::Tick now,
-                                      bool retaining_ball);
-  void NoteDecisionPublicationCause(int cause) {
-    audit_.pendingPublicationCause = cause;
-  }
-  void NoteDecisionMovementSelection(bool movement_selected) {
-    audit_.decisionMovementSelection = movement_selected;
-  }
+  void PublishDecisionLocomotionIntent(const PlayerCommand& command);
+  bool PublishMovementIntentFromQueue(const PlayerCommandQueue& queue);
   void PublishPlayerDecisionQueue(const PlayerCommandQueue& commands, football::sim::Tick now);
   bool HasPlayerDecisionQueue() const { return state_.playerDecisionQueue.initialized; }
   const PlayerCommandQueue& GetPlayerDecisionQueue() const {
@@ -391,11 +372,7 @@ class PlayerExecution final {
                                   football::sim::TickSpan cadence) const {
     return state_.playerDecisionScheduler.Due(now, cadence);
   }
-  bool IsLocomotionIntentRefreshDue(football::sim::Tick now) const {
-    return state_.locomotionIntentScheduler.Due(now);
-  }
   void AdvanceLocomotionContinuity(bool eligible);
-  void NoteLocomotionReentryTick(bool eligible, bool scheduler_due, football::sim::Tick now);
   bool DecisionLocomotionEpochIsStale() const {
     return state_.decisionLocomotionState.publishedEpoch !=
            state_.decisionLocomotionState.continuityEpoch;
@@ -410,8 +387,6 @@ class PlayerExecution final {
     return state_.decisionLocomotionState.command;
   }
   void CheckDecisionLocomotionIntentOracle() const;
-  bool LocomotionIntentRefreshHeldIneligible(football::sim::Tick now,
-                                             bool retaining_ball) const;
 
   // --- baked clip access ------------------------------------------------
   const AnimationClip& GetBakedClip(AnimationId id) const;

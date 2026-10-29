@@ -120,7 +120,6 @@ bool PlayerExecution::CommitSelectedAction(int selected_anim_id,
                                   football::sim::Tick now,
                                   const football::sim::player::PlayerObservation& observation,
                                   e_InterruptAnim local_interrupt_anim,
-                                  bool material_candidate,
                                   int start_frame) {
   // ANIM-1 A6.4 step 7b: the Player owns the install dispatch. The compat
   // projection writes the legacy currentAnim; the Player then installs through
@@ -130,7 +129,7 @@ bool PlayerExecution::CommitSelectedAction(int selected_anim_id,
       !state_.actionState.IsComplete() && !state_.actionState.IsAtLastFrame() &&
       local_interrupt_anim != e_InterruptAnim_None;
   ProjectSelectedActionCompat(selected_anim_id, touch_choice, command, tick, now,
-                              observation, local_interrupt_anim, material_candidate,
+                              observation,
                               start_frame);
   InstallSelectedAction(CurrentSelectedAction());
   state_.action_feedback_.source_action = command.source_action;
@@ -333,9 +332,7 @@ void PlayerExecution::ProjectSelectedActionCompat(
     int selectedAnimID, const football::sim::TouchChoice &touch_choice,
     const PlayerCommand &command, const football::sim::PlayerTickContext &tick,
     football::sim::Tick now, const football::sim::player::PlayerObservation& observation,
-    e_InterruptAnim localInterruptAnim, bool material_candidate,
     int start_frame) {
-  const PlayerActionState &action = ActionState();
   state_.previousAnim_functionType = state_.legacy_anim_state_.functionType;
 
   state_.legacy_anim_state_.animationId = selectedAnimID;
@@ -370,9 +367,6 @@ void PlayerExecution::ProjectSelectedActionCompat(
   }
   state_.legacy_anim_state_.positionOffset = Vector3(0);
   state_.legacy_anim_state_.originatingCommand = command;
-  RecordMovementCommandAcceptance(material_candidate, action.type,
-                                  static_cast<int>(football::sim::ToMilliseconds(action.elapsed)), localInterruptAnim,
-                                  command, static_cast<int>(GetCurrentBakedClip().frame_count));
   // Must run after the state_.legacy_anim_state_ field writes above (it reads the new
   // animationId/positions/touchFrame and GetCurrentBakedClip), before install.
   state_.legacy_anim_state_.movementSmuggle = ComputeMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, observation);

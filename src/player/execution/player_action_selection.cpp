@@ -6,7 +6,6 @@
 
 #include "player/execution/player_execution.hpp"
 #include "player/execution/roster_query.hpp"
-#include "player/execution/player_diagnostics.hpp"
 #include "player/player.hpp"
 
 #include "football/animation/movement_math.hpp"
@@ -16,7 +15,6 @@
 #include "football/animation/touch_match.hpp"
 #include "football/ball/ball.hpp"
 #include "player/execution/player_motion_constants.hpp"
-#include "player/execution/player_diagnostics.hpp"
 
 #include <algorithm>
 #include <cassert>

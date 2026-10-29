@@ -244,8 +244,6 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
   // returns false on no applicable anim found
   assert(command.desiredDirection.coords[2] == 0.0f);
   const PlayerActionState &action = state_.actionState;
-  const bool material_candidate =
-      RecordSchedulerQuery(currentAnim.originatingCommand, command);
 
   // optimizations
   if (command.desiredFunctionType != e_FunctionType_Movement &&
@@ -525,9 +523,6 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
 
   if (!trip_branch && !pure_movement && !pure_non_movement) {
     // ANIM-2 A10.3b: the legacy `useDesiredMovement == false` chain.
-    if (foot_counterfactual && !dataSet.empty() && !withoutFootSort.empty()) {
-      RecordFootCounterfactual(animations_, *dataSet.begin(), *withoutFootSort.begin());
-    }
     MovementAnimationPerturbation &perturbation = MovementAnimationPerturbationAudit();
     if (perturbation.enabled && !perturbation.applied && foot_counterfactual &&
         localInterruptAnim == e_InterruptAnim_Switch &&
@@ -547,21 +542,12 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
     }
   } else if (pure_non_movement) {
     // ANIM-2 A10.3b: the pure non-Movement refinement is the authority.
-    ++LocomotionPlaybackAuditState().nm_pure_ticks;
   } else {
     // ANIM-2 A10.3a: the pure Movement refinement is the authority.
     if (dataSet.empty()) {
       dataSet.push_back(SelectIdleMovementAnim(
           animations_, spatialState.position, spatialState.angle,
           spatialState.floatVelocity));
-    }
-    {  // ANIM-1 A6.3b.2: count the stateless refinement as the active Movement path.
-      auto &refine_audit = LocomotionPlaybackAuditState();
-      ++refine_audit.refine_checks;
-      ++refine_audit.refine_matches;
-    }
-    if (!dataSet.empty() && !withoutFootSort.empty()) {
-      RecordFootCounterfactual(animations_, dataSet.front(), withoutFootSort.front());
     }
     MovementAnimationPerturbation &perturbation = MovementAnimationPerturbationAudit();
     if (perturbation.enabled && !perturbation.applied &&
@@ -595,35 +581,6 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
   Vector3 desiredBodyDirectionRel = Vector3(0, -1, 0);
 
   if (command.useDesiredLookAt) desiredBodyDirectionRel = (command.desiredLookAt - (spatialState.position + spatialState.movement * 0.1f)).GetNormalized(Vector3(0, -1, 0)).GetRotated2D(-spatialState.angle);
-
-  // LOCO-2.3b/c / ANIM-2 A13.3: the locomotion preference is applied inside
-  // Animation::Match, so these candidates already begin with the final clip.
-  // The Player only records the calibration and the shadow oracle here.
-  if (locomotion_choice && !dataSet.empty()) {
-    auto &audit = LocomotionPlaybackAuditState();
-    ++audit.samples;
-    audit.reference_speed_sum += locomotion_choice->reference_speed;
-    audit.playback_rate_sum += locomotion_choice->playback_rate;
-    audit.playback_rate_max =
-        std::max(audit.playback_rate_max, locomotion_choice->playback_rate);
-    // ANIM-1 A6.3a shadow oracle: was the motion-driven choice a legal candidate?
-    ++audit.shadow_checks;
-    const auto preferred =
-        std::find(dataSet.begin(), dataSet.end(),
-                  static_cast<int>(locomotion_choice->animation_id));
-    if (preferred != dataSet.end()) {
-      ++audit.shadow_in_candidates;
-    } else {
-      ++audit.shadow_not_in_candidates;
-    }
-    // Final-result oracle: Match put the winning clip in front.
-    if (dataSet.front() == static_cast<int>(locomotion_choice->animation_id)) {
-      ++audit.clip_matches;
-    } else {
-      ++audit.clip_mismatches;
-      ++audit.fallback_count;
-    }
-  }
 
   if (command.desiredFunctionType == e_FunctionType_Movement ||
       command.desiredFunctionType == e_FunctionType_Trip ||
@@ -695,7 +652,7 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
     // ANIM-1 A6.4 step 7b: selection and installation are separate units, and
     // the Player now dispatches the installation.
     return CommitSelectedAction(selectedAnimID, touch_choice, command, tick, now,
-                                observation, localInterruptAnim, material_candidate,
+                                observation, localInterruptAnim,
                                 selected_start_frame);
   }
 
@@ -858,7 +815,6 @@ void PlayerExecution::ComputeAndCommitActionMotion() {
   spatialState.position = position;
 
   // The body direction / velocity quantization is PlayerMotion-owned too.
-  ++HumanoidLegacyBodyPoseSamplesOnNonProceduralMovement();
   ActionBodyStateInput body_input;
   body_input.movement = spatialState.movement;
   body_input.start_angle = state_.startAngle;

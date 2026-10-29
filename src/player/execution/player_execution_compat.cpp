@@ -25,7 +25,6 @@
 #include "player/execution/player_control_builder.hpp"
 #include "player/execution/player_motion_constants.hpp"
 #include "player/execution/player_runtime_sink.hpp"
-#include "player/execution/player_diagnostics.hpp"
 #include "player/execution/player_touch_math.hpp"
 #include "player/player.hpp"
 
@@ -180,7 +179,6 @@ void PlayerExecution::CalculateSpatialState(const Player* ball_retainer) {
     if (state_.legacy_anim_state_.frameNum > 12) {
       state_.legacy_spatial_state_.foot = static_cast<e_Foot>(GetCurrentBakedClip().metadata.outgoing_foot);
     }
-    ++HumanoidProceduralMovementTicks();
     return;
   }
   // ANIM-1 A8 step 4: the non-procedural (baked action) motion is computed and

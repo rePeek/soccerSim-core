@@ -39,7 +39,6 @@
 #include "player/execution/player_action_feedback.hpp"
 #include "player/execution/player_command.hpp"
 #include "player/execution/player_decision_scheduler.hpp"
-#include "player/execution/player_execution_diagnostics.hpp"
 #include "player/execution/player_interrupt.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
 #include "player/execution/player_selected_action.hpp"
@@ -122,16 +121,10 @@ struct PlayerExecutionState {
   // scheduling: decision clock, locomotion cadence, continuity epochs
   // ---------------------------------------------------------------------
   LocomotionIntentScheduler locomotionIntentScheduler;
-  bool locomotionIntentDueThisTick = false;
   PlayerDecisionScheduler playerDecisionScheduler;
   PlayerDecisionQueueState playerDecisionQueue;
   // The sole locomotion intent of the Player Decision Clock.
   PlayerDecisionLocomotionState decisionLocomotionState;
-  std::optional<football::sim::Tick> last_locomotion_publication_tick_;
-  std::optional<football::sim::Tick> last_reset_tick_;
-  // Whether a real action tick has run since the last reset. Player Decision
-  // re-entry classification uses it, so it is execution bookkeeping.
-  bool hasProcessedPlayerTick = false;
 
   // ---------------------------------------------------------------------
   // compat: the legacy animation/spatial projection (never an authority)
@@ -161,11 +154,11 @@ struct PlayerExecutionState {
 
 };
 
-// PEX-5: everything below measures the migration or keeps provenance for the
-// audit. None of it decides a selection, a motion, an action cursor or a
-// publication; the gameplay epochs, schedulers and cursors stay in
-// PlayerExecutionState. Keeping it in one separate value makes the audit
-// provably a side channel: removing a field here cannot change gameplay.
+// PEX-5: measurement-only execution counters. None of them decides a
+// selection, a motion, an action cursor or a publication; the gameplay
+// epochs, schedulers and cursors stay in PlayerExecutionState. Keeping them
+// in one separate value makes the audit provably a side channel: removing a
+// counter here cannot change gameplay.
 struct PlayerExecutionAuditState {
   // --- execution oracle and request counters ---------------------------
   int install_checks_ = 0;
@@ -186,34 +179,6 @@ struct PlayerExecutionAuditState {
   int reaction_trip_interrupts_scheduled_ = 0;
   int action_request_preemptions_ = 0;
   int touch_selection_successes_ = 0;
-
-  // --- decision/publication provenance ----------------------------------
-  // Audit generation: bumped on every Direct publication for re-entry
-  // freshness measurement. Deliberately transient so telemetry cannot change
-  // the save-state contract; the gameplay epochs stay in the state above.
-  unsigned long long decisionLocomotionAuditGeneration = 0;
-  // Explicit cause of the next Direct publication. A continuity repair runs
-  // before the cadence note, so deriving the cause from that flag would
-  // mislabel a repair publication as an animation-driven one.
-  int pendingPublicationCause = 0;
-  // 4f-a1: transient, per-tick animation selection outcome. Never serialized.
-  bool decisionMovementSelection = false;
-  bool lastPublicationViaSimulationCadence = false;
-  bool lastPublicationWhileIneligible = false;
-
-  // --- locomotion re-entry audit ----------------------------------------
-  // Re-entry provenance. Transient, never serialized, measurement only.
-  int reentryAuditEpoch = -1;
-  bool locomotionExitRecorded = false;
-  bool resetGenerationAnchorValid = false;
-  unsigned long long resetDecisionGeneration = 0;
-  bool reentryAuditStarted = false;
-  bool wasPureLocomotionLastTick = false;
-  bool resetSinceLastPlayerTick = false;
-  unsigned long long decisionGenerationAtLocomotionExit = 0;
-  // Caller scope of the current ResetSituation, so the reset provenance keeps
-  // distinguishing the initial, runtime and Deactivate resets.
-  int reset_situation_audit_context = kResetSituationUnspecified;
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_EXECUTION_STATE_HPP

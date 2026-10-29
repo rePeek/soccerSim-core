@@ -8,7 +8,6 @@
 // without tying refreshes to animation opportunities or a configurable dt.
 struct LocomotionIntentScheduler {
   football::sim::Tick next_refresh_tick{};
-  int refreshes = 0; // Telemetry count, not a duration or serialized clock.
 
   static football::sim::TickSpan CadenceForDistance(float distance_to_ball,
                                                    bool has_possession) {
@@ -21,7 +20,6 @@ struct LocomotionIntentScheduler {
   bool Due(football::sim::Tick now) const { return now >= next_refresh_tick; }
   void Schedule(football::sim::Tick now, football::sim::TickSpan cadence) {
     next_refresh_tick = now + cadence;
-    ++refreshes;
   }
 };
 

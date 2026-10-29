@@ -21,8 +21,6 @@
 #include "player/execution/player_action_arbitration.hpp"
 #include "player/execution/player_action_motion.hpp"
 #include "player/execution/player_control_builder.hpp"
-#include "player/execution/player_diagnostics.hpp"
-#include "player/execution/player_execution_diagnostics.hpp"
 #include "player/execution/player_motion_constants.hpp"
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_touch_math.hpp"
@@ -39,13 +37,6 @@ constexpr int initialReQueueDelayFrames = 22;
 constexpr bool allowReQueue = true;
 constexpr bool allowPreTouchRotationSmuggle = false;
 
-// 4b''-player-noquery-audit: provenance stays local to the selection queue.
-// It is deliberately not part of PlayerCommand or serialized simulation state.
-enum class PlayerPathSelectionCommandProvenance {
-  Controller,
-  LocalTrip,
-  LocalTripMovementFallback
-};
 
 // ---------------------------------------------------------------------------
 // The stack-local frame for one action tick. It carries the values the phases
@@ -65,11 +56,9 @@ struct PlayerExecution::ActionTickFrame {
   bool has_request_input = false;
   bool reaction_executed = false;
   bool movement_published_this_tick = false;
-  bool decision_queue_selection_movement = false;
   bool continuity_repair_due = false;
   bool legacy_opportunity = false;
   bool simulation_due = false;
-  bool legacy_only = false;
 };
 
 PlayerExecution::PlayerExecution(const AnimationLibrary& animations)
@@ -104,15 +93,15 @@ void PlayerExecution::Activate(PlayerExecutionPort& owner, const Vector3& spawn_
 void PlayerExecution::Deactivate(PlayerExecutionPort& owner, football::sim::Tick now) {
   PortScope scope(*this, owner);
   // Preserve both historical resets, including their epochs.
-  ResetSituation(owner, port().GetPosition(), now, kResetSituationPlayerDeactivateFirst);
-  ResetSituation(owner, port().GetPosition(), now, kResetSituationPlayerDeactivateSecond);
+  ResetSituation(owner, port().GetPosition(), now);
+  ResetSituation(owner, port().GetPosition(), now);
 }
 
 void PlayerExecution::Exit(PlayerExecutionPort& owner, football::sim::Tick now) {
   PortScope scope(*this, owner);
   // Preserve the former base destructor's reset window without invoking roster
   // callbacks: Team::Exit may already have deleted other players.
-  ResetRuntimeState(port().GetPosition(), now, kResetSituationPlayerDeactivateSecond);
+  ResetRuntimeState(port().GetPosition(), now);
 }
 
 void PlayerExecution::ResetPosition(PlayerExecutionPort& owner, const Vector3& new_position,
@@ -129,33 +118,22 @@ void PlayerExecution::ResetPosition(PlayerExecutionPort& owner, const Vector3& n
   InstallSelectedAction(CurrentSelectedAction());
 }
 
-void PlayerExecution::ResetSituation(PlayerExecutionPort& owner, const Vector3& focus_position,
-                                     football::sim::Tick now, int audit_context) {
+void PlayerExecution::ResetSituation(PlayerExecutionPort& owner,
+                                     const Vector3& focus_position,
+                                     football::sim::Tick now) {
   PortScope scope(*this, owner);
-  ResetRuntimeState(focus_position, now, audit_context);
+  ResetRuntimeState(focus_position, now);
 }
 
 void PlayerExecution::ResetRuntimeState(const Vector3& focus_position,
-                                        football::sim::Tick now, int audit_context) {
+                                        football::sim::Tick now) {
   port().ResetTouchRecord();
-  audit_.reset_situation_audit_context = audit_context;
   // ANIM-1.1: a reset must not leave a stale active/passive request behind.
   state_.pending_action_request_.reset();
   state_.playback_state_.Reset();
   state_.pending_reaction_.reset();
   state_.pending_passive_trip_.reset();
   if (port().IsActive()) {
-    // The reset itself is the discontinuity, so it anchors the generation that
-    // a later reset re-entry compares against.
-    audit_.resetDecisionGeneration = audit_.decisionLocomotionAuditGeneration;
-    if (audit_.reset_situation_audit_context == kResetSituationUnspecified) {
-      audit_.reset_situation_audit_context = state_.hasProcessedPlayerTick
-          ? kResetSituationRuntime
-          : kResetSituationInitialBeforeFirstPlayerTick;
-    }
-    audit_.resetGenerationAnchorValid = true;
-    state_.last_reset_tick_ = now;
-    audit_.resetSinceLastPlayerTick = true;
     // A reset is also a continuity break, so any earlier intent is invalid.
     ++state_.decisionLocomotionState.continuityEpoch;
     ResetLegacySituation(focus_position);
@@ -163,7 +141,6 @@ void PlayerExecution::ResetRuntimeState(const Vector3& focus_position,
     // ANIM-1 A6.3c.1: the runtime reset is the same special action install.
     InstallSelectedAction(CurrentSelectedAction());
   }
-  audit_.reset_situation_audit_context = kResetSituationUnspecified;
 }
 
 // ---------------------------------------------------------------------------
@@ -223,12 +200,6 @@ PlayerBakedPoseSample PlayerExecution::BakedPoseSample(PlayerExecutionPort& owne
   return sample;
 }
 
-void PlayerExecution::NoteControllerQuery(bool had_movement_candidate,
-                                           football::sim::Tick now, bool retaining_ball) {
-  const bool due = state_.locomotionIntentScheduler.Due(now);
-  const bool eligible = IsEligibleForProceduralLocomotion(retaining_ball);
-  RecordControllerQueryOpportunity(had_movement_candidate, due, eligible);
-}
 
 PlayerExecution::Projection PlayerExecution::CompatibilityProjection() const {
   return Projection{state_.legacy_spatial_state_.position,
@@ -253,7 +224,6 @@ void PlayerExecution::RunActionTick(PlayerExecutionPort& owner, football::sim::T
     throw std::logic_error(
         "PlayerExecution::RunActionTick: player position must have zero height");
   }
-  state_.hasProcessedPlayerTick = true;
 
   ActionTickFrame frame;
   frame.now = now;
@@ -373,27 +343,17 @@ void PlayerExecution::BeginActionTick(ActionTickFrame& frame) {
   // CalculateSpatialState so the procedural model integrates from the world
   // state in force, not from the animation prediction for this tick.
   frame.tick_start_state = port().GetKinematicState();
-  // gate-mismatch-context: exactly one attribution per real Player tick, before
-  // any of this tick's CalculateSpatialState/ProjectMovementState evaluations.
-  // Gameplay continuity advances before the audit observes this tick, so the
-  // epoch is decided by eligibility rather than by telemetry bookkeeping.
+  // Gameplay continuity advances once per real Player tick. The epoch is
+  // decided by eligibility, never by telemetry bookkeeping.
   AdvanceLocomotionContinuity(
       IsEligibleForProceduralLocomotion(
           frame.ball_retainer == self()));
-  // re-entry audit must see every real player tick, eligible or not, because
-  // leaving locomotion is what arms the next re-entry classification.
-  NoteLocomotionReentryTick(
-      IsEligibleForProceduralLocomotion(
-          frame.ball_retainer == self()),
-      IsLocomotionIntentRefreshDue(frame.now), frame.now);
 }
 
 void PlayerExecution::RefreshDecisionQueue(ActionTickFrame& frame) {
   // 4f-a3a: the complete decision queue has its own simulation clock. Its
   // cadence depends on world context, never on animation requeue opportunities.
   const football::sim::Tick decision_now = frame.now;
-  const int decision_now_ms =
-      static_cast<int>(football::sim::ToMilliseconds(decision_now));
   const float decision_distance_to_ball =
       (frame.tick->ball.state().position.Get2D() -
        frame.tick_start_state.position)
@@ -419,40 +379,18 @@ void PlayerExecution::RefreshDecisionQueue(ActionTickFrame& frame) {
          frame.tick->own_team, frame.tick->authorization});
     PlayerCommandQueue player_decision_commands = std::move(built.commands);
     PublishPlayerDecisionQueue(player_decision_commands, decision_now);
-    bool has_movement = false;
-    for (const PlayerCommand &command : player_decision_commands)
-      has_movement |= command.desiredFunctionType == e_FunctionType_Movement &&
-                      command.useDesiredMovement;
-    NoteControllerQuery(has_movement, decision_now,
-                              frame.ball_retainer == self());
-    RecordPlayerDecisionQuery(
-        self(), player_decision_commands, decision_now_ms,
-        continuity_repair_due ? PlayerDecisionQueryCause::ContinuityRepair
-                              : PlayerDecisionQueryCause::PlayerDecisionClockPeriodic,
-        ActionState().type);
-    ++PlayerDecisionClockQueries();
-    if (continuity_repair_due) ++PlayerDecisionClockForcedQueries();
-    else ++PlayerDecisionClockPeriodicQueries();
   }
 
   // Continuity repair forces the independent Player Decision Clock, then
   // publishes its fresh Movement axis before locomotion execution. It does not
   // ask the controller through the legacy locomotion/animation queue.
   if (continuity_repair_due) {
-    ++ContinuityRepairAttempts();
-    NoteDecisionPublicationCause(2);
     if (HasPlayerDecisionQueue() &&
-        PublishMovementIntentFromQueue(
-            GetPlayerDecisionQueue(), decision_now,
-            frame.ball_retainer == self())) {
+        PublishMovementIntentFromQueue(GetPlayerDecisionQueue())) {
       frame.movement_published_this_tick = true;
       CommitLocomotionIntentRefresh(
           frame.tick->ball, decision_now, frame.ball_retainer == self());
-      ++ContinuityRepairPublications();
-    } else {
-      ++ContinuityRepairCandidatesMissing();
     }
-    NoteDecisionPublicationCause(0);
   }
 }
 
@@ -547,56 +485,32 @@ void PlayerExecution::EvaluateActionRequeue(ActionTickFrame& frame) {
 
   frame.legacy_opportunity = state_.interruptAnim != e_InterruptAnim_None;
   frame.simulation_due =
-      NoteLocomotionIntentCadence(
-          frame.legacy_opportunity, frame.now,
-          frame.ball_retainer == self());
-  // Tag the cause of any publication on this path, so a legacy-driven query is
-  // not credited to the simulation cadence in the audit.
-  frame.legacy_only = frame.legacy_opportunity && !frame.simulation_due;
-  NoteDecisionPublicationCause(frame.legacy_only ? 1 : 0);
-  if (frame.simulation_due && !frame.legacy_opportunity)
-    ++PlayerLocomotionCadenceSelectionSuppressed();
+      NoteLocomotionIntentCadence(frame.now, frame.ball_retainer == self());
 }
 
 void PlayerExecution::SelectActionForFrame(ActionTickFrame& frame) {
   if (!frame.legacy_opportunity) return;
 
   PlayerCommandQueue commandQueue;      // selection queue
-  std::vector<PlayerPathSelectionCommandProvenance> commandProvenance;
-  bool uses_player_decision_queue = false;
 
   const bool trip_local_queue =
       state_.interruptAnim == e_InterruptAnim_Trip && state_.tripType != 0;
   if (frame.has_request_input) {
     commandQueue = std::move(frame.request_command_queue);
-    for (std::size_t i = 0; i < commandQueue.size(); ++i)
-      commandProvenance.push_back(
-          PlayerPathSelectionCommandProvenance::Controller);
   } else if (trip_local_queue) {
-    ++PlayerPathLocalTripAttempts();
     // ANIM-1 A7 step 2: the Player owns the local trip command construction.
     BuildTripSelectionCommands(
-        commandQueue, state_.tripDirection, state_.tripType, state_.legacy_spatial_state_.floatVelocity,
-        state_.legacy_spatial_state_.directionVec, state_.legacy_spatial_state_.position);
-    // All but the last command are trips; the last is the movement fallback.
-    while (commandProvenance.size() + 1 < commandQueue.size()) {
-      commandProvenance.push_back(
-          PlayerPathSelectionCommandProvenance::LocalTrip);
-    }
+        commandQueue, state_.tripDirection, state_.tripType,
+        state_.legacy_spatial_state_.floatVelocity,
+        state_.legacy_spatial_state_.directionVec,
+        state_.legacy_spatial_state_.position);
     state_.tripType = 0;
-    commandProvenance.push_back(
-        PlayerPathSelectionCommandProvenance::LocalTripMovementFallback);
   } else {
     if (!HasPlayerDecisionQueue()) {
-      ++PlayerDecisionClockQueueConsumersMissing();
       throw std::logic_error(
           "Player Decision queue missing before animation selection");
     }
     commandQueue = GetPlayerDecisionQueue();
-    uses_player_decision_queue = true;
-    for (size_t i = 0; i < commandQueue.size(); ++i)
-      commandProvenance.push_back(
-          PlayerPathSelectionCommandProvenance::Controller);
   }
 
   // iterate through the command queue and pick the first that is applicable
@@ -605,8 +519,6 @@ void PlayerExecution::SelectActionForFrame(ActionTickFrame& frame) {
                                   // trap/ballcontrol anims to be less prefered
   for (unsigned int i = 0; i < commandQueue.size(); i++) {
     const PlayerCommand &command = commandQueue[i];
-    const PlayerPathSelectionCommandProvenance provenance =
-        commandProvenance[i];
 
     if (command.desiredFunctionType == e_FunctionType_ShortPass ||
         command.desiredFunctionType == e_FunctionType_LongPass ||
@@ -618,17 +530,7 @@ void PlayerExecution::SelectActionForFrame(ActionTickFrame& frame) {
         frame.now, *frame.tick, command, *frame.observation, state_.interruptAnim,
         preferPassAndShot, allowPreTouchRotationSmuggle,
         useContinuousBallCheck);
-    if (found) {
-      if (provenance == PlayerPathSelectionCommandProvenance::LocalTrip) {
-        ++PlayerPathLocalTripSelected();
-      } else if (provenance ==
-                 PlayerPathSelectionCommandProvenance::LocalTripMovementFallback) {
-        ++PlayerPathLocalTripMovementFallbackSelected();
-        // Selection only: the local fallback used to write the compatibility
-        // movement slot, but it never decided movement, so it no longer does.
-      }
-      break;
-    }
+    if (found) break;
   }
 
   if (state_.interruptAnim == e_InterruptAnim_Switch && !found) {
@@ -656,10 +558,6 @@ void PlayerExecution::SelectActionForFrame(ActionTickFrame& frame) {
         "PlayerExecution::RunActionTick: no applicable animation");
   }
 
-  if (uses_player_decision_queue) {
-    frame.decision_queue_selection_movement =
-        found && frame.action->type == e_FunctionType_Movement;
-  }
   if (found) {
     state_.startPos = state_.legacy_spatial_state_.position;
     state_.startAngle = state_.legacy_spatial_state_.angle;
@@ -680,19 +578,6 @@ void PlayerExecution::SelectActionForFrame(ActionTickFrame& frame) {
       state_.reQueueDelayFrames = initialReQueueDelayFrames;
     }
   }
-  // 4f-a1: animation-owned query pressure. Every count below is a tick the
-  // animation requeue reached the decision phase on with no cadence due; the
-  // target is that this number, and the queries it causes, fall to zero.
-  if (frame.legacy_only) {
-    ++LegacyOnlyDecisionOpportunities();
-    if (!found) {
-      ++LegacyOnlyDecisionNoSelection();
-    } else if (frame.action->type == e_FunctionType_Movement) {
-      ++LegacyOnlyDecisionMovementSelections();
-    } else {
-      ++LegacyOnlyDecisionNonMovementSelections();
-    }
-  }
 }
 
 void PlayerExecution::PublishCadenceLocomotion(ActionTickFrame& frame) {
@@ -701,22 +586,13 @@ void PlayerExecution::PublishCadenceLocomotion(ActionTickFrame& frame) {
   // cadence publisher's source: it always samples the serialized decision queue.
   if (frame.simulation_due && !frame.movement_published_this_tick) {
     if (!HasPlayerDecisionQueue()) {
-      ++PlayerDecisionClockQueueConsumersMissing();
       throw std::logic_error(
           "Player Decision queue missing before locomotion publication");
     }
-    NoteDecisionMovementSelection(
-        frame.decision_queue_selection_movement);
-    if (PublishMovementIntentFromQueue(
-            GetPlayerDecisionQueue(), frame.now,
-            frame.ball_retainer == self())) {
+    if (PublishMovementIntentFromQueue(GetPlayerDecisionQueue())) {
       frame.movement_published_this_tick = true;
-      ++PlayerPathDirectPublications();
       CommitLocomotionIntentRefresh(
           frame.tick->ball, frame.now, frame.ball_retainer == self());
-      ++PlayerPathRefreshCommits();
-    } else {
-      ++PlayerPathCandidatesMissing();
     }
   }
   state_.reQueueDelayFrames = std::max(state_.reQueueDelayFrames - 1, 0);
