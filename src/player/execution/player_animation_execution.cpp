@@ -369,7 +369,7 @@ void PlayerExecution::ProjectSelectedActionCompat(
   state_.legacy_anim_state_.originatingCommand = command;
   // Must run after the state_.legacy_anim_state_ field writes above (it reads the new
   // animationId/positions/touchFrame and GetCurrentBakedClip), before install.
-  state_.legacy_anim_state_.movementSmuggle = ComputeMovementSmuggle(now, tick, command.desiredDirection, command.desiredVelocityFloat, observation);
+  state_.legacy_anim_state_.movementSmuggle = ComputeMovementSmuggle(now, tick, observation);
   state_.legacy_anim_state_.movementSmuggleOffset = Vector3(0);
 }
 

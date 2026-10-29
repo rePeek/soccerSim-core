@@ -600,7 +600,7 @@ void PlayerExecution::PublishCadenceLocomotion(ActionTickFrame& frame) {
 
 void PlayerExecution::ApplyPostActionTick(ActionTickFrame& frame) {
   frame.ball_retainer = ProcessActionTouches(
-      frame.now, *frame.tick, *frame.observation, frame.ball_retainer,
+      frame.now, *frame.tick, frame.ball_retainer,
       *frame.touch_sink, *frame.runtime_sink);
   // ANIM-1 A9 step 2: the action/movement/rotation smuggle evolution is a pure
   // PlayerMotion calculation; this applies its deltas in the legacy order.

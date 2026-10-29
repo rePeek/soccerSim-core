@@ -56,6 +56,7 @@ void GetDifficultyFactors(const Ball *ball, Player *player,
                           const SpatialState &spatialState,
                           const Vector3 &positionOffset, float &distanceFactor,
                           float &heightFactor, float &ballMovementFactor) {
+  const football::ball::BallState ball_state = ball->state();
   float lastTouchBias = 0.0f;
   if (touches.last_team != player->GetTeamID()) {
     Player *lastTouchPlayer = football::sim::player::LastTouchPlayer(
@@ -69,8 +70,8 @@ void GetDifficultyFactors(const Ball *ball, Player *player,
 
   football::sim::player::TouchDifficultyInput input;
   input.position_offset = positionOffset;
-  input.ball_position_2d = ball->state().position.Get2D();
-  input.ball_velocity = ball->state().velocity;
+  input.ball_position_2d = ball_state.position.Get2D();
+  input.ball_velocity = ball_state.velocity;
   input.spatial_movement = spatialState.movement;
   input.spatial_position = spatialState.position;
   input.spatial_direction = spatialState.directionVec;
@@ -91,8 +92,8 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, bool has_possessi
                              const Vector3 &outgoingMovement,
                              const Anim &currentAnim, int frameNum,
                              const SpatialState &spatialState,
-                             const Vector3 &positionOffset,
                              float ffoOffset) {
+  const football::ball::BallState ball_state = ball->state();
 
   // part of the resulting direction is physics, the other part is anim/controller. so originatingBias is only applied on the (1.0 - physicsBias) part of the result
   float physicsBias = 0.7f;
@@ -133,11 +134,11 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, bool has_possessi
   float desiredVelocity = desiredMovement.GetLength();
   float physicsVelocity = physicsMovement.GetLength();
 
-  Vector3 FFOsrc = GetFrontOfFootOffsetRel(physicsVelocity, nextBodyAngle - spatialState.angle, ball->state().position.coords[2]);
+  Vector3 FFOsrc = GetFrontOfFootOffsetRel(physicsVelocity, nextBodyAngle - spatialState.angle, ball_state.position.coords[2]);
   float annoyanceVeloFactor = curve(NormalizedClamp(clip.metadata.outgoing_velocity, idleVelocity, sprintVelocity), 0.7f); // do not apply effect to low velo's; makes it too chaotic
   float opponentAnnoyanceFactor = (1.0f - NormalizedClamp(football::sim::player::ClosestOpponentDistance(opponent.teammates, player->GetPosition()), 0.5f, 1.5f)) * (1.0f - (player->GetStat(football::player::PlayerStat::mental_calmness) * 0.5f + player->GetStat(football::player::PlayerStat::physical_balance) * 0.3f)) * annoyanceVeloFactor;
   Vector3 FFO = Vector3(0, -1, 0).GetRotated2D(nextBodyAngle) * (FFOsrc.GetLength() + ffoOffset + opponentAnnoyanceFactor * 3.0f); // positionOffset is already in ffoOffset (though only for trap atm)
-  float heightFFOOffset = NormalizedClamp(ball->state().position.coords[2], 0.5f, 1.0f) * 0.5f; // bounce high balls off body - else they keep colliding inside body and stuff like that
+  float heightFFOOffset = NormalizedClamp(ball_state.position.coords[2], 0.5f, 1.0f) * 0.5f; // bounce high balls off body - else they keep colliding inside body and stuff like that
   FFO += FFOsrc * heightFFOOffset * 0.5f +
          spatialState.bodyDirectionVec * heightFFOOffset * 0.5f;
 
@@ -169,7 +170,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, bool has_possessi
   }*/
 
   Vector3 plannedBallPos = physicsPlannedBallPos * physicsBias + desiredPlannedBallPos * (1.0f - physicsBias);
-  Vector3 toPlannedBall = plannedBallPos - ball->state().position.Get2D();
+  Vector3 toPlannedBall = plannedBallPos - ball_state.position.Get2D();
 
   float timeToGo = ((static_cast<int>(clip.frame_count) - 1 - frameNum) * 10) * 0.001f;
   timeToGo += physicsDelayTime * physicsBias + desiredDelayTime * (1.0f - physicsBias);
@@ -197,7 +198,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, bool has_possessi
   Vector3 touchVec = direction * power * powerMultiplier + Vector3(0, 0, height);
   /*
     if (player->GetDebug()) {
-      SetRedDebugPilon(ball->state().position.Get2D());
+      SetRedDebugPilon(ball_state.position.Get2D());
       SetGreenDebugPilon(plannedBallPos);
     }
   */
@@ -213,6 +214,7 @@ Vector3 GetTrapVector(const Ball *ball, Player *player, bool has_possession,
                       const Vector3 &outgoingMovement, const Anim &currentAnim,
                       int frameNum, const SpatialState &spatialState,
                       const Vector3 &positionOffset) {
+  const football::ball::BallState ball_state = ball->state();
 
   float distanceFactor = 0.0f; // how far ball bounces off feet
   float heightFactor = 0.0f; // how high ball bounces off feet
@@ -220,18 +222,19 @@ Vector3 GetTrapVector(const Ball *ball, Player *player, bool has_possession,
   GetDifficultyFactors(ball, player, touches, opponent, now, spatialState, positionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // base vector to start with
-  Vector3 ballControl = GetBallControlVector(ball, player, has_possession, opponent, clip, nextStartPos, nextStartAngle, nextBodyAngle, outgoingMovement, currentAnim, frameNum, spatialState, positionOffset, distanceFactor);
+  Vector3 ballControl = GetBallControlVector(ball, player, has_possession, opponent, clip, nextStartPos, nextStartAngle, nextBodyAngle, outgoingMovement, currentAnim, frameNum, spatialState, distanceFactor);
 
-  ballControl.coords[2] += ball->state().velocity.coords[2] * heightFactor * 1.0f +
+  ballControl.coords[2] += ball_state.velocity.coords[2] * heightFactor * 1.0f +
                            heightFactor * 4.0f;
 
   return ballControl * (1.0f - ballMovementFactor) +
-         ball->state().velocity * ballMovementFactor;
+         ball_state.velocity * ballMovementFactor;
 }
 
 Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& clip,
                       const Anim &currentAnim, const SpatialState &spatialState,
                       const Vector3 &positionOffset) {
+  const football::ball::BallState ball_state = ball->state();
 
   const std::vector<Vector3> &origPositionCache = clip.root_positions;
   Vector3 touchMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum).GetRotated2D(spatialState.angle); // spatialState.movement isn't reliable because of smuggles and such
@@ -240,8 +243,6 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   float touchVelocity = touchMovement.GetLength();
   if (FloatToEnumVelocity(touchVelocity) == e_Velocity_Idle) touchDirection = spatialState.directionVec;
   //SetBlueDebugPilon(player->GetPosition() + touchDirection * 8.0f);
-
-  float expressionModifierFactor = NormalizedClamp(currentAnim.originatingCommand.desiredVelocityFloat, idleVelocity, sprintVelocity);
 
   // previous: float directionFactor = touchDirection.GetDotProduct(currentAnim.originatingCommand.touchInfo.desiredDirection) * 0.5f + 0.5f;
   // ideal angle is ~36 degrees == 0.2 * pi
@@ -283,7 +284,7 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   float power = clamp(powerFactor * adaptedDesiredPower, 0.0f, (32.0f + player->GetStat(football::player::PlayerStat::physical_shotpower) * 13.0f) * (0.2f + animMaxPowerFactor * 0.8f));
 
   // add this after previous stat-clamp, because using the current ball movement is like an added (power) bonus that everybody profits from, even sucky players
-  float playerMovBallMovPowerFactor = (touchMovement - ball->state().velocity).GetLength();
+  float playerMovBallMovPowerFactor = (touchMovement - ball_state.velocity).GetLength();
   playerMovBallMovPowerFactor = NormalizedClamp(playerMovBallMovPowerFactor, 0.0f, 10.0f);
 
   power *= 1.0f + playerMovBallMovPowerFactor * 0.2f;
@@ -297,7 +298,7 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
 
   float positionOffsetEasinessFactor = 1.0f - NormalizedClamp(positionOffset.GetLength(), 0.0f, 0.1f);
 
-  float playerMovBallMovEasinessFactor = (touchMovement - ball->state().velocity).GetLength();
+  float playerMovBallMovEasinessFactor = (touchMovement - ball_state.velocity).GetLength();
   playerMovBallMovEasinessFactor = 1.0f - playerMovBallMovPowerFactor * (0.5f - player->GetStat(football::player::PlayerStat::technical_volley) * 0.3f);
 
   float powerEasinessFactor = 1.0f - NormalizedClamp(power, 30.0f, 100.0f);

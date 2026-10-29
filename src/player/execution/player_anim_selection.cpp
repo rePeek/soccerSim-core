@@ -47,6 +47,7 @@ CrudeSelectionQuery PlayerExecution::BuildCrudeSelectionQuery(
     const PlayerCommand &command, const football::sim::PlayerTickContext &tick,
     football::sim::Tick now, const football::sim::player::PlayerObservation& observation) {
   const SpatialState &spatialState = state_.legacy_spatial_state_;
+  const AnimationClip &clip = GetCurrentBakedClip();
   CrudeSelectionQuery query;
   query.byFunctionType = true;
   query.functionType = command.desiredFunctionType;
@@ -114,7 +115,7 @@ CrudeSelectionQuery PlayerExecution::BuildCrudeSelectionQuery(
 
   query.bySide = false;
   if (command.useDesiredLookAt &&
-      GetCurrentBakedClip().metadata.outgoing_special_state.empty() &&
+      clip.metadata.outgoing_special_state.empty() &&
       tick.ball_retainer != self()) {
     Vector3 playerLookAtVec = (command.desiredLookAt - spatialState.position).GetNormalized(spatialState.directionVec);
     query.lookAtVecRel = playerLookAtVec.GetRotated2D(-spatialState.angle);
@@ -144,12 +145,12 @@ CrudeSelectionQuery PlayerExecution::BuildCrudeSelectionQuery(
     query.tripType = command.tripType;
   }
 
-  query.properties.incoming_special_state = GetCurrentBakedClip().metadata.outgoing_special_state;
-  if (tick.ball_retainer == self()) query.properties.incoming_retain_state = GetCurrentBakedClip().metadata.outgoing_retain_state;
+  query.properties.incoming_special_state = clip.metadata.outgoing_special_state;
+  if (tick.ball_retainer == self()) query.properties.incoming_retain_state = clip.metadata.outgoing_retain_state;
   if (command.useSpecialVar1) query.properties.special_var1 = command.specialVar1;
   if (command.useSpecialVar2) query.properties.special_var2 = command.specialVar2;
 
-  if (!GetCurrentBakedClip().metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle;  // standing up anims always start out idle
+  if (!clip.metadata.outgoing_special_state.empty()) query.incomingVelocity = e_Velocity_Idle;  // standing up anims always start out idle
   return query;
 }
 
@@ -210,18 +211,18 @@ bool PlayerExecution::CanCommitMatchedSelection(
   commit_gate.action_type = state_.actionState.type;
   commit_gate.command_type = command.desiredFunctionType;
   if (selected_anim_id != -1) {
+    const AnimationClip &current_clip = GetCurrentBakedClip();
+    const AnimationClip &selected_clip = GetBakedClip(selected_anim_id);
     commit_gate.current_outgoing_velocity =
-        FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity);
+        FloatToEnumVelocity(current_clip.metadata.outgoing_velocity);
     commit_gate.selected_outgoing_velocity =
-        FloatToEnumVelocity(GetBakedClip(selected_anim_id).metadata.outgoing_velocity);
-    commit_gate.current_quadrant = GetCurrentBakedClip().metadata.quadrant;
-    commit_gate.selected_quadrant = GetBakedClip(selected_anim_id).metadata.quadrant;
+        FloatToEnumVelocity(selected_clip.metadata.outgoing_velocity);
+    commit_gate.current_quadrant = current_clip.metadata.quadrant;
+    commit_gate.selected_quadrant = selected_clip.metadata.quadrant;
     commit_gate.current_forced_outgoing_angle =
-        ForceIntoPreferredDirectionAngle(
-            GetCurrentBakedClip().metadata.outgoing_angle);
+        ForceIntoPreferredDirectionAngle(current_clip.metadata.outgoing_angle);
     commit_gate.selected_forced_outgoing_angle =
-        ForceIntoPreferredDirectionAngle(
-            GetBakedClip(selected_anim_id).metadata.outgoing_angle);
+        ForceIntoPreferredDirectionAngle(selected_clip.metadata.outgoing_angle);
   }
   return CanCommitActionSelection(commit_gate);
 }
@@ -255,10 +256,11 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
             .GetLength() > 10.0f) {
       return false;
     }
-    if ((observation.BallPrediction(state_.mentalImageTime, defaultTouchOffset_ms, now, tick.ball).Get2D() -
-         spatialState.position)
+    const Vector3 ball_at_touch =
+        observation.BallPrediction(state_.mentalImageTime, defaultTouchOffset_ms, now, tick.ball);
+    if ((ball_at_touch.Get2D() - spatialState.position)
                 .GetLength() > 2.0f &&
-        (observation.BallPrediction(state_.mentalImageTime, defaultTouchOffset_ms, now, tick.ball).Get2D() -
+        (ball_at_touch.Get2D() -
          (spatialState.position +
           spatialState.movement * defaultTouchOffset_ms * 0.001))
                 .GetLength() >
@@ -588,8 +590,7 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
     selectedAnimID = *dataSet.begin();
     Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
     assert(desiredMovement.coords[2] == 0.0f);
-    Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
-    (void)physicsVector;
+    CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
   } else if (command.desiredFunctionType == e_FunctionType_BallControl) {
     if (NeedTouch(now, tick, *dataSet.begin(), command, observation)) {
       selectedAnimID = SelectTouchAction(now, tick, observation, dataSet, command.useDesiredMovement, command.desiredDirection, command.desiredVelocityFloat, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice, localInterruptAnim, preferPassAndShot, allowPreTouchRotationSmuggle, useContinuousBallCheck);
@@ -610,8 +611,7 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
         selectedAnimID = *dataSet.begin();
         Vector3 desiredMovement = command.desiredDirection * command.desiredVelocityFloat;
         assert(desiredMovement.coords[2] == 0.0f);
-        Vector3 physicsVector = CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
-        (void)physicsVector;
+        CalculatePhysicsVector(now, selectedAnimID, command.useDesiredMovement, desiredMovement, command.useDesiredLookAt, desiredBodyDirectionRel, touch_choice.positions, touch_choice.rotation_smuggle);
       }
     }
   }
@@ -850,19 +850,19 @@ constexpr bool kEnableMovementSmuggle = true;
 
 Vector3 PlayerExecution::ComputeMovementSmuggle(
     football::sim::Tick now, const football::sim::PlayerTickContext &tick,
-    const Vector3 &desiredDirection, float desiredVelocityFloat,
     const football::sim::player::PlayerObservation& observation) {
   Anim &currentAnim = state_.legacy_anim_state_;
 
   if (!kEnableMovementSmuggle) return Vector3(0);
+  const AnimationClip &clip = GetCurrentBakedClip();
 
   if (tick.own_team.DesignatedPlayerId() != port().GetID() ||
       tick.designated_possession_player != self() ||
       currentAnim.touchFrame != -1 ||
       (currentAnim.functionType == e_FunctionType_Trip &&
-       GetCurrentBakedClip().metadata.trip_type != 1) ||
-      GetCurrentBakedClip().metadata.incoming_special_state.compare("") != 0 ||
-      GetCurrentBakedClip().metadata.outgoing_special_state.compare("") != 0 ||
+       clip.metadata.trip_type != 1) ||
+      clip.metadata.incoming_special_state.compare("") != 0 ||
+      clip.metadata.outgoing_special_state.compare("") != 0 ||
       !tick.play_authorized || tick.set_piece_active || tick.ball_retainer != 0)
     return Vector3(0);
 
@@ -878,7 +878,7 @@ Vector3 PlayerExecution::ComputeMovementSmuggle(
     timeToBall_ms = static_cast<unsigned int>(desired_time_to_ball_ms);
   }
   unsigned int animTime_ms =
-      static_cast<int>(GetCurrentBakedClip().frame_count) * 10;
+      static_cast<int>(clip.frame_count) * 10;
   unsigned int futureTime_ms = std::max(animTime_ms + defaultTouchOffset_ms, timeToBall_ms);
 
   Vector3 predictedOutgoingMovement =
@@ -891,7 +891,7 @@ Vector3 PlayerExecution::ComputeMovementSmuggle(
   float ballHeight = ballPos.coords[2];
   Vector3 ffo = GetFrontOfFootOffsetRel(
                     predictedOutgoingMovement.GetLength(),
-                    GetCurrentBakedClip().metadata.outgoing_body_angle,
+                    clip.metadata.outgoing_body_angle,
                     ballHeight)
                     .GetRotated2D(predictedAngle);
   Vector3 desiredBallPos = predictedPos + ffo;
@@ -918,7 +918,7 @@ Vector3 PlayerExecution::ComputeMovementSmuggle(
   }
 
   unsigned int maxEffectTimeTreshold_ms = 250 + defaultTouchOffset_ms;  // if the ball is this much longer 'farther away' than feasible, rather postpone effect until next anim (else we may overrun)
-  if (FloatToEnumVelocity(GetCurrentBakedClip().metadata.outgoing_velocity) == e_Velocity_Idle) maxEffectTimeTreshold_ms = 2000;  // no danger of overrunning
+  if (FloatToEnumVelocity(clip.metadata.outgoing_velocity) == e_Velocity_Idle) maxEffectTimeTreshold_ms = 2000;  // no danger of overrunning
   float maxEffectVelocity = dribbleWalkSwitch;
   float maxSmuggleMPS = 1.6f;
 
@@ -930,7 +930,7 @@ Vector3 PlayerExecution::ComputeMovementSmuggle(
   float resultingVelocity = resultingMovement.GetLength();
   if (resultingVelocity > predictedVelocity && resultingVelocity > maxEffectVelocity) return Vector3(0);
 
-  toDesired.NormalizeMax(maxSmuggleMPS * ((static_cast<int>(GetCurrentBakedClip().frame_count) - 1) * 0.01f));
+  toDesired.NormalizeMax(maxSmuggleMPS * ((static_cast<int>(clip.frame_count) - 1) * 0.01f));
 
   // SetGreenDebugPilon(predictedPos);
 

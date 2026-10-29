@@ -302,7 +302,6 @@ class PlayerExecution final {
   void ComputeAndCommitActionMotion();
   Vector3 ComputeMovementSmuggle(football::sim::Tick now,
                                  const football::sim::PlayerTickContext& tick,
-                                 const Vector3& desired_direction, float desired_velocity_float,
                                  const football::sim::player::PlayerObservation& observation);
   void ApplyFactualSpatialState();
   void ApplyGoalkeeperBoundaryClamps(const football::sim::PlayerTickContext& tick,
@@ -319,7 +318,6 @@ class PlayerExecution final {
   // --- touch publication ------------------------------------------------
   Player* ProcessActionTouches(football::sim::Tick now,
                                const football::sim::PlayerTickContext& tick,
-                               const football::sim::player::PlayerObservation& observation,
                                Player* ball_retainer,
                                football::sim::player::PlayerTouchSink& touch_sink,
                                football::sim::PlayerRuntimeSink& runtime_sink);
