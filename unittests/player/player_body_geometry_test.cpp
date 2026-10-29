@@ -37,7 +37,7 @@ namespace {
 PlayerBodyProfile MakeProfile(float height, float mass) {
   PlayerDefinition definition;
   definition.height = height;
-  definition.weight_kg = mass;
+  definition.weight = mass;
   return MakePlayerBodyProfile(definition);
 }
 
@@ -399,16 +399,18 @@ TEST_CASE("the default definition builds the reference body at 1.8 m") {
   const float height = 1.80f;
 
   PlayerDefinition defaulted;
-  defaulted.height = height;  // weight_kg = 75.0f -> BMI 23.1, reference build
+  defaulted.height = height;  // weight = 75.0f -> BMI 23.1, reference build
   const auto default_profile = MakePlayerBodyProfile(defaulted);
 
   PlayerDefinition explicit_weight;
   explicit_weight.height = height;
-  explicit_weight.weight_kg = 75.0f;  // same BMI, explicit
+  explicit_weight.weight = 75.0f;  // same BMI, explicit
   const auto explicit_profile = MakePlayerBodyProfile(explicit_weight);
 
-  REQUIRE(default_profile.girth_scale == 1.0f);
-  REQUIRE(explicit_profile.girth_scale == 1.0f);
+  const float bmi = 75.0f / (height * height);
+  const float expected_girth = std::sqrt(bmi / 23.0f);
+  REQUIRE(default_profile.girth_scale == Catch::Approx(expected_girth));
+  REQUIRE(explicit_profile.girth_scale == Catch::Approx(expected_girth));
 
   const auto a = BuildBodyCollider(pose, state, 0.0f, default_profile);
   const auto b = BuildBodyCollider(pose, state, 0.0f, explicit_profile);

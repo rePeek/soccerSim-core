@@ -34,7 +34,7 @@ namespace {
 PlayerBodyProfile Profile() {
   PlayerDefinition d;
   d.height = 1.8f;
-  d.weight_kg = 75.0f;
+  d.weight = 75.0f;
   return MakePlayerBodyProfile(d);
 }
 

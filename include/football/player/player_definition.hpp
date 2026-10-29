@@ -91,7 +91,7 @@ struct PlayerDefinition {
   // Body mass in kilograms. Data default; it derives the body build by
   // BMI = weight / height^2 (see MakePlayerBodyProfile). Must be finite and
   // positive.
-  float weight_kg = 75.0f;
+  float weight = 75.0f;
   PlayerAttributes attributes;
   PlayerAppearance appearance;
 };

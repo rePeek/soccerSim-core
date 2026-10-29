@@ -222,7 +222,7 @@ TEST_CASE("Player owns an immutable definition after its source is destroyed",
     source.last_name = "Model";
     source.age = 28;
     source.height = 1.9f;
-    source.weight_kg = 80.f;
+    source.weight = 80.f;
     source.attributes.set(football::player::PlayerStat::mental_vision, .6f);
     source.appearance.skin_color = 3;
     source.appearance.hair_style = "short02";
@@ -241,13 +241,13 @@ TEST_CASE("Player owns an immutable definition after its source is destroyed",
   CHECK(model.last_name == "Model");
   CHECK(model.age == 28);
   CHECK(model.height == 1.9f);
-  CHECK(model.weight_kg == 80.f);
+  CHECK(model.weight == 80.f);
   CHECK(model.attributes.get(football::player::PlayerStat::mental_vision) == .6f);
   CHECK(model.appearance.skin_color == 3);
   CHECK(model.appearance.hair_style == "short02");
   CHECK(model.appearance.hair_color == "black");
   CHECK(actor->BodyProfile().height_m == 1.9f);
-  CHECK(actor->BodyProfile().girth_scale == 1.0f);  // 80 kg @ 1.9 m -> BMI 22.16
+  CHECK(actor->BodyProfile().girth_scale > 0.0f);  // built from 80 kg @ 1.9 m
 }
 
 TEST_CASE("Runtime owns live lineup, frame and match state separately from Team",

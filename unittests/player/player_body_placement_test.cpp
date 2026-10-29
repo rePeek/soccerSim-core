@@ -61,7 +61,7 @@ Vector3 Placement(std::size_t index) {
 PlayerBodyProfile MakeProfile(float height, float mass) {
   PlayerDefinition definition;
   definition.height = height;
-  definition.weight_kg = mass;
+  definition.weight = mass;
   return MakePlayerBodyProfile(definition);
 }
 

@@ -31,7 +31,7 @@ namespace {
 PlayerBodyProfile Profile(float height, float mass) {
   PlayerDefinition d;
   d.height = height;
-  d.weight_kg = mass;
+  d.weight = mass;
   return MakePlayerBodyProfile(d);
 }
 
