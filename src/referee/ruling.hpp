@@ -6,7 +6,7 @@
 
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/player/player_role.hpp"
+#include "football/match/player_role.hpp"
 #include "football/match/game_mode.hpp"
 #include "football/player/player_definition.hpp"
 #include "football/match/team_side.hpp"

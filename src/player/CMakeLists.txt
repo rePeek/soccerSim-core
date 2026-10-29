@@ -37,29 +37,24 @@ set(_player_upper_layer_regex "#include \"(football/)?(event|observation|runtime
 # its root also contains the concrete actor and private execution-facing types.
 set(_player_model_headers
   ${PROJECT_SOURCE_DIR}/include/football/player/player_definition.hpp
-  ${PROJECT_SOURCE_DIR}/include/football/player/player_role.hpp
-  ${PROJECT_SOURCE_DIR}/include/football/player/formation_entry.hpp
   ${PROJECT_SOURCE_DIR}/include/football/player/player_kinematics.hpp
   ${PROJECT_SOURCE_DIR}/include/football/player/player_action.hpp
   ${PROJECT_SOURCE_DIR}/include/football/player/player_body_profile.hpp
   ${PROJECT_SOURCE_DIR}/include/football/player/player_command_status.hpp)
-add_library(football_player_state STATIC role_parser.cpp)
+add_library(football_player_state INTERFACE)
 add_library(football::player_state ALIAS football_player_state)
 target_include_directories(football_player_state
-  PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-  PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
 target_sources(football_player_state PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
   FILES ${_player_model_headers})
-target_link_libraries(football_player_state PUBLIC
+target_link_libraries(football_player_state INTERFACE
   football::foundation football::animation_base)
-football_configure_target(football_player_state)
+target_compile_features(football_player_state INTERFACE cxx_std_23)
 football_player_check_contract_files(
   "${_player_upper_layer_regex}|#include \"(football/)?player/(command|contact|execution)/|#include \"(football/)?contact/|#include \"player/player.hpp\""
   "${_player_model_headers}"
-  ${_player_model_headers}
-  ${CMAKE_CURRENT_SOURCE_DIR}/role_parser.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/role_parser.cpp)
+  ${_player_model_headers})
 
 # Header-only input protocol; Execution consumes it, never the reverse.
 add_library(football_player_command INTERFACE)

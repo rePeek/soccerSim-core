@@ -1,7 +1,7 @@
 #ifndef FOOTBALL_SIM_RUNTIME_RESTART_PLACEMENT_HPP
 #define FOOTBALL_SIM_RUNTIME_RESTART_PLACEMENT_HPP
 
-#include "football/player/player_role.hpp"
+#include "football/match/player_role.hpp"
 #include "football/referee/game_mode.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/runtime/simulation_config.hpp"

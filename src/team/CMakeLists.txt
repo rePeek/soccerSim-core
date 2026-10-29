@@ -15,7 +15,8 @@ target_sources(football_team PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/team/set_piece_orders.hpp
     ${PROJECT_SOURCE_DIR}/include/football/team/selection.hpp
     ${PROJECT_SOURCE_DIR}/include/football/team/formation.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/team/formation_preset.hpp)
+    ${PROJECT_SOURCE_DIR}/include/football/team/formation_preset.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/team/formation_entry.hpp)
 target_link_libraries(football_team
   PUBLIC football::player football::foundation football::pitch)
 # team_players.cpp implements the Player-owning entity and needs the concrete

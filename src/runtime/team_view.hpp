@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <span>
 
-#include "football/player/formation_entry.hpp"
+#include "football/team/formation_entry.hpp"
 #include "football/runtime/match_config.hpp"
 #include "runtime/team_facts.hpp"
 #include "runtime/team_state.hpp"

@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "football/player/player_definition.hpp"
-#include "football/player/player_role.hpp"
+#include "football/match/player_role.hpp"
 #include "football/referee/game_mode.hpp"
 #include "football/runtime/match_config.hpp"
 #include "football/runtime/active_lineup.hpp"

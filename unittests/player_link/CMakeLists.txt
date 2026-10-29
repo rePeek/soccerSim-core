@@ -88,7 +88,7 @@ target_link_libraries(football_player_prediction_header_smoke PRIVATE football::
 football_configure_target(football_player_prediction_header_smoke)
 
 set(_model_smoke_sources)
-foreach(_name player_definition player_role formation_entry player_kinematics
+foreach(_name player_definition player_kinematics
     player_action player_body_profile player_command_status)
   set(_source ${CMAKE_CURRENT_BINARY_DIR}/${_name}_model_header.cpp)
   file(GENERATE OUTPUT ${_source} CONTENT "#include \"football/player/${_name}.hpp\"\n")

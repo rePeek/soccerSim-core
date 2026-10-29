@@ -11,16 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A player's own formation role and slot position. Owned by the player domain:
-// the player stores its entry; runtime computes the initial values (see
-// src/runtime/formation.cpp BuildFormation).
+// A player's formation role and slot position. Runtime owns this value and
+// computes the initial entries (see src/runtime/formation.cpp BuildFormation);
+// Team owns the static declarations they are derived from, and the Player
+// never caches it.
 
-#ifndef FOOTBALL_SIM_PLAYER_FORMATION_ENTRY_HPP
-#define FOOTBALL_SIM_PLAYER_FORMATION_ENTRY_HPP
+#ifndef FOOTBALL_SIM_TEAM_FORMATION_ENTRY_HPP
+#define FOOTBALL_SIM_TEAM_FORMATION_ENTRY_HPP
 
 
 #include "football/foundation/math/vector3.hpp"
-#include "football/player/player_role.hpp"
+#include "football/match/player_role.hpp"
 #include "football/match/game_mode.hpp"
 
 using namespace football::math;
@@ -59,4 +60,4 @@ struct FormationEntry {
   bool controllable = true;
 };
 
-#endif  // FOOTBALL_SIM_PLAYER_FORMATION_ENTRY_HPP
+#endif  // FOOTBALL_SIM_TEAM_FORMATION_ENTRY_HPP

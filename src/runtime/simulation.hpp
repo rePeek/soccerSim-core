@@ -41,7 +41,7 @@
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_send_off_sink.hpp"
 #include "football/contact/foul_assessment.hpp"
-#include "football/player/formation_entry.hpp"
+#include "football/team/formation_entry.hpp"
 #include "player/execution/diagnostics/player_body_collision_shadow.hpp"
 #include "player/execution/diagnostics/player_active_touch_shadow.hpp"
 #include "player/execution/player_baked_pose_sample.hpp"

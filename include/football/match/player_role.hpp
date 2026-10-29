@@ -1,9 +1,10 @@
 // Player-role values: where a player lines up and what the referee expects of
-// that role. Owned by the player domain; rules, AI and formation data consume
-// it but do not define it.
+// that role. A neutral match-level value: formation data, Referee rules,
+// Event/Observation projections and the Player all consume it without any one
+// of them owning it.
 
-#ifndef FOOTBALL_SIM_PLAYER_PLAYER_ROLE_HPP
-#define FOOTBALL_SIM_PLAYER_PLAYER_ROLE_HPP
+#ifndef FOOTBALL_SIM_MATCH_PLAYER_ROLE_HPP
+#define FOOTBALL_SIM_MATCH_PLAYER_ROLE_HPP
 
 constexpr int kPlayersPerTeam = 11;
 
@@ -20,4 +21,4 @@ enum e_PlayerRole {
   e_PlayerRole_CF,
 };
 
-#endif  // FOOTBALL_SIM_PLAYER_PLAYER_ROLE_HPP
+#endif  // FOOTBALL_SIM_MATCH_PLAYER_ROLE_HPP

@@ -5,7 +5,7 @@
 #include <variant>
 
 #include "football/foundation/time/tick.hpp"
-#include "football/player/player_role.hpp"
+#include "football/match/player_role.hpp"
 #include "football/referee/game_mode.hpp"
 #include "football/player/player_definition.hpp"
 #include "football/runtime/match_config.hpp"
