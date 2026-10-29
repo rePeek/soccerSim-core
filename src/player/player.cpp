@@ -76,11 +76,9 @@ bool Vector3BitsEqual(const Vector3 &a, const Vector3 &b) {
 
 Player::Player(int team_id, football::sim::TeamSide side,
                football::player::PlayerDefinition model,
-               std::uint8_t schedule_phase,
                const AnimationLibrary& animations, const football::pitch::Pitch& pitch)
       : model_(std::move(model)),
       body_profile_(football::player::MakePlayerBodyProfile(model_)),
-      schedule_phase_(schedule_phase % 10),
       team_id_(team_id),
       side_(side),
       execution_(std::make_unique<PlayerExecution>(animations)) {
@@ -339,70 +337,6 @@ void Player::Activate(const Vector3& spawn_position) {
   execution_->Activate(Port(), spawn_position);
 }
 
-bool Player::HasPossession() const { return hasPossession; }
-bool Player::HasBestPossession() const { return hasBestPossession; }
-bool Player::HasUniquePossession() const { return hasUniquePossession; }
-
-void Player::UpdatePossessionStats(Ball& ball, const football::player::PlayerTeamMatchFacts& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own) {
-  timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
-  const e_FunctionType action_type = GetCurrentFunctionType();
-  const bool pure_locomotion = GetSimulationActionState().IsPureLocomotion(retainer == this);
-  bool recompute = false;
-  if (pure_locomotion) {
-    // H3e1c-3c: solve on the staggered 100 ms cadence, retaining the capability
-    // estimate between refreshes. Do not fall back to the legacy heuristic on
-    // those nine intermediate ticks (P1c); that would change the AI's model.
-    ++PlayerReachabilityEligibleTicks();
-    const bool scheduled_refresh = football::sim::player_timing::StaggeredRefreshDue(
-        now, kReachabilityRefresh,
-        football::sim::TickSpan{schedule_phase_});
-    // First eligible tick after an action must not reuse an old action estimate.
-    const bool entering_pure_locomotion = GetSimulationActionState().elapsed.value == 0;
-    recompute = scheduled_refresh || entering_pure_locomotion;
-    if (recompute) ++PlayerReachabilityRefreshes();
-    else ++PlayerReachabilityReuses();
-  }
-  // P19.4: the actor's own capability is one pure value. The cross-team
-  // possession comparison below stays Runtime-side arbitration.
-  football::sim::player::PlayerReachabilityInput reachability;
-  reachability.kinematic = GetKinematicState();
-  reachability.max_velocity = GetMaxVelocity();
-  reachability.action_type = action_type;
-  reachability.pure_locomotion = pure_locomotion;
-  reachability.recompute = recompute;
-  reachability.precise = designated_own == this;
-  reachability.touch_anim = TouchAnim();
-  reachability.touch_pending = TouchPending();
-  reachability.touch_frame = GetTouchFrame();
-  reachability.current_frame = GetCurrentFrame();
-  reachability.previous_usual_ms = timeNeededToGetToBall_ms;
-  reachability.previous_optimistic_ms = timeNeededToGetToBall_optimistic_ms;
-  reachability.ball = &ball;
-  const football::sim::player::PlayerReachabilityFacts facts =
-      football::sim::player::ComputePlayerReachability(reachability);
-  timeNeededToGetToBall_ms = facts.usual_ms;
-  timeNeededToGetToBall_optimistic_ms = facts.optimistic_ms;
-  hasPossession = facts.locally_controllable;
-  this->hasBestPossession = hasPossession && opponent.time_to_ball_ms > this->GetTimeNeededToGetToBall_ms();
-  this->hasUniquePossession = hasPossession && !opponent.has_possession;
-  if (retainer == this) {
-    timeNeededToGetToBall_ms = 1;
-    timeNeededToGetToBall_optimistic_ms = 1;
-    SetDesiredTimeToBall_ms(timeNeededToGetToBall_ms);
-    hasPossession = true;
-    hasBestPossession = true;
-    hasUniquePossession = true;
-  } else if (retainer != 0) {
-    hasPossession = false;
-    hasBestPossession = false;
-    hasUniquePossession = false;
-  }
-}
-
-float Player::GetClosestOpponentDistance(const PlayerTeamView& opponent) const {
-  Player *opp = football::sim::player::FindClosestPlayer(opponent.teammates, GetPosition());
-  return opp->GetPosition().GetDistance(GetPosition());
-}
 
 void Player::SendOff(const Ball& ball, football::sim::Tick now, football::sim::PlayerSendOffSink* send_off) {
   Deactivate(ball, now);
@@ -417,11 +351,6 @@ float Player::GetStaminaStat() const {
 
 void Player::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
   execution_->ResetSituation(Port(), focusPos, now);
-  hasPossession = false;
-  hasBestPossession = false;
-  hasUniquePossession = false;
-  timeNeededToGetToBall_ms = 1000;
-  timeNeededToGetToBall_optimistic_ms = 1000;
   SetDesiredTimeToBall_ms(0);
   triggerControlledBallCollision = false;
 }
@@ -453,10 +382,6 @@ bool Player::MovementPoseBlend() const { return execution_->MovementPoseBlend();
 radian Player::GetRelBodyAngle() const { return execution_->RelBodyAngle(); }
 e_Velocity Player::GetEnumVelocity() const { return execution_->EnumVelocity(); }
 float Player::GetFloatVelocity() const { return execution_->FloatVelocity(); }
-e_FunctionType Player::GetPreviousFunctionType() const {
-  return execution_->PreviousFunctionType();
-}
-
 bool Player::IsEligibleForProceduralLocomotion(bool retaining_ball) const {
   return execution_->IsEligibleForProceduralLocomotion(retaining_ball);
 }
@@ -506,23 +431,9 @@ int Player::ActionRequestPreemptions() const {
   return execution_->ActionRequestPreemptions();
 }
 
-const football::sim::TouchChoice &Player::TouchSelection() const {
-  return execution_->TouchSelection();
-}
-
-const PoseFrame& Player::PlaybackPose() const { return execution_->PlaybackPose(); }
-float Player::PlaybackBaseAngle() const { return execution_->PlaybackBaseAngle(); }
-const football::animation::PlaybackState& Player::PlaybackState() const {
-  return execution_->Playback();
-}
-
 PoseFrame Player::Pose() const {
   if (!is_active_) return PoseFrame{};
   return execution_->Pose(Port());
-}
-
-const football::sim::SelectedAction& Player::InstalledAction() const {
-  return execution_->InstalledAction();
 }
 
 const PlayerActionFeedback& Player::ActionFeedback() const {
@@ -572,7 +483,5 @@ bool Player::TouchAnim() const { return GetSimulationActionState().HasScheduledC
 Vector3 Player::GetTouchPos() const { return GetSimulationActionState().contactPosition; }
 int Player::GetTouchFrame() const { return GetSimulationActionState().ContactFrame(); }
 int Player::GetCurrentFrame() const { return GetSimulationActionState().Frame(); }
-int Player::GetFrameNum() const { return execution_->FrameNum(); }
-int Player::GetFrameCount() const { return execution_->FrameCount(); }
 
 void Player::SelectRetainAnim() { execution_->SelectRetainAnim(Port()); }

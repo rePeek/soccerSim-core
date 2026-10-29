@@ -3,6 +3,7 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
+#include "football/player/execution/player_ball_relation.hpp"
 #include "football/player/execution/player_touch_facts.hpp"
 #include "player/execution/player_authorization.hpp"
 #include "player/execution/player_team_view.hpp"
@@ -46,6 +47,9 @@ struct PlayerTickContext {
   PlayerTeamView own_team;
   PlayerTeamView opponent_team;
   int processing_slot;  // own team's processing order (0 = first, 1 = second)
+  // This actor's relation to the ball, borrowed from the Runtime-owned table.
+  // The Player stores no reachability/possession state of its own.
+  const football::player::PlayerBallRelation& ball_relation;
 
   bool restart_needs_simulation;
 

@@ -228,7 +228,7 @@ TEST_CASE("Player owns an immutable definition after its source is destroyed",
     source.appearance.hair_style = "short02";
     source.appearance.hair_color = "black";
     actor = std::make_unique<Player>(0, TeamSide::Home, source,
-                                     7, animations, pitch);
+                                     animations, pitch);
     CHECK(&actor->GetModel() != &source);
     source.id = 0;
     source.height = 0;
@@ -345,5 +345,35 @@ TEST_CASE("a tick borrows live team facts instead of a Player cache",
   const PlayerTickContext flipped =
       SimulationAccess::PlayerTickOf(sim, *players[0]);
   CHECK(flipped.own_team.defending_direction == frame.defending_direction);
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("Runtime owns the ball relation, staggered by actor phase",
+          "[team][ownership]") {
+  Simulation sim;
+  MatchOptions options;
+  options.snapshot_capacity = 8;
+  sim.Init(OwnershipSetup(50), OwnershipSetup(500),
+           football::pitch::Pitch{}, options);
+  const auto home_players = SimulationAccess::TeamOf(sim, 0).Players();
+  REQUIRE(home_players.size() == 2);
+
+  // The relation is Runtime state, readable per actor by pointer, and the
+  // staggering phases are distinct per roster index (0,1 for a two-player team).
+  auto& first = SimulationAccess::BallRelationOf(sim, *home_players[0]);
+  auto& second = SimulationAccess::BallRelationOf(sim, *home_players[1]);
+  CHECK(SimulationAccess::BallRelationPhaseOf(sim, *home_players[0]) == 0);
+  CHECK(SimulationAccess::BallRelationPhaseOf(sim, *home_players[1]) == 1);
+
+  first.time_to_ball_ms = 123;
+  first.locally_controllable = true;
+  first.best_in_team = true;
+  second.time_to_ball_ms = 456;
+  // The team view borrows the same storage, not a copy.
+  const auto view = SimulationAccess::TeamViewOf(sim, 0);
+  REQUIRE(view.ball_relations.size() == home_players.size());
+  CHECK(view.ball_relations[0].time_to_ball_ms == 123);
+  CHECK(view.ball_relations[1].time_to_ball_ms == 456);
+  CHECK(view.ball_relations[0].locally_controllable);
   CHECK(sim.Stop());
 }

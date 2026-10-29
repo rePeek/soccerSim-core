@@ -47,7 +47,8 @@ void Simulation::BeginBodyPhysicsShadow() {
     const bool allowed = action.type == e_FunctionType_Movement || action.type == e_FunctionType_Trip ||
         action.type == e_FunctionType_Sliding || action.type == e_FunctionType_Interfere || action.type == e_FunctionType_Deflect;
     if (!allowed) blocks |= BodyActionExcluded;
-    if (player->HasUniquePossession()) blocks |= BodyUniquePossession;
+    if (ball_table_.Read(player->GetTeamID(), player).unique_in_match)
+      blocks |= BodyUniquePossession;
     if (!IsBallInPlay() || football::sim::rules::PeriodElapsed(
         IsHalfUnderway(), phase_, GetRegulationTime(), options_.half_duration)) blocks |= BodyPlayGate;
     if (action.type == e_FunctionType_Interfere || action.type == e_FunctionType_Deflect) {
@@ -62,7 +63,11 @@ void Simulation::BeginBodyPhysicsShadow() {
       }
     }
     const auto body = BuildBodyCollider(prediction.start);
-    float old_radius = .11f - .1f + (player->HasPossession() ? -.03f : .03f);
+    float old_radius =
+        .11f - .1f +
+        (ball_table_.Read(player->GetTeamID(), player).locally_controllable
+             ? -.03f
+             : .03f);
     if (action.type == e_FunctionType_Sliding || action.type == e_FunctionType_Interfere) old_radius += .1f;
     if (action.type == e_FunctionType_Deflect) old_radius += .2f;
     bool old_hit = false;

@@ -42,14 +42,12 @@ class PlayerExecutionPort {
   virtual football::player::PlayerId GetID() const = 0;
   virtual int GetTeamID() const = 0;
   virtual football::sim::TeamSide GetTeamSide() const = 0;
-  virtual const football::player::PlayerDefinition& GetModel() const = 0;
   virtual const football::player::PlayerBodyProfile& BodyProfile() const = 0;
   virtual bool IsActive() const = 0;
 
   // --- capability ------------------------------------------------------
   virtual float GetStat(football::player::PlayerStat name) const = 0;
   virtual float GetMaxVelocity() const = 0;
-  virtual PlayerMotionProfile EffectiveMotionProfile() const = 0;
   virtual int GetReactionTime_ms() const = 0;
 
   // --- authoritative motion (read) --------------------------------------
@@ -58,15 +56,12 @@ class PlayerExecutionPort {
   virtual Vector3 GetDirectionVec() const = 0;
 
   // --- player match state (read) ----------------------------------------
-  virtual bool HasPossession() const = 0;
   virtual football::sim::Tick GetLastTouchTick() const = 0;
   virtual float GetLastTouchBias(int decay_ms, football::sim::Tick at) const = 0;
   virtual bool IsControlledBallCollisionTriggered() const = 0;
   virtual e_TouchType GetLastTouchType() const = 0;
-  virtual int GetTimeNeededToGetToBall_ms() const = 0;
-  virtual int GetTimeNeededToGetToBall_optimistic_ms() const = 0;
-  virtual int GetDesiredTimeToBall_ms() const = 0;
-  virtual float GetClosestOpponentDistance(const PlayerTeamView& opponent) const = 0;
+  // The actor's own desired interception time (intent), not a world relation.
+  virtual int DesiredTimeToBall_ms() const = 0;
 
   // --- player match state (write, execution-owned consequences) ---------
   virtual void TriggerControlledBallCollision() = 0;
@@ -82,7 +77,6 @@ class PlayerExecutionPort {
                                                const PlayerKinematicState& tick_start,
                                                bool restart_needs_simulation,
                                                float dt) = 0;
-  virtual void CommitKinematics(const PlayerKinematicState& next) = 0;
   virtual void CommitLegacyActionMotion() = 0;
   // Fatal in all builds: the committed kinematics and the compatibility
   // projection must agree at every sync point. Evaluated by the Player, because

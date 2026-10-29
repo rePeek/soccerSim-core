@@ -209,17 +209,20 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
                                 TeamOf(own_team).Players(),
                                 TeamOf(rival_team).Players(),
                                 team_states_[own_team].goalie,
-                                &team_states_[own_team]};
+                                &team_states_[own_team],
+                                ball_table_.Slice(own_team)};
   const PlayerTeamView opponent_view{rival_team,
                                      team_orientations_[rival_team].defending_direction,
                                      TeamOf(rival_team).Players(),
                                      TeamOf(own_team).Players(),
                                      team_states_[rival_team].goalie,
-                                     &team_states_[rival_team]};
+                                     &team_states_[rival_team],
+                                     ball_table_.Slice(rival_team)};
   return {GetTimelineTick(), play_authorized_, set_piece_active_, IsBallInPlay(),
           clock_->IsHalfUnderway(), *ball_, ball_retainer_,
           designated_possession_player_, GetLastTouchPlayer(), touches_,
           restarts_.context(), pitch_, own_view, opponent_view, processing_slot,
+          ball_table_.Read(own_team, &actor),
           restarts_.NeedsSimulation(),
           active_candidate_capture_ ? active_touch_shadow_sink_.get() : nullptr,
           nullptr, send_off_sink_.get(), &authorization_port_};
@@ -564,6 +567,8 @@ void Simulation::InitTeamPlayers(int team_id, football::team::Team& team,
       BuildFormation(definition, explicit_lineup);
   active_lineups_[team_id].slots = definition.lineup.starters;
   formations_[team_id].clear();
+  ball_relations_[team_id].clear();
+  ball_relation_phases_[team_id].clear();
   std::uint8_t schedule_phase = first_schedule_phase;
   const auto count = explicit_lineup ? definition.players.size() : formation.size();
   for (std::size_t i = 0; i < count; ++i) {
@@ -579,7 +584,9 @@ void Simulation::InitTeamPlayers(int team_id, football::team::Team& team,
         entry.position * 25 * Vector3(-defending, -defending, 0);
     auto player = std::make_unique<Player>(
         team_id, static_cast<football::sim::TeamSide>(team_id),
-        definition.players[i], schedule_phase, *animations_, pitch_);
+        definition.players[i], *animations_, pitch_);
+    ball_relations_[team_id].push_back(football::player::PlayerBallRelation{});
+    ball_relation_phases_[team_id].push_back(schedule_phase);
     schedule_phase = (schedule_phase + 1) % 10;
     Player* raw = player.get();
     team.AddPlayer(std::move(player));
@@ -612,6 +619,7 @@ football::sim::TeamView Simulation::TeamViewOf(int team_id) const {
       team_states_[team_id].goalie,
       TeamOf(team_id).Players(),
       formations_[team_id],
+      ball_table_.Slice(team_id),
       &team_states_[team_id]};
 }
 
@@ -870,6 +878,9 @@ void Simulation::Init(
   teams_ = {};
   active_lineups_ = {};
   for (auto& formation : formations_) formation.clear();
+  for (auto& relation : ball_relations_) relation.clear();
+  for (auto& phase : ball_relation_phases_) phase.clear();
+  ball_table_.Unbind();
   for (int i = 0; i < 2; ++i) {
     team_orientations_[i].defending_direction = i == 0 ? -1 : 1;
     team_states_[i] = football::sim::TeamMatchState{};
@@ -910,6 +921,11 @@ void Simulation::Init(
   InitTeamPlayers(second_team_, *teams_[second_team_],
                   models[second_team_].explicit_lineup,
                   static_cast<std::uint8_t>(teams_[first_team_]->Players().size() % 10));
+  // Bind the runtime-owned relation table to the finished rosters. The spans
+  // stay valid for the Team lifetime (ordered_ is stable, vectors are sized).
+  ball_table_.Bind(teams_[0]->Players(), teams_[1]->Players(),
+                   &ball_relations_[0], &ball_relation_phases_[0],
+                   &ball_relations_[1], &ball_relation_phases_[1]);
 
   std::vector<Player*> active_players;
   GetActiveTeamPlayers(first_team_, active_players);
@@ -1111,18 +1127,23 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   RunPreparedPlayerTick();
 
   // UpdatePossession: retain both per-team refreshes before arbitration.
-  football::sim::RefreshTeamPossession(TeamOf(first_team_).Players(),
-      team_orientations_[first_team_], team_states_[first_team_],
-      team_states_[second_team_], *ball_, GetTimelineTick(), ball_retainer_);
-  football::sim::RefreshTeamPossession(TeamOf(second_team_).Players(),
-      team_orientations_[second_team_], team_states_[second_team_],
-      team_states_[first_team_], *ball_, GetTimelineTick(), ball_retainer_);
+  football::sim::RefreshTeamPossession(
+      TeamOf(first_team_).Players(), ball_table_.MutableSlice(first_team_),
+      ball_table_.PhaseSlice(first_team_), team_orientations_[first_team_],
+      team_states_[first_team_], team_states_[second_team_], *ball_,
+      GetTimelineTick(), ball_retainer_);
+  football::sim::RefreshTeamPossession(
+      TeamOf(second_team_).Players(), ball_table_.MutableSlice(second_team_),
+      ball_table_.PhaseSlice(second_team_), team_orientations_[second_team_],
+      team_states_[second_team_], team_states_[first_team_], *ball_,
+      GetTimelineTick(), ball_retainer_);
 
   const auto possession = football::sim::EvaluatePossession(
       static_cast<football::sim::TeamSide>(first_team_),
       team_states_[first_team_],
       static_cast<football::sim::TeamSide>(second_team_),
-      team_states_[second_team_], designated_possession_player_, ball_retainer_);
+      team_states_[second_team_], ball_table_, designated_possession_player_,
+      ball_retainer_);
   best_possession_team_ = possession.best_team;
   designated_possession_player_ = possession.designated_player;
 
@@ -1132,7 +1153,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   GetActiveTeamPlayers(second_team_, players);
   football::sim::ResolvePlayerContacts(
       {GetTimelineTick(), players, *ball_, designated_possession_player_,
-       ball_retainer_, {&team_states_[0], &team_states_[1]}},
+       ball_retainer_,
+       {&team_states_[0], &team_states_[1]},
+       &ball_table_},
       foul_assessments_);
   // Foul verdicts now come from the contact solver's frozen assessments, at
   // the same instant and in the same pair order the trip facts used to.
@@ -1388,7 +1411,8 @@ void Simulation::CaptureSnapshot() {
     dst.facing = kinematic.GetFacing();
     dst.body_facing = kinematic.bodyFacing;
     dst.active = player.IsActive();
-    dst.has_possession = player.HasPossession();
+    dst.has_possession =
+        ball_table_.Read(player.GetTeamID(), &player).locally_controllable;
     dst.animation_id = -1;
     dst.frame = 0;
     // Never read the missing humanoid of a never-active bench player.
@@ -1518,6 +1542,9 @@ void Simulation::ClearComposition() {
   teams_[1].reset();
   active_lineups_ = {};
   for (auto& formation : formations_) formation.clear();
+  for (auto& relation : ball_relations_) relation.clear();
+  for (auto& phase : ball_relation_phases_) phase.clear();
+  ball_table_.Unbind();
   team_orientations_ = {};
   team_states_ = {};
   clock_.reset();

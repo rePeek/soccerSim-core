@@ -45,7 +45,7 @@ target_sources(football_sim_domain PRIVATE
   formation.cpp formation_build.hpp
   team_setup_adapter.cpp team_setup_adapter.hpp
   active_lineup.cpp
-  team_state.hpp team_view.hpp
+  team_state.hpp team_view.hpp player_ball_table.cpp player_ball_table.hpp
   possession.cpp possession.hpp
   team_possession.cpp team_possession.hpp
   play_state.hpp restart_context.hpp rule_command_sink.hpp

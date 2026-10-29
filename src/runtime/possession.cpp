@@ -6,10 +6,16 @@
 
 namespace football::sim {
 
+namespace {
+// The public ETA is clamped, matching the value the Player getter exposed.
+int ClampedEta(int eta_ms) { return eta_ms < 1000000 ? eta_ms : 1000000; }
+}  // namespace
+
 PossessionSelection EvaluatePossession(TeamSide first_side,
                                       const TeamMatchState& first_state,
                                       TeamSide second_side,
                                       const TeamMatchState& second_state,
+                                      const PlayerBallTable& relations,
                                       Player* current_designated,
                                       Player* ball_retainer) {
   PossessionSelection selection{std::nullopt, current_designated};
@@ -37,8 +43,13 @@ PossessionSelection EvaluatePossession(TeamSide first_side,
     if (selection.best_team.has_value()) {
       Player* candidate = state_of(*selection.best_team).designated_actor;
       if (candidate != current_designated) {
-        unsigned int designatedTime = current_designated->GetTimeNeededToGetToBall_ms();
-        unsigned int candidateTime = candidate->GetTimeNeededToGetToBall_ms();
+        const unsigned int designatedTime = static_cast<unsigned int>(
+            ClampedEta(relations.Read(current_designated->GetTeamID(),
+                                     current_designated)
+                           .time_to_ball_ms));
+        const unsigned int candidateTime = static_cast<unsigned int>(
+            ClampedEta(relations.Read(candidate->GetTeamID(), candidate)
+                           .time_to_ball_ms));
         float timeRating = (float)(candidateTime + 10) / (float)(designatedTime + 10);
         if (timeRating < 0.85f) selection.designated_player = candidate;
       }

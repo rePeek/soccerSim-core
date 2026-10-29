@@ -5,6 +5,7 @@
 // changed.
 
 #include "player/execution/player_execution.hpp"
+#include "player/execution/roster_query.hpp"
 #include "player/execution/player_diagnostics.hpp"
 #include "player/player.hpp"
 
@@ -129,7 +130,8 @@ int PlayerExecution::SelectBestTouchAnim(
   context.prefer_pass_and_shot = preferPassAndShot;
   context.touch_offset_ms = static_cast<float>(defaultTouchOffset_ms);
   context.closest_opponent_distance =
-      port().GetClosestOpponentDistance(tick.opponent_team);
+      football::sim::player::ClosestOpponentDistance(
+          tick.opponent_team.teammates, port().GetPosition());
   // ANIM-2 A18: match the entry frame inside MatchTouch, so the ball prediction,
   // the reference motion and the touch geometry share the entry-frame basis.
   context.reference_pose = Pose(port());

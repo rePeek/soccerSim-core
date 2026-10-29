@@ -7,6 +7,7 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/contact/foul_assessment.hpp"
+#include "runtime/player_ball_table.hpp"
 
 namespace football::ball { class Ball; }
 class Player;
@@ -26,6 +27,8 @@ struct PlayerContactInputs {
   // Rule evidence (possession weight, designated actor) is read from here, not
   // from a per-Player cache.
   const TeamMatchState* team_states[2] = {nullptr, nullptr};
+  // Runtime-owned ball relations; rule evidence reads them, never the Player.
+  const PlayerBallTable* ball_table = nullptr;
 };
 
 // Runtime adapter for per-collision evidence capture. `first_sensitivity` and

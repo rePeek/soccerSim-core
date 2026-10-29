@@ -40,7 +40,9 @@
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_send_off_sink.hpp"
 #include "football/contact/foul_assessment.hpp"
+#include "football/player/execution/player_ball_relation.hpp"
 #include "football/team/formation_entry.hpp"
+#include "runtime/player_ball_table.hpp"
 #include "player/execution/diagnostics/player_body_collision_shadow.hpp"
 #include "player/execution/diagnostics/player_active_touch_shadow.hpp"
 #include "player/execution/player_baked_pose_sample.hpp"
@@ -334,6 +336,11 @@ class Simulation {
   // order. The authoritative source for role / placement / lazy / controllable;
   // Player no longer caches these.
   std::array<std::vector<FormationEntry>, 2> formations_;
+  // Runtime-owned per-actor ball relations and their staggering phases, aligned
+  // with each Team roster. Player stores none of this.
+  std::array<std::vector<football::player::PlayerBallRelation>, 2> ball_relations_;
+  std::array<std::vector<std::uint8_t>, 2> ball_relation_phases_;
+  football::sim::PlayerBallTable ball_table_;
   mutable std::array<football::sim::TeamOrientation, 2> team_orientations_;
   mutable std::array<football::sim::TeamMatchState, 2> team_states_;
   std::unique_ptr<Referee> referee_;

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <span>
 
+#include "football/player/execution/player_ball_relation.hpp"
 #include "football/team/formation_entry.hpp"
 #include "football/runtime/match_config.hpp"
 #include "runtime/team_state.hpp"
@@ -27,6 +28,8 @@ struct TeamView {
   // Runtime-owned formation, one entry per player in the same order as
   // `players`. Borrowed for the tick; Player no longer holds this data.
   std::span<const FormationEntry> formation;
+  // Runtime-owned ball relations, aligned with `players`.
+  std::span<const football::player::PlayerBallRelation> ball_relations;
   // Live runtime-owned state; null only for a view without team state.
   TeamMatchState* state = nullptr;
 

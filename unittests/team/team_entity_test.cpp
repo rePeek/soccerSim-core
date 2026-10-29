@@ -39,7 +39,7 @@ std::unique_ptr<Player> MakeTestPlayer(football::player::PlayerId id,
   football::player::PlayerDefinition definition;
   definition.id = id;
   definition.height = 1.8f;
-  return std::make_unique<Player>(0, TeamSide::Home, definition, 0,
+  return std::make_unique<Player>(0, TeamSide::Home, definition,
                                   animations, pitch);
 }
 

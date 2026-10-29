@@ -133,7 +133,7 @@ CrudeSelectionQuery PlayerExecution::BuildCrudeSelectionQuery(
     query.incomingBallDirection = (observation.BallPrediction(state_.mentalImageTime, 180, now, tick.ball) - observation.BallPrediction(state_.mentalImageTime, 120, now, tick.ball)).GetRotated2D(-spatialState.angle).GetNormalized(Vector3(0));
   }
 
-  if (AllowLastDitch(tick.own_team.PossessionAmount())) {
+  if (AllowLastDitch(tick.ball_relation, tick.own_team.PossessionAmount())) {
     query.allowLastDitchAnims = true;
   } else {
     query.allowLastDitchAnims = false;
@@ -297,7 +297,7 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
     requeue_gate.spatial_movement = spatialState.movement;
     requeue_gate.outgoing_movement = currentAnim.outgoingMovement;
     requeue_gate.incoming_movement = currentAnim.incomingMovement;
-    requeue_gate.has_possession = port().HasPossession();
+    requeue_gate.has_possession = tick.ball_relation.locally_controllable;
     requeue_gate.last_touch_tick = port().GetLastTouchTick();
     requeue_gate.last_touch_type = port().GetLastTouchType();
     requeue_gate.focus_distance =
@@ -395,13 +395,15 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
   int nm_allowed_velocity_steps = 1;
   if (command.useDesiredMovement) {
     if (command.desiredFunctionType == e_FunctionType_BallControl) {
-      nm_strict = !AllowLastDitch(tick.own_team.PossessionAmount());
+      nm_strict =
+          !AllowLastDitch(tick.ball_relation, tick.own_team.PossessionAmount());
       nm_allowed_angle = 0.0f * pi;
       nm_allowed_velocity_steps = 0;
     } else if (command.desiredFunctionType == e_FunctionType_Trap) {
       const bool high_or_bouncy = HighOrBouncyBall(tick.ball);
       nm_strict =
-          !(AllowLastDitch(tick.own_team.PossessionAmount(), false) ||
+          !(AllowLastDitch(tick.ball_relation, tick.own_team.PossessionAmount(),
+                          false) ||
             high_or_bouncy);
       nm_allowed_angle = 0.3f * pi;
       nm_allowed_velocity_steps = 2;
@@ -912,9 +914,12 @@ Vector3 PlayerExecution::ComputeMovementSmuggle(
 
   // various stuff needed by all
 
-  unsigned int timeToBall_ms = port().GetTimeNeededToGetToBall_ms();
-  if (port().GetDesiredTimeToBall_ms() > (signed int)timeToBall_ms) {
-    timeToBall_ms = port().GetDesiredTimeToBall_ms();
+  unsigned int timeToBall_ms =
+      static_cast<unsigned int>(std::min(tick.ball_relation.time_to_ball_ms, 1000000));
+  const int desired_time_to_ball_ms = std::clamp(
+      port().DesiredTimeToBall_ms(), tick.ball_relation.time_to_ball_ms, 1000000);
+  if (desired_time_to_ball_ms > static_cast<signed int>(timeToBall_ms)) {
+    timeToBall_ms = static_cast<unsigned int>(desired_time_to_ball_ms);
   }
   unsigned int animTime_ms =
       static_cast<int>(GetCurrentBakedClip().frame_count) * 10;
@@ -935,7 +940,7 @@ Vector3 PlayerExecution::ComputeMovementSmuggle(
                     .GetRotated2D(predictedAngle);
   Vector3 desiredBallPos = predictedPos + ffo;
 
-  if (!port().HasPossession()) {
+  if (!tick.ball_relation.locally_controllable) {
     // macro effect: consider a line going in the ball movement direction. consider the spot we want the ball at (in front of us) after this movement anim.
     // now calculate the shortest line between that line and that point. now move over that line from the point towards the line somewhat
 

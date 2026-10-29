@@ -176,7 +176,7 @@ Player* PlayerExecution::ProcessActionTouches(football::sim::Tick now,
 
        ||
 
-       (lastTouchBias <= 0.7f && port().HasPossession() &&
+       (lastTouchBias <= 0.7f && tick.ball_relation.locally_controllable &&
         action.type == e_FunctionType_Trip &&
         ballDistanceNow < 0.4f)
 
@@ -201,7 +201,8 @@ Player* PlayerExecution::ProcessActionTouches(football::sim::Tick now,
 
     radian xRot = 0;
     radian yRot = 0;
-    Vector3 touchVec = GetTrapVector(&tick.ball, self(), tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), state_.nextStartPos, state_.nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(state_.legacy_anim_state_.positions), state_.legacy_anim_state_, state_.legacy_anim_state_.frameNum, state_.legacy_spatial_state_, state_.decayingPositionOffset, xRot, yRot);
+    Vector3 touchVec = GetTrapVector(&tick.ball, self(),
+                          tick.ball_relation.locally_controllable, tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), state_.nextStartPos, state_.nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(state_.legacy_anim_state_.positions), state_.legacy_anim_state_, state_.legacy_anim_state_.frameNum, state_.legacy_spatial_state_, state_.decayingPositionOffset, xRot, yRot);
     if (state_.legacy_anim_state_.originatingCommand.modifier &
         e_PlayerCommandModifier_KnockOn) {
       touchVec *= 1.35f;//1.2f;
@@ -312,11 +313,12 @@ Player* PlayerExecution::ProcessActionTouches(football::sim::Tick now,
 
       if (state_.legacy_anim_state_.functionType == e_FunctionType_Trap ||
           (state_.legacy_anim_state_.functionType == e_FunctionType_BallControl &&
-           port().HasPossession() == false)) {
+           tick.ball_relation.locally_controllable == false)) {
         //printf("trap!\n");
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetTrapVector(&tick.ball, self(), tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), state_.nextStartPos, state_.nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(state_.legacy_anim_state_.positions), state_.legacy_anim_state_, state_.legacy_anim_state_.frameNum, state_.legacy_spatial_state_, state_.decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetTrapVector(&tick.ball, self(),
+                          tick.ball_relation.locally_controllable, tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), state_.nextStartPos, state_.nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(state_.legacy_anim_state_.positions), state_.legacy_anim_state_, state_.legacy_anim_state_.frameNum, state_.legacy_spatial_state_, state_.decayingPositionOffset, xRot, yRot);
         if (state_.legacy_anim_state_.originatingCommand.modifier &
             e_PlayerCommandModifier_KnockOn) {
           touchVec *= 1.35f;
@@ -337,7 +339,8 @@ Player* PlayerExecution::ProcessActionTouches(football::sim::Tick now,
       else if (state_.legacy_anim_state_.functionType == e_FunctionType_BallControl) {
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetBallControlVector(&tick.ball, self(), tick.opponent_team, GetCurrentBakedClip(), state_.nextStartPos, state_.nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(state_.legacy_anim_state_.positions), state_.legacy_anim_state_, state_.legacy_anim_state_.frameNum, state_.legacy_spatial_state_, state_.decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetBallControlVector(&tick.ball, self(),
+                                 tick.ball_relation.locally_controllable, tick.opponent_team, GetCurrentBakedClip(), state_.nextStartPos, state_.nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(state_.legacy_anim_state_.positions), state_.legacy_anim_state_, state_.legacy_anim_state_.frameNum, state_.legacy_spatial_state_, state_.decayingPositionOffset, xRot, yRot);
         if (state_.legacy_anim_state_.originatingCommand.modifier &
             e_PlayerCommandModifier_KnockOn) {
           touchVec *= 1.35f;
@@ -467,7 +470,8 @@ Player* PlayerExecution::ProcessActionTouches(football::sim::Tick now,
       else if (state_.legacy_anim_state_.functionType == e_FunctionType_Interfere) {
         radian xRot = 0;
         radian yRot = 0;
-        Vector3 touchVec = GetTrapVector(&tick.ball, self(), tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), state_.nextStartPos, state_.nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(state_.legacy_anim_state_.positions), state_.legacy_anim_state_, state_.legacy_anim_state_.frameNum, state_.legacy_spatial_state_, state_.decayingPositionOffset, xRot, yRot);
+        Vector3 touchVec = GetTrapVector(&tick.ball, self(),
+                          tick.ball_relation.locally_controllable, tick.touches, tick.opponent_team, now, GetCurrentBakedClip(), state_.nextStartPos, state_.nextStartAngle, nextBodyAngle, CalculateOutgoingMovement(state_.legacy_anim_state_.positions), state_.legacy_anim_state_, state_.legacy_anim_state_.frameNum, state_.legacy_spatial_state_, state_.decayingPositionOffset, xRot, yRot);
         touchVec =
             touchVec * 0.5f +
             (tick.ball.state().position.Get2D() - state_.legacy_spatial_state_.position)

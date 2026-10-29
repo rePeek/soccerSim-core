@@ -88,14 +88,13 @@ class Player final : private PlayerExecutionPort {
  public:
   Player(int team_id, football::sim::TeamSide side,
          football::player::PlayerDefinition model,
-         std::uint8_t schedule_phase,
          const AnimationLibrary& animations, const football::pitch::Pitch& pitch);
   ~Player();
   // Explicit teardown reset before deletion; no hidden clock destructor path.
   void Exit(football::sim::Tick now);
 
   football::player::PlayerId GetID() const override { return model_.id; }
-  const football::player::PlayerDefinition& GetModel() const override { return model_; }
+  const football::player::PlayerDefinition& GetModel() const { return model_; }
   // Static body geometry authority: derived once from the definition, not
   // re-derived per tick or per consumer (BODY-1.5).
   const football::player::PlayerBodyProfile& BodyProfile() const override { return body_profile_; }
@@ -139,7 +138,6 @@ class Player final : private PlayerExecutionPort {
   inline e_FunctionType GetCurrentFunctionType() const {
     return GetSimulationActionState().type;
   }
-  e_FunctionType GetPreviousFunctionType() const;
   // H3e authority boundary: true only when this actor may leave the legacy
   // animation root-motion path and use the simulation-owned procedural
   // movement model instead. See PlayerActionState::IsPureLocomotion().
@@ -201,13 +199,8 @@ class Player final : private PlayerExecutionPort {
 
   // ANIM-1 A3: the execution owns the animation playback state and computes the
   // final pose; the Animation module stays stateless.
-  const football::sim::TouchChoice &TouchSelection() const;
-  const PoseFrame& PlaybackPose() const;
-  float PlaybackBaseAngle() const;
-  const football::animation::PlaybackState& PlaybackState() const;
   // ANIM-1.1: the single final pose for this player (default when inactive).
   PoseFrame Pose() const;
-  const football::sim::SelectedAction& InstalledAction() const;
   // Last discrete-action execution result: source Command, matched type,
   // install/contact/completion and whether a new action interrupted it.
   const PlayerActionFeedback& ActionFeedback() const;
@@ -300,27 +293,13 @@ class Player final : private PlayerExecutionPort {
   Vector3 GetTouchPos() const;
   int GetTouchFrame() const;
   int GetCurrentFrame() const;
-  int GetFrameNum() const;
-  int GetFrameCount() const;
   void SelectRetainAnim();
-  bool HasPossession() const override;
-  bool HasBestPossession() const;
-  bool HasUniquePossession() const;
-  // Non-negative by contract: the stored value is an unsigned millisecond
-  // estimate, so a saturated/internal value must never read back negative.
-  int GetTimeNeededToGetToBall_ms() const {
-    return static_cast<int>(std::min<unsigned int>(timeNeededToGetToBall_ms, 1000000u));
-  }
-  int GetTimeNeededToGetToBall_optimistic_ms() const {
-    return static_cast<int>(std::min<unsigned int>(timeNeededToGetToBall_optimistic_ms, 1000000u));
-  }
-  int GetTimeNeededToGetToBall_previous_ms() const {
-    return static_cast<int>(std::min<unsigned int>(timeNeededToGetToBall_previous_ms, 1000000u));
-  }
   void SetDesiredTimeToBall_ms(int ms) { match_state_.desired_time_to_ball_ms = ms; }
-  int GetDesiredTimeToBall_ms() const {
-    return clamp(match_state_.desired_time_to_ball_ms, timeNeededToGetToBall_ms,
-                 1000000.0f);
+  // The actor's own desired interception time (intent). The public ETA is a
+  // Runtime-owned ball relation, not Player state; callers that need the
+  // clamped pairing read the tick's PlayerBallRelation.
+  int DesiredTimeToBall_ms() const override {
+    return match_state_.desired_time_to_ball_ms;
   }
   void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
   bool IsControlledBallCollisionTriggered() const { return triggerControlledBallCollision; }
@@ -329,8 +308,6 @@ class Player final : private PlayerExecutionPort {
     match_state_.last_touch_tick = {};
     match_state_.last_touch_type = e_TouchType_None;
   }
-  void UpdatePossessionStats(football::ball::Ball& ball, const football::player::PlayerTeamMatchFacts& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own);
-  float GetClosestOpponentDistance(const PlayerTeamView& opponent) const;
   void GiveYellowCard(football::sim::Tick effective_tick) {
     match_state_.cards++;
     match_state_.card_effective_tick = effective_tick;
@@ -350,12 +327,12 @@ class Player final : private PlayerExecutionPort {
 
  private:
   // The port calls the player already implements publicly above (GetID,
-  // GetModel, BodyProfile, IsActive, GetPosition, GetDirectionVec,
+  // BodyProfile, IsActive, GetPosition, GetDirectionVec,
   // GetKinematicState, HasPossession, GetLastTouchTick,
   // GetReactionTime_ms, GetTeamID, GetTeamSide, CommitLocomotion) are their own
   // overrides: one declaration, one owner. Only the private commits and the
   // pointer-keyed identity live here.
-  void CommitKinematics(const PlayerKinematicState& next) override;
+  void CommitKinematics(const PlayerKinematicState& next);
   void CommitLegacyActionMotion() override;
   void CheckKinematicOracle() const override { CheckSimulationKinematicOracle(); }
   void ApplyPositionCorrection(const Vector3 &offset) override;
@@ -368,9 +345,6 @@ class Player final : private PlayerExecutionPort {
   // Immutable actor-owned initialization data, never an external borrow.
   const football::player::PlayerDefinition model_;
   const football::player::PlayerBodyProfile body_profile_;
-  // Non-unique 0..9 offset for staggered 100 ms work, never identity or order.
-  const std::uint8_t schedule_phase_;
-
   // Own team identity. Team match facts arrive per tick through the borrowed
   // PlayerTeamView; the Player caches none of them.
   const int team_id_;
@@ -387,12 +361,6 @@ class Player final : private PlayerExecutionPort {
 
   PlayerMatchState match_state_;
 
-  bool hasPossession = false;
-  bool hasBestPossession = false;
-  bool hasUniquePossession = false;
-  unsigned int timeNeededToGetToBall_ms = 1000;
-  unsigned int timeNeededToGetToBall_optimistic_ms = 1000;
-  unsigned int timeNeededToGetToBall_previous_ms = 1000;
   bool triggerControlledBallCollision = false;
 };
 

@@ -59,15 +59,19 @@ WorldState BuildWorldState(const WorldStateSource& s) {
       Player* player = players[i];
       const FormationEntry& entry =
           i < formation.size() ? formation[i] : FormationEntry{};
+      const football::player::PlayerBallRelation& relation =
+          i < team_views[team_id]->ball_relations.size()
+              ? team_views[team_id]->ball_relations[i]
+              : football::player::PlayerBallRelation{};
       const PlayerKinematicState& state = player->GetKinematicState();
       WorldPlayerState observed{player->GetID(), player->GetTeamSide(),
           state.position, state.velocity, state.GetFacing(), player->IsActive(),
-          player->HasPossession()};
+          relation.locally_controllable};
       observed.lazy = entry.lazy;
       observed.max_speed = player->GetMaxVelocity();
       observed.role = entry.role;
       observed.fatigue_inv = player->GetFatigueFactorInv();
-      observed.time_to_ball_ms = player->GetTimeNeededToGetToBall_ms();
+      observed.time_to_ball_ms = relation.time_to_ball_ms;
       observed.short_pass_skill =
           player->GetStat(football::player::PlayerStat::technical_shortpass);
       observed.workrate =

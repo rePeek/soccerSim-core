@@ -184,11 +184,11 @@ float PlayerExecution::ControlSpeed() const {
   return 0.f;
 }
 
-bool PlayerExecution::AllowLastDitch(float team_possession_amount,
-                                     bool include_possession_amount) const {
+bool PlayerExecution::AllowLastDitch(
+    const football::player::PlayerBallRelation& ball_relation,
+    float team_possession_amount, bool include_possession_amount) const {
   if (include_possession_amount && team_possession_amount < 1.0f) return true;
-  return port().GetTimeNeededToGetToBall_optimistic_ms() * 1.7f + 800 <
-         port().GetTimeNeededToGetToBall_ms();
+  return ball_relation.optimistic_ms * 1.7f + 800 < ball_relation.time_to_ball_ms;
 }
 
 void PlayerExecution::SelectRetainAnim(PlayerExecutionPort& owner) {
@@ -526,9 +526,10 @@ void PlayerExecution::EvaluateActionRequeue(ActionTickFrame& frame) {
          state_.legacy_spatial_state_.position)
             .GetLength();
     if (((frame.action->type == e_FunctionType_Movement &&
-          !port().HasPossession() && ballDistance < 16.0f) ||
+          !frame.tick->ball_relation.locally_controllable &&
+              ballDistance < 16.0f) ||
          (frame.action->type == e_FunctionType_Movement &&
-          port().HasPossession()) ||
+          frame.tick->ball_relation.locally_controllable) ||
          (frame.action->type == e_FunctionType_Trap && ActionState().IsContactPending()) ||
          (frame.action->type == e_FunctionType_BallControl &&
           ActionState().IsContactPending())) &&

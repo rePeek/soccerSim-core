@@ -109,7 +109,8 @@ class PlayerExecution final {
   // Pure decision: is an extreme (last-ditch) animation justified? The team
   // possession weight is an input, not cached state; the time-to-ball values
   // come from the Player's own capability estimate.
-  bool AllowLastDitch(float team_possession_amount,
+  bool AllowLastDitch(const football::player::PlayerBallRelation& ball_relation,
+                      float team_possession_amount,
                       bool include_possession_amount = true) const;
 
   // --- tick -------------------------------------------------------------

@@ -3,6 +3,7 @@
 
 #include <span>
 
+#include "football/player/execution/player_ball_relation.hpp"
 #include "football/player/execution/player_team_match_facts.hpp"
 
 class Player;
@@ -26,6 +27,8 @@ struct PlayerTeamView {
   // Runtime is the only writer; a player action that changes team state goes
   // through PlayerRuntimeSink.
   const football::player::PlayerTeamMatchFacts* state = nullptr;
+  // Runtime-owned ball relations, aligned with `teammates` (this view's team).
+  std::span<const football::player::PlayerBallRelation> ball_relations;
 
   int AttackDirection() const { return -defending_direction; }
 
@@ -44,6 +47,16 @@ struct PlayerTeamView {
   football::player::PlayerId DesignatedPlayerId() const {
     return state != nullptr ? state->designated_player
                             : football::player::kInvalidPlayerId;
+  }
+  // This view's ball relation for one of its own actors.
+  const football::player::PlayerBallRelation& BallRelationOf(
+      const Player* player) const {
+    for (std::size_t i = 0; i < teammates.size(); ++i) {
+      if (teammates[i] == player && i < ball_relations.size())
+        return ball_relations[i];
+    }
+    static const football::player::PlayerBallRelation kUnknown;
+    return kUnknown;
   }
 };
 

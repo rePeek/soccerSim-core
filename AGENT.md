@@ -178,22 +178,31 @@ Player's model and Command targets are declared in `src/player/CMakeLists.txt`;
 there are no state/command CMake subdirectories. Model/parser/private spatial
 and observation files live beside player.hpp. Only execution has a subdirectory.
 
-Player is the entity: identity, definition/body profile, capability, match
-state (own possession facts, touch record, fatigue, cards), the authoritative
-`PlayerKinematicState`/`PlayerGroundCollider` and the lifecycle. Everything
+Player is the entity: identity, definition/body profile, capability, personal
+match state (`PlayerMatchState`: touch record, fatigue, cards, desired
+interception time), the authoritative `PlayerKinematicState`/
+`PlayerGroundCollider` and the lifecycle. Everything
 between an accepted Control/Play/React input and the drawn pose is the
 execution process, owned by the internal `PlayerExecution` component
 (`execution/player_execution.*`) that `Player` composes privately:
 
 ```text
 Player
-  ├── identity, definition, capability, match state
+  ├── identity, definition, capability
+  ├── PlayerMatchState        touch record, fatigue, cards, desired ETA
   ├── authoritative kinematics + ground collider
+  ├── PlayerExecutionDiagnostics()   one snapshot, not per-counter API
   └── PlayerExecution
         ├── PlayerExecutionState  pending inputs, action timeline, playback,
         │                         scheduling/epochs, compat projection, audit
         ├── action tick phases    (PlayerExecution::RunActionTick)
         └── PlayerExecutionPort   the narrow per-call view of the Player
+
+Runtime, beside the players (not inside them)
+  ├── TeamOrientation       the only direction authority
+  ├── TeamMatchState        the only team-state authority
+  ├── PlayerBallTable       per-actor ETA / possession relation + staggering
+  └── formations_           role / placement / lazy / controllable
 ```
 
 Rules for that composition:
@@ -219,9 +228,16 @@ Rules for that composition:
   execution library.
 - Execution diagnostics (locomotion re-entry/publication audits, query
   opportunity census) live in `execution/player_execution_diagnostics.*`, not
-  in the Player header. The Player's own counter accessors forward.
+  in the Player header. Migration counters reach tests as one value,
+  `Player::Diagnostics()`, never one accessor per counter.
+- Reachability/possession is a relation, not Player state: Runtime owns the
+  per-actor ETA and possession facts plus their 100 ms staggering phases in
+  `PlayerBallTable`, and hands the actor its own `PlayerBallRelation` through
+  the tick context. The Player stores no ETA, no possession flags and no
+  schedule phase.
 - `football::player_state`: definitions, kinematics, action state, body profile,
-  command status and role parser. No Command, Contact or Execution dependency.
+  command status. Header-only value contracts; no Command, Contact or
+  Execution dependency.
 - `football::player_command`: Control/ControlSet, active requests, passive
   reaction inputs and input-parameter validation. Header-only protocol over
   State, never Ball, Contact, Animation runtime or Execution. It does not

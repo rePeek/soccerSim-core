@@ -144,6 +144,19 @@ class SimulationAccess {
   static football::sim::TeamMatchState& TeamStateOf(Simulation& s, int team_id) {
     return s.team_states_[team_id];
   }
+  // Runtime-owned per-actor ball relation (reachability / possession).
+  static football::player::PlayerBallRelation& BallRelationOf(
+      Simulation& s, const Player& player) {
+    return s.ball_table_.Mutable(player.GetTeamID(), &player);
+  }
+  static int BallRelationPhaseOf(Simulation& s, const Player& player) {
+    const auto roster = TeamOf(s, player.GetTeamID()).Players();
+    for (std::size_t i = 0; i < roster.size(); ++i) {
+      if (roster[i] == &player)
+        return static_cast<int>(s.ball_relation_phases_[player.GetTeamID()][i]);
+    }
+    return -1;
+  }
   static football::sim::ActiveLineupState& ActiveLineupOf(Simulation& s, int team_id) {
     return s.active_lineups_[team_id];
   }

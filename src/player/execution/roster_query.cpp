@@ -49,4 +49,13 @@ void FindClosestPlayers(std::span<Player *const> players,
     result.push_back(iter->second);
 }
 
+
+float ClosestOpponentDistance(std::span<Player *const> opponents,
+                              const football::math::Vector3& position) {
+  Player* closest = FindClosestPlayer(opponents, position);
+  if (closest == nullptr) return 0.0f;
+  return closest->GetPosition().GetDistance(position);
+}
+
+
 }  // namespace football::sim::player

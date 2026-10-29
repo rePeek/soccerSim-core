@@ -49,10 +49,15 @@ BallPlayerContactResult ResolveBallPlayerContacts(
         if (unexpectedDistance > 0.5f) directionChangedUnexpectedly = true;
       }
 
-      if (collisionAnim && !players[i]->HasUniquePossession() &&
+      if (collisionAnim &&
+          !inputs.teams[players[i]->GetTeamID()]
+               .BallRelationOf(players[i])
+               .unique_in_match &&
           (onlyWhenDirectionChangedUnexpectedly == directionChangedUnexpectedly)) {
         const float ballRadius = football::contact::PassiveBodyTouchRadius(
-            action.type, players[i]->HasPossession());
+            action.type, inputs.teams[players[i]->GetTeamID()]
+                             .BallRelationOf(players[i])
+                             .locally_controllable);
 
         if (((players[i]->GetPosition() + Vector3(0, 0, 0.8f)) -
              ball.state().position).GetLength() < 2.5f) {

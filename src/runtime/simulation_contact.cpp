@@ -117,8 +117,10 @@ ContactActorSnapshot CaptureContactActor(const Player& player,
   snapshot.physical_balance =
       player.GetStat(football::player::PlayerStat::physical_balance);
   snapshot.decaying_position_offset = player.GetDecayingPositionOffset();
-  snapshot.has_possession = player.HasPossession();
-  snapshot.has_best_possession = player.HasBestPossession();
+  const football::player::PlayerBallRelation& relation =
+      inputs.ball_table->Read(player.GetTeamID(), &player);
+  snapshot.has_possession = relation.locally_controllable;
+  snapshot.has_best_possession = relation.best_in_team;
   snapshot.global_designated_possession =
       &player == inputs.designated_possession_player;
   const TeamMatchState* team_state = inputs.team_states[player.GetTeamID()];

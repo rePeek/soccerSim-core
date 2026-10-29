@@ -97,7 +97,7 @@ void Simulation::RunPreparedPlayerTick() {
           base.half_underway, *preparation_ball_,
           base.ball_retainer, base.designated_possession_player, base.last_touch_player,
           base.touches, base.restart, base.pitch, base.own_team, base.opponent_team,
-          base.processing_slot,
+          base.processing_slot, base.ball_relation,
           base.restart_needs_simulation, nullptr, &ports,
           base.send_off, base.authorization};
       const auto before = preparation_ball_->state();
@@ -107,7 +107,8 @@ void Simulation::RunPreparedPlayerTick() {
       prepared.emplace_back(actor, distance);
       MeasureBodyShadowEndpoint(*actor);
     }
-    football::sim::FinishTeamPossession(TeamOf(id).Players(), team_orientations_[id],
+    football::sim::FinishTeamPossession(
+        TeamOf(id).Players(), ball_table_.Slice(id), team_orientations_[id],
         team_states_[id], team_states_[1 - id]);
   };
   prepare_team(first_team_);

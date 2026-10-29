@@ -32,8 +32,12 @@ Player *FindClosestPlayer(std::span<Player *const> players,
                           const Player *excluded = nullptr);
 void FindClosestPlayers(std::span<Player *const> players,
                         const football::math::Vector3 &position,
-                        std::vector<Player *> &result,
+                        std::vector<Player*> &result,
                         unsigned int playerCount = 3);
+// Distance to the nearest opponent in the borrowed view, or 0 for an empty
+// roster. A world-state query, not Player state.
+float ClosestOpponentDistance(std::span<Player *const> opponents,
+                              const football::math::Vector3 &position);
 
 }  // namespace football::sim::player
 

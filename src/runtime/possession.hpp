@@ -2,9 +2,11 @@
 #define FOOTBALL_SIM_RUNTIME_POSSESSION_HPP
 
 #include <optional>
+#include <span>
 
 #include "football/runtime/match_config.hpp"
 #include "runtime/team_state.hpp"
+#include "runtime/player_ball_table.hpp"
 
 class Player;
 
@@ -26,6 +28,7 @@ PossessionSelection EvaluatePossession(TeamSide first_side,
                                       const TeamMatchState& first_state,
                                       TeamSide second_side,
                                       const TeamMatchState& second_state,
+                                      const PlayerBallTable& relations,
                                       Player* current_designated,
                                       Player* ball_retainer);
 

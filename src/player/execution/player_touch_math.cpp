@@ -9,6 +9,7 @@
 #include "football/animation/types.hpp"
 
 #include "player/execution/player_touch_query.hpp"
+#include "player/execution/roster_query.hpp"
 #include "football/player/execution/player_touch_math_kernel.hpp"
 #include "player/player.hpp"
 #include "player/execution/player_motion_constants.hpp"
@@ -85,7 +86,7 @@ void GetDifficultyFactors(const Ball *ball, Player *player,
   ballMovementFactor = factors.ball_movement;
 }
 
-Vector3 GetBallControlVector(const Ball *ball, Player *player, const PlayerTeamView &opponent, const AnimationClip& clip,
+Vector3 GetBallControlVector(const Ball *ball, Player *player, bool has_possession, const PlayerTeamView &opponent, const AnimationClip& clip,
                              const Vector3 &nextStartPos, radian nextStartAngle,
                              radian nextBodyAngle,
                              const Vector3 &outgoingMovement,
@@ -96,7 +97,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, const PlayerTeamV
 
   // part of the resulting direction is physics, the other part is anim/controller. so originatingBias is only applied on the (1.0 - physicsBias) part of the result
   float physicsBias = 0.7f;
-  if (!player->HasPossession()) {
+  if (!has_possession) {
     physicsBias = 0.9f;
   }
 
@@ -135,7 +136,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, const PlayerTeamV
 
   Vector3 FFOsrc = GetFrontOfFootOffsetRel(physicsVelocity, nextBodyAngle - spatialState.angle, ball->state().position.coords[2]);
   float annoyanceVeloFactor = curve(NormalizedClamp(clip.metadata.outgoing_velocity, idleVelocity, sprintVelocity), 0.7f); // do not apply effect to low velo's; makes it too chaotic
-  float opponentAnnoyanceFactor = (1.0f - NormalizedClamp(player->GetClosestOpponentDistance(opponent), 0.5f, 1.5f)) * (1.0f - (player->GetStat(football::player::PlayerStat::mental_calmness) * 0.5f + player->GetStat(football::player::PlayerStat::physical_balance) * 0.3f)) * annoyanceVeloFactor;
+  float opponentAnnoyanceFactor = (1.0f - NormalizedClamp(football::sim::player::ClosestOpponentDistance(opponent.teammates, player->GetPosition()), 0.5f, 1.5f)) * (1.0f - (player->GetStat(football::player::PlayerStat::mental_calmness) * 0.5f + player->GetStat(football::player::PlayerStat::physical_balance) * 0.3f)) * annoyanceVeloFactor;
   Vector3 FFO = Vector3(0, -1, 0).GetRotated2D(nextBodyAngle) * (FFOsrc.GetLength() + ffoOffset + opponentAnnoyanceFactor * 3.0f); // positionOffset is already in ffoOffset (though only for trap atm)
   float heightFFOOffset = NormalizedClamp(ball->state().position.coords[2], 0.5f, 1.0f) * 0.5f; // bounce high balls off body - else they keep colliding inside body and stuff like that
   FFO += FFOsrc * heightFFOOffset * 0.5f +
@@ -215,7 +216,7 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, const PlayerTeamV
   return touchVec;
 }
 
-Vector3 GetTrapVector(const Ball *ball, Player *player,
+Vector3 GetTrapVector(const Ball *ball, Player *player, bool has_possession,
                       const football::player::PlayerTouchFacts& touches, const PlayerTeamView &opponent,
                       football::sim::Tick now, const AnimationClip& clip,
                       const Vector3 &nextStartPos,
@@ -232,7 +233,7 @@ Vector3 GetTrapVector(const Ball *ball, Player *player,
   GetDifficultyFactors(ball, player, touches, opponent, now, spatialState, positionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // base vector to start with
-  Vector3 ballControl = GetBallControlVector(ball, player, opponent, clip, nextStartPos, nextStartAngle, nextBodyAngle, outgoingMovement, currentAnim, frameNum, spatialState, positionOffset, xRot, yRot, distanceFactor);
+  Vector3 ballControl = GetBallControlVector(ball, player, has_possession, opponent, clip, nextStartPos, nextStartAngle, nextBodyAngle, outgoingMovement, currentAnim, frameNum, spatialState, positionOffset, xRot, yRot, distanceFactor);
 
   ballControl.coords[2] += ball->state().velocity.coords[2] * heightFactor * 1.0f +
                            heightFactor * 4.0f;
