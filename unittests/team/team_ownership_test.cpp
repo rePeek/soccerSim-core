@@ -247,7 +247,7 @@ TEST_CASE("Player owns an immutable definition after its source is destroyed",
   CHECK(model.appearance.hair_style == "short02");
   CHECK(model.appearance.hair_color == "black");
   CHECK(actor->BodyProfile().height_m == 1.9f);
-  CHECK(actor->BodyProfile().mass_kg == 80.f);
+  CHECK(actor->BodyProfile().girth_scale == 1.0f);  // 80 kg @ 1.9 m -> BMI 22.16
 }
 
 TEST_CASE("Runtime owns live lineup, frame and match state separately from Team",

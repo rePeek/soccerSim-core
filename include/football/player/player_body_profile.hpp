@@ -8,40 +8,37 @@
 
 namespace football::player {
 
-// Coarse visual/geometry label derived from the mass-to-standard-mass ratio. It
-// is an output classification for tests and later Godot blend-shape selection;
-// geometry must read the continuous girth_scale below, never this enum.
-enum class BodyBuild {
-  Slim,
-  Normal,
-  Broad,
-};
-
-// Static body shape of one player, derived from its definition. This is the
-// single source for height and girth scaling. It owns no motion capability
+// Static body geometry of one player, derived from its definition. This is the
+// single source for height and girth scaling; it owns no motion capability
 // (see PlayerMotionProfile) and no runtime state.
+//
+// height_scale: uniform skeleton scale relative to the baked asset's reference
+//               height. Size.
+// girth_scale:  the collider-width factor. 1.0 = reference build, 0.9 = slim,
+//               1.1 = strong. The collider builders widen radii by this value,
+//               partially per body part. Shape.
 struct PlayerBodyProfile {
   float height_m = 1.8f;
-  float mass_kg = 0.0f;
   float height_scale = 1.0f;
   float girth_scale = 1.0f;
-  BodyBuild build = BodyBuild::Normal;
 };
 
-// The single reference height at which height_scale == 1. Height scaling is
-// expressed relative to it, so it must stay the only such constant.
+// The baked skeleton is authored at this height, so a player of this height has
+// height_scale == 1. Asset fact, not a definition default.
 inline constexpr float kReferencePlayerHeight = 1.92f;
 
-// Classify by the mass-to-reference-mass ratio r = M / kDefaultPlayerMassKg.
-// Thresholds are the slim/normal/broad bands around the reference build; they
-// are never used to compute geometry.
-inline constexpr float kSlimMassRatio = 0.9f;
-inline constexpr float kBroadMassRatio = 1.1f;
+// Build bands by BMI = weight / height^2 (kg / m^2). Only BMI strictly below
+// kSlimBmi or strictly above kStrongBmi leaves the reference build; the two
+// boundaries belong to the middle band.
+inline constexpr float kSlimBmi = 20.0f;
+inline constexpr float kStrongBmi = 25.0f;
+inline constexpr float kSlimGirthScale = 0.9f;
+inline constexpr float kStrongGirthScale = 1.1f;
 
-inline BodyBuild ClassifyBodyBuild(float mass_ratio) {
-  if (mass_ratio < kSlimMassRatio) return BodyBuild::Slim;
-  if (mass_ratio > kBroadMassRatio) return BodyBuild::Broad;
-  return BodyBuild::Normal;
+inline float GirthScaleForBmi(float bmi) {
+  if (bmi > kStrongBmi) return kStrongGirthScale;
+  if (bmi < kSlimBmi) return kSlimGirthScale;
+  return 1.0f;
 }
 
 // Pure, deterministic, RNG-free. Rejects NaN, infinity and non-positive inputs.
@@ -51,20 +48,15 @@ inline PlayerBodyProfile MakePlayerBodyProfile(
   if (!std::isfinite(height) || height <= 0.0f)
     throw std::invalid_argument("player height must be finite and positive");
 
-  const float height_scale = height / kReferencePlayerHeight;
-
-  const float mass = definition.weight_kg;
-  if (!std::isfinite(mass) || mass <= 0.0f)
+  const float weight = definition.weight_kg;
+  if (!std::isfinite(weight) || weight <= 0.0f)
     throw std::invalid_argument("player weight must be finite and positive");
 
-  // Girth is a shape parameter, so it is the ratio to the reference mass and is
-  // independent of height; size comes from height_scale. 1.0 is the reference
-  // build. Geometry consumes this value, never the BodyBuild label.
-  const float mass_ratio = mass / kDefaultPlayerMassKg;
-  const float girth_scale = std::sqrt(mass_ratio);
+  const float height_scale = height / kReferencePlayerHeight;
+  const float bmi = weight / (height * height);
+  const float girth_scale = GirthScaleForBmi(bmi);
 
-  return PlayerBodyProfile{height, mass, height_scale, girth_scale,
-                           ClassifyBodyBuild(mass_ratio)};
+  return PlayerBodyProfile{height, height_scale, girth_scale};
 }
 
 }  // namespace football::player

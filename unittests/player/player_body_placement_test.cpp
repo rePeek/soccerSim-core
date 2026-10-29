@@ -139,7 +139,7 @@ void WritePlacementDiagnostics() {
     const float body_height = s.aabb.max.coords[2] - s.aabb.min.coords[2];
     const float body_width = s.aabb.max.coords[0] - s.aabb.min.coords[0];
     std::fprintf(stderr, "P%02zu,%.2f,%.1f,%.2f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
-                 i + 1, profile.height_m, profile.mass_kg,
+                 i + 1, profile.height_m, profile.girth_scale,
                  s.pose.joints[player].coords[0], s.pose.joints[player].coords[1],
                  s.pose.joints[player].coords[2],
                  s.pose.joints[body].coords[2], s.pose.joints[left_knee].coords[2],
@@ -299,7 +299,7 @@ TEST_CASE("support foot is near the ground while the ankle stays above it") {
     // ball-foot contact geometry, not a foot-ground solver, so it is "near
     // z = 0" rather than exactly zero.
     const float support = std::min(s.left_boot_min_z, s.right_boot_min_z);
-    CAPTURE(profile.height_m, profile.mass_kg, ankle, support);
+    CAPTURE(profile.height_m, profile.girth_scale, ankle, support);
     REQUIRE(support > -0.06f);
     REQUIRE(support < 0.02f);
 

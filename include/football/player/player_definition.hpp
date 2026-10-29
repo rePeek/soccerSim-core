@@ -79,11 +79,6 @@ struct PlayerAppearance {
   std::string hair_color = "darkblonde";
 };
 
-// Default body mass in kilograms: the reference player (1.8 m) at the
-// reference build. Used both as the definition default and as the girth
-// reference, so "no mass given" and "the reference player" cannot drift apart.
-inline constexpr float kDefaultPlayerMassKg = 74.52f;
-
 // Complete static player description. Database identity is provenance only:
 // the runtime consumes these values rather than reloading them from the key.
 struct PlayerDefinition {
@@ -93,9 +88,10 @@ struct PlayerDefinition {
   std::string last_name;
   int age = 15;
   float height = 1.8f;
-  // Body mass in kilograms: the anthropometric input that sets body girth.
-  // Must be finite and positive (see MakePlayerBodyProfile).
-  float weight_kg = kDefaultPlayerMassKg;
+  // Body mass in kilograms. Data default; it derives the body build by
+  // BMI = weight / height^2 (see MakePlayerBodyProfile). Must be finite and
+  // positive.
+  float weight_kg = 75.0f;
   PlayerAttributes attributes;
   PlayerAppearance appearance;
 };

@@ -43,7 +43,7 @@ TEST_CASE("adapter input is a deterministic value snapshot") {
 
   // Deterministic construction from equal inputs.
   REQUIRE(input.current.position.coords[0] == again.current.position.coords[0]);
-  REQUIRE(input.body.mass_kg == again.body.mass_kg);
+  REQUIRE(input.body.girth_scale == again.body.girth_scale);
 
   // Copies, not references: mutating the source cannot leak into the snapshot.
   current.position.coords[0] = 99.0f;
@@ -52,7 +52,7 @@ TEST_CASE("adapter input is a deterministic value snapshot") {
   REQUIRE(input.desired_velocity.coords[1] == Catch::Approx(-4.0f));
   REQUIRE(input.body.height_scale == body.height_scale);
   REQUIRE(input.body.girth_scale == body.girth_scale);
-  REQUIRE(input.body.mass_kg == again.body.mass_kg);
+  REQUIRE(input.body.girth_scale == again.body.girth_scale);
 }
 
 TEST_CASE("adapter output defaults are inert and never carry a position") {

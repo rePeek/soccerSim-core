@@ -28,9 +28,7 @@ using football::geometry::ColliderId;
 using football::geometry::ColliderShape;
 using football::geometry::Sphere;
 using football::math::Vector3;
-using football::player::BodyBuild;
 using football::player::MakePlayerBodyProfile;
-using football::player::kDefaultPlayerMassKg;
 using football::player::PlayerBodyProfile;
 using football::player::PlayerDefinition;
 
@@ -89,14 +87,16 @@ void DumpBodyGeometryDiagnostics() {
     const auto profile = MakeProfile(c.height, c.mass);
     const auto world = EvaluateBakedBodyPose(pose, state, 0.0f, profile);
     const auto segments = BuildBodyCollider(pose, state, 0.0f, profile);
+    const float bmi = c.mass / (c.height * c.height);
     std::fprintf(stderr,
-                 "profile h=%.2f m=%.1f build=%d hs=%.4f gs=%.4f | hip=%.3f "
+                 "profile h=%.2f m=%.1f bmi=%.2f hs=%.4f gs=%.4f | hip=%.3f "
                  "knee=%.3f ankle=%.3f neck=%.3f | torso_r=%.3f head_r=%.3f "
                  "thigh_r=%.3f shin_r=%.3f\n",
-                 profile.height_m, profile.mass_kg, static_cast<int>(profile.build),
-                 profile.height_scale, profile.girth_scale,
-                 world.joints[body].coords[2], world.joints[left_knee].coords[2],
-                 world.joints[left_ankle].coords[2], world.joints[neck].coords[2],
+                 profile.height_m, c.mass, bmi, profile.height_scale,
+                 profile.girth_scale, world.joints[body].coords[2],
+                 world.joints[left_knee].coords[2],
+                 world.joints[left_ankle].coords[2],
+                 world.joints[neck].coords[2],
                  AsCapsule(segments.shapes[0]).radius,
                  AsSphere(segments.shapes[1]).radius,
                  AsCapsule(segments.shapes[2]).radius,
@@ -248,7 +248,7 @@ TEST_CASE("leg capsule endpoints coincide with their joints") {
 TEST_CASE("radii match the documented per-part girth formula") {
   const PoseFrame pose = StandingPose();
   const PlayerKinematicState state{};
-  const auto profile = MakeProfile(1.80f, 90.0f);  // Broad
+  const auto profile = MakeProfile(1.80f, 90.0f);  // BMI 27.8 -> strong
   const auto segments = BuildBodyCollider(pose, state, 0.0f, profile);
   const auto regions = BuildBakedContactRegions(pose, state, 0.0f, profile);
 
@@ -393,25 +393,25 @@ TEST_CASE("body-profile girth changes ball CCD consistently") {
   REQUIRE(hit_broad->collider == torso_id);
 }
 
-TEST_CASE("the default mass is the reference build at 1.8 m") {
+TEST_CASE("the default definition builds the reference body at 1.8 m") {
   const PoseFrame pose = StandingPose();
   const PlayerKinematicState state{};
   const float height = 1.80f;
 
-  PlayerDefinition no_weight;
-  no_weight.height = height;  // keeps the default mass
-  const auto no_mass = MakePlayerBodyProfile(no_weight);
+  PlayerDefinition defaulted;
+  defaulted.height = height;  // weight_kg = 75.0f -> BMI 23.1, reference build
+  const auto default_profile = MakePlayerBodyProfile(defaulted);
 
-  PlayerDefinition standard;
-  standard.height = height;
-  standard.weight_kg = kDefaultPlayerMassKg;  // girth_scale == 1
-  const auto standard_profile = MakePlayerBodyProfile(standard);
+  PlayerDefinition explicit_weight;
+  explicit_weight.height = height;
+  explicit_weight.weight_kg = 75.0f;  // same BMI, explicit
+  const auto explicit_profile = MakePlayerBodyProfile(explicit_weight);
 
-  REQUIRE(no_mass.girth_scale == Catch::Approx(1.0f));
-  REQUIRE(standard_profile.girth_scale == Catch::Approx(1.0f));
+  REQUIRE(default_profile.girth_scale == 1.0f);
+  REQUIRE(explicit_profile.girth_scale == 1.0f);
 
-  const auto a = BuildBodyCollider(pose, state, 0.0f, no_mass);
-  const auto b = BuildBodyCollider(pose, state, 0.0f, standard_profile);
+  const auto a = BuildBodyCollider(pose, state, 0.0f, default_profile);
+  const auto b = BuildBodyCollider(pose, state, 0.0f, explicit_profile);
   for (std::size_t i = 0; i < a.shapes.size(); ++i) {
     if (std::holds_alternative<Capsule>(a.shapes[i])) {
       REQUIRE(CapsuleLength(AsCapsule(a.shapes[i])) ==

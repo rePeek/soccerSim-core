@@ -95,9 +95,8 @@ inline constexpr float kBakedGirthPalm = 0.4f;
 inline constexpr float kBakedGirthHead = 0.0f;
 inline constexpr float kBakedGirthBoot = 0.0f;
 
-// Continuous per-part radius factor: 1 at standard girth, tending toward
-// girth_scale by the part's influence. Geometry consumes this value, never the
-// BodyBuild label.
+// Continuous per-part radius factor: 1 at the reference build, tending toward
+// girth_scale by the part's influence. Geometry consumes this value directly.
 inline float BakedGirthScale(float girth_scale, float part_influence) {
   return 1.0f + (girth_scale - 1.0f) * part_influence;
 }
