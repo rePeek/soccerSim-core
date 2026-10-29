@@ -42,10 +42,7 @@ target_sources(football_player_execution PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_team_match_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_restart_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_action_feedback.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_touch_math_kernel.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_facts.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_team_match_facts.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_restart_facts.hpp)
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_touch_math_kernel.hpp)
 target_link_libraries(football_player_execution
   PUBLIC
     football::player_state

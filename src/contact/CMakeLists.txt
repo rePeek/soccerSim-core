@@ -19,10 +19,7 @@ target_sources(football_contact PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/contact/player_touch_type.hpp
     ${PROJECT_SOURCE_DIR}/include/football/contact/foul_assessment.hpp
     ${PROJECT_SOURCE_DIR}/include/football/contact/passive_body_touch.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/contact/contact_evidence.hpp
-    # Flat compatibility paths; canonical headers live under football/contact/.
-    ${PROJECT_SOURCE_DIR}/include/football/player/foul_assessment.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_touch_type.hpp)
+    ${PROJECT_SOURCE_DIR}/include/football/contact/contact_evidence.hpp)
 target_link_libraries(football_contact PUBLIC
   football::player_state football::ball football::geometry football::collision)
 football_configure_target(football_contact)
