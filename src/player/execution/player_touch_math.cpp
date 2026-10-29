@@ -32,7 +32,6 @@ float CalculateBiasForFastCornering(const Vector3 &currentMovement,
       currentMovement, desiredMovement, veloPow, bias);
 }
 
-
 // offset where ball should usually be touched
 // ANIM-1 A6.4 step 2b: one definition, in the Animation module.
 Vector3 GetFrontOfFootOffsetRel(float velocity, radian bodyAngleRel,
@@ -92,8 +91,8 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, bool has_possessi
                              const Vector3 &outgoingMovement,
                              const Anim &currentAnim, int frameNum,
                              const SpatialState &spatialState,
-                             const Vector3 &positionOffset, radian &xRot,
-                             radian &yRot, float ffoOffset) {
+                             const Vector3 &positionOffset,
+                             float ffoOffset) {
 
   // part of the resulting direction is physics, the other part is anim/controller. so originatingBias is only applied on the (1.0 - physicsBias) part of the result
   float physicsBias = 0.7f;
@@ -203,16 +202,6 @@ Vector3 GetBallControlVector(const Ball *ball, Player *player, bool has_possessi
     }
   */
 
-  float backspinFactor = 30.0f;
-  float velo = touchVec.GetLength();
-  float veloFactor =
-      std::pow(NormalizedClamp(touchVec.GetLength(), 0.0f, 10.0f),
-               0.7f);  // extra around walk velocity
-  xRot = (FFO.GetNormalized(0) * 0.6f + touchVec.GetNormalized(0) * 0.4f).GetNormalized(0).coords[1] * ((2 * pi * velo) - (backspinFactor * veloFactor));
-  yRot = (FFO.GetNormalized(0) * 0.6f + touchVec.GetNormalized(0) * 0.4f).GetNormalized(0).coords[0] * ((2 * pi * velo) - (backspinFactor * veloFactor));
-
-  //if (player->GetDebug()) printf("x: %f, y: %f\n", xRot, yRot);
-
   return touchVec;
 }
 
@@ -223,9 +212,7 @@ Vector3 GetTrapVector(const Ball *ball, Player *player, bool has_possession,
                       radian nextStartAngle, radian nextBodyAngle,
                       const Vector3 &outgoingMovement, const Anim &currentAnim,
                       int frameNum, const SpatialState &spatialState,
-                      const Vector3 &positionOffset, radian &xRot,
-                      radian &yRot) {
-
+                      const Vector3 &positionOffset) {
 
   float distanceFactor = 0.0f; // how far ball bounces off feet
   float heightFactor = 0.0f; // how high ball bounces off feet
@@ -233,7 +220,7 @@ Vector3 GetTrapVector(const Ball *ball, Player *player, bool has_possession,
   GetDifficultyFactors(ball, player, touches, opponent, now, spatialState, positionOffset, distanceFactor, heightFactor, ballMovementFactor);
 
   // base vector to start with
-  Vector3 ballControl = GetBallControlVector(ball, player, has_possession, opponent, clip, nextStartPos, nextStartAngle, nextBodyAngle, outgoingMovement, currentAnim, frameNum, spatialState, positionOffset, xRot, yRot, distanceFactor);
+  Vector3 ballControl = GetBallControlVector(ball, player, has_possession, opponent, clip, nextStartPos, nextStartAngle, nextBodyAngle, outgoingMovement, currentAnim, frameNum, spatialState, positionOffset, distanceFactor);
 
   ballControl.coords[2] += ball->state().velocity.coords[2] * heightFactor * 1.0f +
                            heightFactor * 4.0f;
@@ -244,7 +231,7 @@ Vector3 GetTrapVector(const Ball *ball, Player *player, bool has_possession,
 
 Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& clip,
                       const Anim &currentAnim, const SpatialState &spatialState,
-                      const Vector3 &positionOffset, radian &xRot, radian &yRot, radian &zRot) {
+                      const Vector3 &positionOffset) {
 
   const std::vector<Vector3> &origPositionCache = clip.root_positions;
   Vector3 touchMovement = CalculateMovementAtFrame(origPositionCache, currentAnim.frameNum).GetRotated2D(spatialState.angle); // spatialState.movement isn't reliable because of smuggles and such
@@ -265,7 +252,6 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   float directionFactor = clamp(angle / pi, 0.0f, 1.0f);
   directionFactor = curve(1.0f - directionFactor, 0.8f);
   //printf("directionfactor: %f\n", directionFactor);
-
 
   // calculate power. take desired power as maximum, and subtract based on player/ball movement and such
 
@@ -301,8 +287,6 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   playerMovBallMovPowerFactor = NormalizedClamp(playerMovBallMovPowerFactor, 0.0f, 10.0f);
 
   power *= 1.0f + playerMovBallMovPowerFactor * 0.2f;
-
-
 
   // calculate difficulty, based on factors like desired power, player/ball movement, skill, positionoffset etcetera
 
@@ -370,20 +354,6 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   Vector3 shot = desiredShot * (1.0f - worstCaseFactor) +
                  worstCaseShot * worstCaseFactor;
 
-
-  // add a little curve
-
-  float randomCurveFactor = 0.3f + worstCaseFactor * 0.7f;
-  float plannedCurveFactor = 0.7f;
-
-  // forward/backward 'curve'
-  xRot = -currentAnim.originatingCommand.touchInfo.desiredDirection.coords[1] *
-             20.0f +
-         (lateral.coords[1] * bodySide * strikeError * 20.0f * randomCurveFactor);
-  yRot = -currentAnim.originatingCommand.touchInfo.desiredDirection.coords[0] *
-             20.0f +
-         (lateral.coords[0] * bodySide * strikeError * 20.0f * randomCurveFactor);
-
   // lateral curve
   radian bodyTouchAngle = spatialState.bodyDirectionVec.GetAngle2D(shot) / pi;
   if (std::fabs(bodyTouchAngle) > 0.5f) bodyTouchAngle = (1.0f - std::fabs(bodyTouchAngle)) * signSide(bodyTouchAngle);
@@ -391,8 +361,6 @@ Vector3 GetShotVector(const Ball *ball, Player *player, const AnimationClip& cli
   //printf("bodyTouchAngle: %f\n", bodyTouchAngle);
   radian amount = bodyTouchAngle * 0.25f;
   shot.Rotate2D(amount * (0.4f + 0.6f * NormalizedClamp(shot.GetLength(), 0.0f, 70.0f)));
-  zRot = amount * -420 + (bodySide * strikeError * 20.0f * plannedCurveFactor);
-
 
   return shot;
 }
