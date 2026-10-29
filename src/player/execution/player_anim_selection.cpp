@@ -1001,7 +1001,7 @@ void PlayerExecution::ApplyFactualSpatialState() {
 // ---------------------------------------------------------------------------
 void PlayerExecution::ApplyGoalkeeperBoundaryClamps(
     const football::sim::PlayerTickContext &tick, const Player *ball_retainer) {
-  if (ball_retainer != self() || port().GetFormationEntry().role != e_PlayerRole_GK ||
+  if (ball_retainer != self() || tick.own_team.goalie != self() ||
       !(tick.set_piece_active == false && tick.play_authorized == true)) {
     return;
   }

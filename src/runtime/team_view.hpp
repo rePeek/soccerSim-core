@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <span>
 
+#include "football/player/formation_entry.hpp"
 #include "football/runtime/match_config.hpp"
 #include "runtime/team_facts.hpp"
 #include "runtime/team_state.hpp"
@@ -24,6 +25,9 @@ struct TeamView {
   Player* goalie = nullptr;
   // Full player list in stable insertion order; callers filter IsActive() themselves.
   std::span<Player* const> players;
+  // Runtime-owned formation, one entry per player in the same order as
+  // `players`. Borrowed for the tick; Player no longer holds this data.
+  std::span<const FormationEntry> formation;
   // Live runtime-owned state; null only for a view without team state.
   TeamMatchState* state = nullptr;
   // Live orientation, needed to publish team facts after a state write.
@@ -54,6 +58,17 @@ struct TeamView {
     if (orientation != nullptr) PublishTeamFacts(players, *orientation, *state);
   }
 };
+
+// The formation entry for one actor, looked up by the same stable order as
+// `players`. Returns nullptr when the actor is not part of this view, so
+// callers keep the existing default-formation fallback.
+inline const FormationEntry* FormationEntryFor(const TeamView& view,
+                                                const Player* player) {
+  for (std::size_t i = 0; i < view.players.size(); ++i) {
+    if (view.players[i] == player) return &view.formation[i];
+  }
+  return nullptr;
+}
 
 }  // namespace football::sim
 

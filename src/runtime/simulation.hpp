@@ -41,6 +41,7 @@
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_send_off_sink.hpp"
 #include "football/contact/foul_assessment.hpp"
+#include "football/player/formation_entry.hpp"
 #include "player/execution/diagnostics/player_body_collision_shadow.hpp"
 #include "player/execution/diagnostics/player_active_touch_shadow.hpp"
 #include "player/execution/player_baked_pose_sample.hpp"
@@ -333,6 +334,10 @@ class Simulation {
   football::math::Vector3 referee_previous_ball_{};
   // Live match relationship state, separate from the owning Team.
   std::array<football::sim::ActiveLineupState, 2> active_lineups_;
+  // Runtime-owned formation table, one entry per owned Player in Team insertion
+  // order. The authoritative source for role / placement / lazy / controllable;
+  // Player no longer caches these.
+  std::array<std::vector<FormationEntry>, 2> formations_;
   mutable std::array<football::sim::TeamOrientation, 2> team_orientations_;
   mutable std::array<football::sim::TeamMatchState, 2> team_states_;
   std::unique_ptr<Referee> referee_;

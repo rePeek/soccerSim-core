@@ -34,15 +34,12 @@ TeamSetup TwoPlayerSetup(unsigned first) {
 }
 
 std::unique_ptr<Player> MakeTestPlayer(football::player::PlayerId id,
-                                       e_PlayerRole role,
                                        const AnimationLibrary& animations,
                                        const football::pitch::Pitch& pitch) {
   football::player::PlayerDefinition definition;
   definition.id = id;
   definition.height = 1.8f;
-  FormationEntry entry{};
-  entry.role = role;
-  return std::make_unique<Player>(0, TeamSide::Home, definition, entry, 0,
+  return std::make_unique<Player>(0, TeamSide::Home, definition, 0,
                                   animations, pitch);
 }
 
@@ -52,19 +49,17 @@ TEST_CASE("Team owns a Player after the caller releases it", "[team][ownership]"
   AnimationLibrary animations;
   const football::pitch::Pitch pitch;
   football::team::Team team{football::team::TeamDefinition{}};
-  auto actor = MakeTestPlayer(77, e_PlayerRole_GK, animations, pitch);
+  auto actor = MakeTestPlayer(77, animations, pitch);
   Player* raw = actor.get();
   team.AddPlayer(std::move(actor));
   CHECK_FALSE(actor);
   REQUIRE(team.Players().size() == 1);
   CHECK(team.Players()[0] == raw);
   CHECK(team.Players()[0]->GetID() == 77);
-  // A fresh Player is inactive until activated, so it is not yet the keeper.
-  CHECK(team.Goalie() == nullptr);
+  // A fresh Player is inactive until activated.
   CHECK(team.ActivePlayerCount() == 0);
   team.ClearPlayers();
   CHECK(team.Players().empty());
-  CHECK(team.Goalie() == nullptr);
 }
 
 TEST_CASE("Team rejects a null Player without corrupting its ordered view",
@@ -72,7 +67,6 @@ TEST_CASE("Team rejects a null Player without corrupting its ordered view",
   football::team::Team team{football::team::TeamDefinition{}};
   CHECK_THROWS_AS(team.AddPlayer(nullptr), std::invalid_argument);
   CHECK(team.Players().empty());
-  CHECK(team.Goalie() == nullptr);
   CHECK(team.ActivePlayerCount() == 0);
 }
 
@@ -88,7 +82,7 @@ TEST_CASE("Team traversal keeps declaration order and retains sent-off Players",
   REQUIRE(players.size() == 2);
   CHECK(players[0]->GetID() == 50);
   CHECK(players[1]->GetID() == 51);
-  CHECK(home.Goalie() == players[0]);
+  CHECK(SimulationAccess::TeamStateOf(sim, 0).goalie == players[0]);
   CHECK(home.ActivePlayerCount() == 2);
 
   // Send-off vacates the live slot and drops the active count, but the entity
@@ -101,7 +95,7 @@ TEST_CASE("Team traversal keeps declaration order and retains sent-off Players",
   CHECK(after[0] == players[0]);
   CHECK(after[1] == players[1]);
   // The goalkeeper role hands over to the first remaining active player.
-  CHECK(home.Goalie() == players[1]);
+  CHECK(SimulationAccess::TeamStateOf(sim, 0).goalie == players[1]);
   const auto world = sim.Observe();
   REQUIRE(world.active_lineups);
   CHECK_FALSE((*world.active_lineups)[0].slots[0]);
@@ -124,7 +118,7 @@ TEST_CASE("TeamView borrows the Team list and snapshots keep its order",
   CHECK(home_view.players.data() == home.data());
   CHECK(home_view.players.size() == home.size());
   CHECK(away_view.players.data() == away.data());
-  CHECK(home_view.goalie == SimulationAccess::TeamOf(sim, 0).Goalie());
+  CHECK(home_view.goalie == SimulationAccess::TeamStateOf(sim, 0).goalie);
 
   // SnapshotMetadata uses the same home-then-away declaration order.
   const auto& metadata = sim.SnapshotMetadata();

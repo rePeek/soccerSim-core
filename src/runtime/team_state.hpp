@@ -15,6 +15,9 @@ struct TeamMatchState : football::player::PlayerTeamMatchFacts {
   // Live actor for the stable `designated_player` identity above. Runtime-only
   // execution cache; Runtime sets it through SetDesignatedPlayer.
   Player* designated_actor = nullptr;
+  // The team's active goalkeeper. Runtime-owned match state: a sent-off
+  // goalkeeper hands the role over without any Player caching it.
+  Player* goalie = nullptr;
 
   void SetDesignatedPlayer(Player* player);
 };

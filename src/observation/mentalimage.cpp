@@ -24,7 +24,8 @@
 using football::ball::Ball;
 
 MentalImage::MentalImage(football::sim::Tick captured_tick,
-                         std::span<Player* const> allPlayers, const Ball& ball)
+                         std::span<Player* const> allPlayers,
+                         std::span<const e_PlayerRole> roles, const Ball& ball)
     : captured_tick(captured_tick) {
   players.resize(allPlayers.size());
 
@@ -39,7 +40,7 @@ MentalImage::MentalImage(football::sim::Tick captured_tick,
     playerImage.directionVec = player->GetDirectionVec();
     playerImage.velocity = player->GetEnumVelocity();
     playerImage.movement = player->GetMovement();
-    playerImage.role = player->GetDynamicFormationEntry().role;
+    playerImage.role = roles[static_cast<std::size_t>(playerCounter)];
   }
 
   UpdateBallPredictions(ball);

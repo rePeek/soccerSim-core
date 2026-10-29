@@ -19,28 +19,34 @@
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
 #include <cmath>
+#include <cassert>
 
 using football::ball::Ball;
 
 namespace {
+
+// The runtime-owned formation entry for one placed actor. Players no longer
+// cache their formation, so every placement resolves the entry from the team
+// view's ordered list.
+const FormationEntry& EntryFor(const football::sim::TeamView& team,
+                               Player* player) {
+  const FormationEntry* entry = football::sim::FormationEntryFor(team, player);
+  assert(entry != nullptr && "restart placement requires a formation entry");
+  return *entry;
+}
+
 // Coordinate deformation for rule-owned restart layouts only. It no longer
 // invokes an AI policy during authoritative reset/placement.
 Vector3 AdaptRestartFormation(
     const football::pitch::Pitch& pitch,
-    Player *player, float backXBound, float frontXBound,
+    Player *player, const Vector3& formation_position,
+    float backXBound, float frontXBound,
     float lowYBound, float highYBound, float xFocus, float xFocusStrength,
     float yFocus, float yFocusStrength, const Vector3 &microFocus,
-    float microFocusStrength, float midfieldFocus, float midfieldFocusStrength,
-    bool useDynamicFormationPosition) {
+    float microFocusStrength, float midfieldFocus, float midfieldFocusStrength) {
   int side = player->GetDefendingDirection();
 
-  Vector3 position;
-
-  if (useDynamicFormationPosition) {
-    position = player->GetDynamicFormationEntry().position;
-  } else {
-    position = player->GetFormationEntry().position;
-  }
+  Vector3 position = formation_position;
 
   // stretch midfield into defending or attack position
   if (midfieldFocusStrength > 0.0f) {
@@ -164,7 +170,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
   std::vector<Player*>::iterator iter = players.begin();
   while (iter != players.end()) {
     Vector3 focus = ball.state().position.Get2D();
-    if ((*iter)->GetFormationEntry().role == e_PlayerRole_GK) {
+    if (EntryFor(team, *iter).role == e_PlayerRole_GK) {
       if (setPiece == e_GameMode_KickOff) {
         focus.coords[0] = 0;
         focus.coords[1] = 0;
@@ -187,7 +193,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                 case e_GameMode_KickOff:
                   for (unsigned int i = 0; i < players.size(); i++) {
                     Vector3 basePos =
-                        players[i]->GetFormationEntry().position *
+                        EntryFor(team, players[i]).position *
                         Vector3(-team.defending_direction * pitch.half_length() * 0.6,
                                 -team.defending_direction * pitch.half_width() * 0.6, 0);
                     // Deterministic stagger so kickoff players do not stand on
@@ -236,8 +242,8 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     lowYBound = -pitch.half_width() * 0.7;
                     highYBound = pitch.half_width() * 0.7;
                     Vector3 basePos = AdaptRestartFormation(pitch, 
-                        players[i], backXBound, frontXBound, lowYBound,
-                        highYBound, 0, 0, 0, 0, 0, 0, 0, 0, false);
+                        players[i], EntryFor(team, players[i]).position, backXBound, frontXBound, lowYBound,
+                        highYBound, 0, 0, 0, 0, 0, 0, 0, 0);
                     players[i]->ResetPosition(
                         basePos, ball.state().position.Get2D());
                   }
@@ -271,12 +277,12 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     lowYBound = -pitch.half_width() * 0.6;
                     highYBound = pitch.half_width() * 0.6;
                     Vector3 basePos = AdaptRestartFormation(pitch, 
-                        players[i], backXBound, frontXBound, lowYBound,
+                        players[i], EntryFor(team, players[i]).position, backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength,
                         Vector3(ballPos.coords[0] * 0.95f,
                                 ballPos.coords[1] * 0.1f, 0),
-                        0.9, midfieldFocus, midfieldFocusStrength, false);
+                        0.9, midfieldFocus, midfieldFocusStrength);
                     players[i]->ResetPosition(
                         basePos, ball.state().position.Get2D());
                   }
@@ -317,9 +323,9 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     lowYBound = -pitch.half_width() * 0.75f + ballPos.coords[1] * 0.25f;
                     highYBound = pitch.half_width() * 0.75f + ballPos.coords[1] * 0.25f;
                     Vector3 basePos = AdaptRestartFormation(pitch, 
-                        players[i], backXBound, frontXBound, lowYBound,
+                        players[i], EntryFor(team, players[i]).position, backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
-                        yFocusStrength, ballPos, 0.7, 0, 0, false);
+                        yFocusStrength, ballPos, 0.7, 0, 0);
                     players[i]->ResetPosition(
                         basePos, ball.state().position.Get2D());
                   }
@@ -376,9 +382,9 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     lowYBound = -pitch.half_width() * 0.7;
                     highYBound = pitch.half_width() * 0.7;
                     Vector3 basePos = AdaptRestartFormation(pitch, 
-                        players[i], backXBound, frontXBound, lowYBound,
+                        players[i], EntryFor(team, players[i]).position, backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
-                        yFocusStrength, ballPos, 0.4, 0, 0, false);
+                        yFocusStrength, ballPos, 0.4, 0, 0);
 
                     // keep distance
                     if (!isTakerTeam) {
@@ -451,9 +457,9 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     lowYBound = -pitch.half_width() * 0.8;
                     highYBound = pitch.half_width() * 0.8;
                     Vector3 basePos = AdaptRestartFormation(pitch, 
-                        players[i], backXBound, frontXBound, lowYBound,
+                        players[i], EntryFor(team, players[i]).position, backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
-                        yFocusStrength, 0, 0, 0, 0, false);
+                        yFocusStrength, 0, 0, 0, 0);
 
                     // outside the box
                     signed int penaltySide =
@@ -480,7 +486,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                 default:
                   for (unsigned int i = 0; i < players.size(); i++) {
                     Vector3 basePos =
-                        players[i]->GetFormationEntry().position *
+                        EntryFor(team, players[i]).position *
                         Vector3(-team.defending_direction * pitch.half_length() * 0.7,
                                 -team.defending_direction * pitch.half_width() * 0.7, 0);
 
@@ -501,12 +507,14 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                   formation_players = other_team.players;
                 }
                 assert(formation_players.size() == players_to_position.size());
+                const bool use_other_formation =
+                    formation_players.data() == other_team.players.data();
+                const football::sim::TeamView& formation_team =
+                    use_other_formation ? other_team : team;
                 for (int x = 0; x < formation_players.size(); x++) {
                   if (players_to_position[x]->IsActive()) {
                     Vector3 basePos =
-                        formation_players[x]
-                            ->GetFormationEntry()
-                            .start_position *
+                        EntryFor(formation_team, formation_players[x]).start_position *
                         Vector3(-team.defending_direction * pitch.half_length(),
                                 -team.defending_direction * pitch.half_width(), 0);
                     players_to_position[x]->ResetPosition(

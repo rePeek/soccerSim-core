@@ -52,14 +52,20 @@ WorldState BuildWorldState(const WorldStateSource& s) {
         team_views[team_id]->TimeNeededToGetToBall_ms();
     world.teams[team_id].defending_direction =
         team_views[team_id]->defending_direction;
-    for (Player* player : team_views[team_id]->players) {
+    const std::span<Player* const> players = team_views[team_id]->players;
+    const std::span<const FormationEntry> formation =
+        team_views[team_id]->formation;
+    for (std::size_t i = 0; i < players.size(); ++i) {
+      Player* player = players[i];
+      const FormationEntry& entry =
+          i < formation.size() ? formation[i] : FormationEntry{};
       const PlayerKinematicState& state = player->GetKinematicState();
       WorldPlayerState observed{player->GetID(), player->GetTeamSide(),
           state.position, state.velocity, state.GetFacing(), player->IsActive(),
           player->HasPossession()};
-      observed.lazy = player->GetFormationEntry().lazy;
+      observed.lazy = entry.lazy;
       observed.max_speed = player->GetMaxVelocity();
-      observed.role = player->GetFormationEntry().role;
+      observed.role = entry.role;
       observed.fatigue_inv = player->GetFatigueFactorInv();
       observed.time_to_ball_ms = player->GetTimeNeededToGetToBall_ms();
       observed.short_pass_skill =

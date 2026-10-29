@@ -36,8 +36,10 @@ float OpponentDistance(e_GameMode mode) {
       mode == e_GameMode_FreeKick || mode == e_GameMode_Penalty) return 9.15f;
   return 0.0f;
 }
-bool Goalkeeper(const Player& player) {
-  return player.GetFormationEntry().role == e_PlayerRole_GK;
+bool Goalkeeper(const RestartPlanningTable& planning, const Player& player) {
+  const FormationEntry* entry =
+      FormationEntryFor(planning.For(player.GetTeamID()), &player);
+  return entry != nullptr && entry->role == e_PlayerRole_GK;
 }
 Vector3 LegalTarget(const RestartPlan& plan, const RestartPlanningTable& planning,
                     Player& player, Vector3 target,
@@ -51,7 +53,7 @@ Vector3 LegalTarget(const RestartPlan& plan, const RestartPlanningTable& plannin
   const int awarded_side = DefendingDirection(planning, plan.team_id);
   if (plan.mode == e_GameMode_KickOff)
     target.coords[0] = player_side * std::max(0.5f, target.coords[0] * player_side);
-  if (plan.mode == e_GameMode_Penalty && opponent && Goalkeeper(player))
+  if (plan.mode == e_GameMode_Penalty && opponent && Goalkeeper(planning, player))
     return Vector3(player_side * half_x, 0, 0);
   if (plan.mode == e_GameMode_Penalty) {
     const int penalty_side = plan.ball_position.coords[0] < 0 ? -1 : 1;
@@ -86,7 +88,7 @@ bool LegalPosition(const RestartPlan& plan, const RestartPlanningTable& planning
   const int awarded_side = DefendingDirection(planning, plan.team_id);
   if (plan.mode == e_GameMode_KickOff && position.coords[0] * player_side < -0.01f)
     return false;
-  if (plan.mode == e_GameMode_Penalty && opponent && Goalkeeper(player))
+  if (plan.mode == e_GameMode_Penalty && opponent && Goalkeeper(planning, player))
     return std::fabs(position.coords[0] - player_side * pitch.half_length()) < 0.05f &&
            std::fabs(position.coords[1]) <= pitch.goal_half_width();
   if (plan.mode == e_GameMode_Penalty) {
@@ -261,7 +263,12 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
         // entry in the half its team currently defends.
         const int player_side =
             planning.For(player->GetTeamID()).defending_direction;
-        target = player->GetFormationEntry().start_position *
+        const FormationEntry* formation_entry =
+            FormationEntryFor(planning.For(player->GetTeamID()), player);
+        const Vector3 formation_start =
+            formation_entry != nullptr ? formation_entry->start_position
+                                        : Vector3(0);
+        target = formation_start *
                  Vector3(-player_side * pitch.half_length(),
                          -player_side * pitch.half_width(), 0);
       }

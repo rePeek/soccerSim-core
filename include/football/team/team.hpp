@@ -85,9 +85,6 @@ class Team final {
 
   void GetActivePlayers(std::vector<Player*>& output) const;
   int ActivePlayerCount() const;
-  // Active goalkeeper, or null when none is active.
-  Player* Goalie() const;
-
  private:
   TeamDefinition definition_;
   // Ownership; raw views below are stable for the whole Team lifetime.

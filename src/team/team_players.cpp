@@ -2,9 +2,8 @@
 // Player objects. It is compiled into the football_team archive, which links
 // football::player; the dependency direction is Team -> Player only.
 //
-// Minimal Actor surface: Team reads only Player::IsActive() and
-// Player::GetFormationEntry().role. A future cross-module Actor API would
-// need to expose no more than those two queries.
+// Minimal Actor surface: Team reads only Player::IsActive(). Formation facts
+// (role, placement, goalkeeper identity) now live with Runtime.
 
 #include "football/team/team.hpp"
 
@@ -51,12 +50,5 @@ int Team::ActivePlayerCount() const {
   return count;
 }
 
-Player* Team::Goalie() const {
-  for (Player* player : ordered_) {
-    if (player->IsActive() && player->GetFormationEntry().role == e_PlayerRole_GK)
-      return player;
-  }
-  return nullptr;
-}
 
 }  // namespace football::team

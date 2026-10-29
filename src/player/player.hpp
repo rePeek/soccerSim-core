@@ -31,7 +31,6 @@
 #include "football/pitch/pitch.hpp"
 #include "football/player/execution/player_motion_profile.hpp"
 #include "football/player/execution/player_team_match_facts.hpp"
-#include "football/player/formation_entry.hpp"
 #include "football/player/player_action.hpp"
 #include "football/player/player_action_request.hpp"
 #include "football/player/player_body_profile.hpp"
@@ -86,7 +85,6 @@ class Player final : private PlayerExecutionPort {
  public:
   Player(int team_id, football::sim::TeamSide side,
          football::player::PlayerDefinition model,
-         const FormationEntry& formation_entry,
          std::uint8_t schedule_phase,
          const AnimationLibrary& animations, const football::pitch::Pitch& pitch);
   ~Player();
@@ -110,8 +108,9 @@ class Player final : private PlayerExecutionPort {
 
   bool IsActive() const override { return is_active_; }
 
-  // get ready for some action
-  void Activate();
+  // get ready for some action. `spawn_position` is the Runtime-resolved
+  // initial placement; the Player owns the reset, not the formation.
+  void Activate(const Vector3& spawn_position);
   // go back to bench/take a shower
   void Deactivate(const football::ball::Ball& ball, football::sim::Tick now);
 
@@ -319,10 +318,6 @@ class Player final : private PlayerExecutionPort {
   int GetFrameNum() const;
   int GetFrameCount() const;
   void SelectRetainAnim();
-  FormationEntry GetFormationEntry() const override { return formationEntry_; }
-  void SetFormationEntry(FormationEntry entry) { formationEntry_ = entry; }
-  void SetDynamicFormationEntry(FormationEntry entry) { dynamicFormationEntry = entry; }
-  FormationEntry GetDynamicFormationEntry() { return dynamicFormationEntry; }
   bool HasPossession() const override;
   bool HasBestPossession() const;
   bool HasUniquePossession() const;
@@ -361,7 +356,7 @@ class Player final : private PlayerExecutionPort {
  private:
   // The port calls the player already implements publicly above (GetID,
   // GetModel, BodyProfile, IsActive, GetPosition, GetDirectionVec,
-  // GetKinematicState, HasPossession, GetFormationEntry, GetLastTouchTick,
+  // GetKinematicState, HasPossession, GetLastTouchTick,
   // GetReactionTime_ms, GetTeamID, GetTeamSide, CommitLocomotion) are their own
   // overrides: one declaration, one owner. Only the private commits and the
   // pointer-keyed identity live here.
@@ -385,7 +380,6 @@ class Player final : private PlayerExecutionPort {
   // which team it belongs to but never owns or stores a Team object.
   const int team_id_;
   const football::sim::TeamSide side_;
-  FormationEntry formationEntry_;
   PlayerTeamFacts team_facts_;
 
   PlayerKinematicState kinematic_state_;
@@ -402,7 +396,6 @@ class Player final : private PlayerExecutionPort {
 
   float fatigueFactorInv = 0.0f;
 
-  FormationEntry dynamicFormationEntry;
   bool hasPossession = false;
   bool hasBestPossession = false;
   bool hasUniquePossession = false;

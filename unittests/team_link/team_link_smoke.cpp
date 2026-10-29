@@ -8,5 +8,5 @@
 
 int main() {
   football::team::Team team;
-  return team.ActivePlayerCount() == 0 && team.Goalie() == nullptr ? 0 : 1;
+  return team.ActivePlayerCount() == 0 ? 0 : 1;
 }

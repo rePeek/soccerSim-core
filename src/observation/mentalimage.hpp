@@ -36,7 +36,8 @@ class MentalImage {
  public:
   MentalImage() = default;
   MentalImage(football::sim::Tick captured_tick,
-              std::span<Player* const> players, const football::ball::Ball& ball);
+              std::span<Player* const> players, std::span<const e_PlayerRole> roles,
+              const football::ball::Ball& ball);
   PlayerImage GetPlayerImage(Player* player, football::sim::Tick now) const;
   std::vector<PlayerImagePosition> GetTeamPlayerImages(
       int teamID, football::sim::Tick now) const;

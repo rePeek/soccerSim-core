@@ -205,11 +205,11 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
   // Borrowed views: player slices plus the runtime-owned team match state.
   const PlayerTeamView own_view{own_team, TeamOf(own_team).Players(),
                                 TeamOf(rival_team).Players(),
-                                TeamOf(own_team).Goalie(),
+                                team_states_[own_team].goalie,
                                 &team_states_[own_team]};
   const PlayerTeamView opponent_view{rival_team, TeamOf(rival_team).Players(),
                                      TeamOf(own_team).Players(),
-                                     TeamOf(rival_team).Goalie(),
+                                     team_states_[rival_team].goalie,
                                      &team_states_[rival_team]};
   return {GetTimelineTick(), play_authorized_, set_piece_active_, IsBallInPlay(),
           clock_->IsHalfUnderway(), *ball_, ball_retainer_,
@@ -534,15 +534,15 @@ void Simulation::ApplyCardRuling(const football::sim::event::CardRuling& ruling)
 void Simulation::HandlePlayerSentOff(Player& player) {
   const int sent_off_team = player.GetTeamID();
   football::sim::VacateSlot(active_lineups_[sent_off_team], player.GetID());
-  // A sent-off goalkeeper hands its role to the first remaining active player.
-  if (player.GetFormationEntry().role == e_PlayerRole_GK) {
-    const FormationEntry entry = player.GetFormationEntry();
-    std::vector<Player*> active_players;
+  // A sent-off goalkeeper hands the role to the first remaining active player.
+  if (team_states_[sent_off_team].goalie == &player) {
+    team_states_[sent_off_team].goalie = nullptr;
     for (Player* teammate : TeamOf(sent_off_team).Players()) {
-      if (teammate->IsActive()) active_players.push_back(teammate);
+      if (teammate->IsActive()) {
+        team_states_[sent_off_team].goalie = teammate;
+        break;
+      }
     }
-    assert(!active_players.empty());
-    if (!active_players.empty()) active_players.front()->SetFormationEntry(entry);
   }
   football::sim::RefreshDesignatedTeamPossessionPlayer(
       TeamOf(sent_off_team).Players(), team_orientations_[sent_off_team],
@@ -558,6 +558,7 @@ void Simulation::InitTeamPlayers(int team_id, football::team::Team& team,
   const std::vector<FormationEntry> formation =
       BuildFormation(definition, explicit_lineup);
   active_lineups_[team_id].slots = definition.lineup.starters;
+  formations_[team_id].clear();
   std::uint8_t schedule_phase = first_schedule_phase;
   const auto count = explicit_lineup ? definition.players.size() : formation.size();
   for (std::size_t i = 0; i < count; ++i) {
@@ -567,14 +568,28 @@ void Simulation::InitTeamPlayers(int team_id, football::team::Team& team,
     }
     const FormationEntry entry = explicit_lineup
         ? (slot ? formation.at(*slot) : FormationEntry{}) : formation.at(i);
+    // Runtime resolves the initial placement; the Player only receives it.
+    const int defending = team_orientations_[team_id].defending_direction;
+    const Vector3 spawn_position =
+        entry.position * 25 * Vector3(-defending, -defending, 0);
     auto player = std::make_unique<Player>(
         team_id, static_cast<football::sim::TeamSide>(team_id),
-        definition.players[i], entry, schedule_phase, *animations_, pitch_);
+        definition.players[i], schedule_phase, *animations_, pitch_);
     schedule_phase = (schedule_phase + 1) % 10;
     Player* raw = player.get();
     team.AddPlayer(std::move(player));
+    formations_[team_id].push_back(entry);
     raw->SetTeamContext(TeamFactsFor(team_id));
-    if (slot) raw->Activate();
+    if (slot) raw->Activate(spawn_position);
+  }
+  // Goalkeeper identity is runtime match state, not a Player-cached role.
+  team_states_[team_id].goalie = nullptr;
+  for (std::size_t i = 0; i < formations_[team_id].size(); ++i) {
+    Player* player = team.Players()[i];
+    if (player->IsActive() && formations_[team_id][i].role == e_PlayerRole_GK) {
+      team_states_[team_id].goalie = player;
+      break;
+    }
   }
   team_states_[team_id].SetDesignatedPlayer(nullptr);
   for (Player* player : team.Players()) {
@@ -590,8 +605,9 @@ football::sim::TeamView Simulation::TeamViewOf(int team_id) const {
       team_id,
       static_cast<football::sim::TeamSide>(team_id),
       team_orientations_[team_id].defending_direction,
-      TeamOf(team_id).Goalie(),
+      team_states_[team_id].goalie,
       TeamOf(team_id).Players(),
+      formations_[team_id],
       &team_states_[team_id],
       &team_orientations_[team_id]};
 }
@@ -751,10 +767,12 @@ void Simulation::AdvanceRestart(const football::sim::RuntimeTickFacts& facts) {
   const football::sim::RestartPlanningTable planning{
       {team_orientations_[0].defending_direction,
        &teams_[0]->Definition().set_piece_orders,
-       &teams_[0]->Definition().formations, &active_lineups_[0]},
+       &teams_[0]->Definition().formations, &active_lineups_[0],
+       teams_[0]->Players(), formations_[0]},
       {team_orientations_[1].defending_direction,
        &teams_[1]->Definition().set_piece_orders,
-       &teams_[1]->Definition().formations, &active_lineups_[1]}};
+       &teams_[1]->Definition().formations, &active_lineups_[1],
+       teams_[1]->Players(), formations_[1]}};
   football::sim::RestartController::TickOutcome outcome =
       restarts_.Advance(facts, options_, *rule_commands_, planning);
   for (auto& event : outcome.events) event_log_.Record(std::move(event));
@@ -865,6 +883,7 @@ void Simulation::Init(
   mental_images_.clear();
   teams_ = {};
   active_lineups_ = {};
+  for (auto& formation : formations_) formation.clear();
   for (int i = 0; i < 2; ++i) {
     team_orientations_[i].defending_direction = i == 0 ? -1 : 1;
     team_states_[i] = football::sim::TeamMatchState{};
@@ -1197,7 +1216,9 @@ bool Simulation::DeniedGoalOpportunity(
   // No covering outfield opponent is closer to the goal than the victim.
   for (Player* opponent : TeamOf(offender_team).Players()) {
     if (!opponent->IsActive() || opponent->GetID() == fact.offender) continue;
-    if (opponent->GetFormationEntry().role == e_PlayerRole_GK) continue;
+    const auto offender_view = TeamViewOf(offender_team);
+    if (const FormationEntry* entry = FormationEntryFor(offender_view, opponent);
+        entry != nullptr && entry->role == e_PlayerRole_GK) continue;
     if ((goal - opponent->GetPosition().Get2D()).GetLength() < range) return false;
   }
   return true;
@@ -1397,10 +1418,21 @@ void Simulation::CaptureMentalImage(const football::ball::Ball* view) {
   if (mental_images_.empty() ||
       GetTimelineTick().value % football::sim::observation::kMentalImageCadence.value == 0) {
     std::vector<Player*> players;
-    GetActiveTeamPlayers(first_team_, players);
-    GetActiveTeamPlayers(second_team_, players);
+    std::vector<e_PlayerRole> roles;
+    for (const int team_id : {first_team_, second_team_}) {
+      const auto roster = TeamOf(team_id).Players();
+      const auto& formation = formations_[team_id];
+      for (std::size_t i = 0; i < roster.size(); ++i) {
+        if (roster[i]->IsActive()) {
+          players.push_back(roster[i]);
+          roles.push_back(i < formation.size() ? formation[i].role
+                                                : e_PlayerRole_CF);
+        }
+      }
+    }
     mental_images_.insert(mental_images_.begin(),
-                          MentalImage(GetTimelineTick(), players, view ? *view : *ball_));
+                          MentalImage(GetTimelineTick(), players, roles,
+                                      view ? *view : *ball_));
     if (mental_images_.size() > 3) {
       mental_images_.pop_back();
     }
@@ -1498,6 +1530,7 @@ void Simulation::ClearComposition() {
   teams_[0].reset();
   teams_[1].reset();
   active_lineups_ = {};
+  for (auto& formation : formations_) formation.clear();
   team_orientations_ = {};
   team_states_ = {};
   clock_.reset();

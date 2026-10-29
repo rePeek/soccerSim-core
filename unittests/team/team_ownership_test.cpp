@@ -141,9 +141,11 @@ TEST_CASE("Explicit lineup binds identities to formation slots not declaration i
   const auto players = SimulationAccess::TeamOf(sim, 0).Players();
   REQUIRE(players.size() == 3);
   CHECK(players[0]->GetID() == 50);
-  CHECK(players[0]->GetFormationEntry().role == e_PlayerRole_CF);
+  CHECK(SimulationAccess::TeamViewOf(sim, 0).formation[0].role ==
+        e_PlayerRole_CF);
   CHECK(players[1]->GetID() == 51);
-  CHECK(players[1]->GetFormationEntry().role == e_PlayerRole_GK);
+  CHECK(SimulationAccess::TeamViewOf(sim, 0).formation[1].role ==
+        e_PlayerRole_GK);
   CHECK_FALSE(players[2]->IsActive());
   auto world = sim.Observe();
   REQUIRE(world.active_lineups);
@@ -228,7 +230,7 @@ TEST_CASE("Player owns an immutable definition after its source is destroyed",
     source.appearance.hair_style = "short02";
     source.appearance.hair_color = "black";
     actor = std::make_unique<Player>(0, TeamSide::Home, source,
-                                     FormationEntry{}, 7, animations, pitch);
+                                     7, animations, pitch);
     CHECK(&actor->GetModel() != &source);
     source.id = 0;
     source.height = 0;

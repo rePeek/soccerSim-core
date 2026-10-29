@@ -7,6 +7,7 @@
 #include "football/pitch/pitch.hpp"
 #include "football/runtime/active_lineup.hpp"
 #include "football/team/formation_preset.hpp"
+#include "football/player/formation_entry.hpp"
 #include "football/team/set_piece_orders.hpp"
 #include "runtime/restart_context.hpp"
 
@@ -24,7 +25,20 @@ struct RestartTeamPlanning {
   const football::team::SetPieceOrders* orders = nullptr;
   const football::team::FormationPresets* presets = nullptr;
   const football::sim::ActiveLineupState* lineup = nullptr;
+  // Full ordered roster and its Runtime-owned formation, aligned by index.
+  std::span<Player* const> players;
+  std::span<const FormationEntry> formation;
 };
+
+// Formation entry for one actor, resolved through the planning table's
+// ordered roster. nullptr when the actor is absent (bench/sent-off).
+inline const FormationEntry* FormationEntryFor(
+    const RestartTeamPlanning& planning, const Player* player) {
+  for (std::size_t i = 0; i < planning.players.size(); ++i) {
+    if (planning.players[i] == player) return &planning.formation[i];
+  }
+  return nullptr;
+}
 
 // Both sides: the awarded team uses Attacking presets, its opponent Defending.
 struct RestartPlanningTable {

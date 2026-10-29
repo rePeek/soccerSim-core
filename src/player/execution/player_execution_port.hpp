@@ -22,7 +22,6 @@
 #include "football/contact/player_touch_type.hpp"
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/player/formation_entry.hpp"
 #include "football/player/player_body_profile.hpp"
 #include "football/player/player_definition.hpp"
 #include "football/player/player_kinematics.hpp"
@@ -61,7 +60,6 @@ class PlayerExecutionPort {
 
   // --- player match state (read) ----------------------------------------
   virtual bool HasPossession() const = 0;
-  virtual FormationEntry GetFormationEntry() const = 0;
   virtual football::sim::Tick GetLastTouchTick() const = 0;
   virtual float GetLastTouchBias(int decay_ms, football::sim::Tick at) const = 0;
   virtual bool IsControlledBallCollisionTriggered() const = 0;

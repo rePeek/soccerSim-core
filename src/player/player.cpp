@@ -76,7 +76,6 @@ bool Vector3BitsEqual(const Vector3 &a, const Vector3 &b) {
 
 Player::Player(int team_id, football::sim::TeamSide side,
                football::player::PlayerDefinition model,
-               const FormationEntry& formation_entry,
                std::uint8_t schedule_phase,
                const AnimationLibrary& animations, const football::pitch::Pitch& pitch)
       : model_(std::move(model)),
@@ -84,7 +83,6 @@ Player::Player(int team_id, football::sim::TeamSide side,
       schedule_phase_(schedule_phase % 10),
       team_id_(team_id),
       side_(side),
-      formationEntry_(formation_entry),
       execution_(std::make_unique<PlayerExecution>(animations)) {
   // `pitch` is part of the construction contract (the actor is placed in the
   // pitch frame before its first tick) but the Player keeps no borrowed
@@ -329,18 +327,13 @@ Vector3 Player::GetPitchPosition() {
   return GetPosition();
 }
 
-void Player::Activate() {
+void Player::Activate(const Vector3& spawn_position) {
   assert(!is_active_);
   is_active_ = true;
-  // The old Humanoid constructor performed one zero-position reset before the
-  // explicit formation-position reset, and a fresh actor must start from fresh
-  // compatibility storage. Both resets and the special action install stay in
-  // the executor, so the resulting idle entry frame is unchanged.
-  const Vector3 spawn_position =
-      GetFormationEntry().position * 25 *
-      Vector3(-team_facts_.defending_direction, -team_facts_.defending_direction, 0);
+  // Fresh compatibility storage and the one zero-position reset happen inside
+  // the executor; the placement itself is the Runtime's decision, so the
+  // Player no longer knows where it was told to stand.
   execution_->Activate(Port(), spawn_position);
-  SetDynamicFormationEntry(GetFormationEntry());
 }
 
 bool Player::HasPossession() const { return hasPossession; }
