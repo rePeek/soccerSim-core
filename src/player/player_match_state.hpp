@@ -18,6 +18,9 @@ struct PlayerMatchState {
   // The actor's own desired interception time, decayed each tick and published
   // by the reachability refresh. Intent, not a world relation.
   int desired_time_to_ball_ms = 0;
+  // A controlled-ball collision already fired for this situation. Cleared by a
+  // situation reset; it gates a repeat trigger within the same situation.
+  bool controlled_ball_collision_triggered = false;
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_MATCH_STATE_HPP

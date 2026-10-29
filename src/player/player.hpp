@@ -26,31 +26,34 @@
 #include "football/animation/playback.hpp"
 #include "football/contact/player_ground_collider.hpp"
 #include "football/contact/player_touch_type.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 #include "football/match/team_side.hpp"
-#include "football/pitch/pitch.hpp"
 #include "football/player/execution/player_motion_profile.hpp"
-#include "football/player/execution/player_team_match_facts.hpp"
 #include "football/player/player_action.hpp"
 #include "football/player/player_action_request.hpp"
 #include "football/player/player_body_profile.hpp"
 #include "football/player/player_control.hpp"
 #include "football/player/player_definition.hpp"
 #include "football/player/player_kinematics.hpp"
-#include "player/execution/player_action_feedback.hpp"
 #include "player/execution/player_baked_pose_sample.hpp"
 #include "player/execution/player_execution_port.hpp"
-#include "player/execution/player_locomotion_animation.hpp"
-#include "player/execution/player_selected_action.hpp"
-#include "player/execution/player_tick_context.hpp"
-#include "player/execution/player_touch_choice.hpp"
-#include "player/execution/player_team_view.hpp"
 #include "player/player_match_state.hpp"
-#include "player/player_observation.hpp"
 
-namespace football::sim { class PlayerRuntimeSink; class PlayerSendOffSink; }
-namespace football::sim::player { class PlayerTouchSink; }
+namespace football::ball { class Ball; }
+namespace football::pitch { class Pitch; }
+namespace football::sim {
+class PlayerRuntimeSink;
+class PlayerSendOffSink;
+struct PlayerTickContext;
+}  // namespace football::sim
+namespace football::sim::player {
+class PlayerObservation;
+class PlayerTouchSink;
+}  // namespace football::sim::player
 class AnimationLibrary;
+struct LocomotionAnimationInput;
+struct PlayerActionFeedback;
 struct PlayerCommandInputs;
 
 class Player;
@@ -301,9 +304,15 @@ class Player final : private PlayerExecutionPort {
   int DesiredTimeToBall_ms() const override {
     return match_state_.desired_time_to_ball_ms;
   }
-  void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
-  bool IsControlledBallCollisionTriggered() const { return triggerControlledBallCollision; }
-  void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
+  void TriggerControlledBallCollision() {
+    match_state_.controlled_ball_collision_triggered = true;
+  }
+  bool IsControlledBallCollisionTriggered() const {
+    return match_state_.controlled_ball_collision_triggered;
+  }
+  void ResetControlledBallCollisionTrigger() {
+    match_state_.controlled_ball_collision_triggered = false;
+  }
   void ResetTouchRecord() override {
     match_state_.last_touch_tick = {};
     match_state_.last_touch_type = e_TouchType_None;
@@ -360,8 +369,6 @@ class Player final : private PlayerExecutionPort {
   bool is_active_ = false;
 
   PlayerMatchState match_state_;
-
-  bool triggerControlledBallCollision = false;
 };
 
 #endif

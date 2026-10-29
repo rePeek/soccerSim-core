@@ -90,7 +90,7 @@ Player::Player(int team_id, football::sim::TeamSide side,
   match_state_.last_touch_type = e_TouchType_None;
   match_state_.fatigue_factor_inv = 1.0;
   SetDesiredTimeToBall_ms(0);
-  triggerControlledBallCollision = false;
+  match_state_.controlled_ball_collision_triggered = false;
   match_state_.cards = 0;
   match_state_.card_effective_tick = {};
 }
@@ -352,7 +352,7 @@ float Player::GetStaminaStat() const {
 void Player::ResetSituation(const Vector3 &focusPos, football::sim::Tick now) {
   execution_->ResetSituation(Port(), focusPos, now);
   SetDesiredTimeToBall_ms(0);
-  triggerControlledBallCollision = false;
+  match_state_.controlled_ball_collision_triggered = false;
 }
 
 // ---------------------------------------------------------------------------
