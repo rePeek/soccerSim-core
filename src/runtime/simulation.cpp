@@ -550,7 +550,7 @@ void Simulation::HandlePlayerSentOff(Player& player) {
 }
 
 void Simulation::InitTeamPlayers(int team_id, football::team::Team& team,
-                                 bool explicit_lineup, float ai_difficulty,
+                                 bool explicit_lineup,
                                  std::uint8_t first_schedule_phase) {
   // Team traversal supplies order; phases repeat every ten players. The
   // sequence (create, Add, publish facts, activate) is the historical one.
@@ -568,7 +568,7 @@ void Simulation::InitTeamPlayers(int team_id, football::team::Team& team,
     const FormationEntry entry = explicit_lineup
         ? (slot ? formation.at(*slot) : FormationEntry{}) : formation.at(i);
     auto player = std::make_unique<Player>(
-        team_id, static_cast<football::sim::TeamSide>(team_id), ai_difficulty,
+        team_id, static_cast<football::sim::TeamSide>(team_id),
         definition.players[i], entry, schedule_phase, *animations_, pitch_);
     schedule_phase = (schedule_phase + 1) % 10;
     Player* raw = player.get();
@@ -897,15 +897,13 @@ void Simulation::Init(
   // The Team entities are created before actor construction. Player copies
   // its own definition, so Team's definition storage is never borrowed.
   auto ball = std::make_unique<Ball>(ball_config_, pitch_);
-  const float difficulties[] = {options.left_team_difficulty,
-                               options.right_team_difficulty};
   teams_[0] = std::make_unique<football::team::Team>(std::move(models[0].definition));
   teams_[1] = std::make_unique<football::team::Team>(std::move(models[1].definition));
   // Historical creation order and scheduler stagger, including reversed order.
   InitTeamPlayers(first_team_, *teams_[first_team_],
-                  models[first_team_].explicit_lineup, difficulties[first_team_], 0);
+                  models[first_team_].explicit_lineup, 0);
   InitTeamPlayers(second_team_, *teams_[second_team_],
-                  models[second_team_].explicit_lineup, difficulties[second_team_],
+                  models[second_team_].explicit_lineup,
                   static_cast<std::uint8_t>(teams_[first_team_]->Players().size() % 10));
 
   std::vector<Player*> active_players;
@@ -1015,14 +1013,22 @@ void Simulation::ReleaseProductionPhysics() {
 }
 void Simulation::EnsureAnimationLibrary() {
   if (animations_) return;
-  // Never put resource loading inside assert(): Release must load and reject
-  // invalid resources too. Publish only a successfully loaded library.
-  auto animations = std::make_shared<AnimationLibrary>();
-  if (!animations->Load(GFOOTBALL_BAKED_ANIM_PATH)) {
-    throw std::runtime_error("Simulation: cannot load baked animations: "
-                             GFOOTBALL_BAKED_ANIM_PATH);
-  }
-  animations_ = std::move(animations);
+  // The baked artifact is immutable once loaded (Load validates it and nothing
+  // mutates the library afterwards), so it is parsed once per process and
+  // shared by every Simulation. A match re-creates its Simulation freely - a
+  // re-Init, a restored replay or a test harness - without paying for a 20 MB
+  // deserialization each time; the content hash is identical by construction.
+  static const std::shared_ptr<const AnimationLibrary> shared_library = [] {
+    // Never put resource loading inside assert(): Release must load and reject
+    // invalid resources too. Publish only a successfully loaded library.
+    auto animations = std::make_shared<AnimationLibrary>();
+    if (!animations->Load(GFOOTBALL_BAKED_ANIM_PATH)) {
+      throw std::runtime_error("Simulation: cannot load baked animations: " +
+                               std::string(GFOOTBALL_BAKED_ANIM_PATH));
+    }
+    return std::shared_ptr<const AnimationLibrary>(std::move(animations));
+  }();
+  animations_ = shared_library;
 }
 
 void Simulation::Step(const PlayerControlSet& controls) {

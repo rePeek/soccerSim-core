@@ -84,7 +84,7 @@ struct PlayerTeamFacts {
 class Player final : private PlayerExecutionPort {
 
  public:
-  Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
+  Player(int team_id, football::sim::TeamSide side,
          football::player::PlayerDefinition model,
          const FormationEntry& formation_entry,
          std::uint8_t schedule_phase,
@@ -252,20 +252,22 @@ class Player final : private PlayerExecutionPort {
                     football::sim::PlayerRuntimeSink& runtime_sink);
   void CommitTick(const football::sim::PlayerTickContext& tick, float distance);
 
+  // The ability in force: the definition's base ability scaled by this
+  // player's current fatigue, and by nothing else. There is no per-team or
+  // per-actor difficulty modifier.
   float GetStat(football::player::PlayerStat name) const;
   float GetVelocityMultiplier() const;
   float GetMaxVelocity() const;
   // S1.1: the motion capability actually in force, in ONE place. The static
-  // part comes from the definition (MakePlayerMotionProfile); the runtime part
-  // (AI difficulty, fatigue) is applied here and is never baked into the
-  // definition or a MotionClip. It is the only source both execution and
-  // prediction may read, so they cannot drift apart.
+  // part comes from the definition (MakePlayerMotionProfile); it is not baked
+  // into the definition or a MotionClip. It is the only source both execution
+  // and prediction may read, so they cannot drift apart.
   //
-  // Deliberate decision, pinned by a test: today the runtime modifiers scale
-  // the *abilities* (GetStat) but NOT the motion profile. In particular
-  // max_speed keeps the established GetMaxVelocity() formula with no fatigue or
-  // difficulty factor. Whether fatigue should slow a player down is a separate
-  // behaviour change, not part of unifying the parameter source.
+  // Deliberate decision, pinned by a test: fatigue scales the *abilities*
+  // (GetStat) but NOT the motion profile. In particular max_speed keeps the
+  // established GetMaxVelocity() formula with no fatigue factor. Whether
+  // fatigue should slow a player down is a separate behaviour change, not part
+  // of unifying the parameter source.
   PlayerMotionProfile EffectiveMotionProfile() const;
 
   // P19.3: the single read-only clip identity for runtime consumers.
@@ -306,7 +308,6 @@ class Player final : private PlayerExecutionPort {
   Player* GetTeamDesignatedPossessionPlayer() const {
     return team_facts_.designated_possession_player;
   }
-  float GetAiDifficulty() const { return ai_difficulty_; }
   // Runtime publishes the per-tick match facts; Player never holds Team.
   void SetTeamContext(const PlayerTeamFacts& facts) { team_facts_ = facts; }
   Vector3 GetPitchPosition();
@@ -384,7 +385,6 @@ class Player final : private PlayerExecutionPort {
   // which team it belongs to but never owns or stores a Team object.
   const int team_id_;
   const football::sim::TeamSide side_;
-  const float ai_difficulty_;
   FormationEntry formationEntry_;
   PlayerTeamFacts team_facts_;
 

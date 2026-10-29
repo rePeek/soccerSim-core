@@ -154,8 +154,7 @@ class Simulation {
   // Shared by Stop and every initialization failure; handles partial owners.
   void ClearComposition();
   void InitTeamPlayers(int team_id, football::team::Team& team,
-                       bool explicit_lineup, float ai_difficulty,
-                       std::uint8_t first_schedule_phase);
+                       bool explicit_lineup, std::uint8_t first_schedule_phase);
   // runtime-owned Team/frame/state; no allocation, nothing retained.
   football::sim::TeamView TeamViewOf(int team_id) const;
   // Team orientation is runtime-owned behaviour: only the permanent change of
@@ -321,7 +320,8 @@ class Simulation {
   MatchOptions options_;
   football::pitch::Pitch pitch_;
   football::ball::BallModel ball_config_;
-  std::shared_ptr<AnimationLibrary> animations_;
+  // Process-wide, immutable baked artifact: one parse serves every Simulation.
+  std::shared_ptr<const AnimationLibrary> animations_;
 
   // Live team aggregates: definition plus the set of Players the Team owns.
   std::array<std::unique_ptr<football::team::Team>, 2> teams_;

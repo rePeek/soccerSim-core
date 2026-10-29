@@ -42,7 +42,7 @@ std::unique_ptr<Player> MakeTestPlayer(football::player::PlayerId id,
   definition.height = 1.8f;
   FormationEntry entry{};
   entry.role = role;
-  return std::make_unique<Player>(0, TeamSide::Home, 1.f, definition, entry, 0,
+  return std::make_unique<Player>(0, TeamSide::Home, definition, entry, 0,
                                   animations, pitch);
 }
 

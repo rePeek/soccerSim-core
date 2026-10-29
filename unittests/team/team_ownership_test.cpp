@@ -227,7 +227,7 @@ TEST_CASE("Player owns an immutable definition after its source is destroyed",
     source.appearance.skin_color = 3;
     source.appearance.hair_style = "short02";
     source.appearance.hair_color = "black";
-    actor = std::make_unique<Player>(0, TeamSide::Home, 1.f, source,
+    actor = std::make_unique<Player>(0, TeamSide::Home, source,
                                      FormationEntry{}, 7, animations, pitch);
     CHECK(&actor->GetModel() != &source);
     source.id = 0;

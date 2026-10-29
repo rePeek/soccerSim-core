@@ -12,8 +12,6 @@
 // snapshotted at initialization and never read from ambient state afterwards.
 struct MatchOptions {
   bool reverse_team_processing = false;
-  float left_team_difficulty = 1.0f;
-  float right_team_difficulty = 0.6f;
   // Native regulation duration: fixed 100 Hz, no scale, added/extra time or shootout.
   football::sim::TickSpan half_duration = football::sim::Minutes(45);
   bool offsides = true;

@@ -15,9 +15,9 @@ inline constexpr float kPlayerMotionDefaultTurnRate = 6.0f;
 // The reference profile: the ability -> capability conversion has
 // one home and can be tested before the motion authority moves to Player.
 //
-// Deliberately excludes AI difficulty and fatigue. Those are per-tick runtime
-// modifiers (Player::GetStat applies them today) and must not be baked into a
-// static profile, or a tired player could never slow down.
+// Deliberately excludes fatigue. It is a per-tick runtime modifier
+// (Player::GetStat applies it today) and must not be baked into a static
+// profile, or a tired player could never slow down.
 struct PlayerMotionProfile {
   float max_speed = 7.5f;     // metres per second
   float acceleration = 6.0f;  // m/s^2 while speeding up

@@ -122,10 +122,10 @@ dependencies and `football::` aliases. `football::simcore` compiles
 BqLog and nlohmann/json are fetched via CPM in every build mode; Catch2 is
 fetched only with `BUILD_TESTING=ON`. All are cached in `.cache/CPM`.
 
-Unit tests live under `unittests/` and link only the module under test
-(foundation/collision/pitch/ball/player/team/animation/rules/event/observation/
-AI), plus a bounded `unittests/runtime/` harness that runs a handful of ticks
-through the real composition. Tests assert physical correctness, state
+Unit tests live under `unittests/` and link only the module under test. The
+current scope is `pitch`, `ball`, `player` and `team`, plus the `animation`
+acceptance suites and the Player/Team link smokes; no test constructs a full
+Simulation or plays a match. Tests assert physical correctness, state
 invariants and module contracts; there is no golden/fingerprint tier and no
 full-match requirement for a module change. The offline animation baker remains
 a standalone tool under `tools/animBaker/`.

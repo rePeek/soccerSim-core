@@ -45,11 +45,18 @@ thing, and its cost is paid only when relevant.
   module proves its own physics, geometry, rules, actions, data and ownership in
   isolation, without a running match. This is the routine gate: a module is
   complete when its own unit tests pass.
-- **Level 2 — interface and bounded integration** (adapter tests, the
-  public-header smoke and `unittests/runtime/`, labels `interface`/`runtime`).
-  Independent linking, object lifetime, data passing and a small number of
-  ticks through the real composition. Run when a public interface or
-  cross-module boundary changes.
+- **Level 2 — interface and bounded integration** (the Player link smokes and
+  the Team composition suite; labels `interface`/`team`). Independent linking,
+  object lifetime, data passing and ownership across a real boundary. Run when
+  a public interface or cross-module boundary changes.
+
+Current test scope is `ball`, `pitch`, `player`, `team` and `animation` only:
+`animation`, `pitch`, `ball`, `team`, `team_link`, `player`, `player_link`,
+`player_animation`, `locomotion`, `loco_animation`. The foundation, model, ai,
+collision, contact, event, referee and public-header suites and the bounded
+runtime harness were removed with their modules parked; restore them from
+history when one of those modules is back under active work. Nothing in the
+current scope constructs a full Simulation or plays a match.
 
 Rules:
 
@@ -242,7 +249,8 @@ Rules:
 6. `unittests/player_link` whole-archives State/Execution and Contact, links the
    Command protocol alone, and tests Execution's public prediction API without
    actors, assets or Runtime. Protocol headers compile separately using only
-   exported includes. `unittests/contact` links Contact without Execution.
+   exported includes. Contact's independent link proof is not part of the
+   current test scope (see the testing policy above).
 7. Player model and input headers are flat in `include/football/player/`;
    execution contracts live in its execution/ subdirectory. Contact contracts
    live in `include/football/contact/`. Nested state/command/contact Player
@@ -318,7 +326,8 @@ src/                 implementations; public headers live in include/football/
 └── env.cpp          public facade implementation
 
 tools/               app (football_sim), animBaker
-unittests/           one directory per module plus runtime/ and public_header/
+unittests/           one directory per active module (ball/pitch/player/team/
+                     animation), including player_link and loco_animation
 ```
 
 ## Coding conventions

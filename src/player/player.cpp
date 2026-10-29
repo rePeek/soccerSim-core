@@ -74,7 +74,7 @@ bool Vector3BitsEqual(const Vector3 &a, const Vector3 &b) {
 
 }  // namespace
 
-Player::Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
+Player::Player(int team_id, football::sim::TeamSide side,
                football::player::PlayerDefinition model,
                const FormationEntry& formation_entry,
                std::uint8_t schedule_phase,
@@ -84,7 +84,6 @@ Player::Player(int team_id, football::sim::TeamSide side, float ai_difficulty,
       schedule_phase_(schedule_phase % 10),
       team_id_(team_id),
       side_(side),
-      ai_difficulty_(ai_difficulty),
       formationEntry_(formation_entry),
       execution_(std::make_unique<PlayerExecution>(animations)) {
   // `pitch` is part of the construction contract (the actor is placed in the
@@ -240,9 +239,9 @@ void Player::Deactivate(const Ball& ball, football::sim::Tick now) {
 }
 
 int Player::GetReactionTime_ms() const {
-  int reaction = int(std::round(80.f - GetStat(football::player::PlayerStat::physical_reaction) * 40.f));
-  reaction += (1.f - ai_difficulty_) * 100;
-  return reaction;
+  // Perceptual delay is a capability of this player alone: reaction ability
+  // maps linearly onto 40..80 ms. It is not a difficulty knob.
+  return int(std::round(80.f - GetStat(football::player::PlayerStat::physical_reaction) * 40.f));
 }
 
 float Player::GetControlSpeed() const {
@@ -291,10 +290,11 @@ void Player::CommitTick(const football::sim::PlayerTickContext& tick, float dist
   }
 }
 
+// The ability in force. It is the base definition ability scaled by the
+// current fatigue only: there is one runtime modifier, and it is a gameplay
+// fact this player owns.
 float Player::GetStat(football::player::PlayerStat name) const {
-  float multiplier = 0.3f + 0.7f * ai_difficulty_;
-  multiplier *= 0.7f + 0.3f * GetFatigueFactorInv();
-  return model_.attributes.get(name) * multiplier;
+  return model_.attributes.get(name) * (0.7f + 0.3f * GetFatigueFactorInv());
 }
 
 float Player::GetMaxVelocity() const {

@@ -1,25 +1,20 @@
-# Small unit suites for the leaf modules, plus one bounded runtime harness.
+# Unit suites for the modules currently under development.
 #
-# The leaf suites link only the module under test (and its declared
-# dependencies); never football::simcore, football::ai, player/animation assets
-# or a running match. The runtime/ harness links the sim domain and runs a
-# handful of ticks under a wall-clock CTest timeout -- it never plays a match.
+# Scope is deliberate: only the leaf module suites plus the two Player link
+# proofs and the Animation acceptance suites run here. The former
+# foundation/model/ai/collision/contact/event/referee/public-header suites and
+# the bounded runtime harness (unittests/runtime, including its 22-player
+# real-tick cases) are not part of this scope and were removed; restore them
+# from history when those modules are back under active work.
+#
+# Every suite here links only the module under test and its declared
+# dependencies. Nothing constructs a full Simulation or plays a match.
 
-add_subdirectory(foundation)
-add_subdirectory(public_header)
-add_subdirectory(model)
-add_subdirectory(ai)
 add_subdirectory(animation)
-add_subdirectory(collision)
 add_subdirectory(pitch)
 add_subdirectory(ball)
-add_subdirectory(contact)
 add_subdirectory(team)
 add_subdirectory(team_link)
-add_subdirectory(event)
-add_subdirectory(referee)
-add_subdirectory(referee_link)
-add_subdirectory(runtime)
 add_subdirectory(player)
 add_subdirectory(player_link)
 add_subdirectory(player_animation)
