@@ -33,11 +33,6 @@ target_sources(football_player_execution PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_motion_profile.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_body_facing.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_pass_solver.hpp
-    # Flat convenience includes are owned by Execution, not the input protocol.
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_motion.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_motion_profile.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_body_facing.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/player/player_pass_solver.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_touch_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_team_match_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_restart_facts.hpp

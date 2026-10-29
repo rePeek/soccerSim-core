@@ -2,11 +2,6 @@
 #include "football/player/execution/player_motion.hpp"
 #include "football/player/execution/player_body_facing.hpp"
 #include "football/player/execution/player_pass_solver.hpp"
-// Flat convenience paths resolve to the same Execution-owned capability APIs.
-#include "football/player/player_motion.hpp"
-#include "football/player/player_motion_profile.hpp"
-#include "football/player/player_body_facing.hpp"
-#include "football/player/player_pass_solver.hpp"
 
 int main() {
   using football::math::Vector3;
