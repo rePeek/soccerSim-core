@@ -12,7 +12,7 @@ struct PlayerMatchState {
   football::sim::Tick last_touch_tick{};
   e_TouchType last_touch_type = e_TouchType_None;
   // 1.0 = rested, 0.01 = exhausted. Decays with distance run.
-  float fatigue_factor_inv = 0.0f;
+  float fatigue_factor_inv = 1.0f;
   int cards = 0;  // 1 yellow; 2 second yellow; >= 3 red
   football::sim::Tick card_effective_tick{};
   // The actor's own desired interception time, decayed each tick and published

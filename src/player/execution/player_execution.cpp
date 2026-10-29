@@ -56,7 +56,6 @@ struct PlayerExecution::ActionTickFrame {
   bool has_request_input = false;
   bool reaction_executed = false;
   bool movement_published_this_tick = false;
-  bool continuity_repair_due = false;
   bool legacy_opportunity = false;
   bool simulation_due = false;
 };
@@ -372,7 +371,6 @@ void PlayerExecution::RefreshDecisionQueue(ActionTickFrame& frame) {
   const bool player_decision_due =
       IsPlayerDecisionRefreshDue(
           decision_now, player_decision_cadence);
-  frame.continuity_repair_due = continuity_repair_due;
   if (continuity_repair_due || player_decision_due) {
     const CommandBuildResult built = RequestCommand(
         {frame.tick->ball, frame.ball_retainer, frame.tick->pitch,

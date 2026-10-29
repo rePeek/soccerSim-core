@@ -1,6 +1,7 @@
 #include "player/execution/player_control_builder.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <optional>
 #include <utility>
 
@@ -65,7 +66,10 @@ football::sim::player::PlayerActionAuthorization EvaluateAuthorization(
 }
 
 struct DiscreteActionBuild {
-  CommandBuildStatus status = CommandBuildStatus::MovementOnly;
+  // Status of the discrete action build. `command` is present if and only if
+  // the status is Accepted; every other status publishes the movement
+  // fallback alone. No default: every construction states its outcome.
+  CommandBuildStatus status;
   // Present only for Accepted: the discrete command that precedes the movement
   // fallback in the queue. Every other status publishes movement alone.
   std::optional<PlayerCommand> command;
@@ -178,7 +182,9 @@ CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
 
   DiscreteActionBuild action = BuildDiscreteActionCommand(
       control, player, inputs, movement, authorization);
-  if (action.status == CommandBuildStatus::Accepted && action.command) {
+  if (action.status == CommandBuildStatus::Accepted) {
+    assert(action.command.has_value() &&
+           "accepted discrete action must carry a command");
     // Mechanical movement fallback, not a second AI decision. An unavailable
     // action must still publish a fresh locomotion intent on reset/re-entry.
     return BuildResult(CommandBuildStatus::Accepted,
