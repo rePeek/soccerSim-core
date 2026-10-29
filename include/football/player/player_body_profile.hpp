@@ -28,17 +28,13 @@ struct PlayerBodyProfile {
   BodyBuild build = BodyBuild::Normal;
 };
 
-// Reference BMI coefficient for the normal-mass proxy M_normal(H) = B0*H^2.
-// It is a geometric calibration parameter, not an anthropometric claim.
-inline constexpr float kReferenceBmi = 23.0f;
-
 // The single reference height at which height_scale == 1. Height scaling is
 // expressed relative to it, so it must stay the only such constant.
 inline constexpr float kReferencePlayerHeight = 1.92f;
 
-// Classify by the mass-to-standard-mass ratio r = M / (B0*H^2). Thresholds map
-// the BODY-1 nine-profile matrix (1.65/1.80/1.95 m × slim/normal/broad) onto
-// the three labels; they are never used to compute geometry.
+// Classify by the mass-to-reference-mass ratio r = M / kDefaultPlayerMassKg.
+// Thresholds are the slim/normal/broad bands around the reference build; they
+// are never used to compute geometry.
 inline constexpr float kSlimMassRatio = 0.9f;
 inline constexpr float kBroadMassRatio = 1.1f;
 
@@ -61,12 +57,10 @@ inline PlayerBodyProfile MakePlayerBodyProfile(
   if (!std::isfinite(mass) || mass <= 0.0f)
     throw std::invalid_argument("player weight must be finite and positive");
 
-  // Normal mass for this height. The continuous ratio to it is the girth proxy
-  // geometry consumes; 1.0 is the normal build.
-  const float reference_mass = kReferenceBmi * height * height;
-  // Continuous relative-girth proxy: geometry consumes this value, not the
-  // BodyBuild label derived from it.
-  const float mass_ratio = mass / reference_mass;
+  // Girth is a shape parameter, so it is the ratio to the reference mass and is
+  // independent of height; size comes from height_scale. 1.0 is the reference
+  // build. Geometry consumes this value, never the BodyBuild label.
+  const float mass_ratio = mass / kDefaultPlayerMassKg;
   const float girth_scale = std::sqrt(mass_ratio);
 
   return PlayerBodyProfile{height, mass, height_scale, girth_scale,

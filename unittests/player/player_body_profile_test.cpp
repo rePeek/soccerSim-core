@@ -12,12 +12,12 @@ using football::player::BodyBuild;
 using football::player::MakePlayerBodyProfile;
 using football::player::PlayerBodyProfile;
 using football::player::PlayerDefinition;
-using football::player::kReferenceBmi;
+using football::player::kDefaultPlayerMassKg;
 
 namespace {
 
 // The definition default: 74.52 kg, the reference build at 1.8 m.
-constexpr float kDefaultMassKg = 74.52f;
+constexpr float kDefaultMassKg = football::player::kDefaultPlayerMassKg;
 
 PlayerDefinition MakePlayer(float height, float weight = kDefaultMassKg) {
   PlayerDefinition definition;
@@ -44,12 +44,12 @@ TEST_CASE("a definition that only carries height gets the default mass") {
   for (const float height : {1.65f, 1.80f, 1.95f, 2.10f}) {
     const PlayerBodyProfile profile = MakePlayerBodyProfile(MakePlayer(height));
     INFO("height " << height);
-    // Mass no longer follows the height: it is one explicit default.
+    // Mass does not follow the height: it is one explicit default, so the
+    // girth is the reference build at every height.
     REQUIRE(profile.mass_kg == Catch::Approx(kDefaultMassKg));
     REQUIRE(profile.height_scale == Catch::Approx(height / 1.92f));
-    const float mass_ratio =
-        kDefaultMassKg / (kReferenceBmi * height * height);
-    REQUIRE(profile.girth_scale == Catch::Approx(std::sqrt(mass_ratio)));
+    REQUIRE(profile.girth_scale == Catch::Approx(1.0f));
+    REQUIRE(profile.build == BodyBuild::Normal);
   }
 }
 
@@ -69,7 +69,7 @@ TEST_CASE("explicit weight changes girth but never the height scale") {
   REQUIRE(broad.build == BodyBuild::Broad);
 }
 
-TEST_CASE("nine body profiles classify slim/normal/broad") {
+TEST_CASE("mass bands classify slim/normal/broad") {
   struct Case {
     float height;
     float mass;
@@ -77,13 +77,13 @@ TEST_CASE("nine body profiles classify slim/normal/broad") {
   };
   const Case cases[] = {
       {1.65f, 53.0f, BodyBuild::Slim},
-      {1.65f, 63.0f, BodyBuild::Normal},
-      {1.65f, 78.0f, BodyBuild::Broad},
+      {1.65f, 63.0f, BodyBuild::Slim},
+      {1.65f, 78.0f, BodyBuild::Normal},
       {1.80f, 64.0f, BodyBuild::Slim},
       {1.80f, 75.0f, BodyBuild::Normal},
       {1.80f, 90.0f, BodyBuild::Broad},
-      {1.95f, 75.0f, BodyBuild::Slim},
-      {1.95f, 88.0f, BodyBuild::Normal},
+      {1.95f, 75.0f, BodyBuild::Normal},
+      {1.95f, 88.0f, BodyBuild::Broad},
       {1.95f, 105.0f, BodyBuild::Broad},
   };
 
@@ -94,22 +94,28 @@ TEST_CASE("nine body profiles classify slim/normal/broad") {
   }
 }
 
-TEST_CASE("same mass across heights spans all three builds") {
-  // 75 kg is Broad at 1.65 m, Normal at 1.80 m and Slim at 1.95 m under the
-  // reference-BMI anchor, so build is a property of the pair, not mass alone.
-  REQUIRE(MakePlayerBodyProfile(MakePlayer(1.95f, 75.0f)).build == BodyBuild::Slim);
+TEST_CASE("build follows the mass, not the height") {
+  // 75 kg is the normal band at every height: girth is a shape parameter and
+  // height only scales size.
+  REQUIRE(MakePlayerBodyProfile(MakePlayer(1.95f, 75.0f)).build == BodyBuild::Normal);
   REQUIRE(MakePlayerBodyProfile(MakePlayer(1.80f, 75.0f)).build == BodyBuild::Normal);
-  REQUIRE(MakePlayerBodyProfile(MakePlayer(1.65f, 75.0f)).build == BodyBuild::Broad);
+  REQUIRE(MakePlayerBodyProfile(MakePlayer(1.65f, 75.0f)).build == BodyBuild::Normal);
+  // The same mass also gives the same girth at every height.
+  const float girth = MakePlayerBodyProfile(MakePlayer(1.80f, 75.0f)).girth_scale;
+  REQUIRE(MakePlayerBodyProfile(MakePlayer(1.65f, 75.0f)).girth_scale ==
+          Catch::Approx(girth));
+  REQUIRE(MakePlayerBodyProfile(MakePlayer(1.95f, 75.0f)).girth_scale ==
+          Catch::Approx(girth));
 }
 
-TEST_CASE("girth scale equals sqrt(mass / reference-BMI * height^2)") {
+TEST_CASE("girth scale is sqrt(mass / reference mass)") {
   const float height = 1.8f;
   const float mass = 75.0f;
   const PlayerBodyProfile profile = MakePlayerBodyProfile(MakePlayer(height, mass));
 
   REQUIRE(profile.mass_kg == Catch::Approx(mass));
   REQUIRE(profile.girth_scale ==
-          Catch::Approx(std::sqrt(mass / (kReferenceBmi * height * height))));
+          Catch::Approx(std::sqrt(mass / kDefaultPlayerMassKg)));
 }
 
 TEST_CASE("profile is deterministic for equal input") {

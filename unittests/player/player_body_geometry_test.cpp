@@ -30,7 +30,7 @@ using football::geometry::Sphere;
 using football::math::Vector3;
 using football::player::BodyBuild;
 using football::player::MakePlayerBodyProfile;
-using football::player::kReferenceBmi;
+using football::player::kDefaultPlayerMassKg;
 using football::player::PlayerBodyProfile;
 using football::player::PlayerDefinition;
 
@@ -404,7 +404,7 @@ TEST_CASE("the default mass is the reference build at 1.8 m") {
 
   PlayerDefinition standard;
   standard.height = height;
-  standard.weight_kg = kReferenceBmi * height * height;  // girth_scale == 1
+  standard.weight_kg = kDefaultPlayerMassKg;  // girth_scale == 1
   const auto standard_profile = MakePlayerBodyProfile(standard);
 
   REQUIRE(no_mass.girth_scale == Catch::Approx(1.0f));
