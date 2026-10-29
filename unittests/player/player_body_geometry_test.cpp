@@ -393,24 +393,24 @@ TEST_CASE("body-profile girth changes ball CCD consistently") {
   REQUIRE(hit_broad->collider == torso_id);
 }
 
-TEST_CASE("legacy no-weight player keeps standard girth geometry") {
+TEST_CASE("a definition without a mass keeps reference girth geometry") {
   const PoseFrame pose = StandingPose();
   const PlayerKinematicState state{};
   const float height = 1.80f;
 
   PlayerDefinition no_weight;
   no_weight.height = height;  // weight_kg stays unset
-  const auto legacy = MakePlayerBodyProfile(no_weight);
+  const auto no_mass = MakePlayerBodyProfile(no_weight);
 
   PlayerDefinition standard;
   standard.height = height;
   standard.weight_kg = kReferenceBmi * height * height;  // girth_scale == 1
   const auto standard_profile = MakePlayerBodyProfile(standard);
 
-  REQUIRE(legacy.girth_scale == Catch::Approx(1.0f));
+  REQUIRE(no_mass.girth_scale == Catch::Approx(1.0f));
   REQUIRE(standard_profile.girth_scale == Catch::Approx(1.0f));
 
-  const auto a = BuildBodyCollider(pose, state, 0.0f, legacy);
+  const auto a = BuildBodyCollider(pose, state, 0.0f, no_mass);
   const auto b = BuildBodyCollider(pose, state, 0.0f, standard_profile);
   for (std::size_t i = 0; i < a.shapes.size(); ++i) {
     if (std::holds_alternative<Capsule>(a.shapes[i])) {

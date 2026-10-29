@@ -14,11 +14,13 @@ namespace football::player {
 using PlayerId = std::uint32_t;
 inline constexpr PlayerId kInvalidPlayerId = std::numeric_limits<PlayerId>::max();
 
-// Legacy GRF database profile key: import provenance, not player identity.
+// External data-source key for tracing where this definition came from.
+// Provenance only: two definitions that share it are not the same player.
 using PlayerDatabaseId = int;
 
-// Stable ordering of the legacy ability items. These describe base abilities,
-// not current fatigue, actions or other mutable match state.
+// Stable ordering of the base ability items. They describe what a player can do
+// in the abstract - not current fatigue, actions or any other mutable match
+// state (see Player::GetStat for the value actually in force).
 enum class PlayerStat {
   physical_balance,
   physical_reaction,
@@ -69,8 +71,9 @@ class PlayerAttributes {
 };
 
 struct PlayerAppearance {
-  // Missing skin colour lets the legacy runtime adapter select it. Known
-  // profiles carry an explicit colour; constructing a model never draws RNG.
+  // Optional: absent means the renderer derives a colour from the player's
+  // identity, a present value is authoritative. Constructing a model never
+  // draws RNG.
   std::optional<int> skin_color;
   std::string hair_style = "short01";
   std::string hair_color = "darkblonde";
@@ -85,9 +88,11 @@ struct PlayerDefinition {
   std::string last_name;
   int age = 15;
   float height = 1.8f;
-  // Body mass in kilograms. Optional on purpose: most existing definitions
-  // omit it and must keep the legacy standard girth instead of silently
-  // adopting a synthetic default weight (see MakePlayerBodyProfile).
+  // Body mass in kilograms, the anthropometric input that sets body girth.
+  // Optional: a definition may carry a mass, or describe only its height, in
+  // which case the body profile uses the reference mass for that height
+  // (girth 1.0). A present value must be finite and positive; see
+  // MakePlayerBodyProfile.
   std::optional<float> weight_kg;
   PlayerAttributes attributes;
   PlayerAppearance appearance;

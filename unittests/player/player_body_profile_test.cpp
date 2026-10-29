@@ -35,7 +35,7 @@ TEST_CASE("profile derives height scale and standard default girth") {
   REQUIRE(profile.build == BodyBuild::Normal);
 }
 
-TEST_CASE("legacy players keep standard girth at any height") {
+TEST_CASE("a definition without a mass keeps the reference girth at any height") {
   for (const float height : {1.65f, 1.80f, 1.95f, 2.10f}) {
     const PlayerBodyProfile profile = MakePlayerBodyProfile(MakePlayer(height));
     INFO("height " << height);

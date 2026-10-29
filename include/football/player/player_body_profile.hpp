@@ -32,8 +32,8 @@ struct PlayerBodyProfile {
 // This is a geometric calibration parameter, not an anthropometric claim.
 inline constexpr float kReferenceBmi = 23.0f;
 
-// The single reference height at which height_scale == 1 (was the legacy
-// defaultPlayerHeight; BODY-1.5 removes that duplicate).
+// The single reference height at which height_scale == 1. Height scaling is
+// expressed relative to it, so it must stay the only such constant.
 inline constexpr float kReferencePlayerHeight = 1.92f;
 
 // Classify by the mass-to-standard-mass ratio r = M / (B0*H^2). Thresholds map
@@ -57,25 +57,19 @@ inline PlayerBodyProfile MakePlayerBodyProfile(
 
   const float height_scale = height / kReferencePlayerHeight;
 
-  float mass;
-  float girth_scale;
-  if (definition.weight_kg) {
-    const float weight = *definition.weight_kg;
-    if (!std::isfinite(weight) || weight <= 0.0f)
-      throw std::invalid_argument("player weight must be finite and positive");
-    mass = weight;
-    const float normal_mass = kReferenceBmi * height * height;
-    // Continuous relative-girth proxy: geometry consumes this value, not the
-    // BodyBuild label derived from it.
-    girth_scale = std::sqrt(mass / normal_mass);
-  } else {
-    // Legacy player without an explicit weight keeps standard girth for its
-    // height, so adding the field never silently fattens or slims an actor.
-    mass = kReferenceBmi * height * height;
-    girth_scale = 1.0f;
-  }
+  // Reference mass for this height: the definition's mass when it carries one,
+  // otherwise the reference build. "No mass given" is therefore exactly the
+  // normal body, not a silent fattening or slimming of the actor.
+  const float reference_mass = kReferenceBmi * height * height;
+  const float mass = definition.weight_kg.value_or(reference_mass);
+  if (!std::isfinite(mass) || mass <= 0.0f)
+    throw std::invalid_argument("player weight must be finite and positive");
 
-  const float mass_ratio = mass / (kReferenceBmi * height * height);
+  // Continuous relative-girth proxy: geometry consumes this value, not the
+  // BodyBuild label derived from it.
+  const float mass_ratio = mass / reference_mass;
+  const float girth_scale = std::sqrt(mass_ratio);
+
   return PlayerBodyProfile{height, mass, height_scale, girth_scale,
                            ClassifyBodyBuild(mass_ratio)};
 }
