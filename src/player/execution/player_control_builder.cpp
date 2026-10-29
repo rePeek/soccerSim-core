@@ -1,6 +1,8 @@
 #include "player/execution/player_control_builder.hpp"
 
 #include <algorithm>
+#include <optional>
+#include <utility>
 
 #include "football/ball/ball.hpp"
 #include "football/pitch/pitch.hpp"
@@ -9,13 +11,20 @@
 #include "player/execution/player_action_mapping.hpp"
 #include "player/execution/kick_targeting.hpp"
 
+namespace {
 
-CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
-                                       Player& player,
-                                       const PlayerCommandInputs& inputs) {
-  using football::sim::player::CommandBuildStatus;
-  // Controls are already in the single Stadium Frame; never mutate caller data.
-  PlayerControl control = input;
+using football::sim::player::CommandBuildStatus;
+
+CommandBuildResult BuildResult(CommandBuildStatus status,
+                               PlayerCommandQueue commands) {
+  return CommandBuildResult{status, std::move(commands)};
+}
+
+// Continuous movement portion of a control input. It is always produced first:
+// every rejection and fallback below publishes this command so locomotion
+// continuity survives a failed discrete action.
+PlayerCommand BuildMovementCommand(const PlayerControl& control,
+                                   const Player& player) {
   PlayerCommand movement;
   movement.desiredFunctionType = e_FunctionType_Movement;
   movement.useDesiredMovement = true;
@@ -26,13 +35,15 @@ CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
     movement.useDesiredLookAt = true;
     movement.desiredLookAt = control.look_at->Get2D();
   }
-  const auto result = [](CommandBuildStatus status,
-                         PlayerCommandQueue commands) {
-    return CommandBuildResult{status, std::move(commands)};
-  };
-  // Rules own restart and keeper-hands legality. Build a value-only request
-  // and let the Runtime-owned authorization port sample its live rule facts
-  // here, where the original checks ran; Player never adjudicates.
+  return movement;
+}
+
+// Rules own restart and keeper-hands legality. Build a value-only request and
+// let the Runtime-owned authorization port sample its live rule facts here,
+// where the original checks ran; Player never adjudicates.
+football::sim::player::PlayerActionAuthorization EvaluateAuthorization(
+    const PlayerControl& control, Player& player,
+    const PlayerCommandInputs& inputs) {
   football::sim::player::PlayerAuthorizationRequest authorization_request;
   authorization_request.actor = &player;
   authorization_request.team_id = inputs.own_team.team_id;
@@ -50,25 +61,36 @@ CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
   if (inputs.authorization != nullptr) {
     authorization = inputs.authorization->Evaluate(authorization_request);
   }
-  if (authorization.restart_gate && !authorization.action_allowed) {
-    if (!authorization.movement_allowed) movement.desiredVelocityFloat = 0.f;
-    return result(CommandBuildStatus::Rejected, {movement});
-  }
-  if (control.action == ControlAction::None)
-    return result(CommandBuildStatus::MovementOnly, {movement});
+  return authorization;
+}
+
+struct DiscreteActionBuild {
+  CommandBuildStatus status = CommandBuildStatus::MovementOnly;
+  // Present only for Accepted: the discrete command that precedes the movement
+  // fallback in the queue. Every other status publishes movement alone.
+  std::optional<PlayerCommand> command;
+};
+
+// Discrete action portion. The caller has already handled the rule restart gate
+// and the MovementOnly case; this decides whether the requested action can be
+// expressed as a command at all.
+DiscreteActionBuild BuildDiscreteActionCommand(
+    const PlayerControl& control, Player& player,
+    const PlayerCommandInputs& inputs, const PlayerCommand& movement,
+    const football::sim::player::PlayerActionAuthorization& authorization) {
   if (control.action == ControlAction::Pull ||
       control.action == ControlAction::CallSupport) {
     // Defined Commands with no current execution path: Pull has no correct
     // clip, and CallSupport must be resolved by Team/Planner into another
     // player's Move Command. Never substitute an unrelated action.
-    return result(CommandBuildStatus::Unsupported, {movement});
+    return {CommandBuildStatus::Unsupported, std::nullopt};
   }
 
   const bool pass_action =
       football::sim::player::IsPassControlAction(control.action);
   if (!football::sim::player::ControlActionTargetIsExplicit(control) ||
       !football::sim::player::ControlActionAimIsExplicit(control)) {
-    return result(CommandBuildStatus::Rejected, {movement});
+    return {CommandBuildStatus::Rejected, std::nullopt};
   }
 
   PlayerCommand command = movement;
@@ -119,7 +141,7 @@ CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
               command.touchInfo.desiredPower, targetPlayer)) {
         // The explicit target is alive but the concrete pass could not be
         // solved. Keep locomotion, but do not report the pass as executed.
-        return result(CommandBuildStatus::FallbackMovement, {movement});
+        return {CommandBuildStatus::FallbackMovement, std::nullopt};
       }
       command.touchInfo.targetPlayer = targetPlayer;
     }
@@ -127,12 +149,40 @@ CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
   if (control.action == ControlAction::Save) {
     // Hands legality is a Rules decision; a rejected Save still publishes the
     // movement intent.
-    if (!authorization.goalkeeper_hands_allowed)
-      return result(CommandBuildStatus::Rejected, {movement});
+    if (!authorization.goalkeeper_hands_allowed) {
+      return {CommandBuildStatus::Rejected, std::nullopt};
+    }
     command.useDesiredMovement = false;
     command.useDesiredLookAt = false;
   }
-  // Mechanical movement fallback, not a second AI decision. An unavailable
-  // action must still publish a fresh locomotion intent on reset/re-entry.
-  return result(CommandBuildStatus::Accepted, {command, movement});
+  return {CommandBuildStatus::Accepted, std::move(command)};
+}
+
+}  // namespace
+
+CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
+                                       Player& player,
+                                       const PlayerCommandInputs& inputs) {
+  // Controls are already in the single Stadium Frame; never mutate caller data.
+  PlayerControl control = input;
+  PlayerCommand movement = BuildMovementCommand(control, player);
+  const football::sim::player::PlayerActionAuthorization authorization =
+      EvaluateAuthorization(control, player, inputs);
+  if (authorization.restart_gate && !authorization.action_allowed) {
+    if (!authorization.movement_allowed) movement.desiredVelocityFloat = 0.f;
+    return BuildResult(CommandBuildStatus::Rejected, {movement});
+  }
+  if (control.action == ControlAction::None) {
+    return BuildResult(CommandBuildStatus::MovementOnly, {movement});
+  }
+
+  DiscreteActionBuild action = BuildDiscreteActionCommand(
+      control, player, inputs, movement, authorization);
+  if (action.status == CommandBuildStatus::Accepted && action.command) {
+    // Mechanical movement fallback, not a second AI decision. An unavailable
+    // action must still publish a fresh locomotion intent on reset/re-entry.
+    return BuildResult(CommandBuildStatus::Accepted,
+                       {*action.command, movement});
+  }
+  return BuildResult(action.status, {movement});
 }
