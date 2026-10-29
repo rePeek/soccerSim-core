@@ -136,9 +136,6 @@ class SimulationAccess {
   static void SwitchTeamEnds(Simulation& s, int team_id) {
     s.SwitchTeamEnds(team_id);
   }
-  static PlayerTeamFacts TeamFactsOf(const Simulation& s, int team_id) {
-    return s.TeamFactsFor(team_id);
-  }
   // The runtime-owned match state a team owns. Exposed so the harness can
   // exercise possession without going through a rules/observation view.
   static football::sim::TeamOrientation& TeamOrientationOf(Simulation& s, int team_id) {

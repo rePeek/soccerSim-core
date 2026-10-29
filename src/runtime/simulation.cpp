@@ -1,5 +1,6 @@
 #include "runtime/simulation.hpp"
 #include "football/pitch/pitch.hpp"
+#include "player/player.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -203,11 +204,15 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
   const int rival_team = 1 - own_team;
   const int processing_slot = own_team == second_team_ ? 1 : 0;
   // Borrowed views: player slices plus the runtime-owned team match state.
-  const PlayerTeamView own_view{own_team, TeamOf(own_team).Players(),
+  const PlayerTeamView own_view{own_team,
+                                team_orientations_[own_team].defending_direction,
+                                TeamOf(own_team).Players(),
                                 TeamOf(rival_team).Players(),
                                 team_states_[own_team].goalie,
                                 &team_states_[own_team]};
-  const PlayerTeamView opponent_view{rival_team, TeamOf(rival_team).Players(),
+  const PlayerTeamView opponent_view{rival_team,
+                                     team_orientations_[rival_team].defending_direction,
+                                     TeamOf(rival_team).Players(),
                                      TeamOf(own_team).Players(),
                                      team_states_[rival_team].goalie,
                                      &team_states_[rival_team]};
@@ -579,7 +584,6 @@ void Simulation::InitTeamPlayers(int team_id, football::team::Team& team,
     Player* raw = player.get();
     team.AddPlayer(std::move(player));
     formations_[team_id].push_back(entry);
-    raw->SetTeamContext(TeamFactsFor(team_id));
     if (slot) raw->Activate(spawn_position);
   }
   // Goalkeeper identity is runtime match state, not a Player-cached role.
@@ -608,17 +612,7 @@ football::sim::TeamView Simulation::TeamViewOf(int team_id) const {
       team_states_[team_id].goalie,
       TeamOf(team_id).Players(),
       formations_[team_id],
-      &team_states_[team_id],
-      &team_orientations_[team_id]};
-}
-
-PlayerTeamFacts Simulation::TeamFactsFor(int team_id) const {
-  return football::sim::TeamFactsOf(team_orientations_[team_id], team_states_[team_id]);
-}
-
-void Simulation::PublishTeamFacts(int team_id) {
-  football::sim::PublishTeamFacts(TeamOf(team_id).Players(), team_orientations_[team_id],
-                                  team_states_[team_id]);
+      &team_states_[team_id]};
 }
 
 void Simulation::ResetTeamSituation(int team_id,
@@ -630,12 +624,8 @@ void Simulation::ResetTeamSituation(int team_id,
   state.possession_amount = 1.0f;
   state.fading_possession_amount = 1.0f;
   state.SetDesignatedPlayer(TeamOf(team_id).Players().front());
-  // Publication stays inside the loop, in declaration order, exactly as the
-  // legacy Team's previous reset owner did; batching would change the timing.
-  const PlayerTeamFacts facts = TeamFactsFor(team_id);
   for (Player* player : TeamOf(team_id).Players()) {
     if (player->IsActive()) player->ResetSituation(focus_position, now);
-    player->SetTeamContext(facts);
   }
 }
 
@@ -649,12 +639,8 @@ void Simulation::SwitchTeamEnds(int team_id) {
   // The permanent change of ends flips the only live orientation. Positions
   // are not mirrored: the kickoff ceremony that follows re-places the actors,
   // and the Stadium Frame never rotates.
-  football::sim::TeamOrientation& orientation = team_orientations_[team_id];
-  orientation.defending_direction = -orientation.defending_direction;
-  const PlayerTeamFacts facts = TeamFactsFor(team_id);
-  for (Player* player : TeamOf(team_id).Players()) {
-    player->SetTeamContext(facts);
-  }
+  team_orientations_[team_id].defending_direction =
+      -team_orientations_[team_id].defending_direction;
 }
 
 void Simulation::ValidateRuling(const football::sim::event::RefereeRuling& ruling) const {
@@ -1145,7 +1131,8 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   GetActiveTeamPlayers(first_team_, players);
   GetActiveTeamPlayers(second_team_, players);
   football::sim::ResolvePlayerContacts(
-      {GetTimelineTick(), players, *ball_, designated_possession_player_, ball_retainer_},
+      {GetTimelineTick(), players, *ball_, designated_possession_player_,
+       ball_retainer_, {&team_states_[0], &team_states_[1]}},
       foul_assessments_);
   // Foul verdicts now come from the contact solver's frozen assessments, at
   // the same instant and in the same pair order the trip facts used to.

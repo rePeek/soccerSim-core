@@ -184,6 +184,13 @@ float PlayerExecution::ControlSpeed() const {
   return 0.f;
 }
 
+bool PlayerExecution::AllowLastDitch(float team_possession_amount,
+                                     bool include_possession_amount) const {
+  if (include_possession_amount && team_possession_amount < 1.0f) return true;
+  return port().GetTimeNeededToGetToBall_optimistic_ms() * 1.7f + 800 <
+         port().GetTimeNeededToGetToBall_ms();
+}
+
 void PlayerExecution::SelectRetainAnim(PlayerExecutionPort& owner) {
   PortScope scope(*this, owner);
   SelectRetainAnim();

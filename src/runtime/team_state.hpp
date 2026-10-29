@@ -10,8 +10,6 @@ namespace football::sim {
 // owns the storage and hands the actor-readable base subobject to a borrowed
 // TeamView, so a same-tick designation is visible without a copy.
 struct TeamMatchState : football::player::PlayerTeamMatchFacts {
-  float possession_amount = 0.0f;
-  float fading_possession_amount = 0.0f;
   // Live actor for the stable `designated_player` identity above. Runtime-only
   // execution cache; Runtime sets it through SetDesignatedPlayer.
   Player* designated_actor = nullptr;

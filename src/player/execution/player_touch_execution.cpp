@@ -370,6 +370,7 @@ Player* PlayerExecution::ProcessActionTouches(football::sim::Tick now,
                 : nullptr;
         const bool refined = football::sim::mechanics::GetPass(
             self(), state_.legacy_anim_state_.originatingCommand.desiredFunctionType,
+            tick.own_team.defending_direction,
             state_.legacy_anim_state_.originatingCommand.touchInfo.forcedTargetPlayer,
             forcedTargetPosition, tmpBallDirection, tmpBallPower,
             tmpTargetPlayer);
@@ -518,7 +519,7 @@ Player* PlayerExecution::ProcessActionTouches(football::sim::Tick now,
                       state_.legacy_spatial_state_.directionVec.coords[0], 0.0f)));
           Vector3 touchVec =
               (-currentBallMovement * 0.1f + playerMovement * 2.0f +
-               Vector3(-port().GetDefendingDirection(), 0, 0) * 4.0f +
+               Vector3(-tick.own_team.defending_direction, 0, 0) * 4.0f +
                Vector3(0, scatterSide, 0))
                   .GetNormalized(0) *
               (currentBallMovement.GetLength() * 0.3f +

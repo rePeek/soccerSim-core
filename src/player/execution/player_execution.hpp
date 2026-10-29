@@ -106,6 +106,12 @@ class PlayerExecution final {
   // Retain-clip re-selection without a new borrow (the caller already holds one).
   void SelectRetainAnim();
 
+  // Pure decision: is an extreme (last-ditch) animation justified? The team
+  // possession weight is an input, not cached state; the time-to-ball values
+  // come from the Player's own capability estimate.
+  bool AllowLastDitch(float team_possession_amount,
+                      bool include_possession_amount = true) const;
+
   // --- tick -------------------------------------------------------------
   void RunActionTick(PlayerExecutionPort& owner, football::sim::Tick now,
                      const football::sim::PlayerTickContext& tick,

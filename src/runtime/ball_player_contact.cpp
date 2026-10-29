@@ -62,7 +62,8 @@ BallPlayerContactResult ResolveBallPlayerContacts(
               // Read current touch records, not biases frozen before the sweep.
               const int latest_team = last_touch_team != -1
                   ? last_touch_team : inputs.fallback_last_touch_team;
-              if (players[i] == players[i]->GetTeamDesignatedPossessionPlayer() &&
+              if (players[i]->GetID() ==
+                      inputs.teams[players[i]->GetTeamID()].DesignatedPlayerId() &&
                   football::sim::player::TeamTouchBias(inputs.touches,
                       inputs.teams[latest_team].team_id,
                       inputs.teams[latest_team].teammates, 200, inputs.now) < 0.01f) {

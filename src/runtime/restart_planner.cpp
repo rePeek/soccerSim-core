@@ -159,7 +159,8 @@ const football::team::FormationPreset* FindPreset(
 std::optional<Vector3> PresetTargetFor(
     const football::team::FormationPreset* preset,
     const football::sim::ActiveLineupState* lineup, const Player& player,
-    const football::pitch::Pitch& pitch, const Vector3& ball_position) {
+    const football::pitch::Pitch& pitch, int defending_direction,
+    const Vector3& ball_position) {
   if (preset == nullptr || lineup == nullptr) return std::nullopt;
   for (const football::team::PresetPosition& position : preset->positions) {
     if (position.slot >= lineup->slots.size()) continue;
@@ -167,7 +168,7 @@ std::optional<Vector3> PresetTargetFor(
     if (!bound || *bound != player.GetID()) continue;
     // Stadium-frame candidate; LegalTarget below owns the rule legalization.
     return football::team::FormationAnchorToWorld(
-        position.anchor, pitch, player.GetDefendingDirection(), ball_position, false);
+        position.anchor, pitch, defending_direction, ball_position, false);
   }
   return std::nullopt;
 }
@@ -255,7 +256,9 @@ RestartPlan PlanRestart(const football::pitch::Pitch& pitch,
       const football::sim::ActiveLineupState* lineup =
           opponent ? planning.For(1 - team_id).lineup : planning.For(team_id).lineup;
       const std::optional<Vector3> preset_target =
-          PresetTargetFor(preset, lineup, *player, pitch, plan.ball_position);
+          PresetTargetFor(preset, lineup, *player, pitch,
+                          planning.For(player->GetTeamID()).defending_direction,
+                          plan.ball_position);
       if (preset_target) {
         target = *preset_target;
       } else if (mode == e_GameMode_KickOff) {

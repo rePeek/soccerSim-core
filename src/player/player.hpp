@@ -55,19 +55,6 @@ struct PlayerCommandInputs;
 class Player;
 class PlayerExecution;
 
-// Facts Runtime publishes to each Player. This is a per-tick projection of its
-// team's match state; Player never stores or owns a Team object.
-struct PlayerTeamFacts {
-  // The end this team defends in the Stadium Frame: -1 (-X) or +1 (+X).
-  int defending_direction = -1;
-  float possession_amount = 1.0f;
-  float fading_possession_amount = 1.0f;
-  Player* designated_possession_player = nullptr;
-
-  // The direction this team attacks in the Stadium Frame.
-  int attack_direction() const { return -defending_direction; }
-};
-
 // PEX-4: the Player is the player entity - identity, capability, match state,
 // the authoritative kinematic state and the lifecycle. The execution process
 // (control/request consumption, scheduling, action selection, animation
@@ -297,18 +284,6 @@ class Player final : private PlayerExecutionPort {
 
   int GetTeamID() const override { return team_id_; }
   football::sim::TeamSide GetTeamSide() const override { return side_; }
-  // The end this team defends in the Stadium Frame: -1 (-X) or +1 (+X).
-  int GetDefendingDirection() const { return team_facts_.defending_direction; }
-  // The direction this team attacks in the Stadium Frame.
-  int GetAttackDirection() const { return team_facts_.attack_direction(); }
-  float GetTeamFadingPossessionAmount() const {
-    return team_facts_.fading_possession_amount;
-  }
-  Player* GetTeamDesignatedPossessionPlayer() const {
-    return team_facts_.designated_possession_player;
-  }
-  // Runtime publishes the per-tick match facts; Player never holds Team.
-  void SetTeamContext(const PlayerTeamFacts& facts) { team_facts_ = facts; }
   Vector3 GetPitchPosition();
   bool TouchPending() const;
   bool TouchAnim() const;
@@ -334,7 +309,6 @@ class Player final : private PlayerExecutionPort {
   }
   void SetDesiredTimeToBall_ms(int ms) { desiredTimeToBall_ms = ms; }
   int GetDesiredTimeToBall_ms() const { return clamp(desiredTimeToBall_ms, timeNeededToGetToBall_ms, 1000000.0f); }
-  bool AllowLastDitch(bool includingPossessionAmount = true) const;
   void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
   bool IsControlledBallCollisionTriggered() const { return triggerControlledBallCollision; }
   void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
@@ -376,11 +350,10 @@ class Player final : private PlayerExecutionPort {
   // Non-unique 0..9 offset for staggered 100 ms work, never identity or order.
   const std::uint8_t schedule_phase_;
 
-  // Own team identity plus the match facts Runtime publishes. Player knows
-  // which team it belongs to but never owns or stores a Team object.
+  // Own team identity. Team match facts arrive per tick through the borrowed
+  // PlayerTeamView; the Player caches none of them.
   const int team_id_;
   const football::sim::TeamSide side_;
-  PlayerTeamFacts team_facts_;
 
   PlayerKinematicState kinematic_state_;
   PlayerGroundCollider ground_collider_;

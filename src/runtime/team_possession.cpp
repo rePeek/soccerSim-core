@@ -5,7 +5,6 @@
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
 #include "player/execution/roster_query.hpp"
-#include "runtime/team_facts.hpp"
 
 using football::ball::Ball;
 
@@ -55,7 +54,6 @@ void PrepareTeamPossession(TeamSide side, std::span<Player* const> players,
   }
   state.possession_amount = amount;
   state.fading_possession_amount = fading;
-  PublishTeamFacts(players, frame, state);
 }
 
 void FinishTeamPossession(std::span<Player* const> players,
@@ -77,7 +75,6 @@ void FinishTeamPossession(std::span<Player* const> players,
     }
     if (timeRating < 0.8f) {
       state.SetDesignatedPlayer(bestPlayer);
-      PublishTeamFacts(players, frame, state);
     }
   }
 }
@@ -110,7 +107,6 @@ void RefreshDesignatedTeamPossessionPlayer(std::span<Player* const> players,
                                           const Ball& ball) {
   state.SetDesignatedPlayer(
       football::sim::player::FindClosestPlayer(players, ball.state().position.Get2D()));
-  PublishTeamFacts(players, frame, state);
 }
 
 }  // namespace football::sim

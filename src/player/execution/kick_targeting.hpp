@@ -29,7 +29,7 @@ namespace football::sim::mechanics {
 // `forcedTargetPosition` is used as a static target point. Returns false when
 // neither is available: the caller must reject the pass or keep its last
 // explicit solution. This function never selects a receiver.
-bool GetPass(Player *player, e_FunctionType passType,
+bool GetPass(Player *player, e_FunctionType passType, int defending_direction,
              Player *forcedTargetPlayer,
              const Vector3 *forcedTargetPosition,
              Vector3 &resultingDirection, float &resultingPower,

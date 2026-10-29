@@ -70,7 +70,7 @@ void Simulation::BeginBodyPhysicsShadow() {
     if (!old_hit || (prediction.start.position + Vector3(0, 0, .8f) - ball_->state().position).GetLength() >= 2.5f)
       blocks |= BodyOldGeometryMiss;
     const int latest_team = touches_.last_team != -1 ? touches_.last_team : first_team_;
-    if (player == player->GetTeamDesignatedPossessionPlayer() &&
+    if (team_states_[player->GetTeamID()].designated_actor == player &&
         football::sim::event::TeamTouchBias(touches_, latest_team,
                                            TeamOf(latest_team).Players(),
                                            200, now) < .01f) blocks |= BodyControlledRoute;

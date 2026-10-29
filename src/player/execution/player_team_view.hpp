@@ -14,6 +14,10 @@ class Player;
 // PlayerTickContext so player code stops depending on the runtime Team class.
 struct PlayerTeamView {
   int team_id = -1;
+  // The end this team defends in the Stadium Frame for this tick. A value, not
+  // a borrow: the ends change at a phase boundary and the context is rebuilt
+  // afterwards.
+  int defending_direction = -1;
   std::span<Player* const> teammates;
   std::span<Player* const> opponents;
   Player* goalie = nullptr;
@@ -23,11 +27,19 @@ struct PlayerTeamView {
   // through PlayerRuntimeSink.
   const football::player::PlayerTeamMatchFacts* state = nullptr;
 
+  int AttackDirection() const { return -defending_direction; }
+
   bool HasPossession() const {
     return state != nullptr && state->has_possession;
   }
   int TimeNeededToGetToBall_ms() const {
     return state != nullptr ? state->time_to_ball_ms : 100;
+  }
+  float PossessionAmount() const {
+    return state != nullptr ? state->possession_amount : 1.0f;
+  }
+  float FadingPossessionAmount() const {
+    return state != nullptr ? state->fading_possession_amount : 1.0f;
   }
   football::player::PlayerId DesignatedPlayerId() const {
     return state != nullptr ? state->designated_player

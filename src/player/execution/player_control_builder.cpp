@@ -44,7 +44,7 @@ CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
     authorization_request.predicted_ball =
         inputs.ball.Predict(football::sim::TickSpan{16}).position;
     authorization_request.half_length = inputs.pitch.half_length();
-    authorization_request.defending_direction = player.GetDefendingDirection();
+    authorization_request.defending_direction = inputs.own_team.defending_direction;
   }
   football::sim::player::PlayerActionAuthorization authorization;
   if (inputs.authorization != nullptr) {
@@ -113,6 +113,7 @@ CommandBuildResult BuildPlayerCommands(const PlayerControl& input,
       Player* targetPlayer = nullptr;
       if (!football::sim::mechanics::GetPass(
               &player, command.desiredFunctionType,
+              inputs.own_team.defending_direction,
               command.touchInfo.forcedTargetPlayer, forcedTargetPosition,
               command.touchInfo.desiredDirection,
               command.touchInfo.desiredPower, targetPlayer)) {

@@ -68,8 +68,6 @@ TEST_CASE("Runtime separates static Team from Player and live team state",
             actors.data());
       CHECK(SimulationAccess::ActiveLineupOf(sim, side).slots ==
             team.lineup.starters);
-      CHECK(SimulationAccess::TeamViewOf(sim, side).orientation ==
-            &SimulationAccess::TeamOrientationOf(sim, side));
       CHECK(SimulationAccess::TeamViewOf(sim, side).state ==
             &SimulationAccess::TeamStateOf(sim, side));
       for (std::size_t i = 0; i < actors.size(); ++i) {
@@ -266,22 +264,21 @@ TEST_CASE("Runtime owns live lineup, frame and match state separately from Team"
   auto& active = SimulationAccess::ActiveLineupOf(sim, 0);
   const auto view = SimulationAccess::TeamViewOf(sim, 0);
   REQUIRE(players.size() == 2);
-  CHECK(view.orientation == &frame);
   CHECK(view.state == &state);
   CHECK(view.players.data() == players.data());
   CHECK(active.slots == team.lineup.starters);
-  const auto cached = players[0]->GetTeamDesignatedPossessionPlayer();
   SimulationAccess::RuntimeOf(sim).SetDesignatedPlayer(0, players[1]);
   CHECK(state.designated_actor == players[1]);
-  CHECK(players[0]->GetTeamDesignatedPossessionPlayer() == cached);
+  // Team facts are borrowed, not cached: the live view sees the write at once.
+  CHECK(SimulationAccess::TeamViewOf(sim, 0).DesignatedPlayer() == players[1]);
   SimulationAccess::SwitchTeamEnds(sim, 0);
-  CHECK(players[0]->GetTeamDesignatedPossessionPlayer() == players[1]);
   CHECK(frame.defending_direction == 1);
+  CHECK(SimulationAccess::TeamViewOf(sim, 0).defending_direction == 1);
   SimulationAccess::SwitchTeamEnds(sim, 0);
   CHECK(frame.defending_direction == -1);
   view.SetFadingPossessionAmount(.8f);
   CHECK(state.fading_possession_amount == .8f);
-  CHECK(players[0]->GetTeamFadingPossessionAmount() == .8f);
+  CHECK(SimulationAccess::TeamViewOf(sim, 0).fading_possession_amount() == .8f);
   SimulationAccess::SwitchTeamEnds(sim, 0);
   CHECK(frame.defending_direction == 1);
   CHECK(frame.defending_direction == 1);
@@ -310,5 +307,43 @@ TEST_CASE("Runtime Team retains only static configuration", "[team][ownership]")
   CHECK(team.players.size() == home.players.size());
   CHECK(team.players.size() ==
         SimulationAccess::TeamOf(sim, 0).Players().size());
+  CHECK(sim.Stop());
+}
+
+TEST_CASE("a tick borrows live team facts instead of a Player cache",
+          "[team][ownership]") {
+  Simulation sim;
+  MatchOptions options;
+  options.snapshot_capacity = 8;
+  sim.Init(OwnershipSetup(50), OwnershipSetup(500),
+           football::pitch::Pitch{}, options);
+  const auto players = SimulationAccess::TeamOf(sim, 0).Players();
+  auto& state = SimulationAccess::TeamStateOf(sim, 0);
+  auto& frame = SimulationAccess::TeamOrientationOf(sim, 0);
+  REQUIRE(players.size() == 2);
+
+  // The per-tick view reads the runtime state by reference, so a write inside
+  // the same tick is visible to every later consumer.
+  state.possession_amount = 1.5f;
+  state.fading_possession_amount = 0.75f;
+  state.SetDesignatedPlayer(players[1]);
+  const PlayerTickContext tick =
+      SimulationAccess::PlayerTickOf(sim, *players[0]);
+  CHECK(tick.own_team.team_id == 0);
+  CHECK(tick.own_team.defending_direction == frame.defending_direction);
+  CHECK(tick.own_team.AttackDirection() == -frame.defending_direction);
+  CHECK(tick.own_team.PossessionAmount() == 1.5f);
+  CHECK(tick.own_team.FadingPossessionAmount() == 0.75f);
+  CHECK(tick.own_team.DesignatedPlayerId() == players[1]->GetID());
+  CHECK(tick.opponent_team.team_id == 1);
+
+  // A live write after the view was constructed is still observed: no copy.
+  state.fading_possession_amount = 0.5f;
+  CHECK(tick.own_team.FadingPossessionAmount() == 0.5f);
+
+  SimulationAccess::SwitchTeamEnds(sim, 0);
+  const PlayerTickContext flipped =
+      SimulationAccess::PlayerTickOf(sim, *players[0]);
+  CHECK(flipped.own_team.defending_direction == frame.defending_direction);
   CHECK(sim.Stop());
 }

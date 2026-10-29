@@ -12,6 +12,7 @@
 // limitations under the License.
 
 #include "runtime/player_contact.hpp"
+#include "runtime/team_state.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -51,7 +52,8 @@ ChallengeAction ClassifyChallengeAction(e_FunctionType type) {
 // Freeze every rule-relevant contact input at the contact instant. The referee
 // decides from this evidence instead of re-reading later actor state.
 void FillContactEvidence(FoulAssessment& fact, Player* victim, Player* offender,
-                         const Vector3& ball_position, Tick now) {
+                         const Vector3& ball_position, Tick now,
+                         const TeamMatchState* victim_team_state) {
   const PlayerActionState& action = offender->GetSimulationActionState();
   fact.offender = offender->GetID();
   fact.victim = victim->GetID();
@@ -70,7 +72,8 @@ void FillContactEvidence(FoulAssessment& fact, Player* victim, Player* offender,
   fact.offender_contact_position = action.contactPosition;
   fact.offender_last_touch_tick = offender->GetLastTouchTick();
   fact.victim_team_fading_possession =
-      victim->GetTeamFadingPossessionAmount();
+      victim_team_state != nullptr ? victim_team_state->fading_possession_amount
+                                   : 1.0f;
   // The offender genuinely challenged for the ball only when a challenge
   // animation was active and the ball was within reach at the contact.
   const football::math::Vector3 to_ball =
@@ -83,10 +86,11 @@ void FillContactEvidence(FoulAssessment& fact, Player* victim, Player* offender,
 
 
 FoulAssessment MakeSlidingAssessment(Player* victim, Player* tackler,
-                                     const Vector3& ball_position, Tick now) {
+                                     const Vector3& ball_position, Tick now,
+                                     const TeamMatchState* victim_team_state) {
   FoulAssessment fact;
   fact.kind = FoulKind::SlidingTackle;
-  FillContactEvidence(fact, victim, tackler, ball_position, now);
+  FillContactEvidence(fact, victim, tackler, ball_position, now, victim_team_state);
   fact.severity = football::contact::SlidingChallengeSeverity(fact);
   // Informational normalized score; the verdict uses the raw severity above.
   fact.score = NormalizedClamp(fact.severity, 1.0f, 2.0f);
@@ -117,8 +121,9 @@ ContactActorSnapshot CaptureContactActor(const Player& player,
   snapshot.has_best_possession = player.HasBestPossession();
   snapshot.global_designated_possession =
       &player == inputs.designated_possession_player;
+  const TeamMatchState* team_state = inputs.team_states[player.GetTeamID()];
   snapshot.team_designated_possession =
-      &player == player.GetTeamDesignatedPossessionPlayer();
+      team_state != nullptr && team_state->designated_actor == &player;
   return snapshot;
 }
 
@@ -147,7 +152,7 @@ void ResolvePlayerPair(Player *p1, Player *p2,
   if (resolved.trip_range && assessments != nullptr) {
     if (auto assessment = AssessCollision(
             p1, p2, resolved.first_sensitivity, resolved.second_sensitivity,
-            inputs.ball, inputs.now)) {
+            inputs.ball, inputs.now, inputs.team_states)) {
       assessments->push_back(*assessment);
     }
   }
@@ -196,7 +201,8 @@ void ResolvePlayerPair(Player *p1, Player *p2,
                       inputs.ball_retainer);
         if (tripType == 3 && assessments != nullptr) {
           assessments->push_back(MakeSlidingAssessment(
-              victim, tackler, inputs.ball.state().position, inputs.now));
+              victim, tackler, inputs.ball.state().position, inputs.now,
+              inputs.team_states[victim->GetTeamID()]));
         }
       }
     }
@@ -209,7 +215,8 @@ std::optional<FoulAssessment> AssessCollision(Player* first, Player* second,
                                               float first_sensitivity,
                                               float second_sensitivity,
                                               const football::ball::Ball& ball,
-                                              Tick now) {
+                                              Tick now,
+                                              const TeamMatchState* const* team_states) {
   if (first == nullptr || second == nullptr) return std::nullopt;
   const auto attribution = football::contact::AttributeStandingFall(
       {first->GetID(), first->GetTeamID(), first_sensitivity},
@@ -220,7 +227,8 @@ std::optional<FoulAssessment> AssessCollision(Player* first, Player* second,
 
   FoulAssessment assessment;
   assessment.kind = FoulKind::StandingFall;
-  FillContactEvidence(assessment, victim, offender, ball.state().position, now);
+  FillContactEvidence(assessment, victim, offender, ball.state().position, now,
+                      team_states[victim->GetTeamID()]);
   assessment.score = attribution->score;
   return assessment;
 }

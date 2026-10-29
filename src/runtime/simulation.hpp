@@ -23,7 +23,6 @@
 #include "observation/snapshot_history.hpp"
 #include "observation/player_slots.hpp"
 #include "football/runtime/result.hpp"
-#include "runtime/team_facts.hpp"
 #include "runtime/clock.hpp"
 #include "runtime/restart_controller.hpp"
 #include "runtime/restart_context.hpp"
@@ -163,11 +162,8 @@ class Simulation {
   // the half, Referee does not change a direction, Team owns no live
   // orientation and AI never schedules a change of ends.
   void SwitchTeamEnds(int team_id);
-  PlayerTeamFacts TeamFactsFor(int team_id) const;
-  void PublishTeamFacts(int team_id);
   // Resets one team's match state and its actors in the legacy order: state
-  // first, then the designated player, then per-player ResetSituation and fact
-  // publication inside the same loop (not batched afterwards).
+  // first, then the designated player, then the per-player ResetSituation loop.
   void ResetTeamSituation(int team_id,
                           const football::math::Vector3& focus_position,
                           football::sim::Tick now);

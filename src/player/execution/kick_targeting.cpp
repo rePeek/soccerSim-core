@@ -20,7 +20,7 @@
 
 namespace football::sim::mechanics {
 
-bool GetPass(Player* player, e_FunctionType passType,
+bool GetPass(Player* player, e_FunctionType passType, int defending_direction,
              Player* forcedTargetPlayer,
              const Vector3* forcedTargetPosition,
              Vector3& resultingDirection, float& resultingPower,
@@ -37,7 +37,7 @@ bool GetPass(Player* player, e_FunctionType passType,
   input.origin.has_touch_position = player->TouchAnim();
   if (input.origin.has_touch_position)
     input.origin.touch_position = player->GetTouchPos();
-  input.origin.defending_direction = player->GetDefendingDirection();
+  input.origin.defending_direction = defending_direction;
   if (forcedTargetPlayer) {
     input.target_player = football::sim::player::PassSolverTarget{
         forcedTargetPlayer->GetPosition(), forcedTargetPlayer->GetMovement()};

@@ -340,11 +340,6 @@ bool Player::HasPossession() const { return hasPossession; }
 bool Player::HasBestPossession() const { return hasBestPossession; }
 bool Player::HasUniquePossession() const { return hasUniquePossession; }
 
-bool Player::AllowLastDitch(bool includingPossessionAmount) const {
-  if (includingPossessionAmount && team_facts_.possession_amount < 1.0f) return true;
-  return (GetTimeNeededToGetToBall_optimistic_ms() * 1.7f + 800 < GetTimeNeededToGetToBall_ms());
-}
-
 void Player::UpdatePossessionStats(Ball& ball, const football::player::PlayerTeamMatchFacts& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own) {
   timeNeededToGetToBall_previous_ms = timeNeededToGetToBall_ms;
   const e_FunctionType action_type = GetCurrentFunctionType();

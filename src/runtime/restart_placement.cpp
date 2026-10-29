@@ -38,13 +38,13 @@ const FormationEntry& EntryFor(const football::sim::TeamView& team,
 // Coordinate deformation for rule-owned restart layouts only. It no longer
 // invokes an AI policy during authoritative reset/placement.
 Vector3 AdaptRestartFormation(
-    const football::pitch::Pitch& pitch,
+    const football::pitch::Pitch& pitch, int defending_direction,
     Player *player, const Vector3& formation_position,
     float backXBound, float frontXBound,
     float lowYBound, float highYBound, float xFocus, float xFocusStrength,
     float yFocus, float yFocusStrength, const Vector3 &microFocus,
     float microFocusStrength, float midfieldFocus, float midfieldFocusStrength) {
-  int side = player->GetDefendingDirection();
+  const int side = defending_direction;
 
   Vector3 position = formation_position;
 
@@ -108,7 +108,7 @@ Vector3 AdaptRestartFormation(
       float microFocusBias2 = std::sin((dist - 0.25f) * 2.0f * pi) * 0.5f + 0.5f; // _/-\_
       // mates in team in possession want to keep some distance for easier pass-to-ability, while defenders just want to jump into the action more
 
-      float sineBias = 0.15f;// + clamp(player->GetTeamFadingPossessionAmount() - 0.5f, 0.0f, 1.0f) * 0.2f;
+      float sineBias = 0.15f;
       float microFocusBias = microFocusBias1 * (1.0f - sineBias) +
                              microFocusBias2 * sineBias;
       */
@@ -241,7 +241,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     }
                     lowYBound = -pitch.half_width() * 0.7;
                     highYBound = pitch.half_width() * 0.7;
-                    Vector3 basePos = AdaptRestartFormation(pitch, 
+                    Vector3 basePos = AdaptRestartFormation(pitch, team.defending_direction,
                         players[i], EntryFor(team, players[i]).position, backXBound, frontXBound, lowYBound,
                         highYBound, 0, 0, 0, 0, 0, 0, 0, 0);
                     players[i]->ResetPosition(
@@ -276,7 +276,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     }
                     lowYBound = -pitch.half_width() * 0.6;
                     highYBound = pitch.half_width() * 0.6;
-                    Vector3 basePos = AdaptRestartFormation(pitch, 
+                    Vector3 basePos = AdaptRestartFormation(pitch, team.defending_direction,
                         players[i], EntryFor(team, players[i]).position, backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength,
@@ -322,7 +322,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     }
                     lowYBound = -pitch.half_width() * 0.75f + ballPos.coords[1] * 0.25f;
                     highYBound = pitch.half_width() * 0.75f + ballPos.coords[1] * 0.25f;
-                    Vector3 basePos = AdaptRestartFormation(pitch, 
+                    Vector3 basePos = AdaptRestartFormation(pitch, team.defending_direction,
                         players[i], EntryFor(team, players[i]).position, backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength, ballPos, 0.7, 0, 0);
@@ -381,7 +381,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     }
                     lowYBound = -pitch.half_width() * 0.7;
                     highYBound = pitch.half_width() * 0.7;
-                    Vector3 basePos = AdaptRestartFormation(pitch, 
+                    Vector3 basePos = AdaptRestartFormation(pitch, team.defending_direction,
                         players[i], EntryFor(team, players[i]).position, backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength, ballPos, 0.4, 0, 0);
@@ -456,7 +456,7 @@ Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
                     }
                     lowYBound = -pitch.half_width() * 0.8;
                     highYBound = pitch.half_width() * 0.8;
-                    Vector3 basePos = AdaptRestartFormation(pitch, 
+                    Vector3 basePos = AdaptRestartFormation(pitch, team.defending_direction,
                         players[i], EntryFor(team, players[i]).position, backXBound, frontXBound, lowYBound,
                         highYBound, xFocus, xFocusStrength, yFocus,
                         yFocusStrength, 0, 0, 0, 0);

@@ -168,7 +168,8 @@ inline bool AttemptActionSelectionAllowed(const RequeueGateContext &context) {
       (context.now - context.last_touch_tick < football::sim::TickSpan{60} &&
        context.last_touch_type == e_TouchType_Intentional_Kicked) &&
       context.has_possession) {
-    // && !CastPlayer()->AllowLastDitch()) {
+    // (A last-ditch override used to live here; it is now the selection's
+    // own decision, taken from the tick's team possession amount.)
     float desiredMovementChange =
         (context.spatial_movement -
          (context.command.desiredDirection * context.command.desiredVelocityFloat))

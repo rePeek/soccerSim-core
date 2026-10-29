@@ -104,8 +104,13 @@ observation, controls and stored physics are all the Stadium Frame.
 - **One authority per fact.** Ball state, player state, match state and team
   state each have exactly one owner (Ball, Player, Simulation,
   TeamOrientation/TeamMatchState). Derived projections (Snapshot, WorldState,
-  MentalImage, TeamView, `PlayerTeamFacts`) are read-only and must be
+  MentalImage, TeamView, `PlayerTeamView`) are read-only and must be
   re-derivable from the authority, never a second source of truth.
+  Team facts reach the Player through the per-tick `PlayerTeamView` borrow
+  (direction, possession weights, designated player, goalkeeper). The Player
+  caches none of them, so a same-tick Runtime write is visible to every later
+  consumer without a publication step. `PlayerTeamView` is live Runtime fact;
+  `PlayerObservation` is lagged perception - never merge the two.
 - **Module dependency direction is one-way**: foundation/geometry/collision
   underpin Pitch, Ball and Animation; Contact depends on Player State, Ball
   and geometry, never Player Execution. Player Execution may use Contact;
@@ -174,7 +179,7 @@ there are no state/command CMake subdirectories. Model/parser/private spatial
 and observation files live beside player.hpp. Only execution has a subdirectory.
 
 Player is the entity: identity, definition/body profile, capability, match
-state (possession, touch record, fatigue, cards, formation), the authoritative
+state (own possession facts, touch record, fatigue, cards), the authoritative
 `PlayerKinematicState`/`PlayerGroundCollider` and the lifecycle. Everything
 between an accepted Control/Play/React input and the drawn pose is the
 execution process, owned by the internal `PlayerExecution` component
@@ -205,6 +210,9 @@ Rules for that composition:
 - `Player` remains the only writer of the kinematic state: execution computes
   the locomotion proposal and calls `CommitKinematics`, `CommitLocomotion`,
   `CommitLegacyActionMotion` or `ApplyPositionCorrection`.
+- Team formation and team match facts are not Player state either: Runtime owns
+  the formation table and `TeamMatchState`, and hands only the per-tick
+  `PlayerTeamView` to execution and the `TeamView` to rules/observation.
 - Runtime, Contact and Observation never see `PlayerExecution`: they drive
   `Player` (SetControl/Play/React/PrepareTick/CommitTick and the read-only
   observation accessors), which forwards. `PlayerExecution` stays inside the

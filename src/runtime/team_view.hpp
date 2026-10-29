@@ -6,7 +6,6 @@
 
 #include "football/team/formation_entry.hpp"
 #include "football/runtime/match_config.hpp"
-#include "runtime/team_facts.hpp"
 #include "runtime/team_state.hpp"
 
 class Player;
@@ -30,8 +29,6 @@ struct TeamView {
   std::span<const FormationEntry> formation;
   // Live runtime-owned state; null only for a view without team state.
   TeamMatchState* state = nullptr;
-  // Live orientation, needed to publish team facts after a state write.
-  const TeamOrientation* orientation = nullptr;
 
   // The direction this team attacks in the Stadium Frame.
   int attack_direction() const { return -defending_direction; }
@@ -49,13 +46,11 @@ struct TeamView {
   float fading_possession_amount() const {
     return state != nullptr ? state->fading_possession_amount : 0.0f;
   }
-  // Restart placement weight. The legacy Team setter clamped the value AND
-  // published the new facts immediately; both halves are behaviour (Player
-  // caches the projection), so they stay together here.
+  // Restart placement weight. Runtime-owned: the write is immediately visible
+  // to any consumer that borrows this state, so there is no publication step.
   void SetFadingPossessionAmount(float value) const {
     if (state == nullptr) return;
     state->fading_possession_amount = std::clamp(value, 0.5f, 1.5f);
-    if (orientation != nullptr) PublishTeamFacts(players, *orientation, *state);
   }
 };
 

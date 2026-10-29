@@ -133,7 +133,7 @@ CrudeSelectionQuery PlayerExecution::BuildCrudeSelectionQuery(
     query.incomingBallDirection = (observation.BallPrediction(state_.mentalImageTime, 180, now, tick.ball) - observation.BallPrediction(state_.mentalImageTime, 120, now, tick.ball)).GetRotated2D(-spatialState.angle).GetNormalized(Vector3(0));
   }
 
-  if (port().AllowLastDitch()) {
+  if (AllowLastDitch(tick.own_team.PossessionAmount())) {
     query.allowLastDitchAnims = true;
   } else {
     query.allowLastDitchAnims = false;
@@ -387,20 +387,22 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
   if (tick.set_piece_active) desiredIdleLevel = 1;
   else if ((tick.ball.Predict(football::sim::TickSpan{20}).position - spatialState.position).GetLength() > 16.0f) desiredIdleLevel = 1;
 
-  // Non-Movement strictness. It needs Player-owned facts (AllowLastDitch and
-  // whether the ball is high/bouncy), so the Player resolves it and passes the
-  // values in; the filtering itself is Animation's.
+  // Non-Movement strictness. The last-ditch decision mixes the Player's own
+  // time-to-ball estimate with the tick's team possession weight, and adds
+  // whether the ball is high/bouncy; the filtering itself is Animation's.
   bool nm_strict = false;
   float nm_allowed_angle = 0.3f * pi;
   int nm_allowed_velocity_steps = 1;
   if (command.useDesiredMovement) {
     if (command.desiredFunctionType == e_FunctionType_BallControl) {
-      nm_strict = !port().AllowLastDitch();
+      nm_strict = !AllowLastDitch(tick.own_team.PossessionAmount());
       nm_allowed_angle = 0.0f * pi;
       nm_allowed_velocity_steps = 0;
     } else if (command.desiredFunctionType == e_FunctionType_Trap) {
       const bool high_or_bouncy = HighOrBouncyBall(tick.ball);
-      nm_strict = !(port().AllowLastDitch(false) || high_or_bouncy);
+      nm_strict =
+          !(AllowLastDitch(tick.own_team.PossessionAmount(), false) ||
+            high_or_bouncy);
       nm_allowed_angle = 0.3f * pi;
       nm_allowed_velocity_steps = 2;
 
@@ -1012,22 +1014,22 @@ void PlayerExecution::ApplyGoalkeeperBoundaryClamps(
   if (tick.ball.state().position.coords[1] < -20.05f) {
     port().ApplyPositionCorrection(Vector3(0, clamp(-20.05f - tick.ball.state().position.coords[1], -0.5f, 0.5f), 0) * 0.3f);
   }
-  if (tick.ball.state().position.coords[0] * -port().GetDefendingDirection() >
+  if (tick.ball.state().position.coords[0] * -tick.own_team.defending_direction >
       -tick.pitch.half_length() + 16.4f) {
     port().ApplyPositionCorrection(Vector3(clamp((-tick.pitch.half_length() + 16.4f) -
                                      tick.ball.state().position.coords[0] *
-                                         -port().GetDefendingDirection(),
+                                         -tick.own_team.defending_direction,
                                  -0.5f, 0.5f),
                            0, 0) *
-                   -port().GetDefendingDirection() * 0.3f);
+                   -tick.own_team.defending_direction * 0.3f);
   }
-  if (tick.ball.state().position.coords[0] * -port().GetDefendingDirection() <
+  if (tick.ball.state().position.coords[0] * -tick.own_team.defending_direction <
       -tick.pitch.half_length() + 0.1f) {
     port().ApplyPositionCorrection(Vector3(clamp((-tick.pitch.half_length() + 0.1f) -
                                      tick.ball.state().position.coords[0] *
-                                         -port().GetDefendingDirection(),
+                                         -tick.own_team.defending_direction,
                                  -0.5f, 0.5f),
                            0, 0) *
-                   -port().GetDefendingDirection() * 0.4f);
+                   -tick.own_team.defending_direction * 0.4f);
   }
 }
