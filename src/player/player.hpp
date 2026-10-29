@@ -45,6 +45,7 @@
 #include "player/execution/player_tick_context.hpp"
 #include "player/execution/player_touch_choice.hpp"
 #include "player/execution/player_team_view.hpp"
+#include "player/player_match_state.hpp"
 #include "player/player_observation.hpp"
 
 namespace football::sim { class PlayerRuntimeSink; class PlayerSendOffSink; }
@@ -54,6 +55,21 @@ struct PlayerCommandInputs;
 
 class Player;
 class PlayerExecution;
+
+// Execution-internal audit counters, as one read-only value. These measure the
+// animation/action migration; they are not gameplay state and not Player API.
+struct PlayerExecutionDiagnostics {
+  int authority_checks = 0;
+  int authority_matches = 0;
+  int authority_mismatches = 0;
+  int install_checks = 0;
+  int install_matches = 0;
+  int install_mismatches = 0;
+  int install_cursor_checks = 0;
+  int install_cursor_matches = 0;
+  int install_cursor_mismatches = 0;
+  int touch_selection_successes = 0;
+};
 
 // PEX-4: the Player is the player entity - identity, capability, match state,
 // the authoritative kinematic state and the lifecycle. The execution process
@@ -185,11 +201,7 @@ class Player final : private PlayerExecutionPort {
 
   // ANIM-1 A3: the execution owns the animation playback state and computes the
   // final pose; the Animation module stays stateless.
-  int AuthorityChecks() const;
-  int AuthorityMatches() const;
-  int AuthorityMismatches() const;
   const football::sim::TouchChoice &TouchSelection() const;
-  int TouchSelectionSuccesses() const;
   const PoseFrame& PlaybackPose() const;
   float PlaybackBaseAngle() const;
   const football::animation::PlaybackState& PlaybackState() const;
@@ -199,12 +211,9 @@ class Player final : private PlayerExecutionPort {
   // Last discrete-action execution result: source Command, matched type,
   // install/contact/completion and whether a new action interrupted it.
   const PlayerActionFeedback& ActionFeedback() const;
-  int InstallChecks() const;
-  int InstallMatches() const;
-  int InstallMismatches() const;
-  int InstallCursorChecks() const;
-  int InstallCursorMatches() const;
-  int InstallCursorMismatches() const;
+  // Execution-internal audit counters, exposed as one value for tests and
+  // diagnostics. They are not gameplay API and never grow the Player surface.
+  PlayerExecutionDiagnostics Diagnostics() const;
   // Validates the authoritative schedule against the compatibility projection.
   // It is intentionally a fatal invariant in all builds.
   void CheckSimulationActionOracle() const;
@@ -267,17 +276,18 @@ class Player final : private PlayerExecutionPort {
   // The requested frame is clamped to the clip range in both directions.
   PlayerBakedPoseSample PreviewRawPose(int frame_offset) const;
 
-  void SetLastTouchTick(football::sim::Tick tick) { last_touch_tick_ = tick; }
-  football::sim::Tick GetLastTouchTick() const override { return last_touch_tick_; }
-  void SetLastTouchType(e_TouchType touchType) { this->lastTouchType = touchType; }
-  e_TouchType GetLastTouchType() const override { return lastTouchType; }
+  void SetLastTouchTick(football::sim::Tick tick) { match_state_.last_touch_tick = tick; }
+  football::sim::Tick GetLastTouchTick() const override { return match_state_.last_touch_tick; }
+  void SetLastTouchType(e_TouchType touchType) { match_state_.last_touch_type = touchType; }
+  e_TouchType GetLastTouchType() const override { return match_state_.last_touch_type; }
   // The ability-dependent decay is a continuous estimate, not a grid deadline.
   float GetLastTouchBias(int decay_ms, football::sim::Tick at) const;
 
-  float GetFatigueFactorInv() const { return fatigueFactorInv; }
+  float GetFatigueFactorInv() const { return match_state_.fatigue_factor_inv; }
   void RelaxFatigue(float howMuch) {
-    fatigueFactorInv += howMuch;
-    fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
+    match_state_.fatigue_factor_inv += howMuch;
+    match_state_.fatigue_factor_inv =
+        clamp(match_state_.fatigue_factor_inv, 0.01f, 1.0f);
   }
 
   void ResetSituation(const Vector3 &focusPos, football::sim::Tick now);
@@ -307,23 +317,34 @@ class Player final : private PlayerExecutionPort {
   int GetTimeNeededToGetToBall_previous_ms() const {
     return static_cast<int>(std::min<unsigned int>(timeNeededToGetToBall_previous_ms, 1000000u));
   }
-  void SetDesiredTimeToBall_ms(int ms) { desiredTimeToBall_ms = ms; }
-  int GetDesiredTimeToBall_ms() const { return clamp(desiredTimeToBall_ms, timeNeededToGetToBall_ms, 1000000.0f); }
+  void SetDesiredTimeToBall_ms(int ms) { match_state_.desired_time_to_ball_ms = ms; }
+  int GetDesiredTimeToBall_ms() const {
+    return clamp(match_state_.desired_time_to_ball_ms, timeNeededToGetToBall_ms,
+                 1000000.0f);
+  }
   void TriggerControlledBallCollision() { triggerControlledBallCollision = true; }
   bool IsControlledBallCollisionTriggered() const { return triggerControlledBallCollision; }
   void ResetControlledBallCollisionTrigger() { triggerControlledBallCollision = false; }
   void ResetTouchRecord() override {
-    last_touch_tick_ = {};
-    lastTouchType = e_TouchType_None;
+    match_state_.last_touch_tick = {};
+    match_state_.last_touch_type = e_TouchType_None;
   }
   void UpdatePossessionStats(football::ball::Ball& ball, const football::player::PlayerTeamMatchFacts& opponent, football::sim::Tick now, const Player* retainer, const Player* designated_own);
   float GetClosestOpponentDistance(const PlayerTeamView& opponent) const;
-  void GiveYellowCard(football::sim::Tick effective_tick) { cards++; card_effective_tick_ = effective_tick; }
-  void GiveRedCard(football::sim::Tick effective_tick) { cards += 3; card_effective_tick_ = effective_tick; }
-  bool HasCards() { return cards > 0; }
+  void GiveYellowCard(football::sim::Tick effective_tick) {
+    match_state_.cards++;
+    match_state_.card_effective_tick = effective_tick;
+  }
+  void GiveRedCard(football::sim::Tick effective_tick) {
+    match_state_.cards += 3;
+    match_state_.card_effective_tick = effective_tick;
+  }
+  bool HasCards() { return match_state_.cards > 0; }
   // Legacy disciplinary units: yellow +1, direct red +3; >1 means send-off.
-  int CardCount() const { return cards; }
-  football::sim::Tick CardEffectiveTick() const { return card_effective_tick_; }
+  int CardCount() const { return match_state_.cards; }
+  football::sim::Tick CardEffectiveTick() const {
+    return match_state_.card_effective_tick;
+  }
   void SendOff(const football::ball::Ball& ball, football::sim::Tick now, football::sim::PlayerSendOffSink* send_off);
   float GetStaminaStat() const;
 
@@ -364,10 +385,7 @@ class Player final : private PlayerExecutionPort {
 
   bool is_active_ = false;
 
-  football::sim::Tick last_touch_tick_{};
-  e_TouchType lastTouchType;
-
-  float fatigueFactorInv = 0.0f;
+  PlayerMatchState match_state_;
 
   bool hasPossession = false;
   bool hasBestPossession = false;
@@ -376,9 +394,6 @@ class Player final : private PlayerExecutionPort {
   unsigned int timeNeededToGetToBall_optimistic_ms = 1000;
   unsigned int timeNeededToGetToBall_previous_ms = 1000;
   bool triggerControlledBallCollision = false;
-  int desiredTimeToBall_ms = 0;
-  int cards = 0; // 1: yellow; 2: second yellow; >=3: red
-  football::sim::Tick card_effective_tick_{};
 };
 
 #endif

@@ -88,13 +88,13 @@ Player::Player(int team_id, football::sim::TeamSide side,
   // pitch frame before its first tick) but the Player keeps no borrowed
   // reference to it: geometry arrives through the tick context.
   (void)pitch;
-  last_touch_tick_ = {};
-  lastTouchType = e_TouchType_None;
-  fatigueFactorInv = 1.0;
+  match_state_.last_touch_tick = {};
+  match_state_.last_touch_type = e_TouchType_None;
+  match_state_.fatigue_factor_inv = 1.0;
   SetDesiredTimeToBall_ms(0);
   triggerControlledBallCollision = false;
-  cards = 0;
-  card_effective_tick_ = {};
+  match_state_.cards = 0;
+  match_state_.card_effective_tick = {};
 }
 
 Player::~Player() = default;
@@ -261,7 +261,8 @@ void Player::Process(const football::sim::PlayerTickContext& tick, const footbal
 
 float Player::PrepareTick(const football::sim::PlayerTickContext& tick, const football::sim::player::PlayerObservation& observation, football::sim::player::PlayerTouchSink& touch_sink, football::sim::PlayerRuntimeSink& runtime_sink) {
   if (is_active_) {
-    desiredTimeToBall_ms = std::max(desiredTimeToBall_ms - 10, 0);
+    match_state_.desired_time_to_ball_ms =
+        std::max(match_state_.desired_time_to_ball_ms - 10, 0);
     const Vector3 posBefore = execution_->CompatibilityPosition();
     execution_->RunActionTick(Port(), tick.now, tick, observation, touch_sink, runtime_sink);
     // S0.3: no adoption here. Every path already finished its own write inside
@@ -279,10 +280,12 @@ void Player::CommitTick(const football::sim::PlayerTickContext& tick, float dist
   if (!is_active_) return;
   // Clock gate is sampled after authoritative touches (opening kick included).
   if (tick.half_underway) {
-    fatigueFactorInv -= distance * 0.00003f * (2.0f - GetStaminaStat());
-    fatigueFactorInv = clamp(fatigueFactorInv, 0.01f, 1.0f);
+    match_state_.fatigue_factor_inv -=
+        distance * 0.00003f * (2.0f - GetStaminaStat());
+    match_state_.fatigue_factor_inv =
+        clamp(match_state_.fatigue_factor_inv, 0.01f, 1.0f);
   }
-  if (cards > 1 && card_effective_tick_ <= tick.now &&
+  if (match_state_.cards > 1 && match_state_.card_effective_tick <= tick.now &&
       ActivePlayerCount(tick.own_team.teammates) > 1) {
     SendOff(tick.ball, tick.now, tick.send_off);
   }
@@ -316,8 +319,8 @@ float Player::GetVelocityMultiplier() const {
 }
 
 float Player::GetLastTouchBias(int decay_ms, football::sim::Tick time) const {
-  if (decay_ms <= 0 || time < last_touch_tick_) return 0.0f;
-  const auto age = time - last_touch_tick_;
+  if (decay_ms <= 0 || time < match_state_.last_touch_tick) return 0.0f;
+  const auto age = time - match_state_.last_touch_tick;
   // Saturate before projection: absolute millisecond capacity is irrelevant.
   if (age.value > static_cast<unsigned int>(decay_ms) / football::sim::kMillisecondsPerTick) return 0.0f;
   return 1.0f - clamp(football::sim::ToMilliseconds(age) / (float)decay_ms, 0.0f, 1.0f);
@@ -503,16 +506,8 @@ int Player::ActionRequestPreemptions() const {
   return execution_->ActionRequestPreemptions();
 }
 
-int Player::AuthorityChecks() const { return execution_->AuthorityChecks(); }
-int Player::AuthorityMatches() const { return execution_->AuthorityMatches(); }
-int Player::AuthorityMismatches() const { return execution_->AuthorityMismatches(); }
-
 const football::sim::TouchChoice &Player::TouchSelection() const {
   return execution_->TouchSelection();
-}
-
-int Player::TouchSelectionSuccesses() const {
-  return execution_->TouchSelectionSuccesses();
 }
 
 const PoseFrame& Player::PlaybackPose() const { return execution_->PlaybackPose(); }
@@ -534,13 +529,18 @@ const PlayerActionFeedback& Player::ActionFeedback() const {
   return execution_->Feedback();
 }
 
-int Player::InstallChecks() const { return execution_->InstallChecks(); }
-int Player::InstallMatches() const { return execution_->InstallMatches(); }
-int Player::InstallMismatches() const { return execution_->InstallMismatches(); }
-int Player::InstallCursorChecks() const { return execution_->InstallCursorChecks(); }
-int Player::InstallCursorMatches() const { return execution_->InstallCursorMatches(); }
-int Player::InstallCursorMismatches() const {
-  return execution_->InstallCursorMismatches();
+PlayerExecutionDiagnostics Player::Diagnostics() const {
+  return PlayerExecutionDiagnostics{
+      execution_->AuthorityChecks(),
+      execution_->AuthorityMatches(),
+      execution_->AuthorityMismatches(),
+      execution_->InstallChecks(),
+      execution_->InstallMatches(),
+      execution_->InstallMismatches(),
+      execution_->InstallCursorChecks(),
+      execution_->InstallCursorMatches(),
+      execution_->InstallCursorMismatches(),
+      execution_->TouchSelectionSuccesses()};
 }
 
 void Player::CheckSimulationActionOracle() const {
