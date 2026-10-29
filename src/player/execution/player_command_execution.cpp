@@ -44,40 +44,40 @@ void PlayerExecution::NoteLocomotionReentryTick(bool eligible, bool scheduler_du
   // Measurement epoch: telemetry is transient and not serialized, so state
   // restore can rewind the match clock behind it. Scope the audit to the epoch
   // instead of letting earlier scenarios pollute it.
-  if (state_.reentryAuditEpoch != LocomotionReentryMeasurementEpoch()) {
-    state_.reentryAuditEpoch = LocomotionReentryMeasurementEpoch();
-    state_.reentryAuditStarted = false;
-    state_.locomotionExitRecorded = false;
+  if (audit_.reentryAuditEpoch != LocomotionReentryMeasurementEpoch()) {
+    audit_.reentryAuditEpoch = LocomotionReentryMeasurementEpoch();
+    audit_.reentryAuditStarted = false;
+    audit_.locomotionExitRecorded = false;
   }
-  const unsigned long long generation = state_.decisionLocomotionAuditGeneration;
-  if (!state_.reentryAuditStarted) {
-    state_.reentryAuditStarted = true;
-    state_.wasPureLocomotionLastTick = eligible;
-    state_.resetSinceLastPlayerTick = false;
+  const unsigned long long generation = audit_.decisionLocomotionAuditGeneration;
+  if (!audit_.reentryAuditStarted) {
+    audit_.reentryAuditStarted = true;
+    audit_.wasPureLocomotionLastTick = eligible;
+    audit_.resetSinceLastPlayerTick = false;
     return;
   }
   if (!eligible) {
     // An ordinary non-locomotion tick is not a re-entry. Only leaving
     // locomotion is an event, and it arms the generation comparison.
-    if (state_.wasPureLocomotionLastTick) {
-      state_.decisionGenerationAtLocomotionExit = generation;
-      state_.locomotionExitRecorded = true;
+    if (audit_.wasPureLocomotionLastTick) {
+      audit_.decisionGenerationAtLocomotionExit = generation;
+      audit_.locomotionExitRecorded = true;
       // The epoch itself is advanced by AdvanceLocomotionContinuity(); this is
       // observation only.
       ++LocomotionActionExitCount();
     }
-    state_.wasPureLocomotionLastTick = false;
+    audit_.wasPureLocomotionLastTick = false;
     return;
   }
   // Eligible from here on. An actor that began the audit in an action and later
   // becomes locomotion-eligible has an initial transition, not an observed action
   // re-entry; reserve category 2 for a recorded locomotion exit.
   int category = 0;
-  if (state_.resetSinceLastPlayerTick) {
+  if (audit_.resetSinceLastPlayerTick) {
     category = 3;
-  } else if (state_.wasPureLocomotionLastTick) {
+  } else if (audit_.wasPureLocomotionLastTick) {
     category = 1;
-  } else if (state_.locomotionExitRecorded) {
+  } else if (audit_.locomotionExitRecorded) {
     category = 2;
   }
   LocomotionReentryAudit &audit = LocomotionReentryAuditFor(category);
@@ -91,7 +91,7 @@ void PlayerExecution::NoteLocomotionReentryTick(bool eligible, bool scheduler_du
     if (state_.last_reset_tick_ && (!state_.last_locomotion_publication_tick_ ||
         *state_.last_reset_tick_ > *state_.last_locomotion_publication_tick_)) {
       ++audit.stale_after_reset;
-    } else if (category == 2 && state_.locomotionExitRecorded) {
+    } else if (category == 2 && audit_.locomotionExitRecorded) {
       // a3b2 no longer lets animation opportunities publish the missing axis.
       // A stale action re-entry is repaired by the forced Player Decision tick
       // later in this same Process() call, before locomotion execution.
@@ -103,19 +103,19 @@ void PlayerExecution::NoteLocomotionReentryTick(bool eligible, bool scheduler_du
   if (category >= 2) {
     // Reset is itself the discontinuity, so it anchors the comparison; other
     // re-entries require an observed locomotion exit.
-    const bool anchor_valid = category == 3 ? state_.resetGenerationAnchorValid
-                                            : state_.locomotionExitRecorded;
+    const bool anchor_valid = category == 3 ? audit_.resetGenerationAnchorValid
+                                            : audit_.locomotionExitRecorded;
     const unsigned long long anchor = category == 3
-        ? state_.resetDecisionGeneration
-        : state_.decisionGenerationAtLocomotionExit;
+        ? audit_.resetDecisionGeneration
+        : audit_.decisionGenerationAtLocomotionExit;
     if (anchor_valid && generation != anchor) {
       ++audit.generation_advanced;
-      if (state_.lastPublicationViaSimulationCadence) {
+      if (audit_.lastPublicationViaSimulationCadence) {
         ++ReentryFreshViaSimulationCadence();
       } else {
         ++ReentryFreshViaLegacyOpportunityOnly();
       }
-      if (state_.lastPublicationWhileIneligible) ++ReentryFreshWhileIneligible();
+      if (audit_.lastPublicationWhileIneligible) ++ReentryFreshWhileIneligible();
     } else if (anchor_valid) {
       ++audit.generation_unchanged;
     }
@@ -131,12 +131,12 @@ void PlayerExecution::NoteLocomotionReentryTick(bool eligible, bool scheduler_du
       if (!audit.decision_age_max || age > *audit.decision_age_max) audit.decision_age_max = age;
     }
   }
-  state_.wasPureLocomotionLastTick = true;
-  state_.resetSinceLastPlayerTick = false;
+  audit_.wasPureLocomotionLastTick = true;
+  audit_.resetSinceLastPlayerTick = false;
 }
 
 bool PlayerExecution::NoteLocomotionIntentCadence(bool legacy_opportunity, football::sim::Tick now, bool retaining_ball) {
-  state_.decisionMovementSelection = false;
+  audit_.decisionMovementSelection = false;
   const bool due = state_.locomotionIntentScheduler.Due(now);
   state_.locomotionIntentDueThisTick = false;
   if (due) {
@@ -162,7 +162,6 @@ void PlayerExecution::PublishPlayerDecisionQueue(
     const PlayerCommandQueue &commands, football::sim::Tick now) {
   state_.playerDecisionQueue.commands = commands;
   state_.playerDecisionQueue.initialized = true;
-  ++state_.playerDecisionQueue.generation;
   state_.playerDecisionScheduler.Commit(now);
 }
 
@@ -195,7 +194,7 @@ void PlayerExecution::PublishDecisionLocomotionIntent(const PlayerCommand &comma
   // 4f-a1: whether this publication materially rewrites the decision already in
   // force. Only animation-owned (legacy-only) publications are counted, so the
   // number answers how often a requeue actually moved the decision clock.
-  const int publication_cause = state_.pendingPublicationCause;
+  const int publication_cause = audit_.pendingPublicationCause;
   const bool decision_materially_changed =
       state_.decisionLocomotionState.initialized &&
       MovementCommandDiffersMaterially(state_.decisionLocomotionState.command, command);
@@ -204,11 +203,11 @@ void PlayerExecution::PublishDecisionLocomotionIntent(const PlayerCommand &comma
   // Cause split without changing the player path: a publication on a tick where
   // the simulation cadence was not due can only have come from the animation
   // lifecycle's query opportunity.
-  state_.lastPublicationViaSimulationCadence = state_.pendingPublicationCause == 0;
-  ++DecisionPublicationCauseCount(state_.pendingPublicationCause);
-  state_.pendingPublicationCause = 0;
-  state_.lastPublicationWhileIneligible = !IsEligibleForProceduralLocomotion(retaining_ball);
-  if (state_.lastPublicationViaSimulationCadence) {
+  audit_.lastPublicationViaSimulationCadence = audit_.pendingPublicationCause == 0;
+  ++DecisionPublicationCauseCount(audit_.pendingPublicationCause);
+  audit_.pendingPublicationCause = 0;
+  audit_.lastPublicationWhileIneligible = !IsEligibleForProceduralLocomotion(retaining_ball);
+  if (audit_.lastPublicationViaSimulationCadence) {
     ++DecisionPublicationViaSimulationCadence();
   } else {
     ++DecisionPublicationViaLegacyOpportunityOnly();
@@ -216,19 +215,19 @@ void PlayerExecution::PublishDecisionLocomotionIntent(const PlayerCommand &comma
   if (publication_cause == 1) {
     ++LegacyOnlyDecisionPublications();
     if (decision_materially_changed) ++LegacyOnlyDecisionMaterialChanges();
-    if (state_.decisionMovementSelection) {
+    if (audit_.decisionMovementSelection) {
       ++LegacyOnlyDecisionMovementSelectionPublications();
       if (decision_materially_changed) {
         ++LegacyOnlyDecisionMovementSelectionMaterialChanges();
       }
     }
   }
-  if (state_.lastPublicationWhileIneligible) ++DecisionPublicationWhileIneligible();
+  if (audit_.lastPublicationWhileIneligible) ++DecisionPublicationWhileIneligible();
   // A publication belongs to the continuity epoch it was produced in, which is
   // what makes it usable for this epoch's locomotion execution.
   state_.decisionLocomotionState.command = command;
   state_.decisionLocomotionState.initialized = true;
-  ++state_.decisionLocomotionAuditGeneration;
+  ++audit_.decisionLocomotionAuditGeneration;
   state_.decisionLocomotionState.publishedEpoch =
       state_.decisionLocomotionState.continuityEpoch;
 }
@@ -259,8 +258,8 @@ RequestOutcome PlayerExecution::Play(PlayerExecutionPort& owner, const PlayerAct
   PortScope scope(*this, owner);
   if (request.action == ControlAction::None) {
     state_.action_request_outcome_ = RequestOutcome::Rejected;
-    ++state_.action_request_attempts_;
-    ++state_.action_request_rejects_;
+    ++audit_.action_request_attempts_;
+    ++audit_.action_request_rejects_;
     return RequestOutcome::Rejected;
   }
   // Reject contract violations synchronously. Conditions that need the live
@@ -273,21 +272,21 @@ RequestOutcome PlayerExecution::Play(PlayerExecutionPort& owner, const PlayerAct
        !request.has_target_position &&
        request.direction.GetLength() <= 0.000001f)) {
     state_.action_request_outcome_ = RequestOutcome::Rejected;
-    ++state_.action_request_attempts_;
-    ++state_.action_request_rejects_;
+    ++audit_.action_request_attempts_;
+    ++audit_.action_request_rejects_;
     return RequestOutcome::Rejected;
   }
   const RequestOutcome outcome =
       ArbitrateActionRequest(state_.actionState, request.action);
   state_.action_request_outcome_ = outcome;
-  ++state_.action_request_attempts_;
+  ++audit_.action_request_attempts_;
   if (outcome == RequestOutcome::Accepted) {
-    ++state_.action_request_accepts_;
+    ++audit_.action_request_accepts_;
     state_.pending_action_request_ = request;
   } else if (outcome == RequestOutcome::Deferred) {
-    ++state_.action_request_defers_;
+    ++audit_.action_request_defers_;
   } else {
-    ++state_.action_request_rejects_;
+    ++audit_.action_request_rejects_;
   }
   return outcome;
 }

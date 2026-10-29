@@ -16,10 +16,12 @@
 //   inputs      pending Control / Play / React and their recorded outcomes
 //   action      the installed action and its single timeline cursor
 //   playback    animation playback, final pose and the locomotion animation feed
-//   selection   the last touch-animation selection result and its counters
+//   selection   the last touch-animation selection result
 //   scheduling  Player Decision Clock, locomotion intent cadence and epochs
 //   compat      legacy animation/spatial projection used by the baked action math
-//   diagnostics audit counters that measure the migration, never gameplay
+//
+// Measurement-only provenance and counters live in a separate
+// PlayerExecutionAuditState (see below); they never decide gameplay.
 #ifndef FOOTBALL_SIM_PLAYER_EXECUTION_STATE_HPP
 #define FOOTBALL_SIM_PLAYER_EXECUTION_STATE_HPP
 
@@ -48,7 +50,6 @@
 struct PlayerDecisionQueueState {
   PlayerCommandQueue commands;
   bool initialized = false;
-  unsigned long long generation = 0;
 };
 
 // H3e4f-g0b-decision-intent: the serialized Player Decision Clock locomotion
@@ -116,19 +117,12 @@ struct PlayerExecutionState {
   // selection: the retained touch-animation selection result
   // ---------------------------------------------------------------------
   football::sim::TouchChoice touch_choice_;
-  int touch_selection_successes_ = 0;
 
   // ---------------------------------------------------------------------
   // scheduling: decision clock, locomotion cadence, continuity epochs
   // ---------------------------------------------------------------------
   LocomotionIntentScheduler locomotionIntentScheduler;
   bool locomotionIntentDueThisTick = false;
-  // Explicit cause of the next Direct publication. A continuity repair runs
-  // before the cadence note, so deriving the cause from that flag would
-  // mislabel a repair publication as an animation-driven one.
-  int pendingPublicationCause = 0;
-  // 4f-a1: transient, per-tick animation selection outcome. Never serialized.
-  bool decisionMovementSelection = false;
   PlayerDecisionScheduler playerDecisionScheduler;
   PlayerDecisionQueueState playerDecisionQueue;
   // The sole locomotion intent of the Player Decision Clock.
@@ -165,9 +159,15 @@ struct PlayerExecutionState {
   mutable e_Velocity predicate_DesiredVelocity = e_Velocity_Idle;
   std::chrono::milliseconds mentalImageTime{0};
 
-  // ---------------------------------------------------------------------
-  // diagnostics: migration/audit measurements, never gameplay
-  // ---------------------------------------------------------------------
+};
+
+// PEX-5: everything below measures the migration or keeps provenance for the
+// audit. None of it decides a selection, a motion, an action cursor or a
+// publication; the gameplay epochs, schedulers and cursors stay in
+// PlayerExecutionState. Keeping it in one separate value makes the audit
+// provably a side channel: removing a field here cannot change gameplay.
+struct PlayerExecutionAuditState {
+  // --- execution oracle and request counters ---------------------------
   int install_checks_ = 0;
   int install_matches_ = 0;
   int install_mismatches_ = 0;
@@ -185,10 +185,23 @@ struct PlayerExecutionState {
   int action_request_inputs_consumed_ = 0;
   int reaction_trip_interrupts_scheduled_ = 0;
   int action_request_preemptions_ = 0;
-  // Audit generation: bumped on every Direct publication for re-entry freshness
-  // measurement. Deliberately transient so telemetry cannot change the
-  // save-state contract; the gameplay epochs above are serialized instead.
+  int touch_selection_successes_ = 0;
+
+  // --- decision/publication provenance ----------------------------------
+  // Audit generation: bumped on every Direct publication for re-entry
+  // freshness measurement. Deliberately transient so telemetry cannot change
+  // the save-state contract; the gameplay epochs stay in the state above.
   unsigned long long decisionLocomotionAuditGeneration = 0;
+  // Explicit cause of the next Direct publication. A continuity repair runs
+  // before the cadence note, so deriving the cause from that flag would
+  // mislabel a repair publication as an animation-driven one.
+  int pendingPublicationCause = 0;
+  // 4f-a1: transient, per-tick animation selection outcome. Never serialized.
+  bool decisionMovementSelection = false;
+  bool lastPublicationViaSimulationCadence = false;
+  bool lastPublicationWhileIneligible = false;
+
+  // --- locomotion re-entry audit ----------------------------------------
   // Re-entry provenance. Transient, never serialized, measurement only.
   int reentryAuditEpoch = -1;
   bool locomotionExitRecorded = false;
@@ -197,8 +210,6 @@ struct PlayerExecutionState {
   bool reentryAuditStarted = false;
   bool wasPureLocomotionLastTick = false;
   bool resetSinceLastPlayerTick = false;
-  bool lastPublicationViaSimulationCadence = false;
-  bool lastPublicationWhileIneligible = false;
   unsigned long long decisionGenerationAtLocomotionExit = 0;
   // Caller scope of the current ResetSituation, so the reset provenance keeps
   // distinguishing the initial, runtime and Deactivate resets.

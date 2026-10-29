@@ -108,7 +108,7 @@ int PlayerExecution::SelectTouchAction(football::sim::Tick now, const football::
       allow_pre_touch_rotation_smuggle, use_continuous_ball_check);
   if (anim_id != -1) {
     state_.touch_choice_ = choice;
-    ++state_.touch_selection_successes_;
+    ++audit_.touch_selection_successes_;
   }
   return anim_id;
 }
@@ -185,18 +185,18 @@ void PlayerExecution::InstallSelectedAction(const football::sim::SelectedAction 
   // Same-tick consistency: the committed cursor, the scheduled contact and the
   // compat projection must all agree with the selection immediately, so an
   // install followed by a sample in the same tick cannot be one tick off.
-  ++state_.install_cursor_checks_;
+  ++audit_.install_cursor_checks_;
   const bool cursor_same =
       state_.actionState.Frame() == selection.start_frame &&
       state_.actionState.FrameCount() == selection.frame_count &&
       state_.actionState.HasScheduledContact() == (selection.touch_frame >= 0) &&
       state_.actionState.ContactFrame() == selection.touch_frame;
   if (cursor_same) {
-    ++state_.install_cursor_matches_;
+    ++audit_.install_cursor_matches_;
   } else {
-    ++state_.install_cursor_mismatches_;
+    ++audit_.install_cursor_mismatches_;
   }
-  ++state_.install_checks_;
+  ++audit_.install_checks_;
   const Anim *anim = &state_.legacy_anim_state_;
   const bool same =
       selection.function_type == state_.legacy_anim_state_.functionType &&
@@ -205,9 +205,9 @@ void PlayerExecution::InstallSelectedAction(const football::sim::SelectedAction 
       selection.touch_frame == anim->touchFrame &&
       selection.touch_position == anim->touchPos;
   if (same) {
-    ++state_.install_matches_;
+    ++audit_.install_matches_;
   } else {
-    ++state_.install_mismatches_;
+    ++audit_.install_mismatches_;
   }
 
 }
@@ -236,13 +236,13 @@ void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
   // ANIM-1 A6.3d: the compat projection no longer decides the clip or the
   // action time. Verify the three executor-owned artefacts agree - the
   // installed selection, the action cursor and the pose that was sampled.
-  ++state_.authority_checks_;
+  ++audit_.authority_checks_;
   const bool same = state_.playback_state_.clip_id == authority_clip &&
                     state_.playback_state_.frame == authority_frame;
   if (same) {
-    ++state_.authority_matches_;
+    ++audit_.authority_matches_;
   } else {
-    ++state_.authority_mismatches_;
+    ++audit_.authority_mismatches_;
   }
 }
 

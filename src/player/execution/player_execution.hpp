@@ -72,16 +72,22 @@ class PlayerExecution final {
   }
   RequestOutcome LastActionRequestOutcome() const { return state_.action_request_outcome_; }
   RequestOutcome LastReactionOutcome() const { return state_.reaction_outcome_; }
-  int ActionRequestAttempts() const { return state_.action_request_attempts_; }
-  int ActionRequestAccepts() const { return state_.action_request_accepts_; }
-  int ActionRequestDefers() const { return state_.action_request_defers_; }
-  int ActionRequestRejects() const { return state_.action_request_rejects_; }
-  int ActionRequestBuildFailures() const { return state_.action_request_build_failures_; }
-  int ActionRequestInputsConsumed() const { return state_.action_request_inputs_consumed_; }
-  int ReactionTripInterruptsScheduled() const {
-    return state_.reaction_trip_interrupts_scheduled_;
+  int ActionRequestAttempts() const { return audit_.action_request_attempts_; }
+  int ActionRequestAccepts() const { return audit_.action_request_accepts_; }
+  int ActionRequestDefers() const { return audit_.action_request_defers_; }
+  int ActionRequestRejects() const { return audit_.action_request_rejects_; }
+  int ActionRequestBuildFailures() const {
+    return audit_.action_request_build_failures_;
   }
-  int ActionRequestPreemptions() const { return state_.action_request_preemptions_; }
+  int ActionRequestInputsConsumed() const {
+    return audit_.action_request_inputs_consumed_;
+  }
+  int ReactionTripInterruptsScheduled() const {
+    return audit_.reaction_trip_interrupts_scheduled_;
+  }
+  int ActionRequestPreemptions() const {
+    return audit_.action_request_preemptions_;
+  }
 
   // --- lifecycle --------------------------------------------------------
   // Fresh actor state. `spawn_position` is the formation placement the Player
@@ -170,16 +176,16 @@ class PlayerExecution final {
   float DecayingPositionOffsetLength() const {
     return state_.decayingPositionOffset.GetLength();
   }
-  int AuthorityChecks() const { return state_.authority_checks_; }
-  int AuthorityMatches() const { return state_.authority_matches_; }
-  int AuthorityMismatches() const { return state_.authority_mismatches_; }
-  int InstallChecks() const { return state_.install_checks_; }
-  int InstallMatches() const { return state_.install_matches_; }
-  int InstallMismatches() const { return state_.install_mismatches_; }
-  int InstallCursorChecks() const { return state_.install_cursor_checks_; }
-  int InstallCursorMatches() const { return state_.install_cursor_matches_; }
-  int InstallCursorMismatches() const { return state_.install_cursor_mismatches_; }
-  int TouchSelectionSuccesses() const { return state_.touch_selection_successes_; }
+  int AuthorityChecks() const { return audit_.authority_checks_; }
+  int AuthorityMatches() const { return audit_.authority_matches_; }
+  int AuthorityMismatches() const { return audit_.authority_mismatches_; }
+  int InstallChecks() const { return audit_.install_checks_; }
+  int InstallMatches() const { return audit_.install_matches_; }
+  int InstallMismatches() const { return audit_.install_mismatches_; }
+  int InstallCursorChecks() const { return audit_.install_cursor_checks_; }
+  int InstallCursorMatches() const { return audit_.install_cursor_matches_; }
+  int InstallCursorMismatches() const { return audit_.install_cursor_mismatches_; }
+  int TouchSelectionSuccesses() const { return audit_.touch_selection_successes_; }
 
   // The compatibility projection, as the values the Player's kinematic oracle
   // compares against the committed state.
@@ -370,9 +376,11 @@ class PlayerExecution final {
                                        bool retaining_ball);
   bool PublishMovementIntentFromQueue(const PlayerCommandQueue& queue, football::sim::Tick now,
                                       bool retaining_ball);
-  void NoteDecisionPublicationCause(int cause) { state_.pendingPublicationCause = cause; }
+  void NoteDecisionPublicationCause(int cause) {
+    audit_.pendingPublicationCause = cause;
+  }
   void NoteDecisionMovementSelection(bool movement_selected) {
-    state_.decisionMovementSelection = movement_selected;
+    audit_.decisionMovementSelection = movement_selected;
   }
   void PublishPlayerDecisionQueue(const PlayerCommandQueue& commands, football::sim::Tick now);
   bool HasPlayerDecisionQueue() const { return state_.playerDecisionQueue.initialized; }
@@ -412,6 +420,9 @@ class PlayerExecution final {
                                         const football::player::PlayerBodyProfile& profile) const;
 
   PlayerExecutionState state_;
+  // Measurement-only: see PlayerExecutionState for the split. Never consulted
+  // by a gameplay decision.
+  PlayerExecutionAuditState audit_;
   const AnimationLibrary& animations_;
   // Per-call borrow. Null outside a public entry point; never inspected while
   // null, so no call path can observe a stale owner.

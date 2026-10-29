@@ -138,7 +138,7 @@ void PlayerExecution::ResetSituation(PlayerExecutionPort& owner, const Vector3& 
 void PlayerExecution::ResetRuntimeState(const Vector3& focus_position,
                                         football::sim::Tick now, int audit_context) {
   port().ResetTouchRecord();
-  state_.reset_situation_audit_context = audit_context;
+  audit_.reset_situation_audit_context = audit_context;
   // ANIM-1.1: a reset must not leave a stale active/passive request behind.
   state_.pending_action_request_.reset();
   state_.playback_state_.Reset();
@@ -147,15 +147,15 @@ void PlayerExecution::ResetRuntimeState(const Vector3& focus_position,
   if (port().IsActive()) {
     // The reset itself is the discontinuity, so it anchors the generation that
     // a later reset re-entry compares against.
-    state_.resetDecisionGeneration = state_.decisionLocomotionAuditGeneration;
-    if (state_.reset_situation_audit_context == kResetSituationUnspecified) {
-      state_.reset_situation_audit_context = state_.hasProcessedPlayerTick
+    audit_.resetDecisionGeneration = audit_.decisionLocomotionAuditGeneration;
+    if (audit_.reset_situation_audit_context == kResetSituationUnspecified) {
+      audit_.reset_situation_audit_context = state_.hasProcessedPlayerTick
           ? kResetSituationRuntime
           : kResetSituationInitialBeforeFirstPlayerTick;
     }
-    state_.resetGenerationAnchorValid = true;
+    audit_.resetGenerationAnchorValid = true;
     state_.last_reset_tick_ = now;
-    state_.resetSinceLastPlayerTick = true;
+    audit_.resetSinceLastPlayerTick = true;
     // A reset is also a continuity break, so any earlier intent is invalid.
     ++state_.decisionLocomotionState.continuityEpoch;
     ResetLegacySituation(focus_position);
@@ -163,7 +163,7 @@ void PlayerExecution::ResetRuntimeState(const Vector3& focus_position,
     // ANIM-1 A6.3c.1: the runtime reset is the same special action install.
     InstallSelectedAction(CurrentSelectedAction());
   }
-  state_.reset_situation_audit_context = kResetSituationUnspecified;
+  audit_.reset_situation_audit_context = kResetSituationUnspecified;
 }
 
 // ---------------------------------------------------------------------------
@@ -295,12 +295,12 @@ void PlayerExecution::ConsumeActionInputs(ActionTickFrame& frame) {
         state_.tripDirection = pending_trip->direction;
         state_.tripType = pending_trip->trip_type;
         frame.reaction_executed = true;
-        ++state_.reaction_trip_interrupts_scheduled_;
+        ++audit_.reaction_trip_interrupts_scheduled_;
         // ANIM-2 A11.7: a Trip preempts an accepted active intent. Discard it
         // so a stale Play request cannot switch the actor back out of the trip.
         if (state_.pending_action_request_) {
           state_.pending_action_request_.reset();
-          ++state_.action_request_preemptions_;
+          ++audit_.action_request_preemptions_;
         }
       }
     }
@@ -321,13 +321,13 @@ void PlayerExecution::ConsumeActionInputs(ActionTickFrame& frame) {
             frame.has_request_input = true;
             // An explicit input is not a requeue opportunity: force the switch.
             state_.interruptAnim = e_InterruptAnim_Switch;
-            ++state_.action_request_inputs_consumed_;
+            ++audit_.action_request_inputs_consumed_;
           }
         } else {
           // Arbitration accepted the request, but the concrete Command is not
           // executable. Consume it, report the build status, and keep the
           // current action/movement instead of pretending the action ran.
-          ++state_.action_request_build_failures_;
+          ++audit_.action_request_build_failures_;
           state_.action_feedback_.source_action = pending_request->action;
           state_.action_feedback_.command_status = built.status;
           state_.action_feedback_.type = e_FunctionType_None;
