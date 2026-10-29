@@ -28,8 +28,8 @@ struct PlayerBodyProfile {
   BodyBuild build = BodyBuild::Normal;
 };
 
-// Reference BMI coefficient anchoring the normal-mass proxy M_normal(H) = B0*H^2.
-// This is a geometric calibration parameter, not an anthropometric claim.
+// Reference BMI coefficient for the normal-mass proxy M_normal(H) = B0*H^2.
+// It is a geometric calibration parameter, not an anthropometric claim.
 inline constexpr float kReferenceBmi = 23.0f;
 
 // The single reference height at which height_scale == 1. Height scaling is
@@ -57,14 +57,13 @@ inline PlayerBodyProfile MakePlayerBodyProfile(
 
   const float height_scale = height / kReferencePlayerHeight;
 
-  // Reference mass for this height: the definition's mass when it carries one,
-  // otherwise the reference build. "No mass given" is therefore exactly the
-  // normal body, not a silent fattening or slimming of the actor.
-  const float reference_mass = kReferenceBmi * height * height;
-  const float mass = definition.weight_kg.value_or(reference_mass);
+  const float mass = definition.weight_kg;
   if (!std::isfinite(mass) || mass <= 0.0f)
     throw std::invalid_argument("player weight must be finite and positive");
 
+  // Normal mass for this height. The continuous ratio to it is the girth proxy
+  // geometry consumes; 1.0 is the normal build.
+  const float reference_mass = kReferenceBmi * height * height;
   // Continuous relative-girth proxy: geometry consumes this value, not the
   // BodyBuild label derived from it.
   const float mass_ratio = mass / reference_mass;

@@ -16,33 +16,40 @@ using football::player::kReferenceBmi;
 
 namespace {
 
-PlayerDefinition MakePlayer(float height, std::optional<float> weight = std::nullopt) {
+// The definition default: 74.52 kg, the reference build at 1.8 m.
+constexpr float kDefaultMassKg = 74.52f;
+
+PlayerDefinition MakePlayer(float height, float weight = kDefaultMassKg) {
   PlayerDefinition definition;
   definition.height = height;
-  definition.weight_kg = std::move(weight);
+  definition.weight_kg = weight;
   return definition;
 }
 
 }  // namespace
 
-TEST_CASE("profile derives height scale and standard default girth") {
+TEST_CASE("profile derives height scale and the default mass") {
   const PlayerBodyProfile profile = MakePlayerBodyProfile(MakePlayer(1.8f));
 
   REQUIRE(profile.height_m == 1.8f);
   REQUIRE(profile.height_scale == Catch::Approx(1.8f / 1.92f));
+  REQUIRE(profile.mass_kg == Catch::Approx(kDefaultMassKg));
   REQUIRE(profile.mass_kg == Catch::Approx(23.0f * 1.8f * 1.8f));
+  // The default mass is the reference build at 1.8 m, so girth is exactly 1.
   REQUIRE(profile.girth_scale == Catch::Approx(1.0f));
   REQUIRE(profile.build == BodyBuild::Normal);
 }
 
-TEST_CASE("a definition without a mass keeps the reference girth at any height") {
+TEST_CASE("a definition that only carries height gets the default mass") {
   for (const float height : {1.65f, 1.80f, 1.95f, 2.10f}) {
     const PlayerBodyProfile profile = MakePlayerBodyProfile(MakePlayer(height));
     INFO("height " << height);
-    REQUIRE(profile.girth_scale == Catch::Approx(1.0f));
-    REQUIRE(profile.mass_kg == Catch::Approx(kReferenceBmi * height * height));
+    // Mass no longer follows the height: it is one explicit default.
+    REQUIRE(profile.mass_kg == Catch::Approx(kDefaultMassKg));
     REQUIRE(profile.height_scale == Catch::Approx(height / 1.92f));
-    REQUIRE(profile.build == BodyBuild::Normal);
+    const float mass_ratio =
+        kDefaultMassKg / (kReferenceBmi * height * height);
+    REQUIRE(profile.girth_scale == Catch::Approx(std::sqrt(mass_ratio)));
   }
 }
 

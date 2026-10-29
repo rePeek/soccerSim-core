@@ -393,13 +393,13 @@ TEST_CASE("body-profile girth changes ball CCD consistently") {
   REQUIRE(hit_broad->collider == torso_id);
 }
 
-TEST_CASE("a definition without a mass keeps reference girth geometry") {
+TEST_CASE("the default mass is the reference build at 1.8 m") {
   const PoseFrame pose = StandingPose();
   const PlayerKinematicState state{};
   const float height = 1.80f;
 
   PlayerDefinition no_weight;
-  no_weight.height = height;  // weight_kg stays unset
+  no_weight.height = height;  // keeps the default mass
   const auto no_mass = MakePlayerBodyProfile(no_weight);
 
   PlayerDefinition standard;

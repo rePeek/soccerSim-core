@@ -88,12 +88,11 @@ struct PlayerDefinition {
   std::string last_name;
   int age = 15;
   float height = 1.8f;
-  // Body mass in kilograms, the anthropometric input that sets body girth.
-  // Optional: a definition may carry a mass, or describe only its height, in
-  // which case the body profile uses the reference mass for that height
-  // (girth 1.0). A present value must be finite and positive; see
-  // MakePlayerBodyProfile.
-  std::optional<float> weight_kg;
+  // Body mass in kilograms: the anthropometric input that sets body girth.
+  // Must be finite and positive (see MakePlayerBodyProfile). 74.52 kg is the
+  // reference build at the reference height (1.8 m), so a definition that does
+  // not carry anthropometrics still describes a normal body.
+  float weight_kg = 74.52f;
   PlayerAttributes attributes;
   PlayerAppearance appearance;
 };
