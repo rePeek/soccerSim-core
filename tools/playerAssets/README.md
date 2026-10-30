@@ -1,3 +1,44 @@
+# 完整运行时动作库 → GLB
+
+```sh
+blender --background --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_animations.py
+```
+
+默认输出：`build/player-assets/runtime-animations/`，每个运行时动作一个 GLB，
+包括 baker 生成和镜像的动作，来源是 `assets/runtime/animations.simanim` v7。
+文件名前缀是运行时 clip ID，避免重名；`manifest.json` 保留原动作名、ID、
+100 FPS、帧数、动作元数据、触球点、原始 XY 根轨迹及文件 SHA-256。
+GLB 保留完整 XYZ 根运动，使用 Y-up / 米；不擅自声明动作循环。
+
+所有动作使用下方默认球员模板相同的 14 骨骼名称、层级、参考姿态。
+每包带透明的 `__rig_binding__` 三角形，仅用于骨架识别，不包含人物外观。
+外观仍由 `export_player.py` 单独生成；无需重新转换外观就能导出动作。
+
+导出后读取每个实际 GLB 的动画 accessor 和逆绑定矩阵，在**每一个 10 ms 帧、
+每一根骨骼**上比较源动作与 GLB 的蒙皮变换，最大矩阵元素误差不得超过
+`1e-4`（含 float32 骨骼基变换误差）；同时检查动作名、骨骼集合和时长。验证汇总写入 manifest；
+失败则非零退出，不写成功清单。未验证 Godot 装配。
+
+可选参数：`--source path/to/animations.simanim`、`--data path/to/data`、
+`--output path/to/output`。`--limit 2` 只用于冒烟测试，清单会标记
+`complete: false`。重新导出会覆盖同名生成文件；不会自动清理目录内旧文件，
+请以 manifest 为准，或使用新的输出目录。
+
+读取器测试（不需要 Blender 模块，可使用独立 Python）：
+
+```sh
+python3 -m unittest discover -s tools/playerAssets -v
+# 或 Blender 自带 Python：
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/test_simanim.py
+```
+
+这里的“全部”指模拟器实际使用的完整动作集，不包括未被 baker 收录的
+编辑器辅助姿态 `.anim.util` 或未经预处理的原始半步模板。
+
+---
+
 # 默认球员模板：第一阶段
 
 独立的离线 Blender 工具，不接入 CMake，不改变模拟逻辑、`data/` 或
