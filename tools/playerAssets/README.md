@@ -1,3 +1,38 @@
+# 14 / 20 骨骼默认人物对比
+
+```sh
+# 如果尚未生成默认人物模板，先执行：
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_player.py
+
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_rig_comparison.py
+```
+
+输出位于 `build/player-rig-comparison/`：
+
+- `default_14_bones.glb` / `.blend`：原版 14 骨骼人物。
+- `default_20_bones.glb` / `.blend`：增加左右手腕、脚趾、锁骨的人物。
+- `new_joints_demo_20.blend`：新增关节的独立变形演示，0–60 帧，30 FPS。
+- `skeleton_20.json`：预览骨架定义。
+- `validation.json`：静态形状、权重、各新增骨骼变形、GLB 字节与重导入验证。
+
+在 Blender 中建议直接打开 `.blend`，已设置骨骼透视和 Pose Mode；
+20 骨骼版选中了新增骨骼。选中单根骨骼按 `R` 旋转，`Alt+R` 清除旋转。
+打开演示文件后按空格播放，可观察新增关节效果。
+GLB 则使用 **File → Import → glTF 2.0** 导入；两份 GLB 均不带动画，贴图内嵌。
+
+这是同一套低多边形网格和材质，静态外观应一致，不是增加了模型细节。
+新增骨骼**有实际蒙皮权重**，由肘部、脚踝、肩部原权重按空间区域平滑拆分，
+但只是程序生成的预览权重，并非美术精修；没有增加手指或足部拓扑。
+插入锁骨时保留原骨骼绑定变换（允许 Blender 浮点往返误差）。
+
+此 20 骨骼版为独立原型，不修改 `data/`、14 骨骼动作库或 C++ 运行时，
+也尚未实现旧动作到新骨架的适配，不能直接套用旧动作包。
+参数 `--template` 可指定原始 14 骨骼 `.blend`，`--output` 可指定独立输出目录。
+
+---
+
 # 完整运行时动作库 → GLB
 
 ```sh
