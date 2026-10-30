@@ -1,3 +1,37 @@
+# 高面数平滑预览（仍为 14 骨骼）
+
+```sh
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_smooth_player.py
+
+# 用相同六个动作查看高面数模型
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_action_gallery.py -- \
+  --template build/player-smooth/default_14_smooth.blend \
+  --output build/player-action-gallery-smooth
+```
+
+依赖下方生成的原版 14 骨骼模板。输出 `build/player-smooth/`：
+
+- `default_14_smooth.blend` / `.glb`：静态高面数人物，包含原骨架、蒙皮及贴图。
+- `original_vs_smooth_run.blend`：同场景左原版、右平滑版，同相位原地跑。
+- `validation.json`：面数、权重、绑定姿态、GLB 实际几何及重导入检查。
+
+默认每个部件做两级 Catmull–Clark 细分，**747 → 17,928 个三角形**。
+为避免拆开的衣服/皮肤部件因收缩出现新缝隙，开放边界设为完全折痕，
+内部表面进行平滑；细分在蒙皮前应用，插值权重显式限制四影响并归一化。
+14 根骨骼及其绑定矩阵不变，兼容现有动作。GLB 包含真实细分网格，
+不是依赖 Blender 专有 modifier 才能显示的效果。
+
+这仅是平滑预览，**不是重新雕刻的高清人物**：没有新增五官、手指、衣褶，
+没有更高分辨率贴图；开放边界仍保留原轮廓。要获得写实外观，需要重新建模、
+重拓扑、UV 和贴图制作，而不是继续增加细分级数。
+
+可用 `--levels 1|2|3` 调整级数，支持 `--template`、`--output`。
+所有原始资产保持不变。
+
+---
+
 # 14 骨骼：加速、转向、带球同场景预览
 
 ```sh
