@@ -1,3 +1,33 @@
+# 20 骨骼跑步预览
+
+生成下方 20 骨骼模板后运行：
+
+```sh
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_run_20.py
+```
+
+输出目录：`build/player-run-20/`。
+
+- `run_20_in_place.blend` / `.glb`：原地跑，适合近距离检查人物和新增关节。
+- `run_20_forward.blend` / `.glb`：保留前进根运动，速度约 7 m/s。
+- 两份 GLB 都包含完整人物网格、20 骨骼、蒙皮、内嵌贴图和一个跑步动作。
+- 默认 100 FPS、5 个完整步态周期、2.4 秒；`.blend` 打开后按空格播放。
+- GLB 通过 File → Import → glTF 2.0 导入；glTF 本身不声明循环播放。
+- 原地版首尾姿态闭合，前进版每周期累计位移，不能直接跳回起始位置循环。
+
+动作来源为运行时 `movement/sprint/000_idlelevel1.anim` 及其镜像半步，
+每半步 24 个时间间隔；用 4 tick 过渡平滑轻微肩部接缝。
+旧关节世界姿态映射到新骨架，插入锁骨后补偿肩部局部变换，
+新增的手腕（约 ±8°）、脚趾（最高 18°）和锁骨（约 ±3°）使用周期函数补动画。
+这是离线预览，不是新增关节的动作捕捉数据，也没有足底锁定 IK 或 C++ 接入。
+
+`validation.json` 记录每帧 GLB 蒙皮变换对比、100 Hz 时间轴检查、
+原地循环端点检查及 Blender 重导入后的骨骼/动作数量和模型变形测试。
+支持 `--template`、`--output`、`--cycles`（1–20）。原始模板及动作库保持不变。
+
+---
+
 # 14 / 20 骨骼默认人物对比
 
 ```sh
