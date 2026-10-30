@@ -1,0 +1,33 @@
+{
+  "schema": "football_character_v1",
+  "rig_version": "football_player_14_v1",
+  "skeleton": "../../skeletons/player_14.json",
+  "units": "metres",
+  "up_axis": "Y",
+  "default": "body.glb",
+  "variants": [
+    {
+      "file": "body.glb",
+      "description": "Subdivision-smoothed body with black short01 hair",
+      "triangles": 20280,
+      "mesh_parts": 13
+    },
+    {
+      "file": "body_smooth.glb",
+      "description": "Subdivision-smoothed body without hair",
+      "triangles": 17928,
+      "mesh_parts": 12
+    },
+    {
+      "file": "body_low.glb",
+      "description": "Original low-poly body without hair",
+      "triangles": 747,
+      "mesh_parts": 12
+    }
+  ],
+  "textures": "Embedded PNG images",
+  "skinning": "Embedded skin weights and inverse bind matrices",
+  "animations": "None; load from assets/animations/player_14 separately",
+  "hair": "Rigid neck attachment, no hair simulation",
+  "note": "Shared logical bone axes, not Blender display-bone axes. Variants preserve the same 14-joint hierarchy."
+}

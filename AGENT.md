@@ -16,14 +16,15 @@ blunted foundation boilerplate is public domain.
 - Do not create `src/core/` or `src/legacy/`.
 - Structural changes must update this file's layout and target/path references.
 - Finish changes with a local git commit. Never push; the maintainer does that.
-- Do not casually edit `data/` or the baked animation asset: they are inputs to
-  the physics/animation acceptance tests.
+- Do not casually edit `data/` or the canonical animation GLBs/metadata under
+  `assets/`: they are inputs to physics/animation acceptance tests. Runtime
+  `.simanim` files are generated build caches, never checked-in authorities.
 - Do not run full matches to validate a module change. Unit suites are the
   gate; a full match is not.
 
 ## Build and test
 
-CMake >= 3.24, Ninja, C++23; use the `flake.nix` dev shell.
+CMake >= 3.24, Ninja, C++23, Python >= 3.10; use the `flake.nix` dev shell.
 
 ```sh
 # Debug build + unit/interface suites (the normal gate)
@@ -35,6 +36,18 @@ nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF && c
 BqLog (pinned) and nlohmann/json v3.11.3 (pinned, the coach tool-call JSON
 boundary) are fetched in every build mode through `cmake/CPM.cmake`; Catch2
 v3.7.1 is fetched only with `BUILD_TESTING=ON`. All use `.cache/CPM`.
+
+Animation assets are compiled by `cmake/animation_assets.cmake`:
+`assets/animations/player_14/{manifest.json,*.glb}` plus
+`assets/skeletons/player_14.json` are the only animation source authority.
+`tools/playerAssets/animation_assets.py bake` creates
+`<build-dir>/assets/runtime/animations.simanim`; Runtime and asset tests depend
+on `football_animation_assets` and consume that generated cache. Normal builds
+need neither Blender nor the legacy `.anim` importer. `tools/animBaker` is an
+explicitly selected recovery/provenance tool, excluded from the default build.
+GLBs use Y-up logical joint axes; physics/cache metadata stays Z-up. Do not
+copy Blender display-bone preview exports over canonical sources. See
+`assets/README.md` for the format contract and authoring/validation commands.
 
 ### Module testing policy
 
@@ -349,7 +362,12 @@ src/                 implementations; public headers live in include/football/
 ├── testing/         internal SimulationAccess (never product/actor-facing)
 └── env.cpp          public facade implementation
 
-tools/               app (football_sim), animBaker
+assets/              canonical distributable assets (see assets/README.md)
+├── animations/player_14/  100 Hz GLBs + football metadata manifest
+├── characters/default/   static mesh/skin/material GLB variants + manifest
+└── skeletons/            shared logical bone contracts
+tools/               app (football_sim), animBaker (legacy recovery only),
+                     playerAssets (stdlib asset compiler + Blender preview tools)
 unittests/           one directory per active module (ball/pitch/player/team/
                      animation), including player_link and loco_animation
 ```

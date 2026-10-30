@@ -4,8 +4,7 @@
 
 add_executable(football_player_animation_catalog_tests
   player_animation_catalog_test.cpp)
-target_compile_definitions(football_player_animation_catalog_tests PRIVATE
-  GFOOTBALL_BAKED_ANIM_PATH="${PROJECT_SOURCE_DIR}/assets/runtime/animations.simanim")
+football_require_animation_cache(football_player_animation_catalog_tests)
 target_link_libraries(football_player_animation_catalog_tests
   PRIVATE
     football::animation

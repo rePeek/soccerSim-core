@@ -103,7 +103,7 @@ def verify(path, clip, joints, rest_pose):
 def main():
     repo = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path, default=repo / "assets/runtime/animations.simanim")
+    parser.add_argument("--source", type=Path, default=repo / "assets/animations/player_14/manifest.json")
     parser.add_argument("--data", type=Path, default=repo / "data")
     parser.add_argument("--output", type=Path, default=repo / "build/player-assets/runtime-animations")
     parser.add_argument("--limit", type=int, help="Export first N clips for a smoke test only")

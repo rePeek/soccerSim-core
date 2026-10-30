@@ -13,8 +13,7 @@ add_executable(football_loco_animation_tests
   loco_animation_ccd_consistency_test.cpp)
 target_include_directories(football_loco_animation_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src)
-target_compile_definitions(football_loco_animation_tests PRIVATE
-  GFOOTBALL_BAKED_ANIM_PATH="${PROJECT_SOURCE_DIR}/assets/runtime/animations.simanim")
+football_require_animation_cache(football_loco_animation_tests)
 target_link_libraries(football_loco_animation_tests
   PRIVATE
     football::animation

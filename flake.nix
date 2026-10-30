@@ -21,6 +21,7 @@
               pkgs.gnumake
               pkgs.ninja
               pkgs.ccache
+              pkgs.python3
             ];
             shellHook = ''
               echo "Toolchain: $(g++ --version | head -1)"

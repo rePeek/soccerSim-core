@@ -108,6 +108,19 @@ only on public value contracts. AI consumes
 `football/player/player_control_set.hpp`; apps use `football/env.hpp`.
 `WorldState` is an owning observation projection, never mutable world authority.
 
+## Animation and character assets
+
+Canonical animation sources are GLBs and football metadata under
+`assets/animations/player_14/`; appearance GLBs (mesh, skin, materials) live in
+`assets/characters/default/`, with a shared skeleton in `assets/skeletons/`.
+See [assets/README.md](assets/README.md) for the authoring contract.
+
+CMake uses Python 3.10+ (included in the Nix shell) to compile the GLB catalog
+into `<build-dir>/assets/runtime/animations.simanim`. This is a generated cache,
+not a checked-in asset. Normal builds need neither Blender nor the old `.anim`
+baker. Blender preview tools are documented in
+[tools/playerAssets/README.md](tools/playerAssets/README.md).
+
 ## Build and tests
 
 ```sh
@@ -127,5 +140,6 @@ current scope is `pitch`, `ball`, `player` and `team`, plus the `animation`
 acceptance suites and the Player/Team link smokes; no test constructs a full
 Simulation or plays a match. Tests assert physical correctness, state
 invariants and module contracts; there is no golden/fingerprint tier and no
-full-match requirement for a module change. The offline animation baker remains
-a standalone tool under `tools/animBaker/`.
+full-match requirement for a module change. The old `.anim` baker under
+`tools/animBaker/` is an explicitly selected recovery tool, excluded from the
+default build. Asset compiler tests are included in the `animation` label.

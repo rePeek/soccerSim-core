@@ -204,7 +204,7 @@ def main():
     for protected in (repo / "data", repo / "assets", template.parent):
         if output == protected or protected in output.parents or output in protected.parents:
             raise ValueError("Use an independent output directory")
-    source = repo / "assets/runtime/animations.simanim"
+    source = repo / "assets/animations/player_14/manifest.json"
     hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in (source, template)}
     clips = simanim.load(source)
     joints = legacy.load_rig(repo / "data/media/objects/players/player.object")

@@ -1,3 +1,22 @@
+# 正式资产与预览工具
+
+正式动作、外观和骨架已经分到 `assets/animations/`、`assets/characters/`、
+`assets/skeletons/`。完整目录和 GLB 源输入契约见 [assets/README.md](../../assets/README.md)。
+`animation_assets.py` 是不依赖 Blender 的正式资产编译器；下面各 Blender 工具
+输出的是 `build/` 下的建模/动画预览，不是另一套正式动作来源。
+
+```sh
+python3 tools/playerAssets/animation_assets.py bake \
+  --manifest assets/animations/player_14/manifest.json \
+  --output build/asset-cache/animations.simanim
+```
+
+正常 CMake 构建会自动执行缓存编译。所有动作预览默认读取正式 GLB catalog；
+`simanim.load()` 同时支持 catalog JSON 与生成的 v7 缓存，不能依赖已移除的
+`assets/runtime/animations.simanim`。旧 ASE/XML/.anim 工具只用于离线外观参考和历史恢复。
+
+---
+
 # 给平滑版人物添加头发
 
 ```sh
@@ -200,7 +219,8 @@ blender --background --factory-startup --python-exit-code 1 \
 ```
 
 默认输出：`build/player-assets/runtime-animations/`，每个运行时动作一个 GLB，
-包括 baker 生成和镜像的动作，来源是 `assets/runtime/animations.simanim` v7。
+包含原始生成和镜像动作，来源是 `assets/animations/player_14/manifest.json`。
+此导出器生成 Blender 显示骨骼基的预览，不应覆盖 `assets/` 的逻辑骨骼基 GLB。
 文件名前缀是运行时 clip ID，避免重名；`manifest.json` 保留原动作名、ID、
 100 FPS、帧数、动作元数据、触球点、原始 XY 根轨迹及文件 SHA-256。
 GLB 保留完整 XYZ 根运动，使用 Y-up / 米；不擅自声明动作循环。
@@ -214,7 +234,7 @@ GLB 保留完整 XYZ 根运动，使用 Y-up / 米；不擅自声明动作循环
 `1e-4`（含 float32 骨骼基变换误差）；同时检查动作名、骨骼集合和时长。验证汇总写入 manifest；
 失败则非零退出，不写成功清单。未验证 Godot 装配。
 
-可选参数：`--source path/to/animations.simanim`、`--data path/to/data`、
+可选参数：`--source path/to/manifest.json`（也可读生成缓存）、`--data path/to/data`、
 `--output path/to/output`。`--limit 2` 只用于冒烟测试，清单会标记
 `complete: false`。重新导出会覆盖同名生成文件；不会自动清理目录内旧文件，
 请以 manifest 为准，或使用新的输出目录。
@@ -235,8 +255,8 @@ blender -b --factory-startup --python-exit-code 1 \
 
 # 默认球员模板：第一阶段
 
-独立的离线 Blender 工具，不接入 CMake，不改变模拟逻辑、`data/` 或
-`assets/runtime/animations.simanim`。输出默认放在 Git 忽略的 `build/player-assets/`。
+独立的离线 Blender 外观工具，不改变模拟逻辑、`data/` 或正式 `assets/`。
+输出默认放在 Git 忽略的 `build/player-assets/`；不参与正常 CMake 动作编译。
 
 ## 生成与验证
 

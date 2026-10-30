@@ -141,7 +141,7 @@ def main():
     asset_dir = repo / "data/media/objects/players"
     hair_dir = asset_dir / "hairstyles"
     texture = asset_dir / "textures/hair" / (args.color + ".bmp")
-    source = repo / "assets/runtime/animations.simanim"
+    source = repo / "assets/animations/player_14/manifest.json"
     inputs = [template, source, texture] + [hair_dir / (style + ".ase") for style in STYLES]
     hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
     output.mkdir(parents=True, exist_ok=True)

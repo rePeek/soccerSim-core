@@ -60,5 +60,4 @@ target_link_libraries(football_sim_domain
   PRIVATE football::player football::contact football::animation football::ball football::pitch BqLog)
 football_configure_target(football_sim_domain)
 # Resource lookup belongs to runtime loading, never public value/policy contracts.
-target_compile_definitions(football_sim_domain PRIVATE
-  GFOOTBALL_BAKED_ANIM_PATH="${PROJECT_SOURCE_DIR}/assets/runtime/animations.simanim")
+football_require_animation_cache(football_sim_domain)

@@ -164,7 +164,7 @@ def main():
             raise ValueError("Output must not overwrite source assets")
     if output == template or output in template.parents:
         raise ValueError("Use a separate output directory")
-    source = repo / "assets/runtime/animations.simanim"
+    source = repo / "assets/animations/player_14/manifest.json"
     source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
     template_hash = hashlib.sha256(template.read_bytes()).hexdigest()
     all_clips = simanim.load(source)

@@ -99,6 +99,9 @@ class Clip:
 
 
 def load(path: Path):
+    if path.suffix == ".json":
+        from animation_assets import load as load_catalog
+        return load_catalog(path)
     reader = Reader(path.read_bytes())
     if reader.take(8) != b"SIMANIM1" or reader.u32() != 7:
         raise ValueError("Expected SIMANIM version 7")
