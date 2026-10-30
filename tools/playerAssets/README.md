@@ -1,5 +1,29 @@
 # 正式资产与预览工具
 
+# 所有手工“过人/转身”动作同场景预览
+
+```sh
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_skill_gallery.py
+```
+
+输出：`build/player-skill-gallery/skills_14_in_place.blend`，打开按空格播放。
+3 列 × 7 行共 **21 个** 14 骨骼人物，齐达内转身、180° 转身/切开、
+护球转身（holdball）、转身传球/射门/高球、胸部停球 180° 转身。
+全部是原始手工片段，0.5 倍速、原地、末尾展示复位；不是自动合成动作。
+
+**原动作库没有踩单车、牛尾巴、油炸丸子、插花脚等专门花式动作**；
+可直接称为“过人”的素材就是上述转身/护球类。名称含 `180_turn` 的传球、
+射门、高球版本很可能共用同一转身身体动作，仅收尾不同。
+护球类没有烘焙触球数据，因此场景不画球；带球动作的球轨迹本就不在动作库里。
+
+`validation.json` 记录每个动作的来源、帧数、身高/速度参数、转向角度、
+触球帧、源关节误差，以及原地根位移和重新打开 .blend 后的运动检查。
+
+---
+
+# 正式资产与预览工具
+
 正式动作、外观和骨架已经分到 `assets/animations/`、`assets/characters/`、
 `assets/skeletons/`。完整目录和 GLB 源输入契约见 [assets/README.md](../../assets/README.md)。
 `animation_assets.py` 是不依赖 Blender 的正式资产编译器；下面各 Blender 工具
