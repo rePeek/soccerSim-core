@@ -1,3 +1,43 @@
+# 给平滑版人物添加头发
+
+```sh
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_player_hair.py -- --gallery
+
+# 同一套六动作预览，换成带头发的模型
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_action_gallery.py -- \
+  --template build/player-hair/default_14_hair.blend \
+  --output build/player-action-gallery-hair
+```
+
+依赖下方 `build/player-smooth/default_14_smooth.blend`，原始低面数 14 骨骼
+静态模板也可通过 `--template` 使用。默认黑色短发 `short01`。
+
+`build/player-hair/` 内：
+
+- `default_14_hair.blend` / `.glb`：平滑人物 + 头发；GLB 内嵌所有贴图。
+- `run_14_hair.blend`：带头发的原地跑，打开按空格播放。
+- `hairstyles_preview.blend`：`--gallery` 生成的六种发型头部近景。
+- `textures/hair_black.png`：发色贴图副本（实际文件名随发色变化）。
+- `validation.json`：来源哈希、网格/骨骼、实际 GLB 头发权重、重导入及
+  跑步全部 241 帧的头发蒙皮变换验证。
+
+可选发型：`--style short01|short02|medium01|medium02|long01|long02`。
+可选发色：`--color black|brown|blonde|darkblonde|red`。建议不同组合使用不同
+`--output`，例如 `--style long01 --color brown --output build/player-hair-long-brown`。
+
+复用仓库原有 ASE 发型与 BMP 贴图，没有下载外部资产。按照历史提交
+`361a764` 的 `HumanoidBase::UpdateFullbodyNodes`，头发坐标为头颈关节局部坐标，
+整块头发 100% 绑定现有 `neck`；没有增加骨骼，也没有发丝模拟。
+默认头发也进行两级细分，98 → 2,352 个三角形；加上平滑人物共 20,280 个
+三角形。`--hair-levels 0|1|2` 可调整，0 保留原始低面数发型。
+
+这是传统实体网格头发，不是逐根毛发、发片透明材质或物理长发；不同原始
+发型的正面可能很相似，需要转到侧面/背面比较。不会替代面部建模。
+
+---
+
 # 高面数平滑预览（仍为 14 骨骼）
 
 ```sh
