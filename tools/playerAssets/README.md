@@ -1,3 +1,26 @@
+# 同场景 14 / 20 骨骼原地跑对比
+
+```sh
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_run_comparison.py
+```
+
+前置：生成下方 `default_14_bones.blend` 和 `default_20_bones.blend`。
+输出：`build/player-run-comparison/run_14_vs_20_in_place.blend` / `.glb`。
+Blender 场景左侧 14 骨骼、右侧 20 骨骼，有文字标签；打开 `.blend` 按空格播放。
+两版同模型/材质、同跑步源、同相位、同速度、同 XY 根运动移除方式，
+100 FPS、2.4 秒；两套 Blender Action 在同一时间轴播放，GLB 合成一个共享动画。
+GLB 不包含文字标签，但保留两个独立人物及骨架。
+
+没有增加骨骼约束或 IK；20 骨骼版仅多出程序补充的关节动作与对应预览权重。
+逐帧检查共享 14 骨骼的骨架空间变换一致（容许 `2e-5` 浮点误差），
+不对“更自然”作自动验收判断；新增细节的观感及足部接触仍需人工检查。
+`validation.json` 记录同步、骨骼、约束数量、导出时间轴及重导入播放检查。
+
+支持 `--templates path/to/static/templates` 和 `--output path/to/output`。
+
+---
+
 # 20 骨骼跑步预览
 
 生成下方 20 骨骼模板后运行：
