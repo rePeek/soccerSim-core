@@ -2,15 +2,19 @@
 
 ```text
 assets/
-├── animations/player_14/
+├── animations/
 │   ├── manifest.json       1452 个动作的稳定 ID、足球元数据、触球信息
 │   └── *.glb               100 Hz 骨骼动画及共享参考骨架；没有人物外观
-├── characters/default/
-│   ├── manifest.json       默认外观与可选网格版本
-│   ├── body.glb            平滑人物 + 黑色短发，20,280 三角形
-│   ├── body_smooth.glb     无头发平滑人物，17,928 三角形
-│   └── body_low.glb        无头发原版人物，747 三角形
-└── skeletons/player_14.json 骨骼名称、层级、逻辑参考偏移和运行时数组顺序
+├── characters/
+│   ├── manifest.json       可替换外观包及各插槽 (skin/kit/shoes/hair)
+│   ├── default/body.glb    完整默认外观（平滑人物 + 黑色短发）
+│   ├── default/body_smooth.glb / body_low.glb  无头发平滑版 / 原版
+│   ├── base/base.glb       头、双臂、双膝（皮肤）
+│   ├── kit/{home,away,goalkeeper,referee}.glb  球衣/球裤/袜子
+│   ├── shoes/default.glb   球鞋与鞋底
+│   ├── hair/{short,medium,long}*.glb  六种发型
+│   └── */textures/*.png    贴图副本，可直接替换试色
+└── skeletons/player.json   骨骼名称、层级、逻辑参考偏移和运行时数组顺序
 ```
 
 **GLB + manifest + skeleton 是正式资产。源码树不再保存 `.simanim`。**
@@ -19,12 +23,34 @@ assets/
 按名称映射动作。动作包中的透明三角形 `__rig_binding__` 仅用于导入器识别 skin，
 不是人物外观，应在组装时丢弃。20 骨骼实验版不在正式目录中。
 
+## 可替换外观插槽
+
+`characters/manifest.json` 把外观拆成四个插槽；每包都带完整 14 骨骼骨架和
+相同逆绑定矩阵，因此可以只保留一套 Skeleton、按骨骼名称映射后叠加：
+
+| 插槽 | 包 | 内容 |
+| --- | --- | --- |
+| skin | `base/base.glb` | 头、双臂、双膝 |
+| kit | `kit/{home,away,goalkeeper,referee}.glb` | 躯干/球衣、球裤、袜子 |
+| shoes | `shoes/default.glb` | 左右球鞋与鞋底 |
+| hair | `hair/<style>.glb` | 六种发型，100% 绑定 `neck` |
+
+`default/body.glb` 是现成的完整默认外观，不需要装配；也保留无头发平滑版
+与原版低面数版。每个包内嵌 PNG；旁边的 `textures/*.png` 是便于修改的副本，
+**改 PNG 不会自动更新 GLB**，需要重新导出。球衣贴图可选 home/away/
+goalkeeper/referee；发色可选黑/棕/金/深金/红。
+
+限制：球衣、球裤、躯干和袜子共用一个 kit 网格/材质，没有能单独替换的
+上衣或短裤；头发是绑定到 `neck` 的实体网格，没有发丝模拟；没有五官、
+手指、脚趾或法线贴图。不提供 20 骨骼实验版。
+
+
 ## 构建与 C++ 运行时
 
 CMake 的 `football_animation_assets` 目标用 Python 3.10+ 标准库生成：
 
 ```text
-assets/animations/player_14/*.glb + manifest.json + skeletons/player_14.json
+assets/animations/*.glb + manifest.json + skeletons/player.json
                   ↓ animation_assets.py bake
 <cmake-build-dir>/assets/runtime/animations.simanim
                   ↓ AnimationLibrary::Load
@@ -43,7 +69,7 @@ CMake 跟踪全部 GLB、元数据、骨架与编译器的依赖；修改来源�
 
 ```sh
 python3 tools/playerAssets/animation_assets.py bake \
-  --manifest assets/animations/player_14/manifest.json \
+  --manifest assets/animations/manifest.json \
   --output build/asset-cache/animations.simanim
 ```
 
@@ -65,7 +91,7 @@ manifest 中 `id` 连续且按现有运行时顺序排列，不得随意重排�
 这不是任意 glTF 文件的通用导入器，而是有意严格的、可验证的资产输入契约：
 
 - 标准 GLB 2.0，内嵌单个 BIN，无压缩、外部 buffer 或 sparse accessor。
-- `extras.rig_version` 为 `football_player_14_v1`。
+- `extras.rig_version` 为 `football_player_v1`。
 - Y-up、米；骨骼节点名、父子关系和参考偏移与共享 skeleton 一致。
 - **逻辑关节参考旋转为单位旋转**，骨架对象变换为单位变换；不同于 Blender
   为显示骨骼尾端而生成的局部坐标轴。人物 GLB 与动作 GLB 都已统一到此逻辑基。

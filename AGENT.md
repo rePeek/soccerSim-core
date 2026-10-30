@@ -38,8 +38,8 @@ boundary) are fetched in every build mode through `cmake/CPM.cmake`; Catch2
 v3.7.1 is fetched only with `BUILD_TESTING=ON`. All use `.cache/CPM`.
 
 Animation assets are compiled by `cmake/animation_assets.cmake`:
-`assets/animations/player_14/{manifest.json,*.glb}` plus
-`assets/skeletons/player_14.json` are the only animation source authority.
+`assets/animations/{manifest.json,*.glb}` plus
+`assets/skeletons/player.json` are the only animation source authority.
 `tools/playerAssets/animation_assets.py bake` creates
 `<build-dir>/assets/runtime/animations.simanim`; Runtime and asset tests depend
 on `football_animation_assets` and consume that generated cache. Normal builds
@@ -363,9 +363,9 @@ src/                 implementations; public headers live in include/football/
 └── env.cpp          public facade implementation
 
 assets/              canonical distributable assets (see assets/README.md)
-├── animations/player_14/  100 Hz GLBs + football metadata manifest
-├── characters/default/   static mesh/skin/material GLB variants + manifest
-└── skeletons/            shared logical bone contracts
+├── animations/            100 Hz GLBs + football metadata manifest
+├── characters/            default body, plus base/kit/shoes/hair slots + manifest
+└── skeletons/player.json  shared logical bone contract
 tools/               app (football_sim), animBaker (legacy recovery only),
                      playerAssets (stdlib asset compiler + Blender preview tools)
 unittests/           one directory per active module (ball/pitch/player/team/

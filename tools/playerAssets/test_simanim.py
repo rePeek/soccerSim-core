@@ -64,7 +64,7 @@ class SimanimTest(unittest.TestCase):
 
     def test_checked_in_library(self):
         repo = Path(__file__).resolve().parents[2]
-        clips = simanim.load(repo / "assets/animations/player_14/manifest.json")
+        clips = simanim.load(repo / "assets/animations/manifest.json")
         self.assertGreater(len(clips), 1000)
         joints = legacy.load_rig(repo / "data/media/objects/players/player.object")
         self.assertEqual({j.name for j in joints}, set(simanim.BODY_PARTS))

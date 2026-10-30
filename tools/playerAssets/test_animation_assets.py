@@ -14,7 +14,7 @@ import animation_assets as assets
 import simanim
 
 REPO = Path(__file__).resolve().parents[2]
-MANIFEST = REPO / "assets/animations/player_14/manifest.json"
+MANIFEST = REPO / "assets/animations/manifest.json"
 
 
 class CatalogTest(unittest.TestCase):
@@ -22,16 +22,16 @@ class CatalogTest(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         root = Path(self.directory.name)
-        self.manifest = root / "assets/animations/player_14/manifest.json"
+        self.manifest = root / "assets/animations/manifest.json"
         self.manifest.parent.mkdir(parents=True)
         self.doc = assets.json_read(MANIFEST)
         self.doc["clips"] = [copy.deepcopy(self.doc["clips"][0])]
         self.entry = self.doc["clips"][0]
         self.glb = self.manifest.parent / self.entry["file"]
         shutil.copyfile(MANIFEST.parent / self.entry["file"], self.glb)
-        skeleton = root / "assets/skeletons/player_14.json"
+        skeleton = root / "assets/skeletons/player.json"
         skeleton.parent.mkdir(parents=True)
-        shutil.copyfile(REPO / "assets/skeletons/player_14.json", skeleton)
+        shutil.copyfile(REPO / "assets/skeletons/player.json", skeleton)
         self.save_manifest()
 
     def save_manifest(self):
@@ -136,19 +136,25 @@ class CatalogTest(unittest.TestCase):
         self.assertEqual(clips, simanim.load(path))
         self.assertEqual([c.id for c in clips], list(range(len(clips))))
 
-    def test_characters_use_shared_logical_skeleton(self):
-        skeleton = assets.read_skeleton(REPO / "assets/skeletons/player_14.json")
-        for name in ("body.glb", "body_low.glb", "body_smooth.glb"):
-            with self.subTest(character=name):
-                doc, _ = assets.read_glb(REPO / "assets/characters/default" / name)
+    def test_character_packages_use_one_skeleton(self):
+        skeleton = assets.read_skeleton(REPO / "assets/skeletons/player.json")
+        parts = assets.json_read(REPO / "assets/characters/manifest.json")
+        self.assertEqual(parts["rig_version"], assets.RIG)
+        paths = [REPO / "assets/characters/default" / name for name in
+                 ("body.glb", "body_low.glb", "body_smooth.glb")]
+        paths += [REPO / "assets/characters" / entry["file"] for entry in
+                  [parts["base"], parts["shoes"]] + list(parts["kits"].values())
+                  + list(parts["hair"].values())]
+        expected = {tuple(assets.yup(bone["offset_zup"])) for bone in skeleton["bones"]}
+        for path in paths:
+            with self.subTest(character=path.name):
+                doc, _ = assets.read_glb(path)
                 self.assertFalse(doc.get("animations"))
                 self.assertEqual(len(doc["skins"]), 1)
-                skin = doc["skins"][0]
-                nodes = {doc["nodes"][i]["name"]: doc["nodes"][i] for i in skin["joints"]}
+                nodes = {doc["nodes"][i]["name"]: doc["nodes"][i] for i in doc["skins"][0]["joints"]}
                 self.assertEqual(set(nodes), set(simanim.BODY_PARTS))
-                for bone in skeleton["bones"]:
-                    self.assertEqual(tuple(nodes[bone["name"]]["translation"]), assets.yup(bone["offset_zup"]))
-                    self.assertNotIn("rotation", nodes[bone["name"]])
+                self.assertEqual({tuple(node["translation"]) for node in nodes.values()}, expected)
+                self.assertTrue(all("rotation" not in node for node in nodes.values()))
                 self.assertTrue(all("bufferView" in image for image in doc["images"]))
 
 

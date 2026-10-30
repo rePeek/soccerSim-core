@@ -111,8 +111,9 @@ only on public value contracts. AI consumes
 ## Animation and character assets
 
 Canonical animation sources are GLBs and football metadata under
-`assets/animations/player_14/`; appearance GLBs (mesh, skin, materials) live in
-`assets/characters/default/`, with a shared skeleton in `assets/skeletons/`.
+`assets/animations/`; appearance GLBs (complete default body plus swappable
+base/kit/shoes/hair slots) live in `assets/characters/`, with one shared skeleton
+in `assets/skeletons/player.json`.
 See [assets/README.md](assets/README.md) for the authoring contract.
 
 CMake uses Python 3.10+ (included in the Nix shell) to compile the GLB catalog

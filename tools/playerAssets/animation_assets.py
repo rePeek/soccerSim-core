@@ -17,7 +17,7 @@ import tempfile
 import simanim
 
 SCHEMA = "football_animation_catalog_v1"
-RIG = "football_player_14_v1"
+RIG = "football_player_v1"
 METADATA = (
     ("action_type", "i"), ("incoming_velocity", "f"), ("outgoing_velocity", "f"),
     ("incoming_body_angle", "f"), ("outgoing_body_angle", "f"), ("outgoing_angle", "f"),
@@ -390,8 +390,8 @@ def migrate(source, root):
     skeleton = {"rig_version": RIG, "units": "metres", "up_axis": "Y",
                 "runtime_up_axis": "Z", "body_part_order": simanim.BODY_PARTS,
                 "bones": [{"name": j.name, "parent": j.parent, "offset_zup": j.position} for j in joints]}
-    json_write(root / "assets/skeletons/player_14.json", skeleton)
-    directory = root / "assets/animations/player_14"
+    json_write(root / "assets/skeletons/player.json", skeleton)
+    directory = root / "assets/animations"
     entries = []
     for clip in clips:
         # All ignored legacy position tracks must actually be zero. Otherwise
@@ -407,7 +407,7 @@ def migrate(source, root):
                         "contact_position": clip.contact, "touches": clip.touches})
     manifest = directory / "manifest.json"
     json_write(manifest, {"schema": SCHEMA, "rig_version": RIG, "fps": 100,
-                         "skeleton": "../../skeletons/player_14.json", "clips": entries})
+                         "skeleton": "../../skeletons/player.json", "clips": entries})
     if serialize(load(manifest)) != source.read_bytes():
         raise AssertionError("Migration lost data: rebuilt runtime cache is not byte-identical")
     print(f"MIGRATED {len(clips)} clips; GLB -> cache is byte-identical")
@@ -442,7 +442,7 @@ only rest joint transforms and inverse binds change together.
         matrix = inverse_bind(globals_[doc["nodes"][node_index]["name"]])
         offset = view.get("byteOffset", 0) + spec.get("byteOffset", 0) + i * view.get("byteStride", 64)
         struct.pack_into("<16f", binary, offset, *matrix)
-    doc["extras"] = {"rig_version": RIG, "skeleton": "../../skeletons/player_14.json"}
+    doc["extras"] = {"rig_version": RIG, "skeleton": "../../skeletons/player.json"}
     for node in doc["nodes"]:
         if "rig_version" in node.get("extras", {}):
             node["extras"]["rig_version"] = RIG

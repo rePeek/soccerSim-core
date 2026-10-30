@@ -118,7 +118,7 @@ def main():
         if output == protected or protected in output.parents or output in protected.parents:
             raise ValueError("Use an independent build output directory")
     paths = [templates / f"default_{n}_bones.blend" for n in (14, 20)]
-    source = repo / "assets/animations/player_14/manifest.json"
+    source = repo / "assets/animations/manifest.json"
     hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths + [source]}
     clips = simanim.load(source)
     pair = []

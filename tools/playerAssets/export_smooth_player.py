@@ -111,7 +111,7 @@ def main():
     for protected in (repo / "data", repo / "assets", template.parent):
         if output == protected or protected in output.parents or output in protected.parents:
             raise ValueError("Use an independent output directory")
-    source = repo / "assets/animations/player_14/manifest.json"
+    source = repo / "assets/animations/manifest.json"
     hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in (template, source)}
     output.mkdir(parents=True, exist_ok=True)
     (output / "validation.json").unlink(missing_ok=True)

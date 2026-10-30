@@ -2,7 +2,7 @@
 # runtime cache; neither Blender nor the legacy .anim baker is needed to build.
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 set(FOOTBALL_ANIMATION_MANIFEST
-    "${PROJECT_SOURCE_DIR}/assets/animations/player_14/manifest.json")
+    "${PROJECT_SOURCE_DIR}/assets/animations/manifest.json")
 set(FOOTBALL_ANIMATION_CACHE
     "${PROJECT_BINARY_DIR}/assets/runtime/animations.simanim")
 # Use the manifest, not a glob: deleting a referenced GLB must fail even if
@@ -24,7 +24,7 @@ add_custom_command(
     --output "${FOOTBALL_ANIMATION_CACHE}"
   DEPENDS ${FOOTBALL_ANIMATION_GLBS}
     "${FOOTBALL_ANIMATION_MANIFEST}"
-    "${PROJECT_SOURCE_DIR}/assets/skeletons/player_14.json"
+    "${PROJECT_SOURCE_DIR}/assets/skeletons/player.json"
     "${PROJECT_SOURCE_DIR}/tools/playerAssets/animation_assets.py"
     "${PROJECT_SOURCE_DIR}/tools/playerAssets/simanim.py"
     "${PROJECT_SOURCE_DIR}/tools/playerAssets/legacy.py"

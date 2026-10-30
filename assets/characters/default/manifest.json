@@ -1,7 +1,7 @@
 {
   "schema": "football_character_v1",
-  "rig_version": "football_player_14_v1",
-  "skeleton": "../../skeletons/player_14.json",
+  "rig_version": "football_player_v1",
+  "skeleton": "../../skeletons/player.json",
   "units": "metres",
   "up_axis": "Y",
   "default": "body.glb",
@@ -27,7 +27,7 @@
   ],
   "textures": "Embedded PNG images",
   "skinning": "Embedded skin weights and inverse bind matrices",
-  "animations": "None; load from assets/animations/player_14 separately",
+  "animations": "None; load from assets/animations separately",
   "hair": "Rigid neck attachment, no hair simulation",
   "note": "Shared logical bone axes, not Blender display-bone axes. Variants preserve the same 14-joint hierarchy."
 }

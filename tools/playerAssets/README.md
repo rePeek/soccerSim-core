@@ -7,13 +7,27 @@
 
 ```sh
 python3 tools/playerAssets/animation_assets.py bake \
-  --manifest assets/animations/player_14/manifest.json \
+  --manifest assets/animations/manifest.json \
   --output build/asset-cache/animations.simanim
 ```
 
 正常 CMake 构建会自动执行缓存编译。所有动作预览默认读取正式 GLB catalog；
 `simanim.load()` 同时支持 catalog JSON 与生成的 v7 缓存，不能依赖已移除的
 `assets/runtime/animations.simanim`。旧 ASE/XML/.anim 工具只用于离线外观参考和历史恢复。
+
+正式外观包（皮肤、球衣、球鞋、发型）由 `export_character_parts.py` 生成，
+需要下方 `default_14_smooth.blend` 预览模板：
+
+```sh
+blender -b --factory-startup --python-exit-code 1 \
+  --python tools/playerAssets/export_character_parts.py
+```
+
+输出直接写入 `assets/characters/{base,kit,shoes,hair}/`，并同步更新
+`assets/characters/manifest.json`。脚本会校验每个包使用同一套 14 骨骼、
+相同逆绑定矩阵、内嵌 PNG、无动画，并检查来源文件未被修改。
+`--output`/`--build` 可用于写另一套目录；不传则更新正式资产。
+注意：球衣、球裤、袜子在原模型中同属一个 kit 网格，无法单独拆分。
 
 ---
 
@@ -219,7 +233,7 @@ blender --background --factory-startup --python-exit-code 1 \
 ```
 
 默认输出：`build/player-assets/runtime-animations/`，每个运行时动作一个 GLB，
-包含原始生成和镜像动作，来源是 `assets/animations/player_14/manifest.json`。
+包含原始生成和镜像动作，来源是 `assets/animations/manifest.json`。
 此导出器生成 Blender 显示骨骼基的预览，不应覆盖 `assets/` 的逻辑骨骼基 GLB。
 文件名前缀是运行时 clip ID，避免重名；`manifest.json` 保留原动作名、ID、
 100 FPS、帧数、动作元数据、触球点、原始 XY 根轨迹及文件 SHA-256。
