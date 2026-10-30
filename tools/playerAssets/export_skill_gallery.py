@@ -33,7 +33,7 @@ GROUPS = (
         ("DIAGONAL 180 ACCEL", "/movement/idle/angled/D045_180_accel.anim"),
     )),
     ("skills_turns_release.blend", "TURNS INTO PASS / SHOT / CONTROL", (
-        ("ZIDANE TURN", "/shot/dribble/090_zidane.anim"),
+        ("ZIDANE VOLLEY 0.8M", "/shot/dribble/090_zidane.anim"),
         ("PASS 180 TURN", "/pass/dribble/180_turn.anim"),
         ("SHOT 180 TURN", "/shot/walk/180_turn.anim"),
         ("HIGH PASS 180 TURN", "/highpass/walk/180_turn.anim"),
