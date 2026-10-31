@@ -25,8 +25,10 @@ class CatalogTest(unittest.TestCase):
         self.manifest = root / "assets/animations/manifest.json"
         self.manifest.parent.mkdir(parents=True)
         self.doc = assets.json_read(MANIFEST)
-        self.doc["clips"] = [copy.deepcopy(self.doc["clips"][0])]
+        authored = next(entry for entry in self.doc["clips"] if "file" in entry)
+        self.doc["clips"] = [copy.deepcopy(authored)]
         self.entry = self.doc["clips"][0]
+        self.entry["id"] = 0
         self.glb = self.manifest.parent / self.entry["file"]
         shutil.copyfile(MANIFEST.parent / self.entry["file"], self.glb)
         skeleton = root / "assets/skeletons/player.json"
@@ -135,6 +137,24 @@ class CatalogTest(unittest.TestCase):
         path.write_bytes(assets.serialize(clips))
         self.assertEqual(clips, simanim.load(path))
         self.assertEqual([c.id for c in clips], list(range(len(clips))))
+
+    def test_virtual_mirrors_resolve_from_authored_clips(self):
+        doc = assets.json_read(MANIFEST)
+        entries = doc["clips"]
+        virtual = [entry for entry in entries if "mirror_of" in entry]
+        self.assertTrue(virtual)
+        for entry in virtual:
+            self.assertNotIn("file", entry)
+            source = entries[entry["mirror_of"]]
+            self.assertNotIn("mirror_of", source)
+            self.assertEqual(entry["frame_count"], source["frame_count"])
+        clips = assets.load(MANIFEST)
+        for entry in virtual:
+            mirrored = clips[entry["id"]]
+            source = clips[entry["mirror_of"]]
+            self.assertEqual(len(mirrored.poses), len(source.poses))
+            self.assertEqual(mirrored.metadata["current_foot"],
+                             1 - source.metadata["current_foot"])
 
     def test_character_packages_use_one_skeleton(self):
         skeleton = assets.read_skeleton(REPO / "assets/skeletons/player.json")

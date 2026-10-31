@@ -49,6 +49,11 @@ python3 tools/playerAssets/animation_assets.py bake \
 `simanim.load()` 同时支持 catalog JSON 与生成的 v7 缓存，不能依赖已移除的
 `assets/runtime/animations.simanim`。旧 ASE/XML/.anim 工具只用于离线外观参考和历史恢复。
 
+A0 镜像虚拟化后，`manifest.json` 只有 726 个 authored GLB；另外 726 个镜像
+条目使用 `mirror_of`，编译时交换左右骨骼、反射根运动/方向、交换脚别并映射
+quadrant。`animation_assets.py virtualize-mirrors` 用于一次性迁移：默认只检查，
+`--write` 改写 manifest，`--delete-files` 才删除已迁移的镜像 GLB。
+
 正式外观包（皮肤、球衣、球鞋、发型）由 `export_character_parts.py` 生成，
 需要下方 `default_14_smooth.blend` 预览模板：
 

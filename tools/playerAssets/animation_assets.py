@@ -36,6 +36,95 @@ METADATA = (
     ("translation", "3f"), ("outgoing_foot", "i"),
 )
 
+# A0: mirrors are derived from one authored clip, never loaded from a second
+# GLB. These rules are the exact reflection used by the legacy Animation::Mirror
+# on the canonical 14-joint basis.
+MIRROR_BODY_PART = {i: i for i in range(len(simanim.BODY_PARTS))}
+for _index, _name in enumerate(simanim.BODY_PARTS):
+    if _name.startswith("left_"):
+        MIRROR_BODY_PART[_index] = simanim.BODY_PARTS.index("right_" + _name[5:])
+    elif _name.startswith("right_"):
+        MIRROR_BODY_PART[_index] = simanim.BODY_PARTS.index("left_" + _name[6:])
+
+MIRROR_ANGLE_ID = {0: 0, 1: 6, 2: 7, 3: 8, 4: 9, 5: 5, 6: 1, 7: 2, 8: 3, 9: 4, 10: 10}
+MIRROR_QUADRANT = {0: 0}
+for _base in (0, 11, 22):
+    for _angle_id in range(11):
+        MIRROR_QUADRANT[_base + _angle_id + 1] = _base + MIRROR_ANGLE_ID[_angle_id] + 1
+
+MIRROR_NEGATED_ANGLES = {"incoming_body_angle", "outgoing_body_angle", "outgoing_angle"}
+MIRROR_NEGATED_X = {
+    "incoming_body_direction", "outgoing_direction", "incoming_ball_direction",
+    "outgoing_ball_direction", "bump_direction", "incoming_movement",
+    "outgoing_movement", "translation",
+}
+MIRROR_SWAPPED_FEET = {"current_foot", "outgoing_foot"}
+MIRROR_SWAPPED_STRINGS = {"incoming_retain_state", "touch_bodypart"}
+
+def mirror_string(value):
+    if value.startswith("left"):
+        return "right" + value[4:]
+    if value.startswith("right"):
+        return "left" + value[5:]
+    return value
+
+def mirror_metadata(metadata):
+    result = {}
+    for name, value in metadata.items():
+        if name in MIRROR_NEGATED_ANGLES:
+            result[name] = -value
+        elif name in MIRROR_NEGATED_X:
+            result[name] = (-value[0], value[1], value[2])
+        elif name in MIRROR_SWAPPED_FEET:
+            result[name] = 1 - value
+        elif name == "quadrant":
+            result[name] = MIRROR_QUADRANT.get(value, value)
+        elif name in MIRROR_SWAPPED_STRINGS:
+            result[name] = mirror_string(value)
+        else:
+            result[name] = value
+    return result
+
+def mirror_clip(source, entry):
+    """Reflect one authored clip without reading/storing a mirror GLB."""
+    if entry.get("frame_count") != len(source.poses):
+        raise ValueError("Mirror frame count differs from source")
+    poses = []
+    for pose in source.poses:
+        row = []
+        for index in range(len(simanim.BODY_PARTS)):
+            values = pose[MIRROR_BODY_PART[index]]
+            qx, qy, qz, qw = values[:4]
+            if index == 13:
+                tx, ty, tz = values[4:7]
+                row.append((qx, -qy, -qz, qw, -tx, ty, tz))
+            else:
+                row.append((qx, -qy, -qz, qw, 0.0, 0.0, 0.0))
+        poses.append(row)
+    roots = [(-x, y, z) for x, y, z in source.roots]
+    metadata = mirror_metadata(source.metadata)
+    contact = None if source.contact is None else (-source.contact[0], source.contact[1], source.contact[2])
+    touches = [{"frame": t["frame"], "position": (-t["position"][0], t["position"][1], t["position"][2])}
+               for t in source.touches]
+    # The catalog stores logical metadata for compatibility with old snapshots;
+    # use it when present, but validate it against the derived reflection.
+    if "metadata" in entry:
+        stored = {name: tuple(entry["metadata"][name]) if fmt == "3f" else entry["metadata"][name]
+                  for name, fmt in METADATA}
+        for name in stored:
+            a, b = stored[name], metadata[name]
+            same = (all(abs(x - y) <= 2e-5 for x, y in zip(a, b))
+                    if isinstance(a, (tuple, list)) else
+                    abs(a - b) <= 2e-5 if isinstance(a, float) else a == b)
+            if not same:
+                raise ValueError(f"Stored mirror metadata differs for {name}")
+        metadata = stored
+    if "contact_position" in entry and entry["contact_position"] is not None:
+        contact = tuple(entry["contact_position"])
+    if "touches" in entry:
+        touches = [{"frame": t["frame"], "position": tuple(t["position"])} for t in entry["touches"]]
+    return simanim.Clip(entry["id"], entry["name"], roots, poses, metadata, contact, touches)
+
 
 def json_read(path):
     def pairs(items):
@@ -313,18 +402,39 @@ def load(manifest):
     entries = doc["clips"]
     if not 0 < len(entries) <= 100000:
         raise ValueError("Invalid catalog size")
+    by_id = {entry.get("id"): entry for entry in entries}
     used, clips = set(), []
     for index, entry in enumerate(entries):
+        if entry.get("id") != index:
+            raise ValueError("Non-contiguous clip IDs")
+        if "mirror_of" in entry:
+            if "file" in entry:
+                raise ValueError("A virtual mirror must not carry a GLB path")
+            source_id = entry["mirror_of"]
+            if not isinstance(source_id, int) or source_id not in by_id or source_id == index:
+                raise ValueError("Invalid mirror_of source")
+            source_entry = by_id[source_id]
+            if "mirror_of" in source_entry:
+                raise ValueError("Mirror chains are not supported")
+            if "file" not in source_entry:
+                raise ValueError("Mirror source must be an authored GLB")
+            path = (manifest.parent / source_entry["file"]).resolve()
+            if not path.is_relative_to(manifest.parent) or path.suffix != ".glb":
+                raise ValueError("Invalid source clip path")
+            try:
+                clips.append(mirror_clip(read_clip(path, source_entry, skeleton), entry))
+            except (KeyError, IndexError, TypeError, struct.error) as error:
+                raise ValueError(f"Malformed mirror source: {path}: {error}") from error
+            continue
         path = (manifest.parent / entry["file"]).resolve()
-        if path in used or not path.is_relative_to(manifest.parent) or path.suffix != ".glb" or entry["id"] != index:
-            raise ValueError("Invalid/duplicate clip path or non-contiguous IDs")
+        if path in used or not path.is_relative_to(manifest.parent) or path.suffix != ".glb":
+            raise ValueError("Invalid/duplicate clip path")
         used.add(path)
         try:
             clips.append(read_clip(path, entry, skeleton))
         except (KeyError, IndexError, TypeError, struct.error) as error:
             raise ValueError(f"Malformed animation: {path}: {error}") from error
     return clips
-
 
 def serialize(clips):
     stream = io.BytesIO()
@@ -449,6 +559,55 @@ only rest joint transforms and inverse binds change together.
     write_glb(output, doc, bytes(binary[:doc["buffers"][0]["byteLength"]]))
 
 
+def virtualize_mirrors(manifest, write=False, delete_files=False):
+    """A0 migration: replace every stored mirror GLB with a mirror_of entry.
+
+    The check is intentionally fail-closed: every derived mirror is compared
+    against the existing GLB for all frames, roots, metadata, contact data and
+    touches before a single file is removed.
+    """
+    manifest = Path(manifest).resolve()
+    doc = json_read(manifest)
+    entries = doc["clips"]
+    by_name = {entry["name"]: entry for entry in entries}
+    skeleton = read_skeleton((manifest.parent / doc["skeleton"]).resolve())
+    pending = []
+    for entry in entries:
+        if not entry["name"].endswith("_mirror") or "file" not in entry:
+            continue
+        source_entry = by_name.get(entry["name"][:-7])
+        if source_entry is None or "file" not in source_entry or "mirror_of" in source_entry:
+            raise ValueError(f"Mirror source missing for {entry['name']}")
+        if entry["frame_count"] != source_entry["frame_count"]:
+            raise ValueError(f"Mirror frame count differs for {entry['name']}")
+        source_path = (manifest.parent / source_entry["file"]).resolve()
+        mirror_path = (manifest.parent / entry["file"]).resolve()
+        source = read_clip(source_path, source_entry, skeleton)
+        old = read_clip(mirror_path, entry, skeleton)
+        new = mirror_clip(source, entry)
+        if (new.roots != old.roots or new.poses != old.poses or
+                new.contact != old.contact or new.touches != old.touches):
+            raise ValueError(f"Derived mirror differs from GLB: {entry['name']}")
+        for name, value in old.metadata.items():
+            got = new.metadata[name]
+            same = (all(abs(a - b) <= 2e-5 for a, b in zip(value, got))
+                    if isinstance(value, (tuple, list)) else
+                    abs(value - got) <= 2e-5 if isinstance(value, float) else value == got)
+            if not same:
+                raise ValueError(f"Derived mirror metadata differs: {entry['name']}: {name}")
+        pending.append((entry, mirror_path))
+    if not write:
+        return len(pending)
+    for entry, _ in pending:
+        entry["mirror_of"] = by_name[entry["name"][:-7]]["id"]
+        entry.pop("file", None)
+    json_write(manifest, doc)
+    if delete_files:
+        for _, path in pending:
+            path.unlink(missing_ok=True)
+    return len(pending)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -462,12 +621,20 @@ def main():
     character.add_argument("--source", type=Path, required=True)
     character.add_argument("--output", type=Path, required=True)
     character.add_argument("--skeleton", type=Path, required=True)
+    virtual = commands.add_parser("virtualize-mirrors", help="A0: derive mirrors instead of storing GLBs")
+    virtual.add_argument("--manifest", type=Path, default=Path(__file__).resolve().parents[2] / "assets/animations/manifest.json")
+    virtual.add_argument("--write", action="store_true")
+    virtual.add_argument("--delete-files", action="store_true")
     args = parser.parse_args()
     if args.command == "bake":
         payload = bake(args.manifest, args.output)
         print(f"BAKED {len(payload)} bytes -> {args.output}")
     elif args.command == "migrate-legacy":
         migrate(args.source, args.root)
+    elif args.command == "virtualize-mirrors":
+        count = virtualize_mirrors(args.manifest, args.write, args.delete_files)
+        action = "VIRTUALIZED" if args.write else "CHECKED"
+        print(f"{action} {count} mirrors")
     else:
         canonical_character(args.source, args.output, args.skeleton)
 

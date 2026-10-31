@@ -11,7 +11,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${FOOTBALL_ANIMATION_MANIFEST}")
 execute_process(
   COMMAND "${Python3_EXECUTABLE}" -c
-    "import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); print(';'.join(str(p.parent / c['file']) for c in json.loads(p.read_text())['clips']))"
+    "import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); print(';'.join(str(p.parent / c['file']) for c in json.loads(p.read_text())['clips'] if 'file' in c))"
     "${FOOTBALL_ANIMATION_MANIFEST}"
   COMMAND_ERROR_IS_FATAL ANY
   OUTPUT_VARIABLE FOOTBALL_ANIMATION_GLBS
