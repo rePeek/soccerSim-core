@@ -8,6 +8,7 @@
 #include "football/player/player_kinematics.hpp"
 #include "football/contact/player_body_collider_motion.hpp"
 #include "football/player/player_body_profile.hpp"
+#include "football/player/execution/player_foot_ik.hpp"
 
 // PoseFrame contains LOCAL keyframe rotations, not 14 world-space joint points.
 // Animation::Apply rotates joints while retaining bind translations from
@@ -20,7 +21,8 @@ struct BakedBodyPose {
 };
 inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
     const PlayerKinematicState& state, float animation_base_angle,
-    const football::player::PlayerBodyProfile& profile) {
+    const football::player::PlayerBodyProfile& profile,
+    const PlayerFootIkTargets* foot_targets = nullptr) {
   const float scale = profile.height_scale;
   if (!std::isfinite(scale) || scale <= 0 || !std::isfinite(animation_base_angle))
     throw std::invalid_argument("invalid baked body pose transform");
@@ -50,6 +52,24 @@ inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
   joint(right_shoulder, middle, {-.16f, -.01f, .48f});
   joint(left_elbow, left_shoulder, {-.01f, 0, -.33f});
   joint(right_elbow, right_shoulder, {.01f, 0, -.33f});
+  if (foot_targets) {
+    if (foot_targets->has_left) {
+      const auto solved = PlayerFootIk::Solve(out.joints[left_thigh],
+                                              out.joints[left_knee],
+                                              out.joints[left_ankle],
+                                              foot_targets->left);
+      out.joints[left_knee] = solved.knee;
+      out.joints[left_ankle] = solved.ankle;
+    }
+    if (foot_targets->has_right) {
+      const auto solved = PlayerFootIk::Solve(out.joints[right_thigh],
+                                              out.joints[right_knee],
+                                              out.joints[right_ankle],
+                                              foot_targets->right);
+      out.joints[right_knee] = solved.knee;
+      out.joints[right_ankle] = solved.ankle;
+    }
+  }
   return out;
 }
 
@@ -102,13 +122,14 @@ inline float BakedGirthScale(float girth_scale, float part_influence) {
 }
 inline BakedPlayerBodyCollider BuildBodyCollider(const PoseFrame& pose,
     const PlayerKinematicState& state, float animation_base_angle,
-    const football::player::PlayerBodyProfile& profile) {
+    const football::player::PlayerBodyProfile& profile,
+    const PlayerFootIkTargets* foot_targets = nullptr) {
   using namespace football::geometry;
   const float scale = profile.height_scale;
   const float girth = profile.girth_scale;
   if (!std::isfinite(girth) || girth <= 0.0f)
     throw std::invalid_argument("invalid baked body girth scale");
-  const auto world = EvaluateBakedBodyPose(pose, state, animation_base_angle, profile);
+  const auto world = EvaluateBakedBodyPose(pose, state, animation_base_angle, profile, foot_targets);
   const auto& j = world.joints;
   // Pelvis follows the body node, trunk follows middle separately. A single
   // body-to-neck axis would miss rigid pelvis/trunk meshes when the spine bends.

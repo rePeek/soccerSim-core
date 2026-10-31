@@ -1,0 +1,129 @@
+#ifndef FOOTBALL_SIM_PLAYER_FOOT_IK_HPP
+#define FOOTBALL_SIM_PLAYER_FOOT_IK_HPP
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+
+#include "football/foundation/math/vector3.hpp"
+
+// P3b core: support-foot anchors and a deterministic two-bone leg solve.
+//
+// This module is deliberately independent of Animation, Contact and Runtime.
+// The caller supplies world-space ankle positions and support flags; it receives
+// world-space knee/ankle targets and a released flag when the anchor is outside
+// the leg's reach. Pose/Final Pose integration consumes these targets.
+struct PlayerFootPlantState {
+  bool left_planted = false;
+  bool right_planted = false;
+  football::math::Vector3 left_anchor = football::math::Vector3(0);
+  football::math::Vector3 right_anchor = football::math::Vector3(0);
+};
+
+struct PlayerFootPlantInput {
+  football::math::Vector3 left_ankle = football::math::Vector3(0);
+  football::math::Vector3 right_ankle = football::math::Vector3(0);
+  bool left_support = false;
+  bool right_support = false;
+  // Feet at or below ground + this tolerance may plant.
+  float plant_height = 0.16f;
+};
+
+struct PlayerFootIkTargets {
+  bool has_left = false;
+  bool has_right = false;
+  football::math::Vector3 left = football::math::Vector3(0);
+  football::math::Vector3 right = football::math::Vector3(0);
+};
+
+struct PlayerTwoBoneResult {
+  football::math::Vector3 knee = football::math::Vector3(0);
+  football::math::Vector3 ankle = football::math::Vector3(0);
+  bool reachable = false;
+  bool released = false;
+};
+
+class PlayerFootIk final {
+ public:
+  // Keeps the current knee bend plane, preserves both bone lengths and clamps
+  // an over-extended target to the leg's reachable sphere.
+  static inline PlayerTwoBoneResult Solve(
+      const football::math::Vector3& hip,
+      const football::math::Vector3& knee,
+      const football::math::Vector3& ankle,
+      const football::math::Vector3& target) {
+    using football::math::Vector3;
+    PlayerTwoBoneResult result;
+    const float upper = (knee - hip).GetLength();
+    const float lower = (ankle - knee).GetLength();
+    if (upper <= 1e-6f || lower <= 1e-6f) {
+      result.knee = knee;
+      result.ankle = ankle;
+      return result;
+    }
+    const float max_reach = upper + lower - 1e-4f;
+    const float min_reach = std::fabs(upper - lower) + 1e-4f;
+    Vector3 goal = target;
+    Vector3 direction = goal - hip;
+    float distance = direction.GetLength();
+    if (distance <= 1e-6f) {
+      goal = hip + Vector3(0, 0, -max_reach);
+    } else if (distance < min_reach) {
+      goal = hip + direction * (min_reach / distance);
+    } else if (distance > max_reach) {
+      goal = hip + direction * (max_reach / distance);
+    }
+    result.released = (goal - target).GetLength() > 1e-5f;
+    direction = goal - hip;
+    distance = direction.GetLength();
+    if (distance <= 1e-6f) {
+      result.knee = knee;
+      result.ankle = ankle;
+      return result;
+    }
+    const Vector3 forward = direction * (1.0f / distance);
+    Vector3 bend = knee - hip;
+    bend -= forward * bend.GetDotProduct(forward);
+    if (bend.GetLength() <= 1e-5f) {
+      bend = forward.GetCrossProduct(Vector3(0, 0, 1));
+      if (bend.GetLength() <= 1e-5f)
+        bend = forward.GetCrossProduct(Vector3(0, 1, 0));
+    }
+    bend = bend.GetNormalized(Vector3(0, 0, -1));
+    const float along = (upper * upper - lower * lower + distance * distance) /
+                        (2.0f * distance);
+    const float height_sq = std::max(0.0f, upper * upper - along * along);
+    const float height = std::sqrt(height_sq);
+    result.knee = hip + forward * along + bend * height;
+    result.ankle = goal;
+    result.reachable = true;
+    return result;
+  }
+
+  // Updates support anchors. A planted foot keeps its first world anchor until
+  // support is lost or the pose leaves the ground band.
+  static inline PlayerFootPlantState Update(
+      const PlayerFootPlantState& previous, const PlayerFootPlantInput& input) {
+    PlayerFootPlantState next = previous;
+    const auto update = [&](bool support, const football::math::Vector3& ankle,
+                            bool& planted, football::math::Vector3& anchor) {
+      const bool in_band = ankle.coords[2] <= input.plant_height;
+      if (!support || !in_band) {
+        planted = false;
+        anchor = football::math::Vector3(0);
+        return;
+      }
+      if (!planted) {
+        planted = true;
+        anchor = ankle;
+      }
+    };
+    update(input.left_support, input.left_ankle, next.left_planted,
+           next.left_anchor);
+    update(input.right_support, input.right_ankle, next.right_planted,
+           next.right_anchor);
+    return next;
+  }
+};
+
+#endif  // FOOTBALL_SIM_PLAYER_FOOT_IK_HPP

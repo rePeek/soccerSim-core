@@ -15,6 +15,8 @@
 #include "football/player/execution/player_motion.hpp"
 #include "player/execution/player_diagnostics.hpp"
 #include "player/execution/player_motion_constants.hpp"
+#include "player/execution/player_baked_body_pose.hpp"
+#include "football/player/execution/player_foot_ik.hpp"
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_touch_math.hpp"
 
@@ -223,6 +225,34 @@ void PlayerExecution::UpdatePlayback(AnimationId clip_id, int frame, float base_
                          state_.playback_blend_enabled_ ? blend_ticks : 0);
 }
 
+void PlayerExecution::UpdateFootPlant(const AnimationClip& clip,
+                                      float base_angle) {
+  // P3b: only ordinary movement carries a support foot. Slide/trip/fall/header
+  // intentionally keep both feet free.
+  if (state_.installed_action_.function_type != e_FunctionType_Movement) {
+    state_.foot_plant_ = PlayerFootPlantState{};
+    return;
+  }
+  if (!state_.playback_state_.have_pose) {
+    state_.foot_plant_ = PlayerFootPlantState{};
+    return;
+  }
+  const BakedBodyPose world = EvaluateBakedBodyPose(
+      state_.playback_state_.final_pose, port().GetKinematicState(),
+      state_.playback_state_.final_base_angle, port().BodyProfile());
+  const bool left_support =
+      state_.legacy_spatial_state_.foot == e_Foot_Left;
+  PlayerFootPlantInput input;
+  input.left_ankle = world.joints[BodyPart::left_ankle];
+  input.right_ankle = world.joints[BodyPart::right_ankle];
+  input.left_support = left_support;
+  input.right_support = !left_support;
+  input.plant_height = 0.22f * port().BodyProfile().height_scale;
+  state_.foot_plant_ = PlayerFootIk::Update(state_.foot_plant_, input);
+  static_cast<void>(clip);
+  static_cast<void>(base_angle);
+}
+
 void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
                                                  float base_angle, int blend_ticks) {
   const AnimationId authority_clip = state_.installed_action_.clip_id;
@@ -232,6 +262,7 @@ void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
   if (state_.last_playback_tick_ && *state_.last_playback_tick_ == now) return;
   state_.last_playback_tick_ = now;
   UpdatePlayback(authority_clip, authority_frame, base_angle, blend_ticks);
+  UpdateFootPlant(GetBakedClip(authority_clip), base_angle);
   // ANIM-1 A6.3d: the compat projection no longer decides the clip or the
   // action time. Verify the three executor-owned artefacts agree - the
   // installed selection, the action cursor and the pose that was sampled.

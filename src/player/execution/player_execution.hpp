@@ -244,6 +244,7 @@ class PlayerExecution final {
   // --- action timeline and playback -------------------------------------
   void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
   void UpdatePlaybackFromAuthority(football::sim::Tick now, float base_angle, int blend_ticks);
+  void UpdateFootPlant(const AnimationClip& clip, float base_angle);
   void BeginSimulationAction();
   void InstallSelectedAction(const football::sim::SelectedAction& selection);
   bool CommitSelectedAction(int selected_anim_id,

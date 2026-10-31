@@ -196,6 +196,14 @@ PlayerBakedPoseSample PlayerExecution::BakedPoseSample(PlayerExecutionPort& owne
     sample.pose = state_.playback_state_.final_pose;
     sample.base_angle = state_.playback_state_.final_base_angle;
   }
+  if (state_.foot_plant_.left_planted) {
+    sample.foot_targets.has_left = true;
+    sample.foot_targets.left = state_.foot_plant_.left_anchor;
+  }
+  if (state_.foot_plant_.right_planted) {
+    sample.foot_targets.has_right = true;
+    sample.foot_targets.right = state_.foot_plant_.right_anchor;
+  }
   return sample;
 }
 

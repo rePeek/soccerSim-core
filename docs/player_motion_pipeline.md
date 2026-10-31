@@ -159,3 +159,18 @@ A1 and later are **not** implemented in this commit.
 - The generator still consumes `data/media/animations/templates/*.anim` and
   `player.object`; A1a canonical template GLBs are ready for the follow-up
   switch to a non-legacy input path.
+
+## P3b result (heuristic support-foot lock)
+
+- `PlayerFootIk` provides a deterministic two-bone solve with reach clamping and
+  a support-anchor state machine.
+- `PlayerBakedPoseSample` carries world-space foot targets; `Geometry()` and
+  `ContactRegions()` consume the IK-adjusted pose.
+- `PlayerExecution` updates anchors only for `e_FunctionType_Movement` clips;
+  slide/trip/fall/header keep both feet free.
+- Support selection currently uses the existing `SpatialState::foot`; this is a
+  heuristic bridge, not the planned per-clip FootPlant event track.
+- Tests cover IK reach, release, anchor persistence and final-pose consumption.
+
+Remaining P3b gap: bake/sample explicit `FootContactPhase` events for all 283
+sources + 443 procedural clips, then replace the `SpatialState::foot` heuristic.

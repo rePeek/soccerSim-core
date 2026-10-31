@@ -33,6 +33,7 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/player/player_action.hpp"
 #include "football/player/player_action_request.hpp"
+#include "football/player/execution/player_foot_ik.hpp"
 #include "player/execution/locomotion_intent_scheduler.hpp"
 #include "player/execution/player_action_execution_state.hpp"
 #include "player/execution/player_action_executor.hpp"
@@ -108,6 +109,8 @@ struct PlayerExecutionState {
   // same-tick call cannot advance the transition twice.
   std::optional<football::sim::Tick> last_playback_tick_;
   bool playback_blend_enabled_ = true;
+  // P3b: support-foot world anchors. Only Movement clips populate this.
+  PlayerFootPlantState foot_plant_;
   // LOCO-2.3b: fresh snapshot of the last committed locomotion tick.
   std::optional<LocomotionAnimationInput> locomotion_animation_input_;
   bool locomotion_animation_adaptation_ = true;

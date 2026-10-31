@@ -34,6 +34,7 @@ target_sources(football_player_execution PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_motion_profile.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_motion_adapter.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_pose_adapter.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_foot_ik.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_body_facing.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_pass_solver.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_touch_facts.hpp

@@ -24,11 +24,12 @@ struct PlayerBakedPoseSample {
   // not have to index the library itself.
   bool outgoing_special_state = false;
   bool frame_clamped = false;
+  PlayerFootIkTargets foot_targets;
   BakedPlayerBodyCollider Geometry() const {
-    return BuildBodyCollider(pose,state,base_angle,body_profile);
+    return BuildBodyCollider(pose, state, base_angle, body_profile, &foot_targets);
   }
   auto ContactRegions() const {
-    return BuildBakedContactRegions(pose,state,base_angle,body_profile);
+    return BuildBakedContactRegions(pose, state, base_angle, body_profile, &foot_targets);
   }
 };
 #endif
