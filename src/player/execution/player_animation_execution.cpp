@@ -238,22 +238,18 @@ void PlayerExecution::UpdateLocomotionPlayback(AnimationId clip_id, float frame_
 }
 
 
-void PlayerExecution::SettleMovementPose(const AnimationClip& clip,
-                                         float base_angle) {
+PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
+                                              float base_angle) {
   // P3b: only ordinary movement carries a support foot. Slide/trip/fall/header
   // intentionally keep both feet free and keep the sampled pose untouched.
   if (state_.installed_action_.function_type != e_FunctionType_Movement) {
     state_.foot_plant_ = PlayerFootPlantState{};
-    return;
-  }
-  if (!state_.playback_state_.have_pose) {
-    state_.foot_plant_ = PlayerFootPlantState{};
-    return;
+    return pose;
   }
   const PlayerKinematicState& kinematics = port().GetKinematicState();
   const football::player::PlayerBodyProfile body = port().BodyProfile();
-  const float final_base_angle = state_.playback_state_.final_base_angle;
-  const PoseFrame sampled_pose = state_.playback_state_.final_pose;
+  const float final_base_angle = base_angle;
+  const PoseFrame sampled_pose = pose;
   const BakedBodyPose gait =
       EvaluateBakedBodyPose(sampled_pose, kinematics, final_base_angle, body);
 
@@ -270,7 +266,7 @@ void PlayerExecution::SettleMovementPose(const AnimationClip& clip,
   stride.stride_scale = state_.stride_scale_;
   stride.gait_phase = state_.locomotion_playback_.gait_phase;
   const PlayerStrideAdaptResult adapted = PlayerPoseAdapter::AdaptStride(stride);
-  if (!adapted.targets.has_left && !adapted.targets.has_right) return;
+  if (!adapted.targets.has_left && !adapted.targets.has_right) return pose;
 
   const PlayerFootPlantState previous_plant = state_.foot_plant_;
 
@@ -318,15 +314,82 @@ void PlayerExecution::SettleMovementPose(const AnimationClip& clip,
       ApplyFootPlantLocks(state_.foot_plant_, adapted.targets);
   const BakedPoseFootSolve solved = ApplyWorldFootTargetsToPose(
       sampled_pose, kinematics, final_base_angle, body, targets);
-  state_.playback_state_.final_pose = solved.pose;
   // A planted leg targets its anchor, so the solve residual *is* the slide the
   // final pose ships. An unplanted leg reports nothing.
   state_.locomotion_diagnostics_.left_foot_slip =
       state_.foot_plant_.left_planted ? solved.left_residual : 0.0f;
   state_.locomotion_diagnostics_.right_foot_slip =
       state_.foot_plant_.right_planted ? solved.right_residual : 0.0f;
-  static_cast<void>(clip);
-  static_cast<void>(base_angle);
+  return solved.pose;
+}
+
+void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
+                                       bool motion_driven) {
+  if (!state_.playback_state_.have_pose) {
+    state_.final_pose_valid_ = false;
+    return;
+  }
+  const football::player::PlayerBodyProfile body = port().BodyProfile();
+  const PoseFrame blended = state_.playback_state_.final_pose;
+  const float blended_base_angle = state_.playback_state_.final_base_angle;
+
+  // 1. P3a warp: the body yaw and pelvis bob follow the motion the Player
+  //    actually achieved. Locomotion only - one-shot actions keep their baked
+  //    root bearing, which the action pipeline already owns.
+  PoseFrame warped = blended;
+  float warped_base_angle = blended_base_angle;
+  if (motion_driven && state_.locomotion_animation_input_.has_value()) {
+    const LocomotionAnimationInput& locomotion = *state_.locomotion_animation_input_;
+    PlayerPoseWarpInput warp;
+    warp.reference_pose = blended;
+    warp.reference_base_angle = blended_base_angle;
+    // The clip track is local; the comparison is in world space.
+    warp.reference_delta =
+        state_.locomotion_reference_delta_.Get2D().GetRotated2D(blended_base_angle);
+    warp.achieved_delta =
+        (locomotion.next.position - locomotion.current.position).Get2D();
+    warp.body = body;
+    // A pose correction, not a turn: bound how far the body yaw may be
+    // corrected in one tick.
+    warp.max_yaw_correction = kPlayerPoseWarpMaxYawPerTick;
+    const PlayerPoseWarpResult warped_result = PlayerPoseAdapter::Warp(warp);
+    warped = warped_result.pose;
+    warped_base_angle = warped_result.base_angle;
+  }
+
+  // 2. M3 bounded realization: no joint may turn faster than a body can. This
+  //    runs before the foot solve on purpose - the IK and the plant lock are
+  //    the last word on the feet, so a rate limit can never undo a locked foot.
+  PlayerPoseRealizeInput realize;
+  realize.previous_pose =
+      state_.final_pose_valid_ ? state_.final_pose_ : warped;
+  realize.target_pose = warped;
+  realize.body = body;
+  // Clip entry damps the follow budget; the action cursor is the clip-time
+  // authority for both action clips and the re-installed movement clips.
+  realize.entry_weight = std::sqrt(football::math::curve(
+      1.0f - football::math::NormalizedClamp(
+                 static_cast<float>(state_.actionState.Frame()), 0.0f, 8.0f),
+      1.0f));
+  realize.outgoing_special_state =
+      !clip.metadata.outgoing_special_state.empty();
+  const PlayerPoseRealizeResult realized = PlayerPoseAdapter::Realize(realize);
+
+  // 3. STRIDE: settle the movement pose against the achieved motion - stride
+  //    target, support, plant lock and the local-rotation write-back. Support,
+  //    anchor and shipped pose are decided together, so no anchor is ever
+  //    captured on a pose nobody sees and no foot stays locked after the gait
+  //    already lifted it.
+  const PoseFrame settled = SettleMovementPose(realized.pose, warped_base_angle);
+
+  // 4. The single Final Pose. Pose(), the baked sample, the colliders, the
+  //    touch geometry and the renderer all read this one value.
+  state_.final_pose_ = settled;
+  state_.final_pose_base_angle_ = warped_base_angle;
+  state_.final_pose_valid_ = true;
+  // A later clip switch must blend from what the body actually looked like.
+  state_.playback_state_.SetBlendSource(state_.final_pose_,
+                                       state_.final_pose_base_angle_);
 }
 
 void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
@@ -370,26 +433,25 @@ void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
         (locomotion.next.position - locomotion.current.position)
             .Get2D()
             .GetLength();
-    state_.locomotion_diagnostics_.reference_distance =
+    const football::math::Vector3 reference_delta =
         LocomotionReferenceDelta(clip.root_positions, start_time,
                                  state_.locomotion_playback_.frame_time)
-            .Get2D()
-            .GetLength();
+            .Get2D();
+    state_.locomotion_reference_delta_ = reference_delta;
+    state_.locomotion_diagnostics_.reference_distance =
+        reference_delta.GetLength();
     state_.locomotion_diagnostics_.playback_rate =
         state_.locomotion_playback_.playback_rate;
     state_.locomotion_diagnostics_.stride_scale =
         state_.locomotion_playback_.stride_scale;
   } else {
     state_.locomotion_playback_ = LocomotionPlaybackRequest{};
+    state_.locomotion_reference_delta_ = football::math::Vector3(0);
     state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
     state_.stride_scale_ = 1.0f;
     UpdatePlayback(authority_clip, authority_frame, base_angle, blend_ticks);
   }
-  // One settle stage per tick: stride target -> support -> plant lock -> local
-  // rotation write-back. Support, anchor and shipped pose are decided together,
-  // so no anchor is ever captured on a pose nobody sees and no foot can stay
-  // locked after the gait has already lifted it.
-  SettleMovementPose(GetBakedClip(authority_clip), base_angle);
+  ComposeFinalPose(GetBakedClip(authority_clip), motion_driven);
   // ANIM-1 A6.3d: the compat projection no longer decides the clip or the
   // action time. Verify the executor-owned artefacts agree - the installed
   // selection and the pose that was sampled. A motion-driven tick owns clip

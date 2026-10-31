@@ -143,6 +143,10 @@ struct RunResult {
   float max_fore_aft_correction = 0.0f;
   int planted_ticks = 0;
   float distance = 0.0f;
+  // M3: the realization must converge onto the clip instead of lagging it.
+  PoseFrame realized_pose;
+  bool realized_pose_valid = false;
+  float max_realized_lag = 0.0f;
 };
 
 // One straight run. `pair_rate_with_stride` is the invariant under test: the
@@ -168,8 +172,22 @@ RunResult RunStraight(float achieved_speed, uint32_t ticks, float stride_scale,
                                          0.0f, kTickSeconds, rate_scale);
 
     const PoseFrame sampled_pose = SamplePose(clip, playback.frame_time);
+
+    // M3: the production order is blend -> warp -> bounded realization ->
+    // stride/plant solve. Front-loading the realization is what keeps the rate
+    // limit from undoing a locked foot.
+    PlayerPoseRealizeInput realize;
+    realize.previous_pose = result.realized_pose_valid ? result.realized_pose
+                                                       : sampled_pose;
+    realize.target_pose = sampled_pose;
+    realize.body = Body();
+    realize.entry_weight = 0.0f;
+    const PlayerPoseRealizeResult realized = PlayerPoseAdapter::Realize(realize);
+    result.realized_pose = realized.pose;
+    result.realized_pose_valid = true;
+    const PoseFrame& pose_for_settle = realized.pose;
     const BakedBodyPose gait =
-        EvaluateBakedBodyPose(sampled_pose, state, 0.0f, Body());
+        EvaluateBakedBodyPose(pose_for_settle, state, 0.0f, Body());
 
     // STRIDE-1: stride target for the gait, plant-agnostic.
     PlayerStrideAdaptInput adapt;
@@ -227,7 +245,7 @@ RunResult RunStraight(float achieved_speed, uint32_t ticks, float stride_scale,
 
     // STRIDE-2: the solve is written into the skeleton the collider reads.
     const BakedPoseFootSolve solved = ApplyWorldFootTargetsToPose(
-        sampled_pose, state, 0.0f, Body(), targets);
+        pose_for_settle, state, 0.0f, Body(), targets);
     result.max_target_residual = std::max(
         {result.max_target_residual, solved.left_residual, solved.right_residual});
     const BakedBodyPose settled =
@@ -326,4 +344,19 @@ TEST_CASE("the final pose the collider reads is the pose the IK solved",
   CHECK(run.max_bone_length_error < 1e-3f);
   CHECK(run.distance ==
         Catch::Approx(reference * 0.01f * 60).margin(1e-4f));
+}
+
+TEST_CASE("bounded realization does not break the support-foot lock",
+          "[player][stride][m3]") {
+  // The realization stage runs *before* the plant solve, so even a clip that
+  // wants more limb rotation than a body can produce in one tick cannot drag a
+  // planted foot: the IK and the anchor are the last word on the feet.
+  const float reference = LocomotionClipReferenceSpeed(GaitClip());
+  const auto paired = RunStraight(reference, 120, 0.8f, true);
+  CHECK(paired.max_lock_correction < 0.02f);
+  CHECK(paired.max_final_slip < 0.02f);
+  CHECK(paired.max_final_ankle_error < 1e-3f);
+  // A 3 m/s gait sampled at 1.25x is well within every joint's budget, so the
+  // realization is a pass-through here; it must not manufacture lag either.
+  CHECK(paired.max_realized_lag < 0.05f);
 }

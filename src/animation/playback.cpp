@@ -20,7 +20,16 @@ void PlaybackState::Reset() {
   have_pose = false;
   final_pose = PoseFrame{};
   final_base_angle = 0.0f;
+  blend_source_pose = PoseFrame{};
+  blend_source_base_angle = 0.0f;
+  blend_source_valid = false;
   transition.Reset();
+}
+
+void PlaybackState::SetBlendSource(const PoseFrame& pose, float base_angle) {
+  blend_source_pose = pose;
+  blend_source_base_angle = base_angle;
+  blend_source_valid = true;
 }
 
 const PoseFrame& PlaybackState::Play(const AnimationClip& clip, int at_frame,
@@ -48,7 +57,12 @@ void PlaybackState::AdvanceCursor(const AnimationClip& clip) {
 const PoseFrame& PlaybackState::Apply(const AnimationClip& clip, float at_frame_time,
                                       float base_angle, int blend_ticks) {
   if (clip.id != clip_id) {
-    if (have_pose) {
+    // M3: blend from the Player's last Final Pose when it published one, so a
+    // switch starts from the skeleton that was actually drawn, not from the raw
+    // animation sample the Player corrects afterwards.
+    if (blend_source_valid) {
+      transition.Begin(blend_source_pose, blend_source_base_angle, blend_ticks);
+    } else if (have_pose) {
       transition.Begin(final_pose, final_base_angle, blend_ticks);
     } else {
       transition.Reset();

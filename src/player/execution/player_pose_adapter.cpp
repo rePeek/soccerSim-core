@@ -43,7 +43,17 @@ PlayerPoseWarpResult PlayerPoseAdapter::Warp(const PlayerPoseWarpInput& input) {
                       reference.coords[1] * achieved.coords[0];
   const float dot = reference.coords[0] * achieved.coords[0] +
                     reference.coords[1] * achieved.coords[1];
-  const float yaw_correction = NormalizeAngle(std::atan2(cross, dot));
+  float yaw_correction = NormalizeAngle(std::atan2(cross, dot));
+  if (input.max_yaw_correction > 0.0f) {
+    const float limit = input.max_yaw_correction;
+    if (yaw_correction > limit) {
+      yaw_correction = limit;
+      result.yaw_clamped = true;
+    } else if (yaw_correction < -limit) {
+      yaw_correction = -limit;
+      result.yaw_clamped = true;
+    }
+  }
   const float bob_ratio = std::clamp(achieved_length / reference_length,
                                      0.5f, 1.5f);
 
@@ -98,5 +108,75 @@ PlayerStrideAdaptResult PlayerPoseAdapter::AdaptStride(
             result.left_adapted);
   adapt_leg(input.right, result.targets.has_right, result.targets.right,
             result.right_adapted);
+  return result;
+}
+
+namespace {
+
+// Per-joint rotation budget of the bounded realization. The values are the
+// shipped animation-realization constants: a joint may turn this fast before the
+// Player refuses to follow the clip. Knees and ankles are allowed more, because
+// a stride genuinely rotates them hardest.
+float JointRateLimit(BodyPart joint) {
+  float rate = 7.5f * football::math::pi;
+  if (joint == BodyPart::left_elbow || joint == BodyPart::right_elbow ||
+      joint == BodyPart::left_knee || joint == BodyPart::right_knee) {
+    rate *= 1.2f;
+  }
+  if (joint == BodyPart::left_ankle || joint == BodyPart::right_ankle) {
+    rate *= 1.6f;
+  }
+  return rate;
+}
+
+}  // namespace
+
+PlayerPoseRealizeResult PlayerPoseAdapter::Realize(
+    const PlayerPoseRealizeInput& input) {
+  PlayerPoseRealizeResult result;
+  result.pose = input.target_pose;
+  constexpr float kTickSeconds = 0.01f;
+  const float begin = std::clamp(input.entry_weight, 0.0f, 1.0f);
+
+  for (std::size_t joint = 0; joint < kBodyPartCount; ++joint) {
+    // The root is the Player's own transform, never an animation joint.
+    if (joint == BodyPart::player) continue;
+    const auto part = static_cast<BodyPart>(joint);
+    Quaternion desired = input.target_pose.orientations[joint];
+    const Quaternion& current = input.previous_pose.orientations[joint];
+    desired.MakeSameNeighborhood(current);
+    const float dot = desired.MakeSameNeighborhood(current);
+    const float angle = 2.0f * std::acos(std::clamp(dot, -1.0f, 1.0f));
+    // Entering a clip damps the follow budget; a running body gets all of it.
+    const float allowed = (0.3f + 0.7f * (1.0f - begin)) * JointRateLimit(part) *
+                          kTickSeconds;
+    if (angle > allowed) {
+      const Quaternion delta = current.GetRotationTo(desired).GetNormalized();
+      desired =
+          (delta.GetRotationMultipliedBy(allowed / angle) * current).GetNormalized();
+      result.limited = true;
+    }
+    result.pose.orientations[joint] = desired;
+  }
+
+  // Pelvis bob: blend toward the previous height and bound its rate, so a clip
+  // entry cannot drop the body through the floor in one tick.
+  if (begin > 0.01f) {
+    const float scale = input.body.height_scale;
+    const float old_z = input.previous_pose.positions[BodyPart::player].coords[2];
+    float z = input.target_pose.positions[BodyPart::player].coords[2];
+    if (std::isfinite(scale) && scale > 0.0f) {
+      const float old_world = old_z * scale;
+      float world = z * scale;
+      world = world * (1.0f - begin * 0.5f) + old_world * (begin * 0.5f);
+      const float allowed_bob =
+          (input.outgoing_special_state ? 6.0f : 2.8f) * kTickSeconds;
+      const float limited =
+          old_world + std::clamp(world - old_world, -allowed_bob, allowed_bob);
+      world = limited * begin + world * (1.0f - begin);
+      z = world / scale;
+    }
+    result.pose.positions[BodyPart::player].coords[2] = z;
+  }
   return result;
 }

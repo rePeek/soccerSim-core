@@ -105,6 +105,14 @@ struct PlayerExecutionState {
   // playback: animation playback, final pose, locomotion animation feed
   // ---------------------------------------------------------------------
   football::animation::PlaybackState playback_state_;
+  // P3/M3: the single Final Pose channel. `playback_state_.final_pose` is the
+  // animation's blended output; this is the Player-corrected skeleton (warp ->
+  // bounded realization -> stride/plant IK) that Pose(), the baked sample, the
+  // colliders and the touch geometry all read. The base yaw stays separate so
+  // animation matching still sees local joint rotations.
+  PoseFrame final_pose_;
+  float final_pose_base_angle_ = 0.0f;
+  bool final_pose_valid_ = false;
   // ANIM-2 A10.1: the tick of the last real playback update, so a repeated
   // same-tick call cannot advance the transition twice.
   std::optional<football::sim::Tick> last_playback_tick_;
@@ -116,6 +124,10 @@ struct PlayerExecutionState {
   // M2: the motion-driven playback cursor. Carried across ticks so the gait
   // phase stays continuous while the same clip keeps playing.
   LocomotionPlaybackRequest locomotion_playback_;
+  // M3: the clip's own reference displacement for this tick, in clip-local XY.
+  // The warp compares it (rotated by the base yaw) with the achieved motion.
+  football::math::Vector3 locomotion_reference_delta_ =
+      football::math::Vector3(0);
   // STRIDE-1: smoothed stride scale applied to the gait's fore-aft excursion.
   // Paired with the playback rate, which divides by the same value.
   float stride_scale_ = 1.0f;

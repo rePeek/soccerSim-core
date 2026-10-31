@@ -341,17 +341,49 @@ Support must be read from the gait, never from the settled pose: a locked foot
 keeps its height by construction, so a settled-pose comparison can never release
 it (that deadlock was observed and is why the stage owns both decisions).
 
+### M3 result: one Final Pose channel
+
+Per real playback tick, in this order:
+
+```
+playback blend            playback_state_.final_pose        (Animation)
+  -> Warp                 yaw/bob toward the achieved motion (locomotion only)
+  -> Realize              bounded joint rotation rates vs the previous Final Pose
+  -> SettleMovementPose   stride target, support, plant lock, local rotations
+  -> final_pose_          the one skeleton everything reads
+```
+
+- `PlayerExecutionState::final_pose_` (+ `final_pose_base_angle_`) is the single
+  Player-corrected skeleton. `Pose()`, `PlaybackPose()`, `BakedPoseSample()`,
+  `Geometry()`, `ContactRegions()`, the touch preparation and the runtime body
+  tape all read it; nothing re-solves a second pose. The base yaw stays a
+  separate field, so animation matching still compares local joint rotations.
+- `PlayerPoseAdapter::Warp` is now in the production path for motion-driven
+  locomotion: the clip's own reference displacement for the tick (wrap-aware,
+  rotated by the base yaw) is compared with the achieved displacement, and the
+  body yaw / pelvis bob follow the motion. One-shot actions keep their baked
+  bearing.
+- `PlayerPoseAdapter::Realize` is the shipped bounded rotation-rate limiter,
+  moved out of Runtime. It runs *before* the foot solve on purpose: the rate
+  limit smooths the incoming animation, and the stride/plant solve is the last
+  word on the feet, so limiting can never unlock a planted foot. `entry_weight`
+  is the clip-entry damping (1 = first frames, 0.3x the joint budget).
+- Clip switches now blend from the published Final Pose
+  (`PlaybackState::SetBlendSource`), so a switch starts from the skeleton that
+  was actually drawn. The blend output is the *input* to the corrections, which
+  are recomputed from it every tick and therefore cannot accumulate.
+- Runtime's `RealizeBakedPose` is forecast-only now
+  (`player_baked_pose_realization.hpp`): `CompleteBakedBodyPreparation` folds the
+  base yaw and consumes the Player's pose unchanged, so the collider can no
+  longer lag the pose the touch decisions and the renderer use.
+
 ### What is still open
 
 - Foot-plant **events** are still derived from geometry. The bake should emit
   explicit left/right support intervals (283 sources + 443 procedural clips);
   the height heuristic is a bridge, not the final contract.
-- `PlayerPoseAdapter::Warp` (P3a yaw/bob) is still not in the production path:
-  the base yaw remains animation-owned, and only the stride/plant corrections are
-  applied.
-- Runtime's `RealizeBakedPose` rate-limits rotations *after* the Player's final
-  pose, so the rendered skeleton can lag the collider by a few ticks. Closing
-  that needs the realization step to consume and re-publish the single Final Pose
-  (M4), not a second solve.
+- The entry damping is driven by the action cursor (`PlayerActionState::Frame`),
+  a per-clip tick counter. A gait-phase-driven entry weight would be more
+  expressive, but the action cursor remains the clip-time authority.
 - Contact/Runtime ordering (M4) is unchanged: touches still run before the pose
   is settled within the tick.

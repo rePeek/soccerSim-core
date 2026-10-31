@@ -142,7 +142,10 @@ class PlayerExecution final {
   const football::animation::PlaybackState& Playback() const {
     return state_.playback_state_;
   }
-  const PoseFrame& PlaybackPose() const { return state_.playback_state_.final_pose; }
+  const PoseFrame& PlaybackPose() const {
+    return state_.final_pose_valid_ ? state_.final_pose_
+                                    : state_.playback_state_.final_pose;
+  }
   float PlaybackBaseAngle() const { return state_.playback_state_.final_base_angle; }
   PoseFrame Pose(PlayerExecutionPort& owner) const;
   PlayerBakedPoseSample BakedPoseSample(PlayerExecutionPort& owner) const;
@@ -264,7 +267,11 @@ class PlayerExecution final {
   // support foot from the gait heights, locks planted feet to their anchors and
   // writes the result back into the skeleton's local rotations. Movement clips
   // only; every other action keeps its sampled pose.
-  void SettleMovementPose(const AnimationClip& clip, float base_angle);
+  PoseFrame SettleMovementPose(const PoseFrame& pose, float base_angle);
+  // M3: the one place the Final Pose is produced, once per real playback tick:
+  // warp -> bounded realization -> stride/plant settle. Every consumer reads the
+  // result, so the rendered skeleton and the colliding skeleton cannot diverge.
+  void ComposeFinalPose(const AnimationClip& clip, bool motion_driven);
   void BeginSimulationAction();
   void InstallSelectedAction(const football::sim::SelectedAction& selection);
   bool CommitSelectedAction(int selected_anim_id,

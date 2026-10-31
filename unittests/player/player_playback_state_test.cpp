@@ -89,3 +89,44 @@ TEST_CASE("playback is deterministic for equal input") {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// M3: a clip switch blends from the Player's published Final Pose, not from the
+// raw animation sample the Player corrects afterwards.
+// ---------------------------------------------------------------------------
+TEST_CASE("a clip switch blends from the published final pose") {
+  const AnimationClip a = Clip(1, 0.0f);
+  const AnimationClip b = Clip(2, 0.0f);
+
+  const auto run = [&](bool publish_source) {
+    PlaybackState playback;
+    for (int i = 0; i < 4; ++i) playback.Play(a, i, 0.0f, 0);
+    // A Player-corrected final pose: the body is rotated away from both clips.
+    PoseFrame corrected = a.poses.back();
+    corrected.orientations[BodyPart::body].SetAngleAxis(0.9f, Vector3(0, 0, 1));
+    if (publish_source) playback.SetBlendSource(corrected, 0.0f);
+    return playback.Play(b, 0, 0.0f, kDefaultMovementBlendTicks);
+  };
+
+  // First blended pose: with the published source it must start from the
+  // corrected pose, without it from the previous clip's own last pose (= 0 yaw).
+  const PoseFrame from_final = run(true);
+  const PoseFrame from_clip = run(false);
+  const auto body_yaw = [](const PoseFrame& pose) {
+    football::math::radian angle(0.0f);
+    Vector3 axis;
+    pose.orientations[BodyPart::body].GetAngleAxis(angle, axis);
+    return static_cast<float>(angle) * (axis.coords[2] < 0.0f ? -1.0f : 1.0f);
+  };
+  CHECK(std::fabs(body_yaw(from_final)) > std::fabs(body_yaw(from_clip)));
+  CHECK(std::fabs(body_yaw(from_final)) > 0.1f);
+}
+
+TEST_CASE("the published blend source survives a reset") {
+  PlaybackState playback;
+  const AnimationClip clip = Clip(1, 0.0f);
+  playback.SetBlendSource(clip.poses[0], 0.5f);
+  playback.Reset();
+  CHECK_FALSE(playback.blend_source_valid);
+  CHECK(playback.blend_source_base_angle == Catch::Approx(0.0f));
+}

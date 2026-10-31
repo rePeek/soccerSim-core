@@ -42,12 +42,21 @@ struct PlaybackState {
   bool have_pose = false;
   PoseFrame final_pose;
   float final_base_angle = 0.0f;
+  // M3: the pose a clip switch blends from. The Player publishes its Final Pose
+  // here once per tick, so a transition starts from what the body actually
+  // looked like - not from the raw animation sample the Player then corrects.
+  PoseFrame blend_source_pose;
+  float blend_source_base_angle = 0.0f;
+  bool blend_source_valid = false;
   AnimationTransitionState transition;
 
   void Reset();
 
+  // The Player owns this value: it is the Final Pose of the previous tick.
+  void SetBlendSource(const PoseFrame& pose, float base_angle);
+
   // Production: one real playback update for this tick. A clip change blends
-  // from the last final pose over `blend_ticks`.
+  // from the published blend source over `blend_ticks`.
   const PoseFrame& Play(const AnimationClip& clip, int at_frame, float base_angle,
                         int blend_ticks);
 
@@ -56,7 +65,8 @@ struct PlaybackState {
   const PoseFrame& PlayAtTime(const AnimationClip& clip, float at_frame_time,
                               float base_angle, int blend_ticks);
 
-  // The single FinalPose the rest of the tick must read. Pure read.
+  // The blended animation pose of this tick. The Player's Final Pose is one
+  // stage downstream of this value; read that one through the execution.
   const PoseFrame& Pose() const { return final_pose; }
   float BaseAngle() const { return final_base_angle; }
 

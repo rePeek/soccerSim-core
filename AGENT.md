@@ -209,6 +209,15 @@ observation, controls and stored physics are all the Stadium Frame.
   rotations (`ApplyWorldFootTargetsToPose`), not only world joint points, and
   the FK bind table (`kBakedBindJoints`) is shared by forward kinematics and
   that write-back. Never re-solve a second pose for geometry.
+- `PlayerExecutionState::final_pose_` is the one Final Pose channel:
+  `ComposeFinalPose` produces it once per tick as blend -> Warp -> Realize ->
+  stride/plant settle, and `Pose()`, `BakedPoseSample()`, `Geometry()`,
+  `ContactRegions()` and the runtime body tape read it without re-solving. The
+  bounded rotation-rate realization belongs to the Player; Runtime may only fold
+  the base yaw for its physics tape, never rate-limit a committed pose again.
+  The realization runs before the foot solve so a rate limit cannot unlock a
+  planted foot. A clip switch blends from the published Final Pose
+  (`PlaybackState::SetBlendSource`), not from the raw animation sample.
 
 ## Player and Contact libraries
 

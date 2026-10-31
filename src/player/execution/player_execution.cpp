@@ -111,8 +111,12 @@ void PlayerExecution::ResetPosition(PlayerExecutionPort& owner, const Vector3& n
   state_.pending_action_request_.reset();
   state_.playback_state_.Reset();
   state_.locomotion_playback_ = LocomotionPlaybackRequest{};
+  state_.locomotion_reference_delta_ = Vector3(0);
   state_.stride_scale_ = 1.0f;
   state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
+  state_.final_pose_ = PoseFrame{};
+  state_.final_pose_base_angle_ = 0.0f;
+  state_.final_pose_valid_ = false;
   state_.pending_reaction_.reset();
   state_.pending_passive_trip_.reset();
   port().CommitLegacyActionMotion();
@@ -135,8 +139,12 @@ void PlayerExecution::ResetRuntimeState(const Vector3& focus_position,
   state_.playback_state_.Reset();
   // M2: a reset is a continuity break for the gait phase as well.
   state_.locomotion_playback_ = LocomotionPlaybackRequest{};
+  state_.locomotion_reference_delta_ = Vector3(0);
   state_.stride_scale_ = 1.0f;
   state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
+  state_.final_pose_ = PoseFrame{};
+  state_.final_pose_base_angle_ = 0.0f;
+  state_.final_pose_valid_ = false;
   state_.pending_reaction_.reset();
   state_.pending_passive_trip_.reset();
   if (port().IsActive()) {
@@ -189,6 +197,10 @@ int PlayerExecution::FrameCount() const {
 
 PoseFrame PlayerExecution::Pose(PlayerExecutionPort& owner) const {
   PortScope scope(*this, owner);
+  // The Final Pose is what the body actually is: warped, realized and settled
+  // by the Player. Animation matching compares against it, not against the raw
+  // sample that was then corrected.
+  if (state_.final_pose_valid_) return state_.final_pose_;
   if (state_.playback_state_.have_pose) return state_.playback_state_.final_pose;
   return SampleBakedPose(port().GetKinematicState(), port().BodyProfile()).pose;
 }
@@ -199,7 +211,10 @@ PlayerBakedPoseSample PlayerExecution::BakedPoseSample(PlayerExecutionPort& owne
       SampleBakedPose(port().GetKinematicState(), port().BodyProfile());
   // ANIM-1 A5: the execution owns the final pose; SampleBakedPose supplies the
   // clip/frame metadata.
-  if (state_.playback_state_.have_pose) {
+  if (state_.final_pose_valid_) {
+    sample.pose = state_.final_pose_;
+    sample.base_angle = state_.final_pose_base_angle_;
+  } else if (state_.playback_state_.have_pose) {
     sample.pose = state_.playback_state_.final_pose;
     sample.base_angle = state_.playback_state_.final_base_angle;
   }
