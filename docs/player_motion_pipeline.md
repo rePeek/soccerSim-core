@@ -144,3 +144,18 @@ The earlier P5–P7 labels are superseded by a cross-module sequence:
 - Player/animation/locomotion unit and link tests pass in debug and release.
 
 A1 and later are **not** implemented in this commit.
+
+## A1b/A2 result
+
+- A1b: the offline `football_anim_baker --autogen-out` mode regenerates the
+  443 non-mirror Autogen clips from the 10 legacy templates. CMake builds
+  `autogen.simanim` before the Python catalog bake and passes it as
+  `--autogen`.
+- The generated Autogen poses differ from the removed GLBs by at most
+  `7.45e-9`; roots are identical. Stored metadata is retained and validated
+  within `2e-5`.
+- A2: `assets/animations/` now contains 283 authored GLBs + manifest. 443
+  entries are `procedural`, 726 are `mirror_of`.
+- The generator still consumes `data/media/animations/templates/*.anim` and
+  `player.object`; A1a canonical template GLBs are ready for the follow-up
+  switch to a non-legacy input path.

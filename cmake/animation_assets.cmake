@@ -1,10 +1,20 @@
-# GLB + football metadata are the sources. SIMANIM is a generated, private
-# runtime cache; neither Blender nor the legacy .anim baker is needed to build.
+# 283 authored GLBs + metadata are the sources. The 443 Autogen clips are
+# regenerated from the 10 motion templates by the offline baker, and mirrors are
+# derived by the Python compiler; neither Blender nor a stored Autogen GLB is
+# needed to build.
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 set(FOOTBALL_ANIMATION_MANIFEST
     "${PROJECT_SOURCE_DIR}/assets/animations/manifest.json")
 set(FOOTBALL_ANIMATION_CACHE
     "${PROJECT_BINARY_DIR}/assets/runtime/animations.simanim")
+set(FOOTBALL_AUTOGEN_CACHE
+    "${PROJECT_BINARY_DIR}/assets/runtime/autogen.simanim")
+set(FOOTBALL_MOTION_TEMPLATE_DIR
+    "${PROJECT_SOURCE_DIR}/data/media/animations/templates")
+set(FOOTBALL_PLAYER_OBJECT
+    "${PROJECT_SOURCE_DIR}/data/media/objects/players/player.object")
+file(GLOB FOOTBALL_MOTION_TEMPLATES
+    CONFIGURE_DEPENDS "${FOOTBALL_MOTION_TEMPLATE_DIR}/*.anim")
 # Use the manifest, not a glob: deleting a referenced GLB must fail even if
 # a previous cache exists. Catalog edits also refresh the dependency list.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
@@ -17,12 +27,27 @@ execute_process(
   OUTPUT_VARIABLE FOOTBALL_ANIMATION_GLBS
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 add_custom_command(
+  OUTPUT "${FOOTBALL_AUTOGEN_CACHE}"
+  COMMAND $<TARGET_FILE:football_anim_baker>
+    --autogen-out "${FOOTBALL_AUTOGEN_CACHE}"
+    --template-dir "${FOOTBALL_MOTION_TEMPLATE_DIR}"
+    --player-object "${FOOTBALL_PLAYER_OBJECT}"
+  DEPENDS ${FOOTBALL_MOTION_TEMPLATES} "${FOOTBALL_PLAYER_OBJECT}"
+  COMMENT "Generating 443 procedural Autogen clips from 10 templates"
+  VERBATIM)
+add_custom_target(football_autogen_assets ALL
+  DEPENDS "${FOOTBALL_AUTOGEN_CACHE}")
+add_dependencies(football_autogen_assets football_anim_baker)
+
+add_custom_command(
   OUTPUT "${FOOTBALL_ANIMATION_CACHE}"
   COMMAND "${Python3_EXECUTABLE}"
     "${PROJECT_SOURCE_DIR}/tools/playerAssets/animation_assets.py" bake
     --manifest "${FOOTBALL_ANIMATION_MANIFEST}"
     --output "${FOOTBALL_ANIMATION_CACHE}"
+    --autogen "${FOOTBALL_AUTOGEN_CACHE}"
   DEPENDS ${FOOTBALL_ANIMATION_GLBS}
+    "${FOOTBALL_AUTOGEN_CACHE}"
     "${FOOTBALL_ANIMATION_MANIFEST}"
     "${PROJECT_SOURCE_DIR}/assets/skeletons/player.json"
     "${PROJECT_SOURCE_DIR}/tools/playerAssets/animation_assets.py"
@@ -32,6 +57,7 @@ add_custom_command(
   VERBATIM)
 add_custom_target(football_animation_assets ALL
   DEPENDS "${FOOTBALL_ANIMATION_CACHE}")
+add_dependencies(football_animation_assets football_autogen_assets)
 
 function(football_require_animation_cache target)
   add_dependencies(${target} football_animation_assets)

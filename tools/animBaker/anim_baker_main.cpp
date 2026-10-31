@@ -6,6 +6,7 @@
 
 int main(int argc, char** argv) {
   std::string input_dir, out_path, check_path, verify_path, verify_selection_path;
+  std::string autogen_out, template_dir, player_object;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--input" && i + 1 < argc) input_dir = argv[++i];
@@ -13,25 +14,41 @@ int main(int argc, char** argv) {
     else if (arg == "--check" && i + 1 < argc) check_path = argv[++i];
     else if (arg == "--verify" && i + 1 < argc) verify_path = argv[++i];
     else if (arg == "--verify-selection" && i + 1 < argc) verify_selection_path = argv[++i];
+    else if (arg == "--autogen-out" && i + 1 < argc) autogen_out = argv[++i];
+    else if (arg == "--template-dir" && i + 1 < argc) template_dir = argv[++i];
+    else if (arg == "--player-object" && i + 1 < argc) player_object = argv[++i];
     else {
       std::cerr << "usage: " << argv[0]
                 << " --input DIR [--out FILE] [--check FILE] [--verify FILE]"
-                << " [--verify-selection FILE]\n";
+                << " [--verify-selection FILE]\n"
+                << "       " << argv[0]
+                << " --autogen-out FILE --template-dir DIR --player-object FILE\n";
       return 2;
     }
   }
-  if (input_dir.empty()) {
-    std::cerr << "anim_baker: --input DIR is required\n";
-    return 2;
-  }
-  if (out_path.empty() && check_path.empty() && verify_path.empty() && verify_selection_path.empty()) {
-    std::cerr << "anim_baker: specify --out, --check, --verify and/or --verify-selection\n";
-    return 2;
+  const bool autogen_mode = !autogen_out.empty();
+  if (autogen_mode) {
+    if (template_dir.empty() || player_object.empty()) {
+      std::cerr << "anim_baker: autogen mode requires --template-dir and --player-object\n";
+      return 2;
+    }
+  } else {
+    if (input_dir.empty()) {
+      std::cerr << "anim_baker: --input DIR is required\n";
+      return 2;
+    }
+    if (out_path.empty() && check_path.empty() && verify_path.empty() && verify_selection_path.empty()) {
+      std::cerr << "anim_baker: specify --out, --check, --verify and/or --verify-selection\n";
+      return 2;
+    }
   }
 
   try {
     using namespace football::tools;
     int status = 0;
+    if (autogen_mode) {
+      return WriteAnimations(autogen_out, BakeAutoAnims(template_dir, player_object));
+    }
     if (!out_path.empty() || !check_path.empty()) {
       const auto clips = BakeAnimations(input_dir);
       if (!out_path.empty()) status |= WriteAnimations(out_path, clips);

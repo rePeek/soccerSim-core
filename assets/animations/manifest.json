@@ -86,7 +86,6 @@
     {
       "id": 1,
       "name": "autogen [v1 b0] => [v1 b0 a0]",
-      "file": "0001_autogen_v1_b0_v1_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -160,7 +159,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 2,
@@ -244,7 +244,6 @@
     {
       "id": 3,
       "name": "autogen [v1 b0] => [v1 b0 a45]",
-      "file": "0003_autogen_v1_b0_v1_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -318,7 +317,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 4,
@@ -402,7 +402,6 @@
     {
       "id": 5,
       "name": "autogen [v1 b0] => [v1 b0 a-45]",
-      "file": "0005_autogen_v1_b0_v1_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -476,7 +475,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 6,
@@ -560,7 +560,6 @@
     {
       "id": 7,
       "name": "autogen [v1 b0] => [v1 b0 a90]",
-      "file": "0007_autogen_v1_b0_v1_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -634,7 +633,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 8,
@@ -718,7 +718,6 @@
     {
       "id": 9,
       "name": "autogen [v1 b0] => [v1 b0 a-90]",
-      "file": "0009_autogen_v1_b0_v1_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -792,7 +791,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 10,
@@ -876,7 +876,6 @@
     {
       "id": 11,
       "name": "autogen [v1 b0] => [v1 b-44 a0]",
-      "file": "0011_autogen_v1_b0_v1_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -950,7 +949,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 12,
@@ -1034,7 +1034,6 @@
     {
       "id": 13,
       "name": "autogen [v1 b0] => [v1 b-44 a45]",
-      "file": "0013_autogen_v1_b0_v1_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -1108,7 +1107,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 14,
@@ -1192,7 +1192,6 @@
     {
       "id": 15,
       "name": "autogen [v1 b0] => [v1 b-44 a-45]",
-      "file": "0015_autogen_v1_b0_v1_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -1266,7 +1265,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 16,
@@ -1350,7 +1350,6 @@
     {
       "id": 17,
       "name": "autogen [v1 b0] => [v1 b-44 a90]",
-      "file": "0017_autogen_v1_b0_v1_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -1424,7 +1423,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 18,
@@ -1508,7 +1508,6 @@
     {
       "id": 19,
       "name": "autogen [v1 b0] => [v1 b-44 a-90]",
-      "file": "0019_autogen_v1_b0_v1_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -1582,7 +1581,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 20,
@@ -1666,7 +1666,6 @@
     {
       "id": 21,
       "name": "autogen [v1 b0] => [v1 b45 a0]",
-      "file": "0021_autogen_v1_b0_v1_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -1740,7 +1739,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 22,
@@ -1824,7 +1824,6 @@
     {
       "id": 23,
       "name": "autogen [v1 b0] => [v1 b45 a45]",
-      "file": "0023_autogen_v1_b0_v1_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -1898,7 +1897,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 24,
@@ -1982,7 +1982,6 @@
     {
       "id": 25,
       "name": "autogen [v1 b0] => [v1 b45 a-45]",
-      "file": "0025_autogen_v1_b0_v1_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -2056,7 +2055,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 26,
@@ -2140,7 +2140,6 @@
     {
       "id": 27,
       "name": "autogen [v1 b0] => [v1 b45 a90]",
-      "file": "0027_autogen_v1_b0_v1_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -2214,7 +2213,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 28,
@@ -2298,7 +2298,6 @@
     {
       "id": 29,
       "name": "autogen [v1 b0] => [v1 b45 a-90]",
-      "file": "0029_autogen_v1_b0_v1_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -2372,7 +2371,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 30,
@@ -2456,7 +2456,6 @@
     {
       "id": 31,
       "name": "autogen [v1 b0] => [v1 b-135 a0]",
-      "file": "0031_autogen_v1_b0_v1_b-135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -2530,7 +2529,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 32,
@@ -2614,7 +2614,6 @@
     {
       "id": 33,
       "name": "autogen [v1 b0] => [v1 b-135 a45]",
-      "file": "0033_autogen_v1_b0_v1_b-135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -2688,7 +2687,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 34,
@@ -2772,7 +2772,6 @@
     {
       "id": 35,
       "name": "autogen [v1 b0] => [v1 b-135 a-45]",
-      "file": "0035_autogen_v1_b0_v1_b-135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -2846,7 +2845,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 36,
@@ -2930,7 +2930,6 @@
     {
       "id": 37,
       "name": "autogen [v1 b0] => [v1 b-135 a90]",
-      "file": "0037_autogen_v1_b0_v1_b-135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -3004,7 +3003,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 38,
@@ -3088,7 +3088,6 @@
     {
       "id": 39,
       "name": "autogen [v1 b0] => [v1 b135 a0]",
-      "file": "0039_autogen_v1_b0_v1_b135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -3162,7 +3161,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 40,
@@ -3246,7 +3246,6 @@
     {
       "id": 41,
       "name": "autogen [v1 b0] => [v1 b135 a45]",
-      "file": "0041_autogen_v1_b0_v1_b135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -3320,7 +3319,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 42,
@@ -3404,7 +3404,6 @@
     {
       "id": 43,
       "name": "autogen [v1 b0] => [v1 b135 a-45]",
-      "file": "0043_autogen_v1_b0_v1_b135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -3478,7 +3477,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 44,
@@ -3562,7 +3562,6 @@
     {
       "id": 45,
       "name": "autogen [v1 b0] => [v1 b135 a-90]",
-      "file": "0045_autogen_v1_b0_v1_b135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -3636,7 +3635,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 46,
@@ -3720,7 +3720,6 @@
     {
       "id": 47,
       "name": "autogen [v1 b0] => [v0 b0 a0]",
-      "file": "0047_autogen_v1_b0_v0_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -3794,7 +3793,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 48,
@@ -3878,7 +3878,6 @@
     {
       "id": 49,
       "name": "autogen [v1 b0] => [v0 b0 a45]",
-      "file": "0049_autogen_v1_b0_v0_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -3952,7 +3951,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 50,
@@ -4036,7 +4036,6 @@
     {
       "id": 51,
       "name": "autogen [v1 b0] => [v0 b0 a-45]",
-      "file": "0051_autogen_v1_b0_v0_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -4110,7 +4109,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 52,
@@ -4194,7 +4194,6 @@
     {
       "id": 53,
       "name": "autogen [v1 b0] => [v0 b0 a90]",
-      "file": "0053_autogen_v1_b0_v0_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -4268,7 +4267,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 54,
@@ -4352,7 +4352,6 @@
     {
       "id": 55,
       "name": "autogen [v1 b0] => [v0 b0 a-90]",
-      "file": "0055_autogen_v1_b0_v0_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -4426,7 +4425,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 56,
@@ -4510,7 +4510,6 @@
     {
       "id": 57,
       "name": "autogen [v1 b0] => [v0 b0 a135]",
-      "file": "0057_autogen_v1_b0_v0_b0_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -4584,7 +4583,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 58,
@@ -4668,7 +4668,6 @@
     {
       "id": 59,
       "name": "autogen [v1 b0] => [v0 b0 a-135]",
-      "file": "0059_autogen_v1_b0_v0_b0_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -4742,7 +4741,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 60,
@@ -4826,7 +4826,6 @@
     {
       "id": 61,
       "name": "autogen [v1 b0] => [v0 b0 a178]",
-      "file": "0061_autogen_v1_b0_v0_b0_a178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -4900,7 +4899,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 62,
@@ -4984,7 +4984,6 @@
     {
       "id": 63,
       "name": "autogen [v1 b0] => [v0 b0 a-178]",
-      "file": "0063_autogen_v1_b0_v0_b0_a-178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -5058,7 +5057,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 64,
@@ -5142,7 +5142,6 @@
     {
       "id": 65,
       "name": "autogen [v1 b0] => [v2 b0 a0]",
-      "file": "0065_autogen_v1_b0_v2_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -5216,7 +5215,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 66,
@@ -5300,7 +5300,6 @@
     {
       "id": 67,
       "name": "autogen [v1 b0] => [v2 b0 a45]",
-      "file": "0067_autogen_v1_b0_v2_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -5374,7 +5373,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 68,
@@ -5458,7 +5458,6 @@
     {
       "id": 69,
       "name": "autogen [v1 b0] => [v2 b0 a-45]",
-      "file": "0069_autogen_v1_b0_v2_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -5532,7 +5531,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 70,
@@ -5616,7 +5616,6 @@
     {
       "id": 71,
       "name": "autogen [v1 b0] => [v2 b0 a90]",
-      "file": "0071_autogen_v1_b0_v2_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -5690,7 +5689,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 72,
@@ -5774,7 +5774,6 @@
     {
       "id": 73,
       "name": "autogen [v1 b0] => [v2 b0 a-90]",
-      "file": "0073_autogen_v1_b0_v2_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -5848,7 +5847,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 74,
@@ -5932,7 +5932,6 @@
     {
       "id": 75,
       "name": "autogen [v1 b0] => [v2 b-44 a0]",
-      "file": "0075_autogen_v1_b0_v2_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -6006,7 +6005,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 76,
@@ -6090,7 +6090,6 @@
     {
       "id": 77,
       "name": "autogen [v1 b0] => [v2 b-44 a45]",
-      "file": "0077_autogen_v1_b0_v2_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -6164,7 +6163,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 78,
@@ -6248,7 +6248,6 @@
     {
       "id": 79,
       "name": "autogen [v1 b0] => [v2 b-44 a-45]",
-      "file": "0079_autogen_v1_b0_v2_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -6322,7 +6321,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 80,
@@ -6406,7 +6406,6 @@
     {
       "id": 81,
       "name": "autogen [v1 b0] => [v2 b-44 a90]",
-      "file": "0081_autogen_v1_b0_v2_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -6480,7 +6479,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 82,
@@ -6564,7 +6564,6 @@
     {
       "id": 83,
       "name": "autogen [v1 b0] => [v2 b-44 a-90]",
-      "file": "0083_autogen_v1_b0_v2_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -6638,7 +6637,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 84,
@@ -6722,7 +6722,6 @@
     {
       "id": 85,
       "name": "autogen [v1 b0] => [v2 b45 a0]",
-      "file": "0085_autogen_v1_b0_v2_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -6796,7 +6795,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 86,
@@ -6880,7 +6880,6 @@
     {
       "id": 87,
       "name": "autogen [v1 b0] => [v2 b45 a45]",
-      "file": "0087_autogen_v1_b0_v2_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -6954,7 +6953,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 88,
@@ -7038,7 +7038,6 @@
     {
       "id": 89,
       "name": "autogen [v1 b0] => [v2 b45 a-45]",
-      "file": "0089_autogen_v1_b0_v2_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -7112,7 +7111,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 90,
@@ -7196,7 +7196,6 @@
     {
       "id": 91,
       "name": "autogen [v1 b0] => [v2 b45 a90]",
-      "file": "0091_autogen_v1_b0_v2_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -7270,7 +7269,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 92,
@@ -7354,7 +7354,6 @@
     {
       "id": 93,
       "name": "autogen [v1 b0] => [v2 b45 a-90]",
-      "file": "0093_autogen_v1_b0_v2_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -7428,7 +7427,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 94,
@@ -7512,7 +7512,6 @@
     {
       "id": 95,
       "name": "autogen [v1 b-44] => [v1 b0 a0]",
-      "file": "0095_autogen_v1_b-44_v1_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -7586,7 +7585,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 96,
@@ -7670,7 +7670,6 @@
     {
       "id": 97,
       "name": "autogen [v1 b-44] => [v1 b0 a45]",
-      "file": "0097_autogen_v1_b-44_v1_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -7744,7 +7743,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 98,
@@ -7828,7 +7828,6 @@
     {
       "id": 99,
       "name": "autogen [v1 b-44] => [v1 b0 a-45]",
-      "file": "0099_autogen_v1_b-44_v1_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -7902,7 +7901,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 100,
@@ -7986,7 +7986,6 @@
     {
       "id": 101,
       "name": "autogen [v1 b-44] => [v1 b0 a90]",
-      "file": "0101_autogen_v1_b-44_v1_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -8060,7 +8059,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 102,
@@ -8144,7 +8144,6 @@
     {
       "id": 103,
       "name": "autogen [v1 b-44] => [v1 b0 a-90]",
-      "file": "0103_autogen_v1_b-44_v1_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -8218,7 +8217,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 104,
@@ -8302,7 +8302,6 @@
     {
       "id": 105,
       "name": "autogen [v1 b-44] => [v1 b-44 a0]",
-      "file": "0105_autogen_v1_b-44_v1_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -8376,7 +8375,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 106,
@@ -8460,7 +8460,6 @@
     {
       "id": 107,
       "name": "autogen [v1 b-44] => [v1 b-44 a45]",
-      "file": "0107_autogen_v1_b-44_v1_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -8534,7 +8533,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 108,
@@ -8618,7 +8618,6 @@
     {
       "id": 109,
       "name": "autogen [v1 b-44] => [v1 b-44 a-45]",
-      "file": "0109_autogen_v1_b-44_v1_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -8692,7 +8691,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 110,
@@ -8776,7 +8776,6 @@
     {
       "id": 111,
       "name": "autogen [v1 b-44] => [v1 b-44 a90]",
-      "file": "0111_autogen_v1_b-44_v1_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -8850,7 +8849,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 112,
@@ -8934,7 +8934,6 @@
     {
       "id": 113,
       "name": "autogen [v1 b-44] => [v1 b-44 a-90]",
-      "file": "0113_autogen_v1_b-44_v1_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -9008,7 +9007,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 114,
@@ -9092,7 +9092,6 @@
     {
       "id": 115,
       "name": "autogen [v1 b-44] => [v1 b45 a0]",
-      "file": "0115_autogen_v1_b-44_v1_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -9166,7 +9165,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 116,
@@ -9250,7 +9250,6 @@
     {
       "id": 117,
       "name": "autogen [v1 b-44] => [v1 b45 a45]",
-      "file": "0117_autogen_v1_b-44_v1_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -9324,7 +9323,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 118,
@@ -9408,7 +9408,6 @@
     {
       "id": 119,
       "name": "autogen [v1 b-44] => [v1 b45 a-45]",
-      "file": "0119_autogen_v1_b-44_v1_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -9482,7 +9481,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 120,
@@ -9566,7 +9566,6 @@
     {
       "id": 121,
       "name": "autogen [v1 b-44] => [v1 b45 a90]",
-      "file": "0121_autogen_v1_b-44_v1_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -9640,7 +9639,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 122,
@@ -9724,7 +9724,6 @@
     {
       "id": 123,
       "name": "autogen [v1 b-44] => [v1 b45 a-90]",
-      "file": "0123_autogen_v1_b-44_v1_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -9798,7 +9797,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 124,
@@ -9882,7 +9882,6 @@
     {
       "id": 125,
       "name": "autogen [v1 b-44] => [v1 b-135 a0]",
-      "file": "0125_autogen_v1_b-44_v1_b-135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -9956,7 +9955,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 126,
@@ -10040,7 +10040,6 @@
     {
       "id": 127,
       "name": "autogen [v1 b-44] => [v1 b-135 a45]",
-      "file": "0127_autogen_v1_b-44_v1_b-135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -10114,7 +10113,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 128,
@@ -10198,7 +10198,6 @@
     {
       "id": 129,
       "name": "autogen [v1 b-44] => [v1 b-135 a-45]",
-      "file": "0129_autogen_v1_b-44_v1_b-135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -10272,7 +10271,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 130,
@@ -10356,7 +10356,6 @@
     {
       "id": 131,
       "name": "autogen [v1 b-44] => [v1 b-135 a90]",
-      "file": "0131_autogen_v1_b-44_v1_b-135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -10430,7 +10429,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 132,
@@ -10514,7 +10514,6 @@
     {
       "id": 133,
       "name": "autogen [v1 b-44] => [v1 b-135 a-90]",
-      "file": "0133_autogen_v1_b-44_v1_b-135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -10588,7 +10587,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 134,
@@ -10672,7 +10672,6 @@
     {
       "id": 135,
       "name": "autogen [v1 b-44] => [v1 b135 a0]",
-      "file": "0135_autogen_v1_b-44_v1_b135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -10746,7 +10745,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 136,
@@ -10830,7 +10830,6 @@
     {
       "id": 137,
       "name": "autogen [v1 b-44] => [v1 b135 a45]",
-      "file": "0137_autogen_v1_b-44_v1_b135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -10904,7 +10903,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 138,
@@ -10988,7 +10988,6 @@
     {
       "id": 139,
       "name": "autogen [v1 b-44] => [v1 b135 a90]",
-      "file": "0139_autogen_v1_b-44_v1_b135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -11062,7 +11061,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 140,
@@ -11146,7 +11146,6 @@
     {
       "id": 141,
       "name": "autogen [v1 b-44] => [v0 b0 a0]",
-      "file": "0141_autogen_v1_b-44_v0_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -11220,7 +11219,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 142,
@@ -11304,7 +11304,6 @@
     {
       "id": 143,
       "name": "autogen [v1 b-44] => [v0 b0 a45]",
-      "file": "0143_autogen_v1_b-44_v0_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -11378,7 +11377,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 144,
@@ -11462,7 +11462,6 @@
     {
       "id": 145,
       "name": "autogen [v1 b-44] => [v0 b0 a-45]",
-      "file": "0145_autogen_v1_b-44_v0_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -11536,7 +11535,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 146,
@@ -11620,7 +11620,6 @@
     {
       "id": 147,
       "name": "autogen [v1 b-44] => [v0 b0 a90]",
-      "file": "0147_autogen_v1_b-44_v0_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -11694,7 +11693,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 148,
@@ -11778,7 +11778,6 @@
     {
       "id": 149,
       "name": "autogen [v1 b-44] => [v0 b0 a-90]",
-      "file": "0149_autogen_v1_b-44_v0_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -11852,7 +11851,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 150,
@@ -11936,7 +11936,6 @@
     {
       "id": 151,
       "name": "autogen [v1 b-44] => [v0 b0 a135]",
-      "file": "0151_autogen_v1_b-44_v0_b0_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -12010,7 +12009,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 152,
@@ -12094,7 +12094,6 @@
     {
       "id": 153,
       "name": "autogen [v1 b-44] => [v0 b0 a-135]",
-      "file": "0153_autogen_v1_b-44_v0_b0_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -12168,7 +12167,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 154,
@@ -12252,7 +12252,6 @@
     {
       "id": 155,
       "name": "autogen [v1 b-44] => [v0 b0 a-178]",
-      "file": "0155_autogen_v1_b-44_v0_b0_a-178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -12326,7 +12325,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 156,
@@ -12410,7 +12410,6 @@
     {
       "id": 157,
       "name": "autogen [v1 b-44] => [v2 b0 a0]",
-      "file": "0157_autogen_v1_b-44_v2_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -12484,7 +12483,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 158,
@@ -12568,7 +12568,6 @@
     {
       "id": 159,
       "name": "autogen [v1 b-44] => [v2 b0 a45]",
-      "file": "0159_autogen_v1_b-44_v2_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -12642,7 +12641,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 160,
@@ -12726,7 +12726,6 @@
     {
       "id": 161,
       "name": "autogen [v1 b-44] => [v2 b0 a-45]",
-      "file": "0161_autogen_v1_b-44_v2_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -12800,7 +12799,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 162,
@@ -12884,7 +12884,6 @@
     {
       "id": 163,
       "name": "autogen [v1 b-44] => [v2 b0 a90]",
-      "file": "0163_autogen_v1_b-44_v2_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -12958,7 +12957,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 164,
@@ -13042,7 +13042,6 @@
     {
       "id": 165,
       "name": "autogen [v1 b-44] => [v2 b0 a-90]",
-      "file": "0165_autogen_v1_b-44_v2_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -13116,7 +13115,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 166,
@@ -13200,7 +13200,6 @@
     {
       "id": 167,
       "name": "autogen [v1 b-44] => [v2 b-44 a0]",
-      "file": "0167_autogen_v1_b-44_v2_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -13274,7 +13273,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 168,
@@ -13358,7 +13358,6 @@
     {
       "id": 169,
       "name": "autogen [v1 b-44] => [v2 b-44 a45]",
-      "file": "0169_autogen_v1_b-44_v2_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -13432,7 +13431,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 170,
@@ -13516,7 +13516,6 @@
     {
       "id": 171,
       "name": "autogen [v1 b-44] => [v2 b-44 a-45]",
-      "file": "0171_autogen_v1_b-44_v2_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -13590,7 +13589,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 172,
@@ -13674,7 +13674,6 @@
     {
       "id": 173,
       "name": "autogen [v1 b-44] => [v2 b-44 a90]",
-      "file": "0173_autogen_v1_b-44_v2_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -13748,7 +13747,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 174,
@@ -13832,7 +13832,6 @@
     {
       "id": 175,
       "name": "autogen [v1 b-44] => [v2 b-44 a-90]",
-      "file": "0175_autogen_v1_b-44_v2_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -13906,7 +13905,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 176,
@@ -13990,7 +13990,6 @@
     {
       "id": 177,
       "name": "autogen [v1 b-44] => [v2 b45 a0]",
-      "file": "0177_autogen_v1_b-44_v2_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -14064,7 +14063,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 178,
@@ -14148,7 +14148,6 @@
     {
       "id": 179,
       "name": "autogen [v1 b-44] => [v2 b45 a45]",
-      "file": "0179_autogen_v1_b-44_v2_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -14222,7 +14221,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 180,
@@ -14306,7 +14306,6 @@
     {
       "id": 181,
       "name": "autogen [v1 b-44] => [v2 b45 a-45]",
-      "file": "0181_autogen_v1_b-44_v2_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -14380,7 +14379,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 182,
@@ -14464,7 +14464,6 @@
     {
       "id": 183,
       "name": "autogen [v1 b-44] => [v2 b45 a90]",
-      "file": "0183_autogen_v1_b-44_v2_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -14538,7 +14537,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 184,
@@ -14622,7 +14622,6 @@
     {
       "id": 185,
       "name": "autogen [v1 b-44] => [v2 b45 a-90]",
-      "file": "0185_autogen_v1_b-44_v2_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -14696,7 +14695,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 186,
@@ -14780,7 +14780,6 @@
     {
       "id": 187,
       "name": "autogen [v1 b45] => [v1 b0 a0]",
-      "file": "0187_autogen_v1_b45_v1_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -14854,7 +14853,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 188,
@@ -14938,7 +14938,6 @@
     {
       "id": 189,
       "name": "autogen [v1 b45] => [v1 b0 a45]",
-      "file": "0189_autogen_v1_b45_v1_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -15012,7 +15011,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 190,
@@ -15096,7 +15096,6 @@
     {
       "id": 191,
       "name": "autogen [v1 b45] => [v1 b0 a-45]",
-      "file": "0191_autogen_v1_b45_v1_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -15170,7 +15169,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 192,
@@ -15254,7 +15254,6 @@
     {
       "id": 193,
       "name": "autogen [v1 b45] => [v1 b0 a90]",
-      "file": "0193_autogen_v1_b45_v1_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -15328,7 +15327,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 194,
@@ -15412,7 +15412,6 @@
     {
       "id": 195,
       "name": "autogen [v1 b45] => [v1 b0 a-90]",
-      "file": "0195_autogen_v1_b45_v1_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -15486,7 +15485,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 196,
@@ -15570,7 +15570,6 @@
     {
       "id": 197,
       "name": "autogen [v1 b45] => [v1 b-44 a0]",
-      "file": "0197_autogen_v1_b45_v1_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -15644,7 +15643,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 198,
@@ -15728,7 +15728,6 @@
     {
       "id": 199,
       "name": "autogen [v1 b45] => [v1 b-44 a45]",
-      "file": "0199_autogen_v1_b45_v1_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -15802,7 +15801,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 200,
@@ -15886,7 +15886,6 @@
     {
       "id": 201,
       "name": "autogen [v1 b45] => [v1 b-44 a-45]",
-      "file": "0201_autogen_v1_b45_v1_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -15960,7 +15959,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 202,
@@ -16044,7 +16044,6 @@
     {
       "id": 203,
       "name": "autogen [v1 b45] => [v1 b-44 a90]",
-      "file": "0203_autogen_v1_b45_v1_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -16118,7 +16117,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 204,
@@ -16202,7 +16202,6 @@
     {
       "id": 205,
       "name": "autogen [v1 b45] => [v1 b-44 a-90]",
-      "file": "0205_autogen_v1_b45_v1_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -16276,7 +16275,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 206,
@@ -16360,7 +16360,6 @@
     {
       "id": 207,
       "name": "autogen [v1 b45] => [v1 b45 a0]",
-      "file": "0207_autogen_v1_b45_v1_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -16434,7 +16433,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 208,
@@ -16518,7 +16518,6 @@
     {
       "id": 209,
       "name": "autogen [v1 b45] => [v1 b45 a45]",
-      "file": "0209_autogen_v1_b45_v1_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -16592,7 +16591,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 210,
@@ -16676,7 +16676,6 @@
     {
       "id": 211,
       "name": "autogen [v1 b45] => [v1 b45 a-45]",
-      "file": "0211_autogen_v1_b45_v1_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -16750,7 +16749,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 212,
@@ -16834,7 +16834,6 @@
     {
       "id": 213,
       "name": "autogen [v1 b45] => [v1 b45 a90]",
-      "file": "0213_autogen_v1_b45_v1_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -16908,7 +16907,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 214,
@@ -16992,7 +16992,6 @@
     {
       "id": 215,
       "name": "autogen [v1 b45] => [v1 b45 a-90]",
-      "file": "0215_autogen_v1_b45_v1_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -17066,7 +17065,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 216,
@@ -17150,7 +17150,6 @@
     {
       "id": 217,
       "name": "autogen [v1 b45] => [v1 b-135 a0]",
-      "file": "0217_autogen_v1_b45_v1_b-135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -17224,7 +17223,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 218,
@@ -17308,7 +17308,6 @@
     {
       "id": 219,
       "name": "autogen [v1 b45] => [v1 b-135 a-45]",
-      "file": "0219_autogen_v1_b45_v1_b-135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -17382,7 +17381,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 220,
@@ -17466,7 +17466,6 @@
     {
       "id": 221,
       "name": "autogen [v1 b45] => [v1 b-135 a-90]",
-      "file": "0221_autogen_v1_b45_v1_b-135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -17540,7 +17539,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 222,
@@ -17624,7 +17624,6 @@
     {
       "id": 223,
       "name": "autogen [v1 b45] => [v1 b135 a0]",
-      "file": "0223_autogen_v1_b45_v1_b135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -17698,7 +17697,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 224,
@@ -17782,7 +17782,6 @@
     {
       "id": 225,
       "name": "autogen [v1 b45] => [v1 b135 a45]",
-      "file": "0225_autogen_v1_b45_v1_b135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -17856,7 +17855,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 226,
@@ -17940,7 +17940,6 @@
     {
       "id": 227,
       "name": "autogen [v1 b45] => [v1 b135 a-45]",
-      "file": "0227_autogen_v1_b45_v1_b135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -18014,7 +18013,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 228,
@@ -18098,7 +18098,6 @@
     {
       "id": 229,
       "name": "autogen [v1 b45] => [v1 b135 a90]",
-      "file": "0229_autogen_v1_b45_v1_b135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -18172,7 +18171,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 230,
@@ -18256,7 +18256,6 @@
     {
       "id": 231,
       "name": "autogen [v1 b45] => [v1 b135 a-90]",
-      "file": "0231_autogen_v1_b45_v1_b135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -18330,7 +18329,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 232,
@@ -18414,7 +18414,6 @@
     {
       "id": 233,
       "name": "autogen [v1 b45] => [v0 b0 a0]",
-      "file": "0233_autogen_v1_b45_v0_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -18488,7 +18487,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 234,
@@ -18572,7 +18572,6 @@
     {
       "id": 235,
       "name": "autogen [v1 b45] => [v0 b0 a45]",
-      "file": "0235_autogen_v1_b45_v0_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -18646,7 +18645,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 236,
@@ -18730,7 +18730,6 @@
     {
       "id": 237,
       "name": "autogen [v1 b45] => [v0 b0 a-45]",
-      "file": "0237_autogen_v1_b45_v0_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -18804,7 +18803,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 238,
@@ -18888,7 +18888,6 @@
     {
       "id": 239,
       "name": "autogen [v1 b45] => [v0 b0 a90]",
-      "file": "0239_autogen_v1_b45_v0_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -18962,7 +18961,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 240,
@@ -19046,7 +19046,6 @@
     {
       "id": 241,
       "name": "autogen [v1 b45] => [v0 b0 a-90]",
-      "file": "0241_autogen_v1_b45_v0_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -19120,7 +19119,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 242,
@@ -19204,7 +19204,6 @@
     {
       "id": 243,
       "name": "autogen [v1 b45] => [v0 b0 a135]",
-      "file": "0243_autogen_v1_b45_v0_b0_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -19278,7 +19277,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 244,
@@ -19362,7 +19362,6 @@
     {
       "id": 245,
       "name": "autogen [v1 b45] => [v0 b0 a-135]",
-      "file": "0245_autogen_v1_b45_v0_b0_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -19436,7 +19435,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 246,
@@ -19520,7 +19520,6 @@
     {
       "id": 247,
       "name": "autogen [v1 b45] => [v0 b0 a178]",
-      "file": "0247_autogen_v1_b45_v0_b0_a178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -19594,7 +19593,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 248,
@@ -19678,7 +19678,6 @@
     {
       "id": 249,
       "name": "autogen [v1 b45] => [v2 b0 a0]",
-      "file": "0249_autogen_v1_b45_v2_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -19752,7 +19751,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 250,
@@ -19836,7 +19836,6 @@
     {
       "id": 251,
       "name": "autogen [v1 b45] => [v2 b0 a45]",
-      "file": "0251_autogen_v1_b45_v2_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -19910,7 +19909,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 252,
@@ -19994,7 +19994,6 @@
     {
       "id": 253,
       "name": "autogen [v1 b45] => [v2 b0 a-45]",
-      "file": "0253_autogen_v1_b45_v2_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -20068,7 +20067,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 254,
@@ -20152,7 +20152,6 @@
     {
       "id": 255,
       "name": "autogen [v1 b45] => [v2 b0 a90]",
-      "file": "0255_autogen_v1_b45_v2_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -20226,7 +20225,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 256,
@@ -20310,7 +20310,6 @@
     {
       "id": 257,
       "name": "autogen [v1 b45] => [v2 b0 a-90]",
-      "file": "0257_autogen_v1_b45_v2_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -20384,7 +20383,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 258,
@@ -20468,7 +20468,6 @@
     {
       "id": 259,
       "name": "autogen [v1 b45] => [v2 b-44 a0]",
-      "file": "0259_autogen_v1_b45_v2_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -20542,7 +20541,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 260,
@@ -20626,7 +20626,6 @@
     {
       "id": 261,
       "name": "autogen [v1 b45] => [v2 b-44 a45]",
-      "file": "0261_autogen_v1_b45_v2_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -20700,7 +20699,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 262,
@@ -20784,7 +20784,6 @@
     {
       "id": 263,
       "name": "autogen [v1 b45] => [v2 b-44 a-45]",
-      "file": "0263_autogen_v1_b45_v2_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -20858,7 +20857,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 264,
@@ -20942,7 +20942,6 @@
     {
       "id": 265,
       "name": "autogen [v1 b45] => [v2 b-44 a90]",
-      "file": "0265_autogen_v1_b45_v2_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -21016,7 +21015,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 266,
@@ -21100,7 +21100,6 @@
     {
       "id": 267,
       "name": "autogen [v1 b45] => [v2 b-44 a-90]",
-      "file": "0267_autogen_v1_b45_v2_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -21174,7 +21173,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 268,
@@ -21258,7 +21258,6 @@
     {
       "id": 269,
       "name": "autogen [v1 b45] => [v2 b45 a0]",
-      "file": "0269_autogen_v1_b45_v2_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -21332,7 +21331,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 270,
@@ -21416,7 +21416,6 @@
     {
       "id": 271,
       "name": "autogen [v1 b45] => [v2 b45 a45]",
-      "file": "0271_autogen_v1_b45_v2_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -21490,7 +21489,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 272,
@@ -21574,7 +21574,6 @@
     {
       "id": 273,
       "name": "autogen [v1 b45] => [v2 b45 a-45]",
-      "file": "0273_autogen_v1_b45_v2_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -21648,7 +21647,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 274,
@@ -21732,7 +21732,6 @@
     {
       "id": 275,
       "name": "autogen [v1 b45] => [v2 b45 a90]",
-      "file": "0275_autogen_v1_b45_v2_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -21806,7 +21805,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 276,
@@ -21890,7 +21890,6 @@
     {
       "id": 277,
       "name": "autogen [v1 b45] => [v2 b45 a-90]",
-      "file": "0277_autogen_v1_b45_v2_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -21964,7 +21963,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 278,
@@ -22048,7 +22048,6 @@
     {
       "id": 279,
       "name": "autogen [v1 b-135] => [v1 b0 a0]",
-      "file": "0279_autogen_v1_b-135_v1_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -22122,7 +22121,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 280,
@@ -22206,7 +22206,6 @@
     {
       "id": 281,
       "name": "autogen [v1 b-135] => [v1 b0 a45]",
-      "file": "0281_autogen_v1_b-135_v1_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -22280,7 +22279,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 282,
@@ -22364,7 +22364,6 @@
     {
       "id": 283,
       "name": "autogen [v1 b-135] => [v1 b0 a-45]",
-      "file": "0283_autogen_v1_b-135_v1_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -22438,7 +22437,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 284,
@@ -22522,7 +22522,6 @@
     {
       "id": 285,
       "name": "autogen [v1 b-135] => [v1 b0 a-90]",
-      "file": "0285_autogen_v1_b-135_v1_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -22596,7 +22595,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 286,
@@ -22680,7 +22680,6 @@
     {
       "id": 287,
       "name": "autogen [v1 b-135] => [v1 b-44 a0]",
-      "file": "0287_autogen_v1_b-135_v1_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -22754,7 +22753,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 288,
@@ -22838,7 +22838,6 @@
     {
       "id": 289,
       "name": "autogen [v1 b-135] => [v1 b-44 a45]",
-      "file": "0289_autogen_v1_b-135_v1_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -22912,7 +22911,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 290,
@@ -22996,7 +22996,6 @@
     {
       "id": 291,
       "name": "autogen [v1 b-135] => [v1 b-44 a-45]",
-      "file": "0291_autogen_v1_b-135_v1_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -23070,7 +23069,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 292,
@@ -23154,7 +23154,6 @@
     {
       "id": 293,
       "name": "autogen [v1 b-135] => [v1 b-44 a90]",
-      "file": "0293_autogen_v1_b-135_v1_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -23228,7 +23227,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 294,
@@ -23312,7 +23312,6 @@
     {
       "id": 295,
       "name": "autogen [v1 b-135] => [v1 b-44 a-90]",
-      "file": "0295_autogen_v1_b-135_v1_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -23386,7 +23385,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 296,
@@ -23470,7 +23470,6 @@
     {
       "id": 297,
       "name": "autogen [v1 b-135] => [v1 b45 a0]",
-      "file": "0297_autogen_v1_b-135_v1_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -23544,7 +23543,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 298,
@@ -23628,7 +23628,6 @@
     {
       "id": 299,
       "name": "autogen [v1 b-135] => [v1 b45 a45]",
-      "file": "0299_autogen_v1_b-135_v1_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -23702,7 +23701,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 300,
@@ -23786,7 +23786,6 @@
     {
       "id": 301,
       "name": "autogen [v1 b-135] => [v1 b45 a90]",
-      "file": "0301_autogen_v1_b-135_v1_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -23860,7 +23859,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 302,
@@ -23944,7 +23944,6 @@
     {
       "id": 303,
       "name": "autogen [v1 b-135] => [v1 b-135 a0]",
-      "file": "0303_autogen_v1_b-135_v1_b-135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -24018,7 +24017,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 304,
@@ -24102,7 +24102,6 @@
     {
       "id": 305,
       "name": "autogen [v1 b-135] => [v1 b-135 a45]",
-      "file": "0305_autogen_v1_b-135_v1_b-135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -24176,7 +24175,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 306,
@@ -24260,7 +24260,6 @@
     {
       "id": 307,
       "name": "autogen [v1 b-135] => [v1 b-135 a-45]",
-      "file": "0307_autogen_v1_b-135_v1_b-135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -24334,7 +24333,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 308,
@@ -24418,7 +24418,6 @@
     {
       "id": 309,
       "name": "autogen [v1 b-135] => [v1 b-135 a90]",
-      "file": "0309_autogen_v1_b-135_v1_b-135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -24492,7 +24491,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 310,
@@ -24576,7 +24576,6 @@
     {
       "id": 311,
       "name": "autogen [v1 b-135] => [v1 b-135 a-90]",
-      "file": "0311_autogen_v1_b-135_v1_b-135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -24650,7 +24649,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 312,
@@ -24734,7 +24734,6 @@
     {
       "id": 313,
       "name": "autogen [v1 b-135] => [v1 b135 a0]",
-      "file": "0313_autogen_v1_b-135_v1_b135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -24808,7 +24807,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 314,
@@ -24892,7 +24892,6 @@
     {
       "id": 315,
       "name": "autogen [v1 b-135] => [v1 b135 a45]",
-      "file": "0315_autogen_v1_b-135_v1_b135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -24966,7 +24965,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 316,
@@ -25050,7 +25050,6 @@
     {
       "id": 317,
       "name": "autogen [v1 b-135] => [v1 b135 a-45]",
-      "file": "0317_autogen_v1_b-135_v1_b135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -25124,7 +25123,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 318,
@@ -25208,7 +25208,6 @@
     {
       "id": 319,
       "name": "autogen [v1 b-135] => [v1 b135 a90]",
-      "file": "0319_autogen_v1_b-135_v1_b135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -25282,7 +25281,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 320,
@@ -25366,7 +25366,6 @@
     {
       "id": 321,
       "name": "autogen [v1 b-135] => [v1 b135 a-90]",
-      "file": "0321_autogen_v1_b-135_v1_b135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -25440,7 +25439,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 322,
@@ -25524,7 +25524,6 @@
     {
       "id": 323,
       "name": "autogen [v1 b-135] => [v0 b0 a0]",
-      "file": "0323_autogen_v1_b-135_v0_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -25598,7 +25597,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 324,
@@ -25682,7 +25682,6 @@
     {
       "id": 325,
       "name": "autogen [v1 b-135] => [v0 b0 a45]",
-      "file": "0325_autogen_v1_b-135_v0_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -25756,7 +25755,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 326,
@@ -25840,7 +25840,6 @@
     {
       "id": 327,
       "name": "autogen [v1 b-135] => [v0 b0 a-45]",
-      "file": "0327_autogen_v1_b-135_v0_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -25914,7 +25913,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 328,
@@ -25998,7 +25998,6 @@
     {
       "id": 329,
       "name": "autogen [v1 b-135] => [v0 b0 a-90]",
-      "file": "0329_autogen_v1_b-135_v0_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -26072,7 +26071,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 330,
@@ -26156,7 +26156,6 @@
     {
       "id": 331,
       "name": "autogen [v1 b-135] => [v0 b0 a-135]",
-      "file": "0331_autogen_v1_b-135_v0_b0_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -26230,7 +26229,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 332,
@@ -26314,7 +26314,6 @@
     {
       "id": 333,
       "name": "autogen [v1 b-135] => [v0 b0 a-178]",
-      "file": "0333_autogen_v1_b-135_v0_b0_a-178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -26388,7 +26387,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 334,
@@ -26472,7 +26472,6 @@
     {
       "id": 335,
       "name": "autogen [v1 b-135] => [v2 b0 a0]",
-      "file": "0335_autogen_v1_b-135_v2_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -26546,7 +26545,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 336,
@@ -26630,7 +26630,6 @@
     {
       "id": 337,
       "name": "autogen [v1 b-135] => [v2 b0 a45]",
-      "file": "0337_autogen_v1_b-135_v2_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -26704,7 +26703,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 338,
@@ -26788,7 +26788,6 @@
     {
       "id": 339,
       "name": "autogen [v1 b-135] => [v2 b0 a-45]",
-      "file": "0339_autogen_v1_b-135_v2_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -26862,7 +26861,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 340,
@@ -26946,7 +26946,6 @@
     {
       "id": 341,
       "name": "autogen [v1 b-135] => [v2 b0 a-90]",
-      "file": "0341_autogen_v1_b-135_v2_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -27020,7 +27019,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 342,
@@ -27104,7 +27104,6 @@
     {
       "id": 343,
       "name": "autogen [v1 b-135] => [v2 b-44 a0]",
-      "file": "0343_autogen_v1_b-135_v2_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -27178,7 +27177,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 344,
@@ -27262,7 +27262,6 @@
     {
       "id": 345,
       "name": "autogen [v1 b-135] => [v2 b-44 a45]",
-      "file": "0345_autogen_v1_b-135_v2_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -27336,7 +27335,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 346,
@@ -27420,7 +27420,6 @@
     {
       "id": 347,
       "name": "autogen [v1 b-135] => [v2 b-44 a-45]",
-      "file": "0347_autogen_v1_b-135_v2_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -27494,7 +27493,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 348,
@@ -27578,7 +27578,6 @@
     {
       "id": 349,
       "name": "autogen [v1 b-135] => [v2 b-44 a90]",
-      "file": "0349_autogen_v1_b-135_v2_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -27652,7 +27651,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 350,
@@ -27736,7 +27736,6 @@
     {
       "id": 351,
       "name": "autogen [v1 b-135] => [v2 b-44 a-90]",
-      "file": "0351_autogen_v1_b-135_v2_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -27810,7 +27809,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 352,
@@ -27894,7 +27894,6 @@
     {
       "id": 353,
       "name": "autogen [v1 b-135] => [v2 b45 a0]",
-      "file": "0353_autogen_v1_b-135_v2_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -27968,7 +27967,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 354,
@@ -28052,7 +28052,6 @@
     {
       "id": 355,
       "name": "autogen [v1 b-135] => [v2 b45 a45]",
-      "file": "0355_autogen_v1_b-135_v2_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -28126,7 +28125,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 356,
@@ -28210,7 +28210,6 @@
     {
       "id": 357,
       "name": "autogen [v1 b-135] => [v2 b45 a90]",
-      "file": "0357_autogen_v1_b-135_v2_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -28284,7 +28283,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 358,
@@ -28368,7 +28368,6 @@
     {
       "id": 359,
       "name": "autogen [v1 b135] => [v1 b0 a0]",
-      "file": "0359_autogen_v1_b135_v1_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -28442,7 +28441,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 360,
@@ -28526,7 +28526,6 @@
     {
       "id": 361,
       "name": "autogen [v1 b135] => [v1 b0 a45]",
-      "file": "0361_autogen_v1_b135_v1_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -28600,7 +28599,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 362,
@@ -28684,7 +28684,6 @@
     {
       "id": 363,
       "name": "autogen [v1 b135] => [v1 b0 a-45]",
-      "file": "0363_autogen_v1_b135_v1_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -28758,7 +28757,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 364,
@@ -28842,7 +28842,6 @@
     {
       "id": 365,
       "name": "autogen [v1 b135] => [v1 b0 a90]",
-      "file": "0365_autogen_v1_b135_v1_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -28916,7 +28915,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 366,
@@ -29000,7 +29000,6 @@
     {
       "id": 367,
       "name": "autogen [v1 b135] => [v1 b-44 a0]",
-      "file": "0367_autogen_v1_b135_v1_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -29074,7 +29073,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 368,
@@ -29158,7 +29158,6 @@
     {
       "id": 369,
       "name": "autogen [v1 b135] => [v1 b-44 a-45]",
-      "file": "0369_autogen_v1_b135_v1_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -29232,7 +29231,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 370,
@@ -29316,7 +29316,6 @@
     {
       "id": 371,
       "name": "autogen [v1 b135] => [v1 b-44 a-90]",
-      "file": "0371_autogen_v1_b135_v1_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -29390,7 +29389,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 372,
@@ -29474,7 +29474,6 @@
     {
       "id": 373,
       "name": "autogen [v1 b135] => [v1 b45 a0]",
-      "file": "0373_autogen_v1_b135_v1_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -29548,7 +29547,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 374,
@@ -29632,7 +29632,6 @@
     {
       "id": 375,
       "name": "autogen [v1 b135] => [v1 b45 a45]",
-      "file": "0375_autogen_v1_b135_v1_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -29706,7 +29705,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 376,
@@ -29790,7 +29790,6 @@
     {
       "id": 377,
       "name": "autogen [v1 b135] => [v1 b45 a-45]",
-      "file": "0377_autogen_v1_b135_v1_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -29864,7 +29863,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 378,
@@ -29948,7 +29948,6 @@
     {
       "id": 379,
       "name": "autogen [v1 b135] => [v1 b45 a90]",
-      "file": "0379_autogen_v1_b135_v1_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -30022,7 +30021,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 380,
@@ -30106,7 +30106,6 @@
     {
       "id": 381,
       "name": "autogen [v1 b135] => [v1 b45 a-90]",
-      "file": "0381_autogen_v1_b135_v1_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -30180,7 +30179,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 382,
@@ -30264,7 +30264,6 @@
     {
       "id": 383,
       "name": "autogen [v1 b135] => [v1 b-135 a0]",
-      "file": "0383_autogen_v1_b135_v1_b-135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -30338,7 +30337,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 384,
@@ -30422,7 +30422,6 @@
     {
       "id": 385,
       "name": "autogen [v1 b135] => [v1 b-135 a45]",
-      "file": "0385_autogen_v1_b135_v1_b-135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -30496,7 +30495,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 386,
@@ -30580,7 +30580,6 @@
     {
       "id": 387,
       "name": "autogen [v1 b135] => [v1 b-135 a-45]",
-      "file": "0387_autogen_v1_b135_v1_b-135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -30654,7 +30653,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 388,
@@ -30738,7 +30738,6 @@
     {
       "id": 389,
       "name": "autogen [v1 b135] => [v1 b-135 a90]",
-      "file": "0389_autogen_v1_b135_v1_b-135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -30812,7 +30811,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 390,
@@ -30896,7 +30896,6 @@
     {
       "id": 391,
       "name": "autogen [v1 b135] => [v1 b-135 a-90]",
-      "file": "0391_autogen_v1_b135_v1_b-135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -30970,7 +30969,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 392,
@@ -31054,7 +31054,6 @@
     {
       "id": 393,
       "name": "autogen [v1 b135] => [v1 b135 a0]",
-      "file": "0393_autogen_v1_b135_v1_b135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -31128,7 +31127,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 394,
@@ -31212,7 +31212,6 @@
     {
       "id": 395,
       "name": "autogen [v1 b135] => [v1 b135 a45]",
-      "file": "0395_autogen_v1_b135_v1_b135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -31286,7 +31285,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 396,
@@ -31370,7 +31370,6 @@
     {
       "id": 397,
       "name": "autogen [v1 b135] => [v1 b135 a-45]",
-      "file": "0397_autogen_v1_b135_v1_b135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -31444,7 +31443,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 398,
@@ -31528,7 +31528,6 @@
     {
       "id": 399,
       "name": "autogen [v1 b135] => [v1 b135 a90]",
-      "file": "0399_autogen_v1_b135_v1_b135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -31602,7 +31601,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 400,
@@ -31686,7 +31686,6 @@
     {
       "id": 401,
       "name": "autogen [v1 b135] => [v1 b135 a-90]",
-      "file": "0401_autogen_v1_b135_v1_b135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -31760,7 +31759,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 402,
@@ -31844,7 +31844,6 @@
     {
       "id": 403,
       "name": "autogen [v1 b135] => [v0 b0 a0]",
-      "file": "0403_autogen_v1_b135_v0_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -31918,7 +31917,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 404,
@@ -32002,7 +32002,6 @@
     {
       "id": 405,
       "name": "autogen [v1 b135] => [v0 b0 a45]",
-      "file": "0405_autogen_v1_b135_v0_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -32076,7 +32075,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 406,
@@ -32160,7 +32160,6 @@
     {
       "id": 407,
       "name": "autogen [v1 b135] => [v0 b0 a-45]",
-      "file": "0407_autogen_v1_b135_v0_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -32234,7 +32233,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 408,
@@ -32318,7 +32318,6 @@
     {
       "id": 409,
       "name": "autogen [v1 b135] => [v0 b0 a90]",
-      "file": "0409_autogen_v1_b135_v0_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -32392,7 +32391,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 410,
@@ -32476,7 +32476,6 @@
     {
       "id": 411,
       "name": "autogen [v1 b135] => [v0 b0 a135]",
-      "file": "0411_autogen_v1_b135_v0_b0_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -32550,7 +32549,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 412,
@@ -32634,7 +32634,6 @@
     {
       "id": 413,
       "name": "autogen [v1 b135] => [v0 b0 a178]",
-      "file": "0413_autogen_v1_b135_v0_b0_a178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -32708,7 +32707,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 414,
@@ -32792,7 +32792,6 @@
     {
       "id": 415,
       "name": "autogen [v1 b135] => [v2 b0 a0]",
-      "file": "0415_autogen_v1_b135_v2_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -32866,7 +32865,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 416,
@@ -32950,7 +32950,6 @@
     {
       "id": 417,
       "name": "autogen [v1 b135] => [v2 b0 a45]",
-      "file": "0417_autogen_v1_b135_v2_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -33024,7 +33023,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 418,
@@ -33108,7 +33108,6 @@
     {
       "id": 419,
       "name": "autogen [v1 b135] => [v2 b0 a-45]",
-      "file": "0419_autogen_v1_b135_v2_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -33182,7 +33181,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 420,
@@ -33266,7 +33266,6 @@
     {
       "id": 421,
       "name": "autogen [v1 b135] => [v2 b0 a90]",
-      "file": "0421_autogen_v1_b135_v2_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -33340,7 +33339,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 422,
@@ -33424,7 +33424,6 @@
     {
       "id": 423,
       "name": "autogen [v1 b135] => [v2 b-44 a0]",
-      "file": "0423_autogen_v1_b135_v2_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -33498,7 +33497,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 424,
@@ -33582,7 +33582,6 @@
     {
       "id": 425,
       "name": "autogen [v1 b135] => [v2 b-44 a-45]",
-      "file": "0425_autogen_v1_b135_v2_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -33656,7 +33655,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 426,
@@ -33740,7 +33740,6 @@
     {
       "id": 427,
       "name": "autogen [v1 b135] => [v2 b-44 a-90]",
-      "file": "0427_autogen_v1_b135_v2_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -33814,7 +33813,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 428,
@@ -33898,7 +33898,6 @@
     {
       "id": 429,
       "name": "autogen [v1 b135] => [v2 b45 a0]",
-      "file": "0429_autogen_v1_b135_v2_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -33972,7 +33971,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 430,
@@ -34056,7 +34056,6 @@
     {
       "id": 431,
       "name": "autogen [v1 b135] => [v2 b45 a45]",
-      "file": "0431_autogen_v1_b135_v2_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -34130,7 +34129,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 432,
@@ -34214,7 +34214,6 @@
     {
       "id": 433,
       "name": "autogen [v1 b135] => [v2 b45 a-45]",
-      "file": "0433_autogen_v1_b135_v2_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -34288,7 +34287,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 434,
@@ -34372,7 +34372,6 @@
     {
       "id": 435,
       "name": "autogen [v1 b135] => [v2 b45 a90]",
-      "file": "0435_autogen_v1_b135_v2_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -34446,7 +34445,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 436,
@@ -34530,7 +34530,6 @@
     {
       "id": 437,
       "name": "autogen [v1 b135] => [v2 b45 a-90]",
-      "file": "0437_autogen_v1_b135_v2_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -34604,7 +34603,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 438,
@@ -34688,7 +34688,6 @@
     {
       "id": 439,
       "name": "autogen [v0 b0] => [v1 b0 a0]",
-      "file": "0439_autogen_v0_b0_v1_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -34762,7 +34761,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 440,
@@ -34846,7 +34846,6 @@
     {
       "id": 441,
       "name": "autogen [v0 b0] => [v1 b0 a45]",
-      "file": "0441_autogen_v0_b0_v1_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -34920,7 +34919,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 442,
@@ -35004,7 +35004,6 @@
     {
       "id": 443,
       "name": "autogen [v0 b0] => [v1 b0 a-45]",
-      "file": "0443_autogen_v0_b0_v1_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -35078,7 +35077,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 444,
@@ -35162,7 +35162,6 @@
     {
       "id": 445,
       "name": "autogen [v0 b0] => [v1 b0 a90]",
-      "file": "0445_autogen_v0_b0_v1_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -35236,7 +35235,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 446,
@@ -35320,7 +35320,6 @@
     {
       "id": 447,
       "name": "autogen [v0 b0] => [v1 b0 a-90]",
-      "file": "0447_autogen_v0_b0_v1_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -35394,7 +35393,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 448,
@@ -35478,7 +35478,6 @@
     {
       "id": 449,
       "name": "autogen [v0 b0] => [v1 b0 a135]",
-      "file": "0449_autogen_v0_b0_v1_b0_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -35552,7 +35551,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 450,
@@ -35636,7 +35636,6 @@
     {
       "id": 451,
       "name": "autogen [v0 b0] => [v1 b0 a-135]",
-      "file": "0451_autogen_v0_b0_v1_b0_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -35710,7 +35709,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 452,
@@ -35794,7 +35794,6 @@
     {
       "id": 453,
       "name": "autogen [v0 b0] => [v1 b0 a178]",
-      "file": "0453_autogen_v0_b0_v1_b0_a178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -35868,7 +35867,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 454,
@@ -35952,7 +35952,6 @@
     {
       "id": 455,
       "name": "autogen [v0 b0] => [v1 b0 a-178]",
-      "file": "0455_autogen_v0_b0_v1_b0_a-178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -36026,7 +36025,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 456,
@@ -36110,7 +36110,6 @@
     {
       "id": 457,
       "name": "autogen [v0 b0] => [v1 b-44 a0]",
-      "file": "0457_autogen_v0_b0_v1_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -36184,7 +36183,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 458,
@@ -36268,7 +36268,6 @@
     {
       "id": 459,
       "name": "autogen [v0 b0] => [v1 b-44 a45]",
-      "file": "0459_autogen_v0_b0_v1_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -36342,7 +36341,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 460,
@@ -36426,7 +36426,6 @@
     {
       "id": 461,
       "name": "autogen [v0 b0] => [v1 b-44 a-45]",
-      "file": "0461_autogen_v0_b0_v1_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -36500,7 +36499,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 462,
@@ -36584,7 +36584,6 @@
     {
       "id": 463,
       "name": "autogen [v0 b0] => [v1 b-44 a90]",
-      "file": "0463_autogen_v0_b0_v1_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -36658,7 +36657,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 464,
@@ -36742,7 +36742,6 @@
     {
       "id": 465,
       "name": "autogen [v0 b0] => [v1 b-44 a-90]",
-      "file": "0465_autogen_v0_b0_v1_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -36816,7 +36815,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 466,
@@ -36900,7 +36900,6 @@
     {
       "id": 467,
       "name": "autogen [v0 b0] => [v1 b-44 a135]",
-      "file": "0467_autogen_v0_b0_v1_b-44_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -36974,7 +36973,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 468,
@@ -37058,7 +37058,6 @@
     {
       "id": 469,
       "name": "autogen [v0 b0] => [v1 b-44 a-135]",
-      "file": "0469_autogen_v0_b0_v1_b-44_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -37132,7 +37131,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 470,
@@ -37216,7 +37216,6 @@
     {
       "id": 471,
       "name": "autogen [v0 b0] => [v1 b-44 a178]",
-      "file": "0471_autogen_v0_b0_v1_b-44_a178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -37290,7 +37289,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 472,
@@ -37374,7 +37374,6 @@
     {
       "id": 473,
       "name": "autogen [v0 b0] => [v1 b45 a0]",
-      "file": "0473_autogen_v0_b0_v1_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -37448,7 +37447,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 474,
@@ -37532,7 +37532,6 @@
     {
       "id": 475,
       "name": "autogen [v0 b0] => [v1 b45 a45]",
-      "file": "0475_autogen_v0_b0_v1_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -37606,7 +37605,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 476,
@@ -37690,7 +37690,6 @@
     {
       "id": 477,
       "name": "autogen [v0 b0] => [v1 b45 a-45]",
-      "file": "0477_autogen_v0_b0_v1_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -37764,7 +37763,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 478,
@@ -37848,7 +37848,6 @@
     {
       "id": 479,
       "name": "autogen [v0 b0] => [v1 b45 a90]",
-      "file": "0479_autogen_v0_b0_v1_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -37922,7 +37921,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 480,
@@ -38006,7 +38006,6 @@
     {
       "id": 481,
       "name": "autogen [v0 b0] => [v1 b45 a-90]",
-      "file": "0481_autogen_v0_b0_v1_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -38080,7 +38079,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 482,
@@ -38164,7 +38164,6 @@
     {
       "id": 483,
       "name": "autogen [v0 b0] => [v1 b45 a135]",
-      "file": "0483_autogen_v0_b0_v1_b45_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -38238,7 +38237,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 484,
@@ -38322,7 +38322,6 @@
     {
       "id": 485,
       "name": "autogen [v0 b0] => [v1 b45 a-135]",
-      "file": "0485_autogen_v0_b0_v1_b45_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -38396,7 +38395,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 486,
@@ -38480,7 +38480,6 @@
     {
       "id": 487,
       "name": "autogen [v0 b0] => [v1 b45 a-178]",
-      "file": "0487_autogen_v0_b0_v1_b45_a-178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -38554,7 +38553,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 488,
@@ -38638,7 +38638,6 @@
     {
       "id": 489,
       "name": "autogen [v0 b0] => [v1 b-135 a0]",
-      "file": "0489_autogen_v0_b0_v1_b-135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -38712,7 +38711,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 490,
@@ -38796,7 +38796,6 @@
     {
       "id": 491,
       "name": "autogen [v0 b0] => [v1 b-135 a45]",
-      "file": "0491_autogen_v0_b0_v1_b-135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -38870,7 +38869,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 492,
@@ -38954,7 +38954,6 @@
     {
       "id": 493,
       "name": "autogen [v0 b0] => [v1 b-135 a-45]",
-      "file": "0493_autogen_v0_b0_v1_b-135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -39028,7 +39027,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 494,
@@ -39112,7 +39112,6 @@
     {
       "id": 495,
       "name": "autogen [v0 b0] => [v1 b-135 a90]",
-      "file": "0495_autogen_v0_b0_v1_b-135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -39186,7 +39185,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 496,
@@ -39270,7 +39270,6 @@
     {
       "id": 497,
       "name": "autogen [v0 b0] => [v1 b-135 a135]",
-      "file": "0497_autogen_v0_b0_v1_b-135_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -39344,7 +39343,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 498,
@@ -39428,7 +39428,6 @@
     {
       "id": 499,
       "name": "autogen [v0 b0] => [v1 b-135 a178]",
-      "file": "0499_autogen_v0_b0_v1_b-135_a178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -39502,7 +39501,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 500,
@@ -39586,7 +39586,6 @@
     {
       "id": 501,
       "name": "autogen [v0 b0] => [v1 b135 a0]",
-      "file": "0501_autogen_v0_b0_v1_b135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -39660,7 +39659,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 502,
@@ -39744,7 +39744,6 @@
     {
       "id": 503,
       "name": "autogen [v0 b0] => [v1 b135 a45]",
-      "file": "0503_autogen_v0_b0_v1_b135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -39818,7 +39817,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 504,
@@ -39902,7 +39902,6 @@
     {
       "id": 505,
       "name": "autogen [v0 b0] => [v1 b135 a-45]",
-      "file": "0505_autogen_v0_b0_v1_b135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -39976,7 +39975,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 506,
@@ -40060,7 +40060,6 @@
     {
       "id": 507,
       "name": "autogen [v0 b0] => [v1 b135 a-90]",
-      "file": "0507_autogen_v0_b0_v1_b135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -40134,7 +40133,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 508,
@@ -40218,7 +40218,6 @@
     {
       "id": 509,
       "name": "autogen [v0 b0] => [v1 b135 a-135]",
-      "file": "0509_autogen_v0_b0_v1_b135_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -40292,7 +40291,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 510,
@@ -40376,7 +40376,6 @@
     {
       "id": 511,
       "name": "autogen [v0 b0] => [v1 b135 a-178]",
-      "file": "0511_autogen_v0_b0_v1_b135_a-178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -40450,7 +40449,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 512,
@@ -40534,7 +40534,6 @@
     {
       "id": 513,
       "name": "autogen [v0 b0] => [v0 b0 a0]",
-      "file": "0513_autogen_v0_b0_v0_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -40608,7 +40607,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 514,
@@ -40692,7 +40692,6 @@
     {
       "id": 515,
       "name": "autogen [v0 b0] => [v0 b0 a45]",
-      "file": "0515_autogen_v0_b0_v0_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -40766,7 +40765,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 516,
@@ -40850,7 +40850,6 @@
     {
       "id": 517,
       "name": "autogen [v0 b0] => [v0 b0 a-45]",
-      "file": "0517_autogen_v0_b0_v0_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -40924,7 +40923,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 518,
@@ -41008,7 +41008,6 @@
     {
       "id": 519,
       "name": "autogen [v0 b0] => [v0 b0 a90]",
-      "file": "0519_autogen_v0_b0_v0_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -41082,7 +41081,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 520,
@@ -41166,7 +41166,6 @@
     {
       "id": 521,
       "name": "autogen [v0 b0] => [v0 b0 a-90]",
-      "file": "0521_autogen_v0_b0_v0_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -41240,7 +41239,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 522,
@@ -41324,7 +41324,6 @@
     {
       "id": 523,
       "name": "autogen [v0 b0] => [v0 b0 a135]",
-      "file": "0523_autogen_v0_b0_v0_b0_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -41398,7 +41397,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 524,
@@ -41482,7 +41482,6 @@
     {
       "id": 525,
       "name": "autogen [v0 b0] => [v0 b0 a-135]",
-      "file": "0525_autogen_v0_b0_v0_b0_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -41556,7 +41555,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 526,
@@ -41640,7 +41640,6 @@
     {
       "id": 527,
       "name": "autogen [v0 b0] => [v0 b0 a178]",
-      "file": "0527_autogen_v0_b0_v0_b0_a178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -41714,7 +41713,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 528,
@@ -41798,7 +41798,6 @@
     {
       "id": 529,
       "name": "autogen [v0 b0] => [v0 b0 a-178]",
-      "file": "0529_autogen_v0_b0_v0_b0_a-178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -41872,7 +41871,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 530,
@@ -41956,7 +41956,6 @@
     {
       "id": 531,
       "name": "autogen [v3 b0] => [v1 b0 a0]",
-      "file": "0531_autogen_v3_b0_v1_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -42030,7 +42029,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 532,
@@ -42114,7 +42114,6 @@
     {
       "id": 533,
       "name": "autogen [v3 b0] => [v1 b0 a45]",
-      "file": "0533_autogen_v3_b0_v1_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -42188,7 +42187,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 534,
@@ -42272,7 +42272,6 @@
     {
       "id": 535,
       "name": "autogen [v3 b0] => [v1 b0 a-45]",
-      "file": "0535_autogen_v3_b0_v1_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -42346,7 +42345,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 536,
@@ -42430,7 +42430,6 @@
     {
       "id": 537,
       "name": "autogen [v3 b0] => [v1 b-44 a0]",
-      "file": "0537_autogen_v3_b0_v1_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -42504,7 +42503,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 538,
@@ -42588,7 +42588,6 @@
     {
       "id": 539,
       "name": "autogen [v3 b0] => [v1 b-44 a45]",
-      "file": "0539_autogen_v3_b0_v1_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -42662,7 +42661,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 540,
@@ -42746,7 +42746,6 @@
     {
       "id": 541,
       "name": "autogen [v3 b0] => [v1 b-44 a-45]",
-      "file": "0541_autogen_v3_b0_v1_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -42820,7 +42819,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 542,
@@ -42904,7 +42904,6 @@
     {
       "id": 543,
       "name": "autogen [v3 b0] => [v1 b45 a0]",
-      "file": "0543_autogen_v3_b0_v1_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -42978,7 +42977,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 544,
@@ -43062,7 +43062,6 @@
     {
       "id": 545,
       "name": "autogen [v3 b0] => [v1 b45 a45]",
-      "file": "0545_autogen_v3_b0_v1_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -43136,7 +43135,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 546,
@@ -43220,7 +43220,6 @@
     {
       "id": 547,
       "name": "autogen [v3 b0] => [v1 b45 a-45]",
-      "file": "0547_autogen_v3_b0_v1_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -43294,7 +43293,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 548,
@@ -43378,7 +43378,6 @@
     {
       "id": 549,
       "name": "autogen [v3 b0] => [v0 b0 a0]",
-      "file": "0549_autogen_v3_b0_v0_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -43452,7 +43451,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 550,
@@ -43536,7 +43536,6 @@
     {
       "id": 551,
       "name": "autogen [v3 b0] => [v0 b0 a45]",
-      "file": "0551_autogen_v3_b0_v0_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -43610,7 +43609,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 552,
@@ -43694,7 +43694,6 @@
     {
       "id": 553,
       "name": "autogen [v3 b0] => [v0 b0 a-45]",
-      "file": "0553_autogen_v3_b0_v0_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -43768,7 +43767,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 554,
@@ -43852,7 +43852,6 @@
     {
       "id": 555,
       "name": "autogen [v3 b0] => [v0 b0 a90]",
-      "file": "0555_autogen_v3_b0_v0_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -43926,7 +43925,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 556,
@@ -44010,7 +44010,6 @@
     {
       "id": 557,
       "name": "autogen [v3 b0] => [v0 b0 a-90]",
-      "file": "0557_autogen_v3_b0_v0_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -44084,7 +44083,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 558,
@@ -44168,7 +44168,6 @@
     {
       "id": 559,
       "name": "autogen [v3 b0] => [v0 b0 a135]",
-      "file": "0559_autogen_v3_b0_v0_b0_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -44242,7 +44241,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 560,
@@ -44326,7 +44326,6 @@
     {
       "id": 561,
       "name": "autogen [v3 b0] => [v0 b0 a-135]",
-      "file": "0561_autogen_v3_b0_v0_b0_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -44400,7 +44399,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 562,
@@ -44484,7 +44484,6 @@
     {
       "id": 563,
       "name": "autogen [v3 b0] => [v0 b0 a178]",
-      "file": "0563_autogen_v3_b0_v0_b0_a178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -44558,7 +44557,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 564,
@@ -44642,7 +44642,6 @@
     {
       "id": 565,
       "name": "autogen [v3 b0] => [v0 b0 a-178]",
-      "file": "0565_autogen_v3_b0_v0_b0_a-178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -44716,7 +44715,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 566,
@@ -44800,7 +44800,6 @@
     {
       "id": 567,
       "name": "autogen [v3 b0] => [v3 b0 a0]",
-      "file": "0567_autogen_v3_b0_v3_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -44874,7 +44873,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 568,
@@ -44958,7 +44958,6 @@
     {
       "id": 569,
       "name": "autogen [v3 b0] => [v3 b0 a45]",
-      "file": "0569_autogen_v3_b0_v3_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -45032,7 +45031,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 570,
@@ -45116,7 +45116,6 @@
     {
       "id": 571,
       "name": "autogen [v3 b0] => [v3 b0 a-45]",
-      "file": "0571_autogen_v3_b0_v3_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -45190,7 +45189,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 572,
@@ -45274,7 +45274,6 @@
     {
       "id": 573,
       "name": "autogen [v3 b0] => [v2 b0 a0]",
-      "file": "0573_autogen_v3_b0_v2_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -45348,7 +45347,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 574,
@@ -45432,7 +45432,6 @@
     {
       "id": 575,
       "name": "autogen [v3 b0] => [v2 b0 a45]",
-      "file": "0575_autogen_v3_b0_v2_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -45506,7 +45505,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 576,
@@ -45590,7 +45590,6 @@
     {
       "id": 577,
       "name": "autogen [v3 b0] => [v2 b0 a-45]",
-      "file": "0577_autogen_v3_b0_v2_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -45664,7 +45663,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 578,
@@ -45748,7 +45748,6 @@
     {
       "id": 579,
       "name": "autogen [v3 b0] => [v2 b-44 a0]",
-      "file": "0579_autogen_v3_b0_v2_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -45822,7 +45821,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 580,
@@ -45906,7 +45906,6 @@
     {
       "id": 581,
       "name": "autogen [v3 b0] => [v2 b-44 a45]",
-      "file": "0581_autogen_v3_b0_v2_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -45980,7 +45979,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 582,
@@ -46064,7 +46064,6 @@
     {
       "id": 583,
       "name": "autogen [v3 b0] => [v2 b-44 a-45]",
-      "file": "0583_autogen_v3_b0_v2_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -46138,7 +46137,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 584,
@@ -46222,7 +46222,6 @@
     {
       "id": 585,
       "name": "autogen [v3 b0] => [v2 b45 a0]",
-      "file": "0585_autogen_v3_b0_v2_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -46296,7 +46295,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 586,
@@ -46380,7 +46380,6 @@
     {
       "id": 587,
       "name": "autogen [v3 b0] => [v2 b45 a45]",
-      "file": "0587_autogen_v3_b0_v2_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -46454,7 +46453,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 588,
@@ -46538,7 +46538,6 @@
     {
       "id": 589,
       "name": "autogen [v3 b0] => [v2 b45 a-45]",
-      "file": "0589_autogen_v3_b0_v2_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -46612,7 +46611,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 590,
@@ -46696,7 +46696,6 @@
     {
       "id": 591,
       "name": "autogen [v2 b0] => [v1 b0 a0]",
-      "file": "0591_autogen_v2_b0_v1_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -46770,7 +46769,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 592,
@@ -46854,7 +46854,6 @@
     {
       "id": 593,
       "name": "autogen [v2 b0] => [v1 b0 a45]",
-      "file": "0593_autogen_v2_b0_v1_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -46928,7 +46927,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 594,
@@ -47012,7 +47012,6 @@
     {
       "id": 595,
       "name": "autogen [v2 b0] => [v1 b0 a-45]",
-      "file": "0595_autogen_v2_b0_v1_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -47086,7 +47085,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 596,
@@ -47170,7 +47170,6 @@
     {
       "id": 597,
       "name": "autogen [v2 b0] => [v1 b0 a90]",
-      "file": "0597_autogen_v2_b0_v1_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -47244,7 +47243,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 598,
@@ -47328,7 +47328,6 @@
     {
       "id": 599,
       "name": "autogen [v2 b0] => [v1 b0 a-90]",
-      "file": "0599_autogen_v2_b0_v1_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -47402,7 +47401,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 600,
@@ -47486,7 +47486,6 @@
     {
       "id": 601,
       "name": "autogen [v2 b0] => [v1 b-44 a0]",
-      "file": "0601_autogen_v2_b0_v1_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -47560,7 +47559,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 602,
@@ -47644,7 +47644,6 @@
     {
       "id": 603,
       "name": "autogen [v2 b0] => [v1 b-44 a45]",
-      "file": "0603_autogen_v2_b0_v1_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -47718,7 +47717,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 604,
@@ -47802,7 +47802,6 @@
     {
       "id": 605,
       "name": "autogen [v2 b0] => [v1 b-44 a-45]",
-      "file": "0605_autogen_v2_b0_v1_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -47876,7 +47875,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 606,
@@ -47960,7 +47960,6 @@
     {
       "id": 607,
       "name": "autogen [v2 b0] => [v1 b-44 a90]",
-      "file": "0607_autogen_v2_b0_v1_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -48034,7 +48033,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 608,
@@ -48118,7 +48118,6 @@
     {
       "id": 609,
       "name": "autogen [v2 b0] => [v1 b-44 a-90]",
-      "file": "0609_autogen_v2_b0_v1_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -48192,7 +48191,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 610,
@@ -48276,7 +48276,6 @@
     {
       "id": 611,
       "name": "autogen [v2 b0] => [v1 b45 a0]",
-      "file": "0611_autogen_v2_b0_v1_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -48350,7 +48349,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 612,
@@ -48434,7 +48434,6 @@
     {
       "id": 613,
       "name": "autogen [v2 b0] => [v1 b45 a45]",
-      "file": "0613_autogen_v2_b0_v1_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -48508,7 +48507,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 614,
@@ -48592,7 +48592,6 @@
     {
       "id": 615,
       "name": "autogen [v2 b0] => [v1 b45 a-45]",
-      "file": "0615_autogen_v2_b0_v1_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -48666,7 +48665,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 616,
@@ -48750,7 +48750,6 @@
     {
       "id": 617,
       "name": "autogen [v2 b0] => [v1 b45 a90]",
-      "file": "0617_autogen_v2_b0_v1_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -48824,7 +48823,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 618,
@@ -48908,7 +48908,6 @@
     {
       "id": 619,
       "name": "autogen [v2 b0] => [v1 b45 a-90]",
-      "file": "0619_autogen_v2_b0_v1_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -48982,7 +48981,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 620,
@@ -49066,7 +49066,6 @@
     {
       "id": 621,
       "name": "autogen [v2 b0] => [v1 b-135 a0]",
-      "file": "0621_autogen_v2_b0_v1_b-135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -49140,7 +49139,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 622,
@@ -49224,7 +49224,6 @@
     {
       "id": 623,
       "name": "autogen [v2 b0] => [v1 b-135 a45]",
-      "file": "0623_autogen_v2_b0_v1_b-135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -49298,7 +49297,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 624,
@@ -49382,7 +49382,6 @@
     {
       "id": 625,
       "name": "autogen [v2 b0] => [v1 b-135 a-45]",
-      "file": "0625_autogen_v2_b0_v1_b-135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -49456,7 +49455,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 626,
@@ -49540,7 +49540,6 @@
     {
       "id": 627,
       "name": "autogen [v2 b0] => [v1 b-135 a90]",
-      "file": "0627_autogen_v2_b0_v1_b-135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -49614,7 +49613,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 628,
@@ -49698,7 +49698,6 @@
     {
       "id": 629,
       "name": "autogen [v2 b0] => [v1 b135 a0]",
-      "file": "0629_autogen_v2_b0_v1_b135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -49772,7 +49771,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 630,
@@ -49856,7 +49856,6 @@
     {
       "id": 631,
       "name": "autogen [v2 b0] => [v1 b135 a45]",
-      "file": "0631_autogen_v2_b0_v1_b135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -49930,7 +49929,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 632,
@@ -50014,7 +50014,6 @@
     {
       "id": 633,
       "name": "autogen [v2 b0] => [v1 b135 a-45]",
-      "file": "0633_autogen_v2_b0_v1_b135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -50088,7 +50087,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 634,
@@ -50172,7 +50172,6 @@
     {
       "id": 635,
       "name": "autogen [v2 b0] => [v1 b135 a-90]",
-      "file": "0635_autogen_v2_b0_v1_b135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -50246,7 +50245,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 636,
@@ -50330,7 +50330,6 @@
     {
       "id": 637,
       "name": "autogen [v2 b0] => [v0 b0 a0]",
-      "file": "0637_autogen_v2_b0_v0_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -50404,7 +50403,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 638,
@@ -50488,7 +50488,6 @@
     {
       "id": 639,
       "name": "autogen [v2 b0] => [v0 b0 a45]",
-      "file": "0639_autogen_v2_b0_v0_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -50562,7 +50561,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 640,
@@ -50646,7 +50646,6 @@
     {
       "id": 641,
       "name": "autogen [v2 b0] => [v0 b0 a-45]",
-      "file": "0641_autogen_v2_b0_v0_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -50720,7 +50719,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 642,
@@ -50804,7 +50804,6 @@
     {
       "id": 643,
       "name": "autogen [v2 b0] => [v0 b0 a90]",
-      "file": "0643_autogen_v2_b0_v0_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -50878,7 +50877,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 644,
@@ -50962,7 +50962,6 @@
     {
       "id": 645,
       "name": "autogen [v2 b0] => [v0 b0 a-90]",
-      "file": "0645_autogen_v2_b0_v0_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -51036,7 +51035,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 646,
@@ -51120,7 +51120,6 @@
     {
       "id": 647,
       "name": "autogen [v2 b0] => [v0 b0 a135]",
-      "file": "0647_autogen_v2_b0_v0_b0_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -51194,7 +51193,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 648,
@@ -51278,7 +51278,6 @@
     {
       "id": 649,
       "name": "autogen [v2 b0] => [v0 b0 a-135]",
-      "file": "0649_autogen_v2_b0_v0_b0_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -51352,7 +51351,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 650,
@@ -51436,7 +51436,6 @@
     {
       "id": 651,
       "name": "autogen [v2 b0] => [v0 b0 a178]",
-      "file": "0651_autogen_v2_b0_v0_b0_a178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -51510,7 +51509,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 652,
@@ -51594,7 +51594,6 @@
     {
       "id": 653,
       "name": "autogen [v2 b0] => [v0 b0 a-178]",
-      "file": "0653_autogen_v2_b0_v0_b0_a-178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -51668,7 +51667,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 654,
@@ -51752,7 +51752,6 @@
     {
       "id": 655,
       "name": "autogen [v2 b0] => [v3 b0 a0]",
-      "file": "0655_autogen_v2_b0_v3_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -51826,7 +51825,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 656,
@@ -51910,7 +51910,6 @@
     {
       "id": 657,
       "name": "autogen [v2 b0] => [v3 b0 a45]",
-      "file": "0657_autogen_v2_b0_v3_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -51984,7 +51983,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 658,
@@ -52068,7 +52068,6 @@
     {
       "id": 659,
       "name": "autogen [v2 b0] => [v3 b0 a-45]",
-      "file": "0659_autogen_v2_b0_v3_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -52142,7 +52141,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 660,
@@ -52226,7 +52226,6 @@
     {
       "id": 661,
       "name": "autogen [v2 b0] => [v2 b0 a0]",
-      "file": "0661_autogen_v2_b0_v2_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -52300,7 +52299,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 662,
@@ -52384,7 +52384,6 @@
     {
       "id": 663,
       "name": "autogen [v2 b0] => [v2 b0 a45]",
-      "file": "0663_autogen_v2_b0_v2_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -52458,7 +52457,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 664,
@@ -52542,7 +52542,6 @@
     {
       "id": 665,
       "name": "autogen [v2 b0] => [v2 b0 a-45]",
-      "file": "0665_autogen_v2_b0_v2_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -52616,7 +52615,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 666,
@@ -52700,7 +52700,6 @@
     {
       "id": 667,
       "name": "autogen [v2 b0] => [v2 b0 a90]",
-      "file": "0667_autogen_v2_b0_v2_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -52774,7 +52773,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 668,
@@ -52858,7 +52858,6 @@
     {
       "id": 669,
       "name": "autogen [v2 b0] => [v2 b0 a-90]",
-      "file": "0669_autogen_v2_b0_v2_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -52932,7 +52931,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 670,
@@ -53016,7 +53016,6 @@
     {
       "id": 671,
       "name": "autogen [v2 b0] => [v2 b-44 a0]",
-      "file": "0671_autogen_v2_b0_v2_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -53090,7 +53089,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 672,
@@ -53174,7 +53174,6 @@
     {
       "id": 673,
       "name": "autogen [v2 b0] => [v2 b-44 a45]",
-      "file": "0673_autogen_v2_b0_v2_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -53248,7 +53247,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 674,
@@ -53332,7 +53332,6 @@
     {
       "id": 675,
       "name": "autogen [v2 b0] => [v2 b-44 a-45]",
-      "file": "0675_autogen_v2_b0_v2_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -53406,7 +53405,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 676,
@@ -53490,7 +53490,6 @@
     {
       "id": 677,
       "name": "autogen [v2 b0] => [v2 b-44 a90]",
-      "file": "0677_autogen_v2_b0_v2_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -53564,7 +53563,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 678,
@@ -53648,7 +53648,6 @@
     {
       "id": 679,
       "name": "autogen [v2 b0] => [v2 b-44 a-90]",
-      "file": "0679_autogen_v2_b0_v2_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -53722,7 +53721,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 680,
@@ -53806,7 +53806,6 @@
     {
       "id": 681,
       "name": "autogen [v2 b0] => [v2 b45 a0]",
-      "file": "0681_autogen_v2_b0_v2_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -53880,7 +53879,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 682,
@@ -53964,7 +53964,6 @@
     {
       "id": 683,
       "name": "autogen [v2 b0] => [v2 b45 a45]",
-      "file": "0683_autogen_v2_b0_v2_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -54038,7 +54037,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 684,
@@ -54122,7 +54122,6 @@
     {
       "id": 685,
       "name": "autogen [v2 b0] => [v2 b45 a-45]",
-      "file": "0685_autogen_v2_b0_v2_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -54196,7 +54195,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 686,
@@ -54280,7 +54280,6 @@
     {
       "id": 687,
       "name": "autogen [v2 b0] => [v2 b45 a90]",
-      "file": "0687_autogen_v2_b0_v2_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -54354,7 +54353,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 688,
@@ -54438,7 +54438,6 @@
     {
       "id": 689,
       "name": "autogen [v2 b0] => [v2 b45 a-90]",
-      "file": "0689_autogen_v2_b0_v2_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -54512,7 +54511,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 690,
@@ -54596,7 +54596,6 @@
     {
       "id": 691,
       "name": "autogen [v2 b-44] => [v1 b0 a0]",
-      "file": "0691_autogen_v2_b-44_v1_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -54670,7 +54669,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 692,
@@ -54754,7 +54754,6 @@
     {
       "id": 693,
       "name": "autogen [v2 b-44] => [v1 b0 a45]",
-      "file": "0693_autogen_v2_b-44_v1_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -54828,7 +54827,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 694,
@@ -54912,7 +54912,6 @@
     {
       "id": 695,
       "name": "autogen [v2 b-44] => [v1 b0 a-45]",
-      "file": "0695_autogen_v2_b-44_v1_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -54986,7 +54985,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 696,
@@ -55070,7 +55070,6 @@
     {
       "id": 697,
       "name": "autogen [v2 b-44] => [v1 b0 a90]",
-      "file": "0697_autogen_v2_b-44_v1_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -55144,7 +55143,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 698,
@@ -55228,7 +55228,6 @@
     {
       "id": 699,
       "name": "autogen [v2 b-44] => [v1 b0 a-90]",
-      "file": "0699_autogen_v2_b-44_v1_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -55302,7 +55301,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 700,
@@ -55386,7 +55386,6 @@
     {
       "id": 701,
       "name": "autogen [v2 b-44] => [v1 b-44 a0]",
-      "file": "0701_autogen_v2_b-44_v1_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -55460,7 +55459,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 702,
@@ -55544,7 +55544,6 @@
     {
       "id": 703,
       "name": "autogen [v2 b-44] => [v1 b-44 a45]",
-      "file": "0703_autogen_v2_b-44_v1_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -55618,7 +55617,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 704,
@@ -55702,7 +55702,6 @@
     {
       "id": 705,
       "name": "autogen [v2 b-44] => [v1 b-44 a-45]",
-      "file": "0705_autogen_v2_b-44_v1_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -55776,7 +55775,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 706,
@@ -55860,7 +55860,6 @@
     {
       "id": 707,
       "name": "autogen [v2 b-44] => [v1 b-44 a90]",
-      "file": "0707_autogen_v2_b-44_v1_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -55934,7 +55933,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 708,
@@ -56018,7 +56018,6 @@
     {
       "id": 709,
       "name": "autogen [v2 b-44] => [v1 b-44 a-90]",
-      "file": "0709_autogen_v2_b-44_v1_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -56092,7 +56091,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 710,
@@ -56176,7 +56176,6 @@
     {
       "id": 711,
       "name": "autogen [v2 b-44] => [v1 b45 a0]",
-      "file": "0711_autogen_v2_b-44_v1_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -56250,7 +56249,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 712,
@@ -56334,7 +56334,6 @@
     {
       "id": 713,
       "name": "autogen [v2 b-44] => [v1 b45 a45]",
-      "file": "0713_autogen_v2_b-44_v1_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -56408,7 +56407,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 714,
@@ -56492,7 +56492,6 @@
     {
       "id": 715,
       "name": "autogen [v2 b-44] => [v1 b45 a-45]",
-      "file": "0715_autogen_v2_b-44_v1_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -56566,7 +56565,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 716,
@@ -56650,7 +56650,6 @@
     {
       "id": 717,
       "name": "autogen [v2 b-44] => [v1 b45 a90]",
-      "file": "0717_autogen_v2_b-44_v1_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -56724,7 +56723,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 718,
@@ -56808,7 +56808,6 @@
     {
       "id": 719,
       "name": "autogen [v2 b-44] => [v1 b45 a-90]",
-      "file": "0719_autogen_v2_b-44_v1_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -56882,7 +56881,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 720,
@@ -56966,7 +56966,6 @@
     {
       "id": 721,
       "name": "autogen [v2 b-44] => [v1 b-135 a0]",
-      "file": "0721_autogen_v2_b-44_v1_b-135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -57040,7 +57039,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 722,
@@ -57124,7 +57124,6 @@
     {
       "id": 723,
       "name": "autogen [v2 b-44] => [v1 b-135 a45]",
-      "file": "0723_autogen_v2_b-44_v1_b-135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -57198,7 +57197,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 724,
@@ -57282,7 +57282,6 @@
     {
       "id": 725,
       "name": "autogen [v2 b-44] => [v1 b-135 a-45]",
-      "file": "0725_autogen_v2_b-44_v1_b-135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -57356,7 +57355,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 726,
@@ -57440,7 +57440,6 @@
     {
       "id": 727,
       "name": "autogen [v2 b-44] => [v1 b-135 a90]",
-      "file": "0727_autogen_v2_b-44_v1_b-135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -57514,7 +57513,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 728,
@@ -57598,7 +57598,6 @@
     {
       "id": 729,
       "name": "autogen [v2 b-44] => [v1 b-135 a-90]",
-      "file": "0729_autogen_v2_b-44_v1_b-135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -57672,7 +57671,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 730,
@@ -57756,7 +57756,6 @@
     {
       "id": 731,
       "name": "autogen [v2 b-44] => [v1 b135 a0]",
-      "file": "0731_autogen_v2_b-44_v1_b135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -57830,7 +57829,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 732,
@@ -57914,7 +57914,6 @@
     {
       "id": 733,
       "name": "autogen [v2 b-44] => [v1 b135 a45]",
-      "file": "0733_autogen_v2_b-44_v1_b135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -57988,7 +57987,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 734,
@@ -58072,7 +58072,6 @@
     {
       "id": 735,
       "name": "autogen [v2 b-44] => [v1 b135 a90]",
-      "file": "0735_autogen_v2_b-44_v1_b135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -58146,7 +58145,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 736,
@@ -58230,7 +58230,6 @@
     {
       "id": 737,
       "name": "autogen [v2 b-44] => [v0 b0 a0]",
-      "file": "0737_autogen_v2_b-44_v0_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -58304,7 +58303,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 738,
@@ -58388,7 +58388,6 @@
     {
       "id": 739,
       "name": "autogen [v2 b-44] => [v0 b0 a45]",
-      "file": "0739_autogen_v2_b-44_v0_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -58462,7 +58461,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 740,
@@ -58546,7 +58546,6 @@
     {
       "id": 741,
       "name": "autogen [v2 b-44] => [v0 b0 a-45]",
-      "file": "0741_autogen_v2_b-44_v0_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -58620,7 +58619,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 742,
@@ -58704,7 +58704,6 @@
     {
       "id": 743,
       "name": "autogen [v2 b-44] => [v0 b0 a90]",
-      "file": "0743_autogen_v2_b-44_v0_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -58778,7 +58777,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 744,
@@ -58862,7 +58862,6 @@
     {
       "id": 745,
       "name": "autogen [v2 b-44] => [v0 b0 a-90]",
-      "file": "0745_autogen_v2_b-44_v0_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -58936,7 +58935,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 746,
@@ -59020,7 +59020,6 @@
     {
       "id": 747,
       "name": "autogen [v2 b-44] => [v0 b0 a135]",
-      "file": "0747_autogen_v2_b-44_v0_b0_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -59094,7 +59093,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 748,
@@ -59178,7 +59178,6 @@
     {
       "id": 749,
       "name": "autogen [v2 b-44] => [v0 b0 a-135]",
-      "file": "0749_autogen_v2_b-44_v0_b0_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -59252,7 +59251,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 750,
@@ -59336,7 +59336,6 @@
     {
       "id": 751,
       "name": "autogen [v2 b-44] => [v0 b0 a-178]",
-      "file": "0751_autogen_v2_b-44_v0_b0_a-178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -59410,7 +59409,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 752,
@@ -59494,7 +59494,6 @@
     {
       "id": 753,
       "name": "autogen [v2 b-44] => [v3 b0 a0]",
-      "file": "0753_autogen_v2_b-44_v3_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -59568,7 +59567,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 754,
@@ -59652,7 +59652,6 @@
     {
       "id": 755,
       "name": "autogen [v2 b-44] => [v3 b0 a45]",
-      "file": "0755_autogen_v2_b-44_v3_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -59726,7 +59725,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 756,
@@ -59810,7 +59810,6 @@
     {
       "id": 757,
       "name": "autogen [v2 b-44] => [v3 b0 a-45]",
-      "file": "0757_autogen_v2_b-44_v3_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -59884,7 +59883,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 758,
@@ -59968,7 +59968,6 @@
     {
       "id": 759,
       "name": "autogen [v2 b-44] => [v2 b0 a0]",
-      "file": "0759_autogen_v2_b-44_v2_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -60042,7 +60041,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 760,
@@ -60126,7 +60126,6 @@
     {
       "id": 761,
       "name": "autogen [v2 b-44] => [v2 b0 a45]",
-      "file": "0761_autogen_v2_b-44_v2_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -60200,7 +60199,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 762,
@@ -60284,7 +60284,6 @@
     {
       "id": 763,
       "name": "autogen [v2 b-44] => [v2 b0 a-45]",
-      "file": "0763_autogen_v2_b-44_v2_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -60358,7 +60357,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 764,
@@ -60442,7 +60442,6 @@
     {
       "id": 765,
       "name": "autogen [v2 b-44] => [v2 b0 a90]",
-      "file": "0765_autogen_v2_b-44_v2_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -60516,7 +60515,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 766,
@@ -60600,7 +60600,6 @@
     {
       "id": 767,
       "name": "autogen [v2 b-44] => [v2 b0 a-90]",
-      "file": "0767_autogen_v2_b-44_v2_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -60674,7 +60673,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 768,
@@ -60758,7 +60758,6 @@
     {
       "id": 769,
       "name": "autogen [v2 b-44] => [v2 b-44 a0]",
-      "file": "0769_autogen_v2_b-44_v2_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -60832,7 +60831,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 770,
@@ -60916,7 +60916,6 @@
     {
       "id": 771,
       "name": "autogen [v2 b-44] => [v2 b-44 a45]",
-      "file": "0771_autogen_v2_b-44_v2_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -60990,7 +60989,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 772,
@@ -61074,7 +61074,6 @@
     {
       "id": 773,
       "name": "autogen [v2 b-44] => [v2 b-44 a-45]",
-      "file": "0773_autogen_v2_b-44_v2_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -61148,7 +61147,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 774,
@@ -61232,7 +61232,6 @@
     {
       "id": 775,
       "name": "autogen [v2 b-44] => [v2 b-44 a90]",
-      "file": "0775_autogen_v2_b-44_v2_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -61306,7 +61305,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 776,
@@ -61390,7 +61390,6 @@
     {
       "id": 777,
       "name": "autogen [v2 b-44] => [v2 b-44 a-90]",
-      "file": "0777_autogen_v2_b-44_v2_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -61464,7 +61463,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 778,
@@ -61548,7 +61548,6 @@
     {
       "id": 779,
       "name": "autogen [v2 b-44] => [v2 b45 a0]",
-      "file": "0779_autogen_v2_b-44_v2_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -61622,7 +61621,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 780,
@@ -61706,7 +61706,6 @@
     {
       "id": 781,
       "name": "autogen [v2 b-44] => [v2 b45 a45]",
-      "file": "0781_autogen_v2_b-44_v2_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -61780,7 +61779,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 782,
@@ -61864,7 +61864,6 @@
     {
       "id": 783,
       "name": "autogen [v2 b-44] => [v2 b45 a-45]",
-      "file": "0783_autogen_v2_b-44_v2_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -61938,7 +61937,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 784,
@@ -62022,7 +62022,6 @@
     {
       "id": 785,
       "name": "autogen [v2 b-44] => [v2 b45 a90]",
-      "file": "0785_autogen_v2_b-44_v2_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -62096,7 +62095,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 786,
@@ -62180,7 +62180,6 @@
     {
       "id": 787,
       "name": "autogen [v2 b-44] => [v2 b45 a-90]",
-      "file": "0787_autogen_v2_b-44_v2_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -62254,7 +62253,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 788,
@@ -62338,7 +62338,6 @@
     {
       "id": 789,
       "name": "autogen [v2 b45] => [v1 b0 a0]",
-      "file": "0789_autogen_v2_b45_v1_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -62412,7 +62411,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 790,
@@ -62496,7 +62496,6 @@
     {
       "id": 791,
       "name": "autogen [v2 b45] => [v1 b0 a45]",
-      "file": "0791_autogen_v2_b45_v1_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -62570,7 +62569,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 792,
@@ -62654,7 +62654,6 @@
     {
       "id": 793,
       "name": "autogen [v2 b45] => [v1 b0 a-45]",
-      "file": "0793_autogen_v2_b45_v1_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -62728,7 +62727,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 794,
@@ -62812,7 +62812,6 @@
     {
       "id": 795,
       "name": "autogen [v2 b45] => [v1 b0 a90]",
-      "file": "0795_autogen_v2_b45_v1_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -62886,7 +62885,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 796,
@@ -62970,7 +62970,6 @@
     {
       "id": 797,
       "name": "autogen [v2 b45] => [v1 b0 a-90]",
-      "file": "0797_autogen_v2_b45_v1_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -63044,7 +63043,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 798,
@@ -63128,7 +63128,6 @@
     {
       "id": 799,
       "name": "autogen [v2 b45] => [v1 b-44 a0]",
-      "file": "0799_autogen_v2_b45_v1_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -63202,7 +63201,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 800,
@@ -63286,7 +63286,6 @@
     {
       "id": 801,
       "name": "autogen [v2 b45] => [v1 b-44 a45]",
-      "file": "0801_autogen_v2_b45_v1_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -63360,7 +63359,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 802,
@@ -63444,7 +63444,6 @@
     {
       "id": 803,
       "name": "autogen [v2 b45] => [v1 b-44 a-45]",
-      "file": "0803_autogen_v2_b45_v1_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -63518,7 +63517,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 804,
@@ -63602,7 +63602,6 @@
     {
       "id": 805,
       "name": "autogen [v2 b45] => [v1 b-44 a90]",
-      "file": "0805_autogen_v2_b45_v1_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -63676,7 +63675,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 806,
@@ -63760,7 +63760,6 @@
     {
       "id": 807,
       "name": "autogen [v2 b45] => [v1 b-44 a-90]",
-      "file": "0807_autogen_v2_b45_v1_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -63834,7 +63833,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 808,
@@ -63918,7 +63918,6 @@
     {
       "id": 809,
       "name": "autogen [v2 b45] => [v1 b45 a0]",
-      "file": "0809_autogen_v2_b45_v1_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -63992,7 +63991,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 810,
@@ -64076,7 +64076,6 @@
     {
       "id": 811,
       "name": "autogen [v2 b45] => [v1 b45 a45]",
-      "file": "0811_autogen_v2_b45_v1_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -64150,7 +64149,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 812,
@@ -64234,7 +64234,6 @@
     {
       "id": 813,
       "name": "autogen [v2 b45] => [v1 b45 a-45]",
-      "file": "0813_autogen_v2_b45_v1_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -64308,7 +64307,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 814,
@@ -64392,7 +64392,6 @@
     {
       "id": 815,
       "name": "autogen [v2 b45] => [v1 b45 a90]",
-      "file": "0815_autogen_v2_b45_v1_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -64466,7 +64465,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 816,
@@ -64550,7 +64550,6 @@
     {
       "id": 817,
       "name": "autogen [v2 b45] => [v1 b45 a-90]",
-      "file": "0817_autogen_v2_b45_v1_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -64624,7 +64623,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 818,
@@ -64708,7 +64708,6 @@
     {
       "id": 819,
       "name": "autogen [v2 b45] => [v1 b-135 a0]",
-      "file": "0819_autogen_v2_b45_v1_b-135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -64782,7 +64781,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 820,
@@ -64866,7 +64866,6 @@
     {
       "id": 821,
       "name": "autogen [v2 b45] => [v1 b-135 a-45]",
-      "file": "0821_autogen_v2_b45_v1_b-135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -64940,7 +64939,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 822,
@@ -65024,7 +65024,6 @@
     {
       "id": 823,
       "name": "autogen [v2 b45] => [v1 b-135 a-90]",
-      "file": "0823_autogen_v2_b45_v1_b-135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -65098,7 +65097,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 824,
@@ -65182,7 +65182,6 @@
     {
       "id": 825,
       "name": "autogen [v2 b45] => [v1 b135 a0]",
-      "file": "0825_autogen_v2_b45_v1_b135_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -65256,7 +65255,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 826,
@@ -65340,7 +65340,6 @@
     {
       "id": 827,
       "name": "autogen [v2 b45] => [v1 b135 a45]",
-      "file": "0827_autogen_v2_b45_v1_b135_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -65414,7 +65413,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 828,
@@ -65498,7 +65498,6 @@
     {
       "id": 829,
       "name": "autogen [v2 b45] => [v1 b135 a-45]",
-      "file": "0829_autogen_v2_b45_v1_b135_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -65572,7 +65571,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 830,
@@ -65656,7 +65656,6 @@
     {
       "id": 831,
       "name": "autogen [v2 b45] => [v1 b135 a90]",
-      "file": "0831_autogen_v2_b45_v1_b135_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -65730,7 +65729,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 832,
@@ -65814,7 +65814,6 @@
     {
       "id": 833,
       "name": "autogen [v2 b45] => [v1 b135 a-90]",
-      "file": "0833_autogen_v2_b45_v1_b135_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -65888,7 +65887,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 834,
@@ -65972,7 +65972,6 @@
     {
       "id": 835,
       "name": "autogen [v2 b45] => [v0 b0 a0]",
-      "file": "0835_autogen_v2_b45_v0_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -66046,7 +66045,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 836,
@@ -66130,7 +66130,6 @@
     {
       "id": 837,
       "name": "autogen [v2 b45] => [v0 b0 a45]",
-      "file": "0837_autogen_v2_b45_v0_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -66204,7 +66203,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 838,
@@ -66288,7 +66288,6 @@
     {
       "id": 839,
       "name": "autogen [v2 b45] => [v0 b0 a-45]",
-      "file": "0839_autogen_v2_b45_v0_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -66362,7 +66361,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 840,
@@ -66446,7 +66446,6 @@
     {
       "id": 841,
       "name": "autogen [v2 b45] => [v0 b0 a90]",
-      "file": "0841_autogen_v2_b45_v0_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -66520,7 +66519,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 842,
@@ -66604,7 +66604,6 @@
     {
       "id": 843,
       "name": "autogen [v2 b45] => [v0 b0 a-90]",
-      "file": "0843_autogen_v2_b45_v0_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -66678,7 +66677,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 844,
@@ -66762,7 +66762,6 @@
     {
       "id": 845,
       "name": "autogen [v2 b45] => [v0 b0 a135]",
-      "file": "0845_autogen_v2_b45_v0_b0_a135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -66836,7 +66835,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 846,
@@ -66920,7 +66920,6 @@
     {
       "id": 847,
       "name": "autogen [v2 b45] => [v0 b0 a-135]",
-      "file": "0847_autogen_v2_b45_v0_b0_a-135.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -66994,7 +66993,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 848,
@@ -67078,7 +67078,6 @@
     {
       "id": 849,
       "name": "autogen [v2 b45] => [v0 b0 a178]",
-      "file": "0849_autogen_v2_b45_v0_b0_a178.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -67152,7 +67151,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 850,
@@ -67236,7 +67236,6 @@
     {
       "id": 851,
       "name": "autogen [v2 b45] => [v3 b0 a0]",
-      "file": "0851_autogen_v2_b45_v3_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -67310,7 +67309,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 852,
@@ -67394,7 +67394,6 @@
     {
       "id": 853,
       "name": "autogen [v2 b45] => [v3 b0 a45]",
-      "file": "0853_autogen_v2_b45_v3_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -67468,7 +67467,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 854,
@@ -67552,7 +67552,6 @@
     {
       "id": 855,
       "name": "autogen [v2 b45] => [v3 b0 a-45]",
-      "file": "0855_autogen_v2_b45_v3_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -67626,7 +67625,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 856,
@@ -67710,7 +67710,6 @@
     {
       "id": 857,
       "name": "autogen [v2 b45] => [v2 b0 a0]",
-      "file": "0857_autogen_v2_b45_v2_b0_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -67784,7 +67783,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 858,
@@ -67868,7 +67868,6 @@
     {
       "id": 859,
       "name": "autogen [v2 b45] => [v2 b0 a45]",
-      "file": "0859_autogen_v2_b45_v2_b0_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -67942,7 +67941,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 860,
@@ -68026,7 +68026,6 @@
     {
       "id": 861,
       "name": "autogen [v2 b45] => [v2 b0 a-45]",
-      "file": "0861_autogen_v2_b45_v2_b0_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -68100,7 +68099,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 862,
@@ -68184,7 +68184,6 @@
     {
       "id": 863,
       "name": "autogen [v2 b45] => [v2 b0 a90]",
-      "file": "0863_autogen_v2_b45_v2_b0_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -68258,7 +68257,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 864,
@@ -68342,7 +68342,6 @@
     {
       "id": 865,
       "name": "autogen [v2 b45] => [v2 b0 a-90]",
-      "file": "0865_autogen_v2_b45_v2_b0_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -68416,7 +68415,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 866,
@@ -68500,7 +68500,6 @@
     {
       "id": 867,
       "name": "autogen [v2 b45] => [v2 b-44 a0]",
-      "file": "0867_autogen_v2_b45_v2_b-44_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -68574,7 +68573,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 868,
@@ -68658,7 +68658,6 @@
     {
       "id": 869,
       "name": "autogen [v2 b45] => [v2 b-44 a45]",
-      "file": "0869_autogen_v2_b45_v2_b-44_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -68732,7 +68731,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 870,
@@ -68816,7 +68816,6 @@
     {
       "id": 871,
       "name": "autogen [v2 b45] => [v2 b-44 a-45]",
-      "file": "0871_autogen_v2_b45_v2_b-44_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -68890,7 +68889,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 872,
@@ -68974,7 +68974,6 @@
     {
       "id": 873,
       "name": "autogen [v2 b45] => [v2 b-44 a90]",
-      "file": "0873_autogen_v2_b45_v2_b-44_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -69048,7 +69047,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 874,
@@ -69132,7 +69132,6 @@
     {
       "id": 875,
       "name": "autogen [v2 b45] => [v2 b-44 a-90]",
-      "file": "0875_autogen_v2_b45_v2_b-44_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -69206,7 +69205,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 876,
@@ -69290,7 +69290,6 @@
     {
       "id": 877,
       "name": "autogen [v2 b45] => [v2 b45 a0]",
-      "file": "0877_autogen_v2_b45_v2_b45_a0.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -69364,7 +69363,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 878,
@@ -69448,7 +69448,6 @@
     {
       "id": 879,
       "name": "autogen [v2 b45] => [v2 b45 a45]",
-      "file": "0879_autogen_v2_b45_v2_b45_a45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -69522,7 +69521,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 880,
@@ -69606,7 +69606,6 @@
     {
       "id": 881,
       "name": "autogen [v2 b45] => [v2 b45 a-45]",
-      "file": "0881_autogen_v2_b45_v2_b45_a-45.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -69680,7 +69679,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 882,
@@ -69764,7 +69764,6 @@
     {
       "id": 883,
       "name": "autogen [v2 b45] => [v2 b45 a90]",
-      "file": "0883_autogen_v2_b45_v2_b45_a90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -69838,7 +69837,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 884,
@@ -69922,7 +69922,6 @@
     {
       "id": 885,
       "name": "autogen [v2 b45] => [v2 b45 a-90]",
-      "file": "0885_autogen_v2_b45_v2_b45_a-90.glb",
       "frame_count": 25,
       "metadata": {
         "action_type": 14,
@@ -69996,7 +69995,8 @@
         "outgoing_foot": 0
       },
       "contact_position": null,
-      "touches": []
+      "touches": [],
+      "procedural": true
     },
     {
       "id": 886,

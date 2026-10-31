@@ -422,7 +422,9 @@ void AnimCollection::Load(const AnimationSourcePaths& paths) {
 
   // load all other animations
 
-  files = FindAnimations(paths.animation_dir);
+  if (!paths.animation_dir.empty()) {
+    files = FindAnimations(paths.animation_dir);
+  }
 
   bool omitLuxuryAnims = true;
 

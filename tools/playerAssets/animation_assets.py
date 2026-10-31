@@ -391,7 +391,64 @@ def read_clip(path, entry, skeleton):
     return simanim.Clip(entry["id"], entry["name"], roots, poses, metadata, contact, touches)
 
 
-def load(manifest):
+def _discover_autogen(manifest):
+    candidates = [manifest.parent / "autogen.simanim"]
+    repo = manifest.parents[2]
+    candidates.extend(sorted(repo.glob("build*/**/assets/runtime/autogen.simanim")))
+    candidates.extend(sorted(repo.glob("build*/assets/runtime/autogen.simanim")))
+    for path in candidates:
+        if path.is_file():
+            return path
+    return None
+
+
+def _generated_clips(autogen):
+    if autogen is None:
+        return {}
+    if isinstance(autogen, dict):
+        return autogen
+    return {clip.name: clip for clip in simanim.load(Path(autogen))}
+
+
+def _metadata_from_entry(entry):
+    return {name: tuple(entry["metadata"][name]) if fmt == "3f" else entry["metadata"][name]
+            for name, fmt in METADATA}
+
+
+def _procedural_clip(source, entry):
+    if entry.get("frame_count") != len(source.poses):
+        raise ValueError(f"Procedural frame count differs: {entry['name']}")
+    metadata = _metadata_from_entry(entry) if "metadata" in entry else source.metadata
+    contact = (tuple(entry["contact_position"])
+               if entry.get("contact_position") is not None else source.contact)
+    touches = ([{"frame": t["frame"], "position": tuple(t["position"])}
+                for t in entry["touches"]] if "touches" in entry else source.touches)
+    return simanim.Clip(entry["id"], entry["name"], source.roots, source.poses,
+                        metadata, contact, touches)
+
+
+def _resolve_clip(entry, manifest, skeleton, generated, used, mark_used):
+    if entry.get("procedural"):
+        source = generated.get(entry["name"])
+        if source is None:
+            raise ValueError(f"Missing procedural clip: {entry['name']}")
+        return _procedural_clip(source, entry)
+    if "file" not in entry:
+        raise ValueError(f"Clip has neither file nor procedural source: {entry.get('name')}")
+    path = (manifest.parent / entry["file"]).resolve()
+    if not path.is_relative_to(manifest.parent) or path.suffix != ".glb":
+        raise ValueError("Invalid clip path")
+    if mark_used:
+        if path in used:
+            raise ValueError("Invalid/duplicate clip path")
+        used.add(path)
+    try:
+        return read_clip(path, entry, skeleton)
+    except (KeyError, IndexError, TypeError, struct.error) as error:
+        raise ValueError(f"Malformed animation: {path}: {error}") from error
+
+
+def load(manifest, autogen=None):
     manifest = Path(manifest).resolve()
     doc = json_read(manifest)
     if doc["schema"] != SCHEMA or doc["fps"] != 100 or doc["rig_version"] != RIG:
@@ -402,38 +459,27 @@ def load(manifest):
     entries = doc["clips"]
     if not 0 < len(entries) <= 100000:
         raise ValueError("Invalid catalog size")
+    if autogen is None and any(entry.get("procedural") for entry in entries):
+        autogen = _discover_autogen(manifest)
+    generated = _generated_clips(autogen)
     by_id = {entry.get("id"): entry for entry in entries}
     used, clips = set(), []
     for index, entry in enumerate(entries):
         if entry.get("id") != index:
             raise ValueError("Non-contiguous clip IDs")
         if "mirror_of" in entry:
-            if "file" in entry:
-                raise ValueError("A virtual mirror must not carry a GLB path")
+            if "file" in entry or entry.get("procedural"):
+                raise ValueError("A virtual mirror must not carry a source path/kind")
             source_id = entry["mirror_of"]
             if not isinstance(source_id, int) or source_id not in by_id or source_id == index:
                 raise ValueError("Invalid mirror_of source")
             source_entry = by_id[source_id]
             if "mirror_of" in source_entry:
                 raise ValueError("Mirror chains are not supported")
-            if "file" not in source_entry:
-                raise ValueError("Mirror source must be an authored GLB")
-            path = (manifest.parent / source_entry["file"]).resolve()
-            if not path.is_relative_to(manifest.parent) or path.suffix != ".glb":
-                raise ValueError("Invalid source clip path")
-            try:
-                clips.append(mirror_clip(read_clip(path, source_entry, skeleton), entry))
-            except (KeyError, IndexError, TypeError, struct.error) as error:
-                raise ValueError(f"Malformed mirror source: {path}: {error}") from error
+            source = _resolve_clip(source_entry, manifest, skeleton, generated, used, False)
+            clips.append(mirror_clip(source, entry))
             continue
-        path = (manifest.parent / entry["file"]).resolve()
-        if path in used or not path.is_relative_to(manifest.parent) or path.suffix != ".glb":
-            raise ValueError("Invalid/duplicate clip path")
-        used.add(path)
-        try:
-            clips.append(read_clip(path, entry, skeleton))
-        except (KeyError, IndexError, TypeError, struct.error) as error:
-            raise ValueError(f"Malformed animation: {path}: {error}") from error
+        clips.append(_resolve_clip(entry, manifest, skeleton, generated, used, True))
     return clips
 
 def serialize(clips):
@@ -476,8 +522,8 @@ def serialize(clips):
     return stream.getvalue()
 
 
-def bake(manifest, output):
-    payload = serialize(load(manifest))
+def bake(manifest, output, autogen=None):
+    payload = serialize(load(manifest, autogen))
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     # Failures never replace a valid prior cache with a partial file.
@@ -608,12 +654,57 @@ def virtualize_mirrors(manifest, write=False, delete_files=False):
     return len(pending)
 
 
+def proceduralize_autogen(manifest, autogen, write=False, delete_files=False):
+    """A1b/A2: replace stored Autogen GLBs with procedural cache entries."""
+    manifest = Path(manifest).resolve()
+    doc = json_read(manifest)
+    entries = doc["clips"]
+    generated = _generated_clips(autogen)
+    skeleton = read_skeleton((manifest.parent / doc["skeleton"]).resolve())
+    pending = []
+    for entry in entries:
+        if "file" not in entry or "autogen" not in entry["name"] or entry["name"].endswith("_mirror"):
+            continue
+        source = generated.get(entry["name"])
+        if source is None:
+            raise ValueError(f"Generated Autogen clip missing: {entry['name']}")
+        old = read_clip((manifest.parent / entry["file"]).resolve(), entry, skeleton)
+        if entry["frame_count"] != len(source.poses):
+            raise ValueError(f"Generated frame count differs: {entry['name']}")
+        for a, b in zip(old.roots, source.roots):
+            if any(abs(x - y) > 1e-6 for x, y in zip(a, b)):
+                raise ValueError(f"Generated root differs: {entry['name']}")
+        for po, pn in zip(old.poses, source.poses):
+            for a, b in zip(po, pn):
+                if any(abs(x - y) > 1e-6 for x, y in zip(a, b)):
+                    raise ValueError(f"Generated pose differs: {entry['name']}")
+        for name, value in old.metadata.items():
+            got = source.metadata[name]
+            same = (all(abs(a - b) <= 2e-5 for a, b in zip(value, got))
+                    if isinstance(value, (tuple, list)) else
+                    abs(value - got) <= 2e-5 if isinstance(value, float) else value == got)
+            if not same:
+                raise ValueError(f"Generated metadata differs: {entry['name']}: {name}")
+        pending.append((entry, (manifest.parent / entry["file"]).resolve()))
+    if not write:
+        return len(pending)
+    for entry, _ in pending:
+        entry["procedural"] = True
+        entry.pop("file", None)
+    json_write(manifest, doc)
+    if delete_files:
+        for _, path in pending:
+            path.unlink(missing_ok=True)
+    return len(pending)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     compile_ = commands.add_parser("bake")
     compile_.add_argument("--manifest", type=Path, required=True)
     compile_.add_argument("--output", type=Path, required=True)
+    compile_.add_argument("--autogen", type=Path)
     migrate_ = commands.add_parser("migrate-legacy", help="One-time migration/provenance utility only")
     migrate_.add_argument("--source", type=Path, required=True)
     migrate_.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
@@ -625,9 +716,14 @@ def main():
     virtual.add_argument("--manifest", type=Path, default=Path(__file__).resolve().parents[2] / "assets/animations/manifest.json")
     virtual.add_argument("--write", action="store_true")
     virtual.add_argument("--delete-files", action="store_true")
+    procedural = commands.add_parser("proceduralize-autogen", help="A1b: use the generated Autogen cache instead of GLBs")
+    procedural.add_argument("--manifest", type=Path, default=Path(__file__).resolve().parents[2] / "assets/animations/manifest.json")
+    procedural.add_argument("--autogen", type=Path, required=True)
+    procedural.add_argument("--write", action="store_true")
+    procedural.add_argument("--delete-files", action="store_true")
     args = parser.parse_args()
     if args.command == "bake":
-        payload = bake(args.manifest, args.output)
+        payload = bake(args.manifest, args.output, args.autogen)
         print(f"BAKED {len(payload)} bytes -> {args.output}")
     elif args.command == "migrate-legacy":
         migrate(args.source, args.root)
@@ -635,6 +731,10 @@ def main():
         count = virtualize_mirrors(args.manifest, args.write, args.delete_files)
         action = "VIRTUALIZED" if args.write else "CHECKED"
         print(f"{action} {count} mirrors")
+    elif args.command == "proceduralize-autogen":
+        count = proceduralize_autogen(args.manifest, args.autogen, args.write, args.delete_files)
+        action = "PROCEDURALIZED" if args.write else "CHECKED"
+        print(f"{action} {count} autogen clips")
     else:
         canonical_character(args.source, args.output, args.skeleton)
 

@@ -55,11 +55,22 @@ quadrant。`animation_assets.py virtualize-mirrors` 用于一次性迁移：默�
 `--write` 改写 manifest，`--delete-files` 才删除已迁移的镜像 GLB。
 
 A1a 将 10 个 legacy `.anim` 运动模板转换为 `assets/motion_templates/` 的 canonical
-GLB；它只是程序化 Autogen 的输入，还没有替换现有 443 个 Autogen GLB：
+GLB；A1b 则让离线 baker 直接从这些 `.anim` 模板重新生成 443 个 Autogen 片段：
 
 ```sh
-python3 tools/playerAssets/import_templates.py
+# 生成 443 个非镜像 Autogen 片段
+./build/debug/football_anim_baker \
+  --autogen-out build/debug/assets/runtime/autogen.simanim \
+  --template-dir data/media/animations/templates \
+  --player-object data/media/objects/players/player.object
+
+# 把 manifest 中的 Autogen GLB 改成 procedural 条目（默认只检查）
+python3 tools/playerAssets/animation_assets.py proceduralize-autogen \
+  --autogen build/debug/assets/runtime/autogen.simanim --write
 ```
+
+CMake 会自动执行上述生成，并把 `--autogen` 传给缓存编译器。A2 后
+`assets/animations/` 只保留 283 个 authored GLB；镜像和 Autogen 虚拟化。
 
 正式外观包（皮肤、球衣、球鞋、发型）由 `export_character_parts.py` 生成，
 需要下方 `default_14_smooth.blend` 预览模板：

@@ -17,6 +17,7 @@
 
 #include "anim_baker.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -570,6 +571,24 @@ std::vector<AnimationClip> BakeAnimations(const std::filesystem::path& data_dir)
   AnimCollection anims;
   anims.Load(SourcePaths(data_dir));
   return BakeClips(anims.GetAnimations());
+}
+
+std::vector<AnimationClip> BakeAutoAnims(
+    const std::filesystem::path& template_dir,
+    const std::filesystem::path& player_object) {
+  AnimCollection anims;
+  anims.Load({"", template_dir.string(), player_object.string()});
+  std::vector<AnimationClip> clips = BakeClips(anims.GetAnimations());
+  clips.erase(std::remove_if(clips.begin(), clips.end(),
+                             [](const AnimationClip& clip) {
+                               return clip.name.size() >= 7 &&
+                                      clip.name.compare(clip.name.size() - 7, 7,
+                                                        "_mirror") == 0;
+                             }),
+              clips.end());
+  for (size_t i = 0; i < clips.size(); ++i)
+    clips[i].id = static_cast<uint32_t>(i);
+  return clips;
 }
 
 std::vector<char> SerializeAnimations(const std::vector<AnimationClip>& clips) {

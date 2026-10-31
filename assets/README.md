@@ -3,8 +3,8 @@
 ```text
 assets/
 ├── animations/
-│   ├── manifest.json       1452 个逻辑动作的稳定 ID；镜像条目只保存 mirror_of
-│   └── *.glb               726 个 authored 动作；镜像在编译时由源动作派生
+│   ├── manifest.json       1452 个逻辑动作的稳定 ID
+│   └── *.glb               283 个 authored 源动作
 ├── motion_templates/
 │   ├── manifest.json       10 个 legacy 运动模板的 canonical 描述
 │   └── *.glb               供后续程序化 Autogen 生成器使用的 14 骨骼模板
@@ -77,19 +77,27 @@ python3 tools/playerAssets/animation_assets.py bake \
 ```
 
 缓存采用原 v7 字节布局以保持现有 C++ 算法不变，不是另一份手工维护的动作来源。
-A0 之后，726 个镜像动作不再各自保存 GLB：manifest 用 `mirror_of` 指向 authored
-源动作，编译器在采样时交换左右骨骼、反射根运动/方向、交换脚别并映射 quadrant。
-迁移工具已验证全部 726 对镜像的逐帧姿态、根运动、触球和元数据；只剩 float
-有符号零的字节差异，不改变数值语义。输入错误会失败，不回退到旧资产；编译使用
-临时文件和原子替换，失败不覆盖上一次成功缓存。
+A0 之后，726 个镜像动作不再各自保存 GLB：manifest 用 `mirror_of` 指向源动作，
+编译器在采样时交换左右骨骼、反射根运动/方向、交换脚别并映射 quadrant。
+A1b/A2 之后，443 个 Autogen 也不再保存 GLB：构建时由 `football_anim_baker`
+从 10 个模板重新生成，manifest 用 `procedural` 标记，Python 编译器把它们合并
+进缓存。最后只剩 283 个 authored 源动作 GLB。
+
+生成器仍使用 `data/media/animations/templates/` 的 10 个 legacy `.anim` 和
+`player.object`；这是 A1b 的暂定输入。A1a 已提供对应的 canonical GLB 模板，
+后续可以把生成器切到纯 canonical 输入，最终移除 legacy 依赖。
 
 ## 足球元数据
 
 manifest 中 `id` 连续且按现有运行时顺序排列，不得随意重排。`name` 保留迁移前
-标识（部分含历史机器路径），它是字符串标识而非文件查找路径。authored 条目由
-`file` 指向 GLB；镜像条目没有 `file`，只有 `mirror_of`（源 authored 动作的 id）。
-选择参数、进出速度/方向、脚别、保留状态、触球帧与触球点都在 manifest；镜像条目
-保留这些逻辑字段，编译器会校验它们与派生结果一致，避免旧快照漂移。
+标识（部分含历史机器路径），它是字符串标识而非文件查找路径。条目有三类：
+
+- authored：`file` 指向 283 个 GLB；
+- procedural：`procedural: true`，由 `autogen.simanim` 生成器缓存提供；
+- mirror：`mirror_of`，没有 `file`/`procedural`，由源动作反射得到。
+
+选择参数、进出速度/方向、脚别、保留状态、触球帧与触球点都在 manifest。生成/镜像
+条目保留逻辑字段，编译器会校验它们与派生结果一致，避免旧快照漂移。
 这些值使用 **C++ Z-up Stadium Frame / 米 / 弧度 / 100 Hz 帧号**，没有随 GLB
 转换为 Y-up。不要仅改动画而忘记同步受影响的动作选择/触球数据。
 

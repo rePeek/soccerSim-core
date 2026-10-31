@@ -138,6 +138,25 @@ class CatalogTest(unittest.TestCase):
         self.assertEqual(clips, simanim.load(path))
         self.assertEqual([c.id for c in clips], list(range(len(clips))))
 
+    def test_a1b_procedural_autogen_and_a2_source_count(self):
+        doc = assets.json_read(MANIFEST)
+        entries = doc["clips"]
+        procedural = [entry for entry in entries if entry.get("procedural")]
+        authored = [entry for entry in entries if "file" in entry]
+        self.assertEqual(len(procedural), 443)
+        self.assertEqual(len(authored), 283)
+        self.assertTrue(all("autogen" in entry["name"] for entry in procedural))
+        self.assertTrue(all("autogen" not in entry["name"] for entry in authored))
+        autogen = assets._discover_autogen(MANIFEST)
+        self.assertIsNotNone(autogen)
+        generated = {clip.name: clip for clip in simanim.load(autogen)}
+        self.assertEqual(len(generated), 443)
+        clips = assets.load(MANIFEST, autogen)
+        for entry in procedural:
+            clip = clips[entry["id"]]
+            self.assertEqual(len(clip.poses), entry["frame_count"])
+            self.assertEqual(clip.name, entry["name"])
+
     def test_motion_template_catalog_is_canonical(self):
         manifest = REPO / "assets/motion_templates/manifest.json"
         clips = assets.load(manifest)
