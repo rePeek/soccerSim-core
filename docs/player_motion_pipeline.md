@@ -105,7 +105,6 @@ Rules:
 P3b foot IK, P5 pass/shot contact, P6 remaining actions, P7 vertical
 root/jump/landing. Each has its own gate; they are deliberately not bundled
 into this foundation.
-into this foundation.
 
 ## Validation gate (current)
 
@@ -118,3 +117,30 @@ nix develop --command bash -c 'ctest --preset release -R player'
 
 A full 22-player real-tick match regression is currently out of scope for
 these phases and is not a blocker for P0–P4.
+
+
+## 2026 re-plan: source clips + procedural motion
+
+The earlier P5–P7 labels are superseded by a cross-module sequence:
+
+1. A0 mirror virtualization — **done** in `b38c653`.
+2. A1 runtime procedural Autogen generation.
+3. A2 283 authored source clips as the only physical animation assets.
+4. P3a+ production Final Pose wiring.
+5. P3b FootPlant + two-bone IK.
+6. P5a/P5b Final Pose touch + TOI.
+7. P6 action-by-action motion authority migration.
+8. P7a–P7c world Z, airborne contact and landing.
+
+### A0 result
+
+- 726 authored GLBs remain; 726 mirror entries now carry `mirror_of` instead of
+  a `file`.
+- `animation_assets.py` derives mirror poses, roots, metadata, contact points and
+  touches at bake time. The migration command is
+  `animation_assets.py virtualize-mirrors [--write] [--delete-files]`.
+- The 726 stored mirror GLBs were removed. A full bake was compared against the
+  pre-A0 artifact: every clip is numerically equal; only signed-zero bytes differ.
+- Player/animation/locomotion unit and link tests pass in debug and release.
+
+A1 and later are **not** implemented in this commit.
