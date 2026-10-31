@@ -105,3 +105,16 @@ Rules:
 P3b foot IK, P5 pass/shot contact, P6 remaining actions, P7 vertical
 root/jump/landing. Each has its own gate; they are deliberately not bundled
 into this foundation.
+into this foundation.
+
+## Validation gate (current)
+
+P0–P4 are gated by the Player unit/link suite:
+
+```sh
+nix develop --command bash -c 'ctest --preset debug -R player'
+nix develop --command bash -c 'ctest --preset release -R player'
+```
+
+A full 22-player real-tick match regression is currently out of scope for
+these phases and is not a blocker for P0–P4.
