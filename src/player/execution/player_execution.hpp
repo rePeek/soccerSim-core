@@ -167,6 +167,11 @@ class PlayerExecution final {
   const LocomotionPlaybackRequest& LocomotionPlayback() const {
     return state_.locomotion_playback_;
   }
+  // STRIDE-0: motion/animation agreement (rate, reference distance, stride
+  // scale, per-foot slip). Diagnostic; no production branch reads it.
+  const LocomotionPoseDiagnostics& LocomotionDiagnostics() const {
+    return state_.locomotion_diagnostics_;
+  }
   bool LocomotionAnimationAdaptation() const {
     return state_.locomotion_animation_adaptation_;
   }
@@ -254,7 +259,12 @@ class PlayerExecution final {
                                 int blend_ticks);
   void UpdatePlaybackFromAuthority(football::sim::Tick now, float base_angle, int blend_ticks,
                                    bool motion_driven);
-  void UpdateFootPlant(const AnimationClip& clip, float base_angle);
+  // STRIDE-0..2: the one stage that settles a movement pose against the achieved
+  // motion. It reads the sampled gait, applies the stride scale, derives the
+  // support foot from the gait heights, locks planted feet to their anchors and
+  // writes the result back into the skeleton's local rotations. Movement clips
+  // only; every other action keeps its sampled pose.
+  void SettleMovementPose(const AnimationClip& clip, float base_angle);
   void BeginSimulationAction();
   void InstallSelectedAction(const football::sim::SelectedAction& selection);
   bool CommitSelectedAction(int selected_anim_id,

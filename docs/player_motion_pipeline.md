@@ -168,12 +168,13 @@ A1 and later are **not** implemented in this commit.
   `ContactRegions()` consume the IK-adjusted pose.
 - `PlayerExecution` updates anchors only for `e_FunctionType_Movement` clips;
   slide/trip/fall/header keep both feet free.
-- Support selection currently uses the existing `SpatialState::foot`; this is a
-  heuristic bridge, not the planned per-clip FootPlant event track.
+- Support selection derives from the *gait* ankle heights (lower foot, with a
+  1 cm switch margin) instead of `SpatialState::foot`, which drifts out of
+  phase once the playback rate is motion-driven.
 - Tests cover IK reach, release, anchor persistence and final-pose consumption.
 
 Remaining P3b gap: bake/sample explicit `FootContactPhase` events for all 283
-sources + 443 procedural clips, then replace the `SpatialState::foot` heuristic.
+sources + 443 procedural clips, then replace the height heuristic.
 
 ## P7-lite result
 
@@ -262,3 +263,95 @@ CommitLocomotion                        (Player solves the motion)
 - P6 special actions stay action-motion driven: their body model (slide
   friction, fall impulse, shot support foot) is not the locomotion constraint
   core, and must not be collapsed into it.
+
+## STRIDE-0..3 result: stride adaptation and the skeleton write-back
+
+The pieces below answer "the clip wants 0.06 m this tick, the motion allows
+0.04 m — where does the difference go?". Cadence and step length are two
+different absorbers, and they must be applied together or the support foot
+slides.
+
+```
+sampled gait  ──▶ stride target (AdaptStride) ──▶ support lock (plant)
+              ──▶ local-rotation write-back (ApplyWorldFootTargetsToPose)
+              ──▶ the one Final Pose (Pose(), BakedPoseSample(), Geometry())
+```
+
+### STRIDE-0: calibration
+
+- `LocomotionClipReferenceSpeed` measures the travel over the intervals that
+  exist: `N` root samples span `N-1` ticks, so the denominator is
+  `(N-1) * 10 ms`, not `frame_count * 10 ms`. The old denominator overstated
+  every clip's native speed by `N/(N-1)` (4 % at 25 frames) and biased the
+  playback rate low. `loco_animation` now checks it against the clips' own root
+  tracks: for every clip whose track is uniform (< 2 % interval spread) the mean
+  and the track agree within 2 %; 86 clips are checked, worst case 0.3 %.
+- `LocomotionPoseDiagnostics` records per locomotion tick: achieved distance,
+  wrap-aware reference distance, playback rate, stride scale, and per-foot
+  `animation_slip` (gait target vs the anchor it is still locked on) and
+  `foot_slip` (residual of the shipped pose against the anchor). Nothing in
+  production branches on them.
+
+### STRIDE-1: stride adaptation
+
+- `PlayerPoseAdapter::AdaptStride` scales only the **hip-relative fore-aft**
+  component of each ankle, so the leg stays the same length and the knee is
+  reconstructed by the two-bone solve. Lateral offset, foot lift and the root
+  trajectory are untouched.
+- `kLocomotionStrideCoupling = 0.5`: `stride_scale = (achieved/reference)^0.5`,
+  clamped to `[0.6, 1.35]` and smoothed with `tau = 0.3 s`, i.e. per gait cycle
+  rather than per tick. 0 would be cadence-only (the clip plays in slow motion),
+  1 would be stride-only (native cadence, shorter steps).
+- **The pairing invariant.** The playback rate divides by the stride scale:
+  `rate = achieved / (reference * stride_scale)`. A stance foot then moves
+  `stride_scale * reference * rate = achieved` backwards in clip space, which is
+  exactly the root's forward motion — so it stays put in the world. Changing one
+  without the other is the "double correction" failure: with `scale = 0.8` and a
+  rate computed as if the stride never changed, the gait target drifts 5.4 cm
+  per stance from its anchor on the synthetic run; paired, the residual is
+  0.2 mm (both covered by `player_stride_pipeline_test.cpp`).
+
+### STRIDE-2: skeleton write-back
+
+- Support and stride are separate authorities: `ApplyFootPlantLocks` overrides a
+  planted foot's target with its anchor, and `AdaptStride` never sees the plant
+  state. No two systems write the same foot.
+- `ApplyWorldFootTargetsToPose` turns the solved ankle targets back into **local
+  joint rotations** (thigh aims at the solved knee, shin at the solved ankle, the
+  boot keeps its world orientation so the sole stays flat). The FK bind table
+  (`kBakedBindJoints`) is now the single description of the hierarchy, shared by
+  `EvaluateBakedBodyPose` and the write-back.
+- Because the write-back lives in the pose, `Pose()`, `BakedPoseSample()`,
+  `Geometry()` and `ContactRegions()` all read the same skeleton; passing the
+  same targets to geometry again is idempotent.
+
+### Settle stage and support derivation
+
+One stage per Movement tick, in `PlayerExecution::SettleMovementPose`:
+
+1. forward-kinematics the sampled/blended pose (the *gait*);
+2. stride target per leg;
+3. support from the **gait** ankle heights (lower foot, 1 cm switch margin) —
+   the previous `SpatialState::foot` heuristic is gone, because with
+   motion-driven playback it drifts out of phase;
+4. plant update, with a newly planted foot anchored at its stride-adapted ankle;
+5. lock planted feet, solve, write local rotations into `final_pose`.
+
+Support must be read from the gait, never from the settled pose: a locked foot
+keeps its height by construction, so a settled-pose comparison can never release
+it (that deadlock was observed and is why the stage owns both decisions).
+
+### What is still open
+
+- Foot-plant **events** are still derived from geometry. The bake should emit
+  explicit left/right support intervals (283 sources + 443 procedural clips);
+  the height heuristic is a bridge, not the final contract.
+- `PlayerPoseAdapter::Warp` (P3a yaw/bob) is still not in the production path:
+  the base yaw remains animation-owned, and only the stride/plant corrections are
+  applied.
+- Runtime's `RealizeBakedPose` rate-limits rotations *after* the Player's final
+  pose, so the rendered skeleton can lag the collider by a few ticks. Closing
+  that needs the realization step to consume and re-publish the single Final Pose
+  (M4), not a second solve.
+- Contact/Runtime ordering (M4) is unchanged: touches still run before the pose
+  is settled within the tick.

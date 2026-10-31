@@ -116,6 +116,11 @@ struct PlayerExecutionState {
   // M2: the motion-driven playback cursor. Carried across ticks so the gait
   // phase stays continuous while the same clip keeps playing.
   LocomotionPlaybackRequest locomotion_playback_;
+  // STRIDE-1: smoothed stride scale applied to the gait's fore-aft excursion.
+  // Paired with the playback rate, which divides by the same value.
+  float stride_scale_ = 1.0f;
+  // STRIDE-0: measured motion/animation agreement for the last locomotion tick.
+  LocomotionPoseDiagnostics locomotion_diagnostics_;
   bool locomotion_animation_adaptation_ = true;
 
   // ---------------------------------------------------------------------

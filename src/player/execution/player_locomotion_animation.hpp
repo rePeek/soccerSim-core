@@ -3,6 +3,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <vector>
 
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
@@ -53,14 +55,14 @@ inline LocomotionAnimationInput MakeLocomotionAnimationInput(
 }
 
 // ---------------------------------------------------------------------------
-// M2: motion-driven locomotion playback.
+// M2/STRIDE: motion-driven locomotion playback.
 //
 // Ordinary locomotion is interpolated on the motion the Player actually
 // achieved. The action clock still owns action time; for a Movement clip there
 // is no contact event to protect, so clip time is derived from the achieved
 // speed relative to the clip's reference speed:
 //
-//   rate      = achieved_speed / clip_reference_speed   (bounded)
+//   rate      = achieved_speed / (clip_reference_speed * stride_scale)
 //   clip_time += rate * dt / clip_frame_duration
 //
 // The clip time is continuous and wraps at the end of the clip, so the gait
@@ -72,10 +74,12 @@ struct LocomotionPlaybackRequest {
   AnimationId clip_id = -1;
   // Continuous clip frame to sample this tick.
   float frame_time = 0.0f;
-  // Achieved speed / clip reference speed, clamped to a plausible range.
+  // Achieved speed / effective reference speed, clamped to a plausible range.
   float playback_rate = 1.0f;
   // Position within the clip cycle, 0..1. Continuous across ticks and wraps.
   float gait_phase = 0.0f;
+  // STRIDE-1: the stride scale this rate was computed against.
+  float stride_scale = 1.0f;
   bool looped = false;
 };
 
@@ -86,13 +90,86 @@ inline constexpr float kLocomotionClipFrame_ms = 10.0f;
 inline constexpr float kLocomotionMinPlaybackRate = 0.35f;
 inline constexpr float kLocomotionMaxPlaybackRate = 2.2f;
 
+// STRIDE-1: how much of a speed mismatch is absorbed by stride length instead
+// of cadence. 0 = cadence only (the reference plays in slow motion), 1 = stride
+// only (native cadence with shorter steps). The value in between is a blend.
+//
+// Both extremes keep the support foot locked in the world, because the foot
+// excursion and the playback rate are scaled by the same factor: a stance foot
+// moves `stride_scale * reference_speed * playback_rate` backwards in clip
+// space, and `playback_rate = achieved / (reference * stride_scale)` makes that
+// exactly `achieved`. Changing one without the other is what causes foot slide.
+inline constexpr float kLocomotionStrideCoupling = 0.5f;
+inline constexpr float kLocomotionMinStrideScale = 0.6f;
+inline constexpr float kLocomotionMaxStrideScale = 1.35f;
+// Stride changes are a per-gait-cycle adaptation, not a per-tick reaction: an
+// acceleration spike must not produce a one-tick leg-length change.
+inline constexpr float kLocomotionStrideTimeConstant_s = 0.3f;
+
 // Mean reference speed of a clip from its baked root trajectory. 0 when the
 // clip carries no usable trajectory, which means "no speed reference".
+//
+// `root_positions` holds one sample per clip frame, so N samples span N-1 tick
+// intervals of travel. Dividing by frame_count would overstate every clip's
+// speed by N/(N-1) and bias the playback rate the wrong way.
 inline float LocomotionClipReferenceSpeed(const AnimationClip& clip) {
-  if (clip.root_positions.size() < 2 || clip.frame_count == 0) return 0.0f;
+  const std::size_t samples = clip.root_positions.size();
+  if (samples < 2) return 0.0f;
   const auto d = clip.root_positions.back() - clip.root_positions.front();
   const float dist = std::sqrt(d.coords[0] * d.coords[0] + d.coords[1] * d.coords[1]);
-  return dist / (static_cast<float>(clip.frame_count) / 100.0f);
+  const float span_s = (static_cast<float>(samples - 1) * kLocomotionClipFrame_ms) / 1000.0f;
+  if (span_s <= 0.0f) return 0.0f;
+  return dist / span_s;
+}
+
+// The stride scale the achieved/reference speed mismatch asks for.
+inline float LocomotionStrideScaleTarget(float achieved_speed, float reference_speed) {
+  if (reference_speed <= 1e-3f || achieved_speed <= 0.0f) return 1.0f;
+  const float ratio = achieved_speed / reference_speed;
+  return std::clamp(std::pow(ratio, kLocomotionStrideCoupling),
+                    kLocomotionMinStrideScale, kLocomotionMaxStrideScale);
+}
+
+// Exponential smoothing of the stride scale. Deterministic, one call per tick.
+inline float SmoothLocomotionStrideScale(float current, float target, float dt) {
+  if (kLocomotionStrideTimeConstant_s <= 0.0f) return target;
+  const float alpha = 1.0f - std::exp(-dt / kLocomotionStrideTimeConstant_s);
+  return current + (target - current) * alpha;
+}
+
+// Cumulative root reference position at a fractional frame time, measured from
+// the clip's first sample. Interpolated between baked samples and clamped at
+// the ends, so a caller never re-derives the trajectory itself.
+inline football::math::Vector3 LocomotionRootPositionAt(
+    const std::vector<football::math::Vector3>& roots, float frame_time) {
+  if (roots.empty()) return football::math::Vector3(0);
+  const float last = static_cast<float>(roots.size() - 1);
+  const float t = std::clamp(frame_time, 0.0f, last);
+  const auto lower = static_cast<std::size_t>(std::floor(t));
+  const float fraction = t - static_cast<float>(lower);
+  football::math::Vector3 position = roots[lower] - roots.front();
+  if (fraction > 0.0f && lower + 1 < roots.size()) {
+    position += (roots[lower + 1] - roots[lower]) * fraction;
+  }
+  return position;
+}
+
+// Reference displacement between two clip times of the *same* cycle. A wrap
+// (end < start) is measured across the loop boundary, so the reported reference
+// distance of a tick never collapses when the cycle restarts.
+inline football::math::Vector3 LocomotionReferenceDelta(
+    const std::vector<football::math::Vector3>& roots, float start_time,
+    float end_time) {
+  if (roots.size() < 2) return football::math::Vector3(0);
+  const float period = static_cast<float>(roots.size() - 1);
+  if (end_time >= start_time) {
+    return LocomotionRootPositionAt(roots, end_time) -
+           LocomotionRootPositionAt(roots, start_time);
+  }
+  return (LocomotionRootPositionAt(roots, period) -
+          LocomotionRootPositionAt(roots, start_time)) +
+         (LocomotionRootPositionAt(roots, end_time) -
+          LocomotionRootPositionAt(roots, 0.0f));
 }
 
 // One tick of motion-driven playback. Pure: the same inputs always produce the
@@ -100,14 +177,18 @@ inline float LocomotionClipReferenceSpeed(const AnimationClip& clip) {
 //
 // `entry_frame_time` seeds the clip when it changes (the match entry frame);
 // while the clip is unchanged the previous continuous time is carried over.
+// `stride_scale` shortens (or lengthens) the gait's fore-aft excursion; the
+// playback rate divides by it so the support foot stays locked.
 inline LocomotionPlaybackRequest AdvanceLocomotionPlayback(
     const LocomotionPlaybackRequest& previous, AnimationId clip_id,
-    const AnimationClip& clip, float achieved_speed,
-    float entry_frame_time, float dt) {
+    const AnimationClip& clip, float achieved_speed, float entry_frame_time,
+    float dt, float stride_scale = 1.0f) {
   LocomotionPlaybackRequest next;
   next.clip_id = clip_id;
+  next.stride_scale = stride_scale;
 
-  const float reference_speed = LocomotionClipReferenceSpeed(clip);
+  const float reference_speed =
+      LocomotionClipReferenceSpeed(clip) * stride_scale;
   if (reference_speed > 1e-3f && achieved_speed > 0.0f) {
     next.playback_rate = std::clamp(achieved_speed / reference_speed,
                                     kLocomotionMinPlaybackRate,
@@ -132,5 +213,25 @@ inline LocomotionPlaybackRequest AdvanceLocomotionPlayback(
   next.gait_phase = time / period;
   return next;
 }
+
+// STRIDE-0: measured locomotion/animation agreement for one tick. Diagnostic
+// only - nothing in production branches on these values. `reference_distance`
+// is measured over the frames that were actually sampled this tick (wrap
+// aware), never over the clip's nominal per-tick travel.
+struct LocomotionPoseDiagnostics {
+  float achieved_distance = 0.0f;
+  float reference_distance = 0.0f;
+  float playback_rate = 1.0f;
+  float stride_scale = 1.0f;
+  // STRIDE-0 baseline: how far the raw animation ankle sits from the support
+  // anchor, i.e. the slide the clip itself would produce. This is the number
+  // stride/cadence pairing is supposed to drive down.
+  float left_animation_slip = 0.0f;
+  float right_animation_slip = 0.0f;
+  // What actually ships: the residual of the settled final pose against the
+  // anchor. Non-zero only when the plant target was outside the leg's reach.
+  float left_foot_slip = 0.0f;
+  float right_foot_slip = 0.0f;
+};
 
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_LOCOMOTION_ANIMATION_HPP

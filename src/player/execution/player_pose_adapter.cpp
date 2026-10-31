@@ -16,6 +16,13 @@ float NormalizeAngle(float angle) {
   return angle;
 }
 
+// Fore-aft axis of the body frame, in world XY. No lateral helper is needed:
+// everything that is not fore-aft is passed through untouched, so a stride
+// change can never widen the stance.
+Vector3 FacingAxis(const Vector3& facing) {
+  return facing.Get2D().GetNormalized(Vector3(0, -1, 0));
+}
+
 }  // namespace
 
 PlayerPoseWarpResult PlayerPoseAdapter::Warp(const PlayerPoseWarpInput& input) {
@@ -52,5 +59,44 @@ PlayerPoseWarpResult PlayerPoseAdapter::Warp(const PlayerPoseWarpInput& input) {
   // cadence proportional to the distance the root actually achieved.
   result.pose.positions[BodyPart::player].coords[2] *= bob_ratio;
   result.pose_warped = true;
+  return result;
+}
+
+PlayerStrideAdaptResult PlayerPoseAdapter::AdaptStride(
+    const PlayerStrideAdaptInput& input) {
+  PlayerStrideAdaptResult result;
+  const Vector3 forward_axis = FacingAxis(input.facing);
+  const float scale =
+      std::isfinite(input.stride_scale) && input.stride_scale > 0.0f
+          ? input.stride_scale
+          : 1.0f;
+  static_cast<void>(input.gait_phase);  // carried for diagnostics only
+
+  const auto adapt_leg = [&](const PlayerStrideAdaptLeg& leg, bool& has_target,
+                             Vector3& target, bool& adapted) {
+    if (!leg.valid) return;
+    if (!std::isfinite(leg.hip.coords[0]) ||
+        !std::isfinite(leg.ankle.coords[0])) {
+      return;
+    }
+    // Only the hip-relative fore-aft excursion changes. Bone lengths are not
+    // touched: the two-bone solve downstream reconstructs the knee.
+    const Vector3 offset = leg.ankle - leg.hip;
+    const float fore_aft = offset.GetDotProduct(forward_axis);
+    const float adapted_fore_aft = fore_aft * scale;
+    const Vector3 residual =
+        offset - forward_axis * fore_aft;  // lateral + vertical, untouched
+    has_target = true;
+    target = leg.hip + forward_axis * adapted_fore_aft + residual;
+    adapted = true;
+    result.max_fore_aft_correction =
+        std::max(result.max_fore_aft_correction,
+                 std::fabs(adapted_fore_aft - fore_aft));
+  };
+
+  adapt_leg(input.left, result.targets.has_left, result.targets.left,
+            result.left_adapted);
+  adapt_leg(input.right, result.targets.has_right, result.targets.right,
+            result.right_adapted);
   return result;
 }

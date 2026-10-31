@@ -111,6 +111,8 @@ void PlayerExecution::ResetPosition(PlayerExecutionPort& owner, const Vector3& n
   state_.pending_action_request_.reset();
   state_.playback_state_.Reset();
   state_.locomotion_playback_ = LocomotionPlaybackRequest{};
+  state_.stride_scale_ = 1.0f;
+  state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
   state_.pending_reaction_.reset();
   state_.pending_passive_trip_.reset();
   port().CommitLegacyActionMotion();
@@ -133,6 +135,8 @@ void PlayerExecution::ResetRuntimeState(const Vector3& focus_position,
   state_.playback_state_.Reset();
   // M2: a reset is a continuity break for the gait phase as well.
   state_.locomotion_playback_ = LocomotionPlaybackRequest{};
+  state_.stride_scale_ = 1.0f;
+  state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
   state_.pending_reaction_.reset();
   state_.pending_passive_trip_.reset();
   if (port().IsActive()) {

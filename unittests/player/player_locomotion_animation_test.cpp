@@ -83,7 +83,7 @@ AnimationClip LocomotionClip(uint32_t id, uint32_t frames = 11) {
   clip.poses.resize(frames);
   clip.root_positions.resize(frames);
   for (uint32_t f = 0; f < frames; ++f) {
-    clip.root_positions[f] = Vector3(0.0f, -0.0198f * static_cast<float>(f), 0.0f);
+    clip.root_positions[f] = Vector3(0.0f, -0.018f * static_cast<float>(f), 0.0f);
   }
   return clip;
 }
@@ -169,4 +169,84 @@ TEST_CASE("the playback request carries no world position") {
   REQUIRE(request.playback_rate == again.playback_rate);
   REQUIRE(request.gait_phase == again.gait_phase);
   REQUIRE(request.clip_id == again.clip_id);
+}
+
+// ---------------------------------------------------------------------------
+// STRIDE-0/1: cadence, stride coupling and wrap-aware reference distances.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("the stride scale absorbs the speed mismatch by a documented share") {
+  // 4 m/s against a 6 m/s reference: a third of the speed is missing.
+  const float ratio = 4.0f / 6.0f;
+  const float scale = LocomotionStrideScaleTarget(4.0f, 6.0f);
+  CHECK(scale == Catch::Approx(std::pow(ratio, kLocomotionStrideCoupling))
+                     .margin(1e-5f));
+  // Both ends of the design are reachable: pure cadence keeps the stride,
+  // pure stride keeps the cadence.
+  CHECK(scale < 1.0f);
+  CHECK(scale > ratio);  // the stride never takes the whole mismatch alone
+  // Native speed or no reference leaves the clip alone.
+  CHECK(LocomotionStrideScaleTarget(6.0f, 6.0f) == Catch::Approx(1.0f));
+  CHECK(LocomotionStrideScaleTarget(6.0f, 0.0f) == Catch::Approx(1.0f));
+  // Bounded: an extreme mismatch cannot fold the leg.
+  CHECK(LocomotionStrideScaleTarget(0.5f, 12.0f) ==
+        Catch::Approx(kLocomotionMinStrideScale));
+  CHECK(LocomotionStrideScaleTarget(20.0f, 2.0f) ==
+        Catch::Approx(kLocomotionMaxStrideScale));
+}
+
+TEST_CASE("the stride scale is smoothed, never a per-tick reaction") {
+  float scale = 1.0f;
+  const float target = LocomotionStrideScaleTarget(4.0f, 6.0f);
+  const float first = SmoothLocomotionStrideScale(scale, target, 0.01f);
+  CHECK(first < 1.0f);
+  CHECK(first > target);  // it moves toward the target, not onto it
+  // Repeated ticks converge monotonically.
+  float previous = first;
+  for (int tick = 0; tick < 200; ++tick) {
+    scale = SmoothLocomotionStrideScale(previous, target, 0.01f);
+    CHECK(scale <= previous + 1e-7f);
+    CHECK(scale >= target - 1e-7f);
+    previous = scale;
+  }
+  CHECK(previous == Catch::Approx(target).margin(1e-3f));
+}
+
+TEST_CASE("a shortened stride raises the cadence by the same factor") {
+  // The foot-lock invariant: stride * reference_speed * playback_rate must equal
+  // the achieved speed, whatever the stride scale is.
+  const AnimationClip clip = LocomotionClip(1);
+  const float reference = LocomotionClipReferenceSpeed(clip);
+  const float achieved = 0.8f * reference;
+  for (float scale : {kLocomotionMinStrideScale, 0.8f, 1.0f}) {
+    LocomotionPlaybackRequest request;
+    request = AdvanceLocomotionPlayback(request, 1, clip, achieved, 0.0f, 0.01f,
+                                       scale);
+    REQUIRE(request.playback_rate > kLocomotionMinPlaybackRate);
+    REQUIRE(request.playback_rate < kLocomotionMaxPlaybackRate);
+    CHECK(scale * reference * request.playback_rate ==
+          Catch::Approx(achieved).margin(1e-4f));
+    CHECK(request.stride_scale == Catch::Approx(scale));
+  }
+}
+
+TEST_CASE("the reference distance of a tick is measured over the sampled span") {
+  // 11 samples, 0.02 m per frame: the root track advances 0.02 m per frame time.
+  std::vector<Vector3> roots;
+  for (int frame = 0; frame < 11; ++frame) {
+    roots.push_back(Vector3(0, -0.02f * static_cast<float>(frame), 0));
+  }
+  CHECK(LocomotionRootPositionAt(roots, 0.0f).coords[1] ==
+        Catch::Approx(0.0f));
+  CHECK(LocomotionRootPositionAt(roots, 2.5f).coords[1] ==
+        Catch::Approx(-0.05f).margin(1e-6f));
+  CHECK(LocomotionRootPositionAt(roots, 99.0f).coords[1] ==
+        Catch::Approx(-0.20f).margin(1e-6f));
+
+  // A normal tick.
+  CHECK(LocomotionReferenceDelta(roots, 1.0f, 2.0f).coords[1] ==
+        Catch::Approx(-0.02f).margin(1e-6f));
+  // A tick that wraps: the reference must not collapse on the loop boundary.
+  const Vector3 wrapped = LocomotionReferenceDelta(roots, 10.0f, 0.5f);
+  CHECK(wrapped.coords[1] == Catch::Approx(-0.01f).margin(1e-6f));
 }

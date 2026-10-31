@@ -194,6 +194,21 @@ observation, controls and stored physics are all the Stadium Frame.
   may change the gait, never the world trajectory. One-shot actions keep the
   action clock as their clip-time authority; only locomotion owns clip time,
   and `PlaybackState::frame` is a derived integer, not that authority.
+- Cadence and stride length are one pair, never independent knobs. A movement
+  pose is settled by `PlayerExecution::SettleMovementPose`: stride target ->
+  support from the *gait* ankle heights -> plant lock -> local-rotation
+  write-back. `stride_scale` shortens the hip-relative fore-aft excursion and
+  the playback rate divides by the same scale, so a stance foot still moves at
+  the achieved speed in clip space. Applying one without the other is foot
+  slide, and support may never be read from a settled pose (a locked foot
+  keeps its height, so it could never be released).
+- A clip's native speed is measured over the intervals its samples actually
+  span (`N` root samples = `N-1` ticks). `frame_count` is not that span, and
+  using it biases every playback rate by `N/(N-1)`.
+- A Final Pose is the skeleton the colliders read: foot IK writes local joint
+  rotations (`ApplyWorldFootTargetsToPose`), not only world joint points, and
+  the FK bind table (`kBakedBindJoints`) is shared by forward kinematics and
+  that write-back. Never re-solve a second pose for geometry.
 
 ## Player and Contact libraries
 

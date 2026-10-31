@@ -372,6 +372,10 @@ const std::optional<LocomotionAnimationInput>& Player::LocomotionAnimationInputS
   return execution_->LocomotionAnimationInputSnapshot();
 }
 
+const LocomotionPoseDiagnostics& Player::LocomotionDiagnostics() const {
+  return execution_->LocomotionDiagnostics();
+}
+
 bool Player::LocomotionAnimationAdaptation() const {
   return execution_->LocomotionAnimationAdaptation();
 }

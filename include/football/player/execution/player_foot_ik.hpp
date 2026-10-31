@@ -46,6 +46,46 @@ struct PlayerFootIkTargets {
   football::math::Vector3 right = football::math::Vector3(0);
 };
 
+// STRIDE-0: the slide the final pose has to remove, measured on the ankle the
+// animation itself produced. A planted foot whose ankle has drifted from its
+// anchor is exactly the sliding step this pipeline must not ship. Only the
+// horizontal distance counts: lifting a foot is not sliding.
+struct PlayerFootPlantSlip {
+  float left = 0.0f;
+  float right = 0.0f;
+};
+
+inline PlayerFootPlantSlip MeasureFootPlantSlip(
+    const PlayerFootPlantState& plant,
+    const football::math::Vector3& left_ankle,
+    const football::math::Vector3& right_ankle) {
+  PlayerFootPlantSlip slip;
+  if (plant.left_planted) {
+    slip.left = (left_ankle - plant.left_anchor).Get2D().GetLength();
+  }
+  if (plant.right_planted) {
+    slip.right = (right_ankle - plant.right_anchor).Get2D().GetLength();
+  }
+  return slip;
+}
+
+// The support authority: a planted foot is released from whatever the gait
+// wanted and targets the anchor it was planted on. This is the only place
+// support overrides the stride, so shortening a stride can never stretch or
+// drag a stance phase, and no two systems write the same foot.
+inline PlayerFootIkTargets ApplyFootPlantLocks(
+    const PlayerFootPlantState& plant, PlayerFootIkTargets targets) {
+  if (plant.left_planted) {
+    targets.has_left = true;
+    targets.left = plant.left_anchor;
+  }
+  if (plant.right_planted) {
+    targets.has_right = true;
+    targets.right = plant.right_anchor;
+  }
+  return targets;
+}
+
 struct PlayerTwoBoneResult {
   football::math::Vector3 knee = football::math::Vector3(0);
   football::math::Vector3 ankle = football::math::Vector3(0);

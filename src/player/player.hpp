@@ -53,6 +53,7 @@ class PlayerTouchSink;
 }  // namespace football::sim::player
 class AnimationLibrary;
 struct LocomotionAnimationInput;
+struct LocomotionPoseDiagnostics;
 struct PlayerActionFeedback;
 struct PlayerCommandInputs;
 
@@ -105,6 +106,9 @@ class Player final : private PlayerExecutionPort {
   // LOCO-2.3b: value snapshot of the committed locomotion tick, captured by
   // CommitLocomotion so the animation adapter never re-runs the motion model.
   const std::optional<LocomotionAnimationInput>& LocomotionAnimationInputSnapshot() const;
+  // STRIDE-0: motion/animation agreement of the last locomotion tick (rate,
+  // reference distance, stride scale, per-foot slip). Diagnostic only.
+  const LocomotionPoseDiagnostics& LocomotionDiagnostics() const;
   bool LocomotionAnimationAdaptation() const;
   void SetLocomotionAnimationAdaptation(bool enabled);
   // ANIM-1 A5: pose-blend gate, owned by the execution's playback state.

@@ -25,7 +25,15 @@ AnimationClip MakeClip(uint32_t id, float incoming, float outgoing, float turn_d
   clip.id = id;
   clip.name = "synth" + std::to_string(id);
   clip.frame_count = frames;
-  clip.root_positions = {Vector3(0, 0, 0), Vector3(0, -displacement, 0)};
+  // One root sample per clip frame, like the bake: N samples span N-1 tick
+  // intervals of travel, which is what the reference-speed definition reads.
+  clip.root_positions.clear();
+  clip.root_positions.reserve(frames);
+  for (uint32_t frame = 0; frame < frames; ++frame) {
+    const float progress =
+        static_cast<float>(frame) / static_cast<float>(frames - 1);
+    clip.root_positions.push_back(Vector3(0, -displacement * progress, 0));
+  }
   clip.metadata.action_type = e_DefString_Movement;
   clip.metadata.incoming_velocity = incoming;
   clip.metadata.outgoing_velocity = outgoing;

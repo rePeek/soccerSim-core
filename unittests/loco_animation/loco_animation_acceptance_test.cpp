@@ -10,6 +10,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <limits>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -169,4 +170,121 @@ TEST_CASE("body profile changes geometry but never the animation choice") {
   REQUIRE(pose_broad.joints[body].coords[2] > pose_slim.joints[body].coords[2]);
   REQUIRE(pose_broad.joints[neck].coords[2] > pose_slim.joints[neck].coords[2]);
   REQUIRE(pose_broad.joints[left_knee].coords[2] > pose_slim.joints[left_knee].coords[2]);
+}
+// ---------------------------------------------------------------------------
+// STRIDE-0: baseline calibration of the real Movement catalog.
+//
+// The playback rate is derived from `LocomotionClipReferenceSpeed`, so that
+// number has to agree with the clip's own baked velocity metadata. If it did
+// not, every locomotion clip would be played systematically too fast or too
+// slow and no amount of stride adaptation could hide it.
+// ---------------------------------------------------------------------------
+TEST_CASE("reference speed matches the clip's own root track") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
+
+  int checked = 0;
+  int constant_speed = 0;
+  float worst_constant_error = 0.0f;
+  int worst_constant_clip = -1;
+  int worst_clip = -1;
+  float worst_excess = 0.0f;
+  for (const auto& clip : library.Clips()) {
+    if (clip.metadata.action_type != e_DefString_Movement) continue;
+    const auto& roots = clip.root_positions;
+    if (roots.size() < 4 || clip.frame_count < 4) continue;
+
+    // Mean speed over the whole clip, from the same samples the bake used.
+    const float measured = LocomotionClipReferenceSpeed(clip);
+    // Endpoint estimates from the clip's own first and last three intervals.
+    const float entering = (roots[3] - roots[0]).Get2D().GetLength() / 0.03f;
+    const float leaving = (roots[roots.size() - 1] - roots[roots.size() - 4])
+                              .Get2D()
+                              .GetLength() /
+                          0.03f;
+    const float low = std::min(entering, leaving);
+    const float high = std::max(entering, leaving);
+    if (high < 1.0f) continue;  // idle clips carry no usable reference speed
+
+    // A clip whose root track is uniform must have a matching mean. This is the
+    // case an N-versus-N-1 span bug breaks, by N/(N-1) = 4% at 25 frames, on
+    // every single clip.
+    float slowest = std::numeric_limits<float>::infinity();
+    float fastest = 0.0f;
+    for (std::size_t frame = 1; frame < roots.size(); ++frame) {
+      const float speed =
+          (roots[frame] - roots[frame - 1]).Get2D().GetLength() / 0.01f;
+      slowest = std::min(slowest, speed);
+      fastest = std::max(fastest, speed);
+    }
+    const bool uniform_track =
+        fastest > 1e-3f && (fastest - slowest) / fastest < 0.02f;
+    if (uniform_track) {
+      const float error = std::fabs(measured - high) / high;
+      if (std::getenv("FOOTBALL_LOCO_ACCEPTANCE_DIAG") != nullptr) {
+        std::fprintf(stderr, "const clip=%d ref=%.3f track=%.3f err=%.4f\n",
+                     static_cast<int>(clip.id), measured, high, error);
+      }
+      if (error > worst_constant_error) {
+        worst_constant_error = error;
+        worst_constant_clip = static_cast<int>(clip.id);
+      }
+      ++constant_speed;
+    }
+
+    // Every other clip may legitimately change speed inside itself, so only a
+    // loose bound applies: the mean must not sit far outside its own ends.
+    const float excess = std::max(measured - high, low - measured) / high;
+    if (std::getenv("FOOTBALL_LOCO_ACCEPTANCE_DIAG") != nullptr) {
+      std::fprintf(stderr, "clip=%d ref=%.3f enter=%.3f leave=%.3f excess=%.3f\n",
+                   static_cast<int>(clip.id), measured, entering, leaving, excess);
+    }
+    if (excess > worst_excess) {
+      worst_excess = excess;
+      worst_clip = static_cast<int>(clip.id);
+    }
+    ++checked;
+  }
+
+  REQUIRE(checked > 100);
+  REQUIRE(constant_speed > 20);
+  INFO("constant-speed clip " << worst_constant_clip << " error "
+                              << worst_constant_error);
+  CHECK(worst_constant_error < 0.02f);
+  // Clip 1180 is a single-step clip whose root track is stationary at both ends;
+  // its mean is therefore well above its endpoints. Everything else stays close.
+  INFO("worst clip " << worst_clip << " excess " << worst_excess);
+  CHECK(worst_excess < 1.0f);
+}
+
+TEST_CASE("motion-driven playback shortens the cadence instead of the step") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
+  const auto body = Profile(1.80f, 75.0f);
+  auto s = State(5.0f, Vector3(0, -1, 0));
+  const auto c = SelectLocomotionAnimation(
+      Input(s, s, Vector3(0, -5.0f, 0), body), library.Clips());
+  REQUIRE(c.animation_id >= 0);
+  const auto& clip = library.Get(static_cast<uint32_t>(c.animation_id));
+  const float reference = LocomotionClipReferenceSpeed(clip);
+  REQUIRE(reference > 1.0f);
+
+  // Slower than the clip: the stride is shortened and the cadence is derived
+  // from the same scale, so the support foot still tracks the root.
+  const float achieved = 0.6f * reference;
+  const float stride = LocomotionStrideScaleTarget(achieved, reference);
+  LocomotionPlaybackRequest request;
+  for (int tick = 0; tick < 5; ++tick) {
+    request = AdvanceLocomotionPlayback(request, clip.id, clip, achieved, 0.0f,
+                                        0.01f, stride);
+  }
+  CHECK(request.playback_rate > 0.0f);
+  CHECK(request.playback_rate <= kLocomotionMaxPlaybackRate);
+  CHECK(request.frame_time >= 0.0f);
+  CHECK(request.frame_time < static_cast<float>(clip.frame_count) - 1.0f);
+  const float world_foot_travel =
+      stride * reference * request.playback_rate;
+  CHECK(world_foot_travel == Catch::Approx(achieved).margin(1e-3f));
+  // Stride adaptation is not a no-op here: it really shortens the step.
+  CHECK(stride < 1.0f);
 }
