@@ -225,6 +225,14 @@ void PlayerExecution::UpdatePlayback(AnimationId clip_id, int frame, float base_
                          state_.playback_blend_enabled_ ? blend_ticks : 0);
 }
 
+void PlayerExecution::UpdateLocomotionPlayback(AnimationId clip_id, float frame_time,
+                                     float base_angle, int blend_ticks) {
+  const AnimationClip& clip = animations_.Get(static_cast<std::uint32_t>(clip_id));
+  state_.playback_state_.PlayAtTime(clip, frame_time, base_angle,
+                                  state_.playback_blend_enabled_ ? blend_ticks : 0);
+}
+
+
 void PlayerExecution::UpdateFootPlant(const AnimationClip& clip,
                                       float base_angle) {
   // P3b: only ordinary movement carries a support foot. Slide/trip/fall/header
@@ -254,21 +262,40 @@ void PlayerExecution::UpdateFootPlant(const AnimationClip& clip,
 }
 
 void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
-                                                 float base_angle, int blend_ticks) {
+                                                 float base_angle, int blend_ticks,
+                                                 bool motion_driven) {
   const AnimationId authority_clip = state_.installed_action_.clip_id;
   const int authority_frame = state_.actionState.Frame();
   // ANIM-2 A10.1: at most one real playback update per tick. A repeated call
   // in the same tick is a pure read and must not advance the transition twice.
   if (state_.last_playback_tick_ && *state_.last_playback_tick_ == now) return;
   state_.last_playback_tick_ = now;
-  UpdatePlayback(authority_clip, authority_frame, base_angle, blend_ticks);
+  if (motion_driven) {
+    // M2: ordinary locomotion is interpolated on the motion the Player actually
+    // achieved. The clip is still authority-owned; only its time, rate and gait
+    // phase come from the motion, so the anim root can change the gait but never
+    // the world trajectory.
+    const AnimationClip& clip = GetBakedClip(authority_clip);
+    const LocomotionAnimationInput& locomotion = *state_.locomotion_animation_input_;
+    state_.locomotion_playback_ = AdvanceLocomotionPlayback(
+        state_.locomotion_playback_, authority_clip, clip,
+        locomotion.next.velocity.GetLength(),
+        static_cast<float>(state_.last_begun_start_frame_), 0.01f);
+    UpdateLocomotionPlayback(authority_clip, state_.locomotion_playback_.frame_time,
+                             base_angle, blend_ticks);
+  } else {
+    state_.locomotion_playback_ = LocomotionPlaybackRequest{};
+    UpdatePlayback(authority_clip, authority_frame, base_angle, blend_ticks);
+  }
   UpdateFootPlant(GetBakedClip(authority_clip), base_angle);
   // ANIM-1 A6.3d: the compat projection no longer decides the clip or the
-  // action time. Verify the three executor-owned artefacts agree - the
-  // installed selection, the action cursor and the pose that was sampled.
+  // action time. Verify the executor-owned artefacts agree - the installed
+  // selection and the pose that was sampled. A motion-driven tick owns clip
+  // time, so only the clip identity is checked there; the action cursor must
+  // still agree for every action tick.
   ++audit_.authority_checks_;
   const bool same = state_.playback_state_.clip_id == authority_clip &&
-                    state_.playback_state_.frame == authority_frame;
+                    (motion_driven || state_.playback_state_.frame == authority_frame);
   if (same) {
     ++audit_.authority_matches_;
   } else {

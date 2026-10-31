@@ -31,12 +31,11 @@ namespace locomotion_strategy_detail {
 
 inline float Deg(float rad) { return rad * 180.0f / football::math::pi; }
 
-// Mean reference speed of a clip from its baked root trajectory.
+// Mean reference speed of a clip from its baked root trajectory (shared with
+// the motion-driven playback driver, so selection and sampling cannot
+// disagree about what the clip's native speed is).
 inline float ClipReferenceSpeed(const AnimationClip& clip) {
-  if (clip.root_positions.size() < 2 || clip.frame_count == 0) return 0.0f;
-  const auto d = clip.root_positions.back() - clip.root_positions.front();
-  const float dist = std::sqrt(d.coords[0] * d.coords[0] + d.coords[1] * d.coords[1]);
-  return dist / (static_cast<float>(clip.frame_count) / 100.0f);
+  return LocomotionClipReferenceSpeed(clip);
 }
 
 // Heading change implied by the clip metadata, mirroring the selector's use of

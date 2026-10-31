@@ -78,6 +78,11 @@ class PlayerExecutionPort {
                                                bool restart_needs_simulation,
                                                float dt) = 0;
   virtual void CommitLegacyActionMotion() = 0;
+  // M1: the execution computed the full authoritative state (constrained
+  // position, achieved velocity, body facing). Commit it as-is; the Player no
+  // longer rebuilds a default PlayerKinematicState from the compatibility
+  // projection, which silently dropped fields the motion solver now owns.
+  virtual void CommitActionMotionState(const PlayerKinematicState& next) = 0;
   // Fatal in all builds: the committed kinematics and the compatibility
   // projection must agree at every sync point. Evaluated by the Player, because
   // only it owns both sides.

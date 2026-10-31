@@ -17,6 +17,12 @@
 // advances the action clock itself. `Pose()`/`BaseAngle()` are pure reads that
 // change nothing.
 //
+// M2: `PlayAtTime()` is the same entry for motion-driven playback. Ordinary
+// locomotion must sample at the rate the Player actually moves, so the caller
+// supplies a continuous clip time instead of an integer action frame. The
+// action clock stays the only action-time authority; clip time is derived from
+// it (actions) or from the achieved motion (locomotion).
+//
 // `Tick()`/`AdvanceCursor()` are the self-advancing test helpers. They share the
 // sampling core but are not part of the production interface, so they cannot
 // become a second time authority.
@@ -27,7 +33,12 @@ namespace football::animation {
 
 struct PlaybackState {
   AnimationId clip_id = -1;
+  // Integer frame derived from `frame_time`; kept for audit and reporting.
   int frame = 0;
+  // M2: continuous clip time in frames. Motion-driven playback advances this by
+  // the achieved/reference speed ratio, so a stride is sampled at the rate the
+  // Player actually moves instead of one baked frame per tick.
+  float frame_time = 0.0f;
   bool have_pose = false;
   PoseFrame final_pose;
   float final_base_angle = 0.0f;
@@ -39,6 +50,11 @@ struct PlaybackState {
   // from the last final pose over `blend_ticks`.
   const PoseFrame& Play(const AnimationClip& clip, int at_frame, float base_angle,
                         int blend_ticks);
+
+  // M2: same contract, but sampled at a continuous clip time. The pose is
+  // SLERPed between baked frames; `frame` is the rounded time for audit.
+  const PoseFrame& PlayAtTime(const AnimationClip& clip, float at_frame_time,
+                              float base_angle, int blend_ticks);
 
   // The single FinalPose the rest of the tick must read. Pure read.
   const PoseFrame& Pose() const { return final_pose; }
@@ -53,8 +69,8 @@ struct PlaybackState {
 
  private:
   // The sampling core shared by the production and test entries.
-  const PoseFrame& Apply(const AnimationClip& clip, int at_frame, float base_angle,
-                         int blend_ticks);
+  const PoseFrame& Apply(const AnimationClip& clip, float at_frame_time,
+                         float base_angle, int blend_ticks);
 };
 
 }  // namespace football::animation

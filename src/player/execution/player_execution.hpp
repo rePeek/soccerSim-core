@@ -162,6 +162,11 @@ class PlayerExecution final {
   const std::optional<LocomotionAnimationInput>& LocomotionAnimationInputSnapshot() const {
     return state_.locomotion_animation_input_;
   }
+  // M2: the motion-driven playback cursor (clip time, rate, gait phase) the
+  // last locomotion tick sampled. Read-only.
+  const LocomotionPlaybackRequest& LocomotionPlayback() const {
+    return state_.locomotion_playback_;
+  }
   bool LocomotionAnimationAdaptation() const {
     return state_.locomotion_animation_adaptation_;
   }
@@ -243,7 +248,12 @@ class PlayerExecution final {
 
   // --- action timeline and playback -------------------------------------
   void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);
-  void UpdatePlaybackFromAuthority(football::sim::Tick now, float base_angle, int blend_ticks);
+  // M2: locomotion samples at a continuous clip time, because the achieved
+  // motion (not the action frame) decides the cadence.
+  void UpdateLocomotionPlayback(AnimationId clip_id, float frame_time, float base_angle,
+                                int blend_ticks);
+  void UpdatePlaybackFromAuthority(football::sim::Tick now, float base_angle, int blend_ticks,
+                                   bool motion_driven);
   void UpdateFootPlant(const AnimationClip& clip, float base_angle);
   void BeginSimulationAction();
   void InstallSelectedAction(const football::sim::SelectedAction& selection);
@@ -338,8 +348,6 @@ class PlayerExecution final {
   void CalculateSpatialState(const Player* ball_retainer);
   void ProjectSimulationMovementState(const PlayerKinematicState& state,
                                       const Player* ball_retainer);
-  void ApplySimulationMovementState(const PlayerKinematicState& state,
-                                    const Player* ball_retainer);
   void ApplySimulationBodyState(const PlayerKinematicState& state);
   void ProjectMovementState(const PlayerKinematicState& tick_start_state,
                             const Player* ball_retainer, bool restart_needs_simulation);

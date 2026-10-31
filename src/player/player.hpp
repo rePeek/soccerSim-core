@@ -343,6 +343,10 @@ class Player final : private PlayerExecutionPort {
   // pointer-keyed identity live here.
   void CommitKinematics(const PlayerKinematicState& next);
   void CommitLegacyActionMotion() override;
+  // M1: commit the state the action-motion solver already constrained. The
+  // compatibility projection must have been written by the caller, so this is
+  // the only write that does not re-derive motion from a projection.
+  void CommitActionMotionState(const PlayerKinematicState& next) override;
   void CheckKinematicOracle() const override { CheckSimulationKinematicOracle(); }
   void ApplyPositionCorrection(const Vector3 &offset) override;
   Player& Actor() override { return *this; }

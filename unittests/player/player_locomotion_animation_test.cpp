@@ -67,3 +67,106 @@ TEST_CASE("adapter output defaults are inert and never carry a position") {
   // construction it cannot write the player world position.
   static_assert(sizeof(output) >= sizeof(AnimationId) + sizeof(float) + sizeof(float) + sizeof(int) + sizeof(bool));
 }
+
+// ---------------------------------------------------------------------------
+// M2: motion-driven playback. The achieved motion decides clip time, rate and
+// gait phase; the clip's root XY never leaves the animation layer.
+// ---------------------------------------------------------------------------
+namespace {
+
+// 11 frames, one frame of clip time per tick at rate 1, and a baked root that
+// walks 0.18 m over 10 frames => 1.8 m/s of reference speed.
+AnimationClip LocomotionClip(uint32_t id, uint32_t frames = 11) {
+  AnimationClip clip;
+  clip.id = id;
+  clip.frame_count = frames;
+  clip.poses.resize(frames);
+  clip.root_positions.resize(frames);
+  for (uint32_t f = 0; f < frames; ++f) {
+    clip.root_positions[f] = Vector3(0.0f, -0.0198f * static_cast<float>(f), 0.0f);
+  }
+  return clip;
+}
+
+}  // namespace
+
+TEST_CASE("clip reference speed is derived from the baked root trajectory") {
+  const AnimationClip clip = LocomotionClip(1);
+  REQUIRE(LocomotionClipReferenceSpeed(clip) ==
+          Catch::Approx(1.8f).margin(1e-3f));
+  // No trajectory => no reference speed (the caller keeps the native cadence).
+  AnimationClip empty;
+  empty.frame_count = 5;
+  REQUIRE(LocomotionClipReferenceSpeed(empty) == Catch::Approx(0.0f));
+}
+
+TEST_CASE("playback advances by the achieved/reference speed ratio") {
+  const AnimationClip clip = LocomotionClip(1);
+  LocomotionPlaybackRequest request;
+
+  // Achieved 3.6 m/s at 1.8 m/s native => rate 2.0 => two clip frames per tick.
+  request = AdvanceLocomotionPlayback(request, 1, clip, 3.6f, 0.0f, 0.01f);
+  REQUIRE(request.clip_id == 1);
+  REQUIRE(request.playback_rate == Catch::Approx(2.0f).margin(1e-4f));
+  REQUIRE(request.frame_time == Catch::Approx(2.0f).margin(1e-4f));
+
+  // Halved speed halves the cadence: continuity across ticks, not a re-sample.
+  request = AdvanceLocomotionPlayback(request, 1, clip, 0.9f, 0.0f, 0.01f);
+  REQUIRE(request.playback_rate == Catch::Approx(0.5f).margin(1e-4f));
+  REQUIRE(request.frame_time == Catch::Approx(2.5f).margin(1e-4f));
+}
+
+TEST_CASE("gait phase is continuous and wraps inside the clip cycle") {
+  const AnimationClip clip = LocomotionClip(1);
+  LocomotionPlaybackRequest request;
+  float previous_time = -1.0f;
+  int wraps = 0;
+  for (int tick = 0; tick < 40; ++tick) {
+    const LocomotionPlaybackRequest previous = request;
+    request = AdvanceLocomotionPlayback(previous, 1, clip, 3.6f, 0.0f, 0.01f);
+    // Inside a cycle the time only ever advances; a wrap is a true loop, not a
+    // jump to an unrelated phase.
+    REQUIRE(request.frame_time >= 0.0f);
+    REQUIRE(request.frame_time < 10.0f);
+    if (request.looped) {
+      ++wraps;
+      REQUIRE(request.frame_time < previous.frame_time);
+    } else {
+      REQUIRE(request.frame_time > previous.frame_time);
+    }
+    REQUIRE(request.gait_phase ==
+            Catch::Approx(request.frame_time / 10.0f).margin(1e-5f));
+    previous_time = request.frame_time;
+  }
+  REQUIRE(previous_time >= 0.0f);
+  REQUIRE(wraps > 0);
+}
+
+TEST_CASE("a clip change reseeds playback from the matched entry frame") {
+  const AnimationClip first = LocomotionClip(1);
+  const AnimationClip second = LocomotionClip(2);
+  LocomotionPlaybackRequest request;
+  for (int tick = 0; tick < 3; ++tick) {
+    request = AdvanceLocomotionPlayback(request, 1, first, 1.8f, 0.0f, 0.01f);
+  }
+  REQUIRE(request.frame_time == Catch::Approx(3.0f).margin(1e-4f));
+
+  const LocomotionPlaybackRequest switched =
+      AdvanceLocomotionPlayback(request, 2, second, 1.8f, 4.0f, 0.01f);
+  REQUIRE(switched.clip_id == 2);
+  REQUIRE(switched.frame_time == Catch::Approx(5.0f).margin(1e-4f));
+  REQUIRE_FALSE(switched.looped);
+}
+
+TEST_CASE("the playback request carries no world position") {
+  const AnimationClip clip = LocomotionClip(1);
+  const LocomotionPlaybackRequest request =
+      AdvanceLocomotionPlayback(LocomotionPlaybackRequest{}, 1, clip, 3.0f, 0.0f, 0.01f);
+  // Determinism: equal inputs give equal requests, bit for bit.
+  const LocomotionPlaybackRequest again =
+      AdvanceLocomotionPlayback(LocomotionPlaybackRequest{}, 1, clip, 3.0f, 0.0f, 0.01f);
+  REQUIRE(request.frame_time == again.frame_time);
+  REQUIRE(request.playback_rate == again.playback_rate);
+  REQUIRE(request.gait_phase == again.gait_phase);
+  REQUIRE(request.clip_id == again.clip_id);
+}

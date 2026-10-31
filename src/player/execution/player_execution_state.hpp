@@ -113,6 +113,9 @@ struct PlayerExecutionState {
   PlayerFootPlantState foot_plant_;
   // LOCO-2.3b: fresh snapshot of the last committed locomotion tick.
   std::optional<LocomotionAnimationInput> locomotion_animation_input_;
+  // M2: the motion-driven playback cursor. Carried across ticks so the gait
+  // phase stays continuous while the same clip keeps playing.
+  LocomotionPlaybackRequest locomotion_playback_;
   bool locomotion_animation_adaptation_ = true;
 
   // ---------------------------------------------------------------------

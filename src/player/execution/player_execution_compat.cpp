@@ -209,15 +209,6 @@ void PlayerExecution::ProjectSimulationMovementState(
   state_.previousPosition2D = state_.legacy_spatial_state_.position;
 }
 
-void PlayerExecution::ApplySimulationMovementState(
-    const PlayerKinematicState &state, const Player* ball_retainer) {
-  // Legacy action path: animation root motion produced this state, so adopting
-  // it as the Player's motion is correct here -- and is the only remaining
-  // source-explicit entry that re-reads the compatibility projection.
-  ProjectSimulationMovementState(state, ball_retainer);
-  port().CommitLegacyActionMotion();
-}
-
 void PlayerExecution::ApplySimulationBodyState(
     const PlayerKinematicState &state) {
   // Continuous simulation truth. Nothing in this function writes back into
@@ -244,10 +235,14 @@ void PlayerExecution::ProjectMovementState(
     bool restart_needs_simulation) {
 
   if (!UsesProceduralLocomotion(ball_retainer)) {
-    // Non-locomotion ticks keep the legacy animation root motion. Projecting
-    // it keeps the compatibility movement fields a single projection of the
-    // simulation kinematic state.
-    ApplySimulationMovementState(port().GetKinematicState(), ball_retainer);
+    // M1: the action-motion solver already committed exactly this state and
+    // derived it from the reference motion with the physical constraint
+    // applied. The compatibility projection must describe that state, but it
+    // must never become a second writer of it: the projection cannot carry the
+    // vertical (or later) motion fields, so adopting it used to silently drop
+    // them. Refresh the projection only.
+    ProjectSimulationMovementState(port().GetKinematicState(), ball_retainer);
+    port().CheckKinematicOracle();
     return;
   }
 

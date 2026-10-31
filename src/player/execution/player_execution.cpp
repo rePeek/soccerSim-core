@@ -110,6 +110,7 @@ void PlayerExecution::ResetPosition(PlayerExecutionPort& owner, const Vector3& n
   // ANIM-1.1: re-placement clears any pending active/passive request.
   state_.pending_action_request_.reset();
   state_.playback_state_.Reset();
+  state_.locomotion_playback_ = LocomotionPlaybackRequest{};
   state_.pending_reaction_.reset();
   state_.pending_passive_trip_.reset();
   port().CommitLegacyActionMotion();
@@ -130,6 +131,8 @@ void PlayerExecution::ResetRuntimeState(const Vector3& focus_position,
   // ANIM-1.1: a reset must not leave a stale active/passive request behind.
   state_.pending_action_request_.reset();
   state_.playback_state_.Reset();
+  // M2: a reset is a continuity break for the gait phase as well.
+  state_.locomotion_playback_ = LocomotionPlaybackRequest{};
   state_.pending_reaction_.reset();
   state_.pending_passive_trip_.reset();
   if (port().IsActive()) {
@@ -646,10 +649,17 @@ void PlayerExecution::ApplyPostActionTick(ActionTickFrame& frame) {
   // the selected clip/frame and the base yaw once per tick; the Player's
   // playback state samples/blends it.
   // ANIM-1 A6.3c.3: the clip id and frame come from the Player authority.
+  // M2: on a pure-locomotion tick the achieved motion owns the clip time. The
+  // locomotion snapshot is refreshed by CommitLocomotion in this same tick, so
+  // it cannot be stale when the predicate holds.
+  const bool motion_driven =
+      UsesProceduralLocomotion(frame.ball_retainer) &&
+      state_.locomotion_animation_input_.has_value() &&
+      state_.installed_action_.function_type == e_FunctionType_Movement;
   UpdatePlaybackFromAuthority(
       frame.now, state_.startAngle + state_.legacy_anim_state_.rotationSmuggleOffset,
       football::animation::BlendTicksForSwitch(
           state_.legacy_anim_state_.functionType == e_FunctionType_Movement &&
-          IsEligibleForProceduralLocomotion(
-              frame.ball_retainer == self())));
+          IsEligibleForProceduralLocomotion(frame.ball_retainer == self())),
+      motion_driven);
 }

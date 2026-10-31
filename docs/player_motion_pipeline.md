@@ -197,3 +197,68 @@ sources + 443 procedural clips, then replace the `SpatialState::foot` heuristic.
 - Touch preparation already consumes `BakedPoseSample`/`ContactRegions`, so P5a
   uses the IK-adjusted final pose. P5b (TOI + Runtime arbitration) is still
   outside the Player module and is not claimed complete.
+
+## M1 result: one motion authority per tick
+
+- `PlayerMotionAdapter` stays the only numeric constraint core. For a
+  `KinematicReference` tick its `achieved_delta` **is** the world displacement,
+  and the committed velocity is `achieved_delta / dt`; the unconstrained
+  reference velocity is no longer published as the Player's movement. When the
+  speed ceiling binds, `spatialState.movement`, `floatVelocity`, `enumVelocity`
+  and the body-direction quantization all consume the capped value.
+- The action path commits through `PlayerExecutionPort::CommitActionMotionState`
+  with the whole constrained `PlayerKinematicState`. `CommitLegacyActionMotion`
+  now remains only for reset / factual-state adoption and can no longer become a
+  second writer of a locomotion or action-motion tick: the non-locomotion
+  `ProjectMovementState` branch refreshes the projection and asserts the
+  kinematic oracle instead of re-reading the projection into a fresh state.
+  This is what previously dropped the vertical (and any future) motion fields
+  on a projection round trip.
+- A position correction (`ApplyPositionCorrection`) still only changes position:
+  an instantaneous displacement never becomes velocity, and never divides a
+  penetration fix by `dt`.
+- Gate: `player_unit` covers the capped/displacement/velocity consistency and
+  the "locomotion ignores the animation root trajectory" rule (identical
+  achieved motion with no, matching and wildly different `reference_delta`).
+
+## M2 result: motion-driven locomotion playback
+
+Order per ordinary locomotion tick:
+
+```
+CommitLocomotion                        (Player solves the motion)
+  → LocomotionAnimationInput snapshot   (achieved velocity, desired, body)
+  → Match / locomotion preference        (clip identity)
+  → LocomotionPlaybackRequest            (rate, continuous clip time, phase)
+  → PlaybackState::PlayAtTime            (fractional pose sample + blend)
+  → FootPlant / final pose / contact      (unchanged consumers)
+```
+
+- `LocomotionClipReferenceSpeed` is the one definition of a clip's native speed,
+  shared by selection (`locomotion_animation_strategy.hpp`) and playback, so the
+  two cannot disagree.
+- `AdvanceLocomotionPlayback` is pure and stateless apart from the carried
+  request: `clip_time += clamp(achieved/reference, 0.35, 2.2)` frames per tick,
+  wrapping at `frame_count - 1`. The gait phase is therefore continuous inside
+  a clip and only reseeds (at the matched entry frame) when the clip changes.
+- `PlaybackState::frame_time` is the continuous clip time; `frame` is the
+  rounded value kept for audit. The authority audit now requires clip identity
+  for a motion-driven tick and additionally the action cursor for every action
+  tick, because the action clock is not the locomotion clip-time authority.
+- Baked root XY cannot move the Player: it only feeds the reference speed (and
+  therefore the gait). Disabling or editing it changes gait quality, never the
+  world trajectory already committed by `CommitLocomotion`.
+- One-shot actions (pass/shot/slide/trip/fall/header) keep the action clock as
+  their clip-time authority; `touch_frame` timing is untouched by M2.
+
+## Next
+
+- M3: promote the P3a warp into the single Final Pose channel
+  (`reference_pose` → `final_pose`), so `Pose()`, `GetBakedPoseSample()`,
+  `Geometry()` and `ContactRegions()` all read the same IK-applied skeleton.
+- M4: split the Player tick into explicit action/motion/pose/contact phases and
+  let Runtime constrain the candidate root before the final pose, re-solving the
+  pose (or deferring the contact response) when a contact changes the root.
+- P6 special actions stay action-motion driven: their body model (slide
+  friction, fall impulse, shot support foot) is not the locomotion constraint
+  core, and must not be collapsed into it.

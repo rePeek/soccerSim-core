@@ -179,17 +179,24 @@ void Player::CommitKinematics(const PlayerKinematicState& next) {
 }
 
 void Player::CommitLegacyActionMotion() {
-  // S0.1: adopting the baked action motion is legitimate ONLY for the legacy
-  // animation-root-motion paths (and the lifecycle resets that re-read the
-  // compatibility pose). Pure locomotion never comes through here.
-  // become the authority for a tick the Player already computed. The commit
-  // still goes through the single write point, which also keeps the ground
-  // collider in step.
+  // Legacy adoption path: a tick that only *re-read* the compatibility
+  // projection (resets and factual spatial resets) still has no Player-computed
+  // motion, so the projection is all that exists. No vertical state is
+  // invented here either: a reset has no airborne state to preserve.
   const PlayerExecution::Projection projection = execution_->CompatibilityProjection();
   PlayerKinematicState next;
   next.position = projection.position;
   next.velocity = projection.movement;
   next.bodyFacing = projection.body_facing;
+  CommitKinematics(next);
+  CheckSimulationKinematicOracle();
+}
+
+void Player::CommitActionMotionState(const PlayerKinematicState &next) {
+  // M1: the action-motion solver already constrained this state and wrote the
+  // matching compatibility projection. Install it whole so fields the
+  // projection does not carry (vertical offset/authority, and anything added
+  // to the motion state later) survive the commit.
   CommitKinematics(next);
   CheckSimulationKinematicOracle();
 }

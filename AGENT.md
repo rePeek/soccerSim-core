@@ -179,6 +179,21 @@ observation, controls and stored physics are all the Stadium Frame.
   executor's `ActionState()` are the movement and action-clock authorities;
   `legacy_anim_state_` and `legacy_spatial_state_` are compatibility
   projections, never a second authority.
+- Motion and animation authority are separate facts. `PlayerMotionAdapter`
+  returns the one admissible displacement; `achieved_delta` and the committed
+  velocity must describe that same motion (a speed ceiling publishes the
+  capped velocity, never the reference one). A compatibility projection is
+  never re-read into a fresh kinematic state: `CommitActionMotionState`
+  installs the state the solver produced, so fields the projection does not
+  carry (vertical offset/authority) cannot be dropped by a round trip. A
+  position correction is an instantaneous displacement, not new velocity.
+- Ordinary locomotion is motion-driven: the Player solves the motion first
+  (`CommitLocomotion` -> `LocomotionAnimationInput`), and animation samples
+  the pose afterwards at the achieved/reference speed ratio with a
+  continuous, wrapping clip time (`LocomotionPlaybackRequest`). Baked root XY
+  may change the gait, never the world trajectory. One-shot actions keep the
+  action clock as their clip-time authority; only locomotion owns clip time,
+  and `PlaybackState::frame` is a derived integer, not that authority.
 
 ## Player and Contact libraries
 
@@ -231,7 +246,11 @@ Rules for that composition:
   the pointer-keyed pass solver and the Runtime rule port.
 - `Player` remains the only writer of the kinematic state: execution computes
   the locomotion proposal and calls `CommitKinematics`, `CommitLocomotion`,
-  `CommitLegacyActionMotion` or `ApplyPositionCorrection`.
+  `CommitActionMotionState`, `CommitLegacyActionMotion` or
+  `ApplyPositionCorrection`. `CommitActionMotionState` is the one entry for a
+  state an action-motion solver computed and constrained;
+  `CommitLegacyActionMotion` is the reset/factual-state adoption path and is
+  never a second motion authority for a locomotion tick.
 - Team formation and team match facts are not Player state either: Runtime owns
   the formation table and `TeamMatchState`, and hands only the per-tick
   `PlayerTeamView` to execution and the `TeamView` to rules/observation.

@@ -820,19 +820,25 @@ void PlayerExecution::ComputeAndCommitActionMotion() {
       PlayerMotionAdapter::Step(motion_constraint);
   const Vector3 position = motion_constraint.current.position +
                            constrained.achieved_delta;
+  // M1: the constrained result is the authority. Its velocity is the one that
+  // produced `achieved_delta`; publishing the unconstrained reference velocity
+  // here published a motion the Player never performed.
+  const Vector3 achieved_velocity = constrained.state.velocity;
 
   if (currentAnim.frameNum > 12) {
     spatialState.foot = static_cast<e_Foot>(clip.metadata.outgoing_foot);
   }
 
-  spatialState.movement = motion.movement;
-  spatialState.floatVelocity = motion.float_velocity;
-  spatialState.enumVelocity = motion.enum_velocity;
+  spatialState.movement = achieved_velocity;
+  spatialState.floatVelocity = achieved_velocity.GetLength();
+  spatialState.enumVelocity = FloatToEnumVelocity(spatialState.floatVelocity);
   spatialState.position = position;
 
-  // The body direction / velocity quantization is PlayerMotion-owned too.
+  // The body direction / velocity quantization is PlayerMotion-owned too. It
+  // consumes the achieved velocity, so the torso cannot lean into a motion the
+  // speed ceiling already rejected.
   ActionBodyStateInput body_input;
-  body_input.movement = spatialState.movement;
+  body_input.movement = achieved_velocity;
   body_input.start_angle = state_.startAngle;
   body_input.rotation_smuggle_offset = currentAnim.rotationSmuggleOffset;
   body_input.baked_body_orientation =
@@ -852,8 +858,14 @@ void PlayerExecution::ComputeAndCommitActionMotion() {
 
   state_.previousPosition2D = position;
 
-  // The kinematic state must track the spatial projection at the instant it changes.
-  port().CommitLegacyActionMotion();
+  // M1: commit the state the solver produced, whole. The projection above is
+  // the same motion in legacy fields; rebuilding the state from it used to
+  // drop every field the projection does not carry.
+  PlayerKinematicState next = constrained.state;
+  next.position = spatialState.position;
+  next.velocity = spatialState.movement;
+  next.bodyFacing = spatialState.bodyDirectionVec;
+  port().CommitActionMotionState(next);
 }
 
 // ---------------------------------------------------------------------------
@@ -971,7 +983,15 @@ void PlayerExecution::ApplyFactualSpatialState() {
     spatialState.movement = Vector3(0);
   }
 
-  port().CommitLegacyActionMotion();
+  // M1: a selection-time factual reset rewrites the projected motion fields,
+  // but it must not be a state authority of its own. Commit the same fields
+  // into the state the solver produced so the fields the projection does not
+  // carry (vertical offset/authority) survive the selection.
+  PlayerKinematicState next = port().GetKinematicState();
+  next.position = spatialState.position;
+  next.velocity = spatialState.movement;
+  next.bodyFacing = spatialState.bodyDirectionVec;
+  port().CommitActionMotionState(next);
 }
 
 // ---------------------------------------------------------------------------
