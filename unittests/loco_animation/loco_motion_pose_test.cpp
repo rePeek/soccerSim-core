@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "football/animation/foot_support.hpp"
 #include "football/animation/library.hpp"
 #include "football/animation/pose_sampling.hpp"
 #include "football/player/execution/player_foot_ik.hpp"
@@ -68,6 +69,7 @@ struct Run {
   PoseFrame final_pose;
   bool final_pose_valid = false;
   float previous_fore_aft[2] = {0.0f, 0.0f};
+  Vector3 previous_world_ankle[2] = {Vector3(0), Vector3(0)};
   bool have_previous_fore_aft = false;
   bool support_left = false;
   bool have_support = false;
@@ -155,7 +157,35 @@ void Step(Run& run, const Vector3& achieved_velocity, float stride_scale,
   support_input.have_previous = run.have_previous_fore_aft;
   support_input.previous_support_left = run.support_left;
   support_input.have_previous_support = run.have_support;
-  const PlayerFootSupportResult support = SelectFootSupport(support_input);
+  const FootSupportFrame track =
+      SampleFootSupport(clip, run.playback.frame_time);
+  PlayerFootSupportResult support;
+  if (!clip.foot_support.empty()) {
+    support.left_support = FootIsSupporting(track.left);
+    support.right_support = FootIsSupporting(track.right);
+    // Production guard: a foot the clip calls stance still has to be standing
+    // still in the world before it may be locked.
+    if (run.have_previous_fore_aft) {
+      const auto world_speed = [&](BodyPart ankle, int index) {
+        return (gait.joints[ankle] - run.previous_world_ankle[index])
+                   .Get2D()
+                   .GetLength() /
+               kTick;
+      };
+      if (support.left_support &&
+          world_speed(BodyPart::left_ankle, 0) > kStanceMaxWorldSpeed) {
+        support.left_support = false;
+      }
+      if (support.right_support &&
+          world_speed(BodyPart::right_ankle, 1) > kStanceMaxWorldSpeed) {
+        support.right_support = false;
+      }
+    }
+  } else {
+    support = SelectFootSupport(support_input);
+  }
+  run.previous_world_ankle[0] = gait.joints[BodyPart::left_ankle];
+  run.previous_world_ankle[1] = gait.joints[BodyPart::right_ankle];
   run.previous_fore_aft[0] = left_fore_aft;
   run.previous_fore_aft[1] = right_fore_aft;
   run.have_previous_fore_aft = true;
@@ -285,10 +315,11 @@ Run Begin(const AnimationClip& clip) {
 void Dump(const char* scenario, const Run& run) {
   if (std::getenv("FOOTBALL_LOCO_ACCEPTANCE_DIAG") == nullptr) return;
   std::fprintf(stderr,
-               "%s: clip=%d ref=%.2f dist=%.2f animslip=%.4f finalslip=%.4f "
+               "%s: clip=%d ref=%.2f stance=%.2f dist=%.2f animslip=%.4f finalslip=%.4f "
                "bone=%.6f residual=%.4f legstep=%.3f yaw=%.3f planted=%d "
                "releases=%d slide=%.3f clamped=%d rate_pos=%d rate0=%d\n",
                scenario, static_cast<int>(run.clip->id), run.reference_speed,
+               static_cast<double>(run.clip->stance_speed),
                run.metrics.distance, run.metrics.max_animation_slip,
                run.metrics.max_final_slip, run.metrics.max_bone_error,
                run.metrics.max_target_residual, run.metrics.max_leg_step,
@@ -336,9 +367,9 @@ TEST_CASE("real cruise holds the support foot and the skeleton") {
   // ~4 m/s inside the animation while the root track claims ~5 m/s, so the plant
   // has to absorb the difference; the Baker support track plus a foot-lock rate
   // calibration is what removes it (see docs/player_motion_pipeline.md).
-  CHECK(run.metrics.max_final_slip < 0.12f);
-  CHECK(run.metrics.max_target_residual < 0.15f);
-  CHECK(run.metrics.max_leg_step < 1.4f);
+  CHECK(run.metrics.max_final_slip < 0.05f);
+  CHECK(run.metrics.max_target_residual < 0.05f);
+  CHECK(run.metrics.max_leg_step < 1.0f);
   CHECK(run.metrics.distance ==
         Catch::Approx(run.reference_speed * 0.01f * 80).margin(1e-3f));
 }
@@ -362,8 +393,8 @@ TEST_CASE("a real brake shortens the stride and lowers the cadence together") {
   CHECK(run.metrics.planted_ticks > 20);
   CHECK(run.metrics.max_bone_error < 1e-3f);
   CHECK(run.metrics.max_plant_slide <= kPlantRelaxSlide + 1e-6f);
-  CHECK(run.metrics.max_final_slip < 0.12f);
-  CHECK(run.metrics.max_leg_step < 1.4f);
+  CHECK(run.metrics.max_final_slip < 0.05f);
+  CHECK(run.metrics.max_leg_step < 1.0f);
   // The stride scale follows the speed down, so cadence does not have to absorb
   // the whole mismatch alone.
   CHECK(LocomotionStrideScaleTarget(0.2f * reference, reference) <
@@ -397,6 +428,7 @@ TEST_CASE("a real clip stops advancing when the Player stands still") {
         static_cast<float>(run.clip->frame_count) - 1.0f);
   CHECK(run.metrics.max_bone_error < 1e-3f);
   CHECK(run.metrics.max_plant_slide <= kPlantRelaxSlide + 1e-6f);
+  CHECK(run.metrics.max_final_slip < 0.05f);
   // Walking pace still advances, just slower than the clip's own cadence.
   CHECK(slow_frame_time != Catch::Approx(moving_frame_time));
 }
@@ -420,11 +452,63 @@ TEST_CASE("a real turn keeps the pose bounded while the yaw is corrected") {
   Dump("turn", run);
   CHECK(run.metrics.planted_ticks > 10);
   CHECK(run.metrics.max_bone_error < 1e-3f);
-  CHECK(run.metrics.max_final_slip < 0.12f);
+  CHECK(run.metrics.max_final_slip < 0.05f);
   CHECK(run.metrics.max_plant_slide <= kPlantRelaxSlide + 1e-6f);
+  CHECK(run.metrics.max_leg_step < 0.8f);
   // The correction is bounded per tick and actually engaged.
   CHECK(run.metrics.max_yaw_correction <=
         kPlayerPoseWarpMaxYawPerTick + 1e-5f);
   CHECK(run.metrics.max_yaw_correction > 1e-3f);
   CHECK(run.metrics.yaw_clamped_ticks > 0);
+}
+
+TEST_CASE("the derived support track matches the clip's own gait") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
+  const AnimationClip& clip = CruiseClip(library, 5.0f);
+  REQUIRE(clip.foot_support.size() == clip.frame_count);
+  int left_support = 0;
+  int right_support = 0;
+  int double_support = 0;
+  int flight = 0;
+  int landings = 0;
+  int takeoffs = 0;
+  for (const auto& frame : clip.foot_support) {
+    const bool left = FootIsSupporting(frame.left);
+    const bool right = FootIsSupporting(frame.right);
+    if (frame.left == FootPhase::Landing) ++landings;
+    if (frame.left == FootPhase::Takeoff) ++takeoffs;
+    if (left && right) ++double_support;
+    else if (left) ++left_support;
+    else if (right) ++right_support;
+    else ++flight;
+    if (std::getenv("FOOTBALL_LOCO_ACCEPTANCE_DIAG") != nullptr) {
+      const std::size_t f = static_cast<std::size_t>(&frame - clip.foot_support.data());
+      const BakedBodyPose pose =
+          EvaluateBakedBodyPose(clip.poses[f], PlayerKinematicState{}, 0.0f, Body());
+      std::fprintf(stderr,
+                   "track f=%zu z=(%.3f,%.3f) phase=(%d,%d) speed=%.2f\n", f,
+                   static_cast<double>(pose.joints[BodyPart::left_ankle].coords[2]),
+                   static_cast<double>(pose.joints[BodyPart::right_ankle].coords[2]),
+                   static_cast<int>(frame.left), static_cast<int>(frame.right),
+                   static_cast<double>(clip.stance_speed));
+    }
+  }
+  std::fprintf(stderr, "TRACK clip=%d frames=%u left=%d right=%d double=%d "
+                       "flight=%d land=%d take=%d stance_speed=%.2f ref=%.2f\n",
+               static_cast<int>(clip.id), clip.frame_count, left_support,
+               right_support, double_support, flight, landings, takeoffs,
+               static_cast<double>(clip.stance_speed),
+               static_cast<double>(LocomotionClipReferenceSpeed(clip)));
+  // One support entry per frame, both feet alternate, and the contact is split
+  // into Landing/Stance/Takeoff rather than a single "down" flag.
+  CHECK(landings > 0);
+  CHECK(takeoffs > 0);
+  CHECK(left_support + right_support + double_support > flight);
+  // The stance foot's own speed is what playback follows; it is measurable and
+  // below the root track's claim on an authored clip with baked foot slide.
+  CHECK(clip.stance_speed > 0.5f);
+  CHECK(clip.stance_speed <= LocomotionClipReferenceSpeed(clip) + 1e-3f);
+  CHECK(LocomotionClipGaitSpeed(clip) ==
+        Catch::Approx(clip.stance_speed).margin(1e-4f));
 }

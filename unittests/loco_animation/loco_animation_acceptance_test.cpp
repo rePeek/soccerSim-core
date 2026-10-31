@@ -282,8 +282,11 @@ TEST_CASE("motion-driven playback shortens the cadence instead of the step") {
   CHECK(request.playback_rate <= kLocomotionMaxPlaybackRate);
   CHECK(request.frame_time >= 0.0f);
   CHECK(request.frame_time < static_cast<float>(clip.frame_count) - 1.0f);
-  const float world_foot_travel =
-      stride * reference * request.playback_rate;
+  // The pairing uses the speed the *feet* imply, which on authored clips is not
+  // the root track's speed (the animation has foot slide baked in).
+  const float gait_speed = LocomotionClipGaitSpeed(clip);
+  CHECK(gait_speed > 0.5f);
+  const float world_foot_travel = stride * gait_speed * request.playback_rate;
   CHECK(world_foot_travel == Catch::Approx(achieved).margin(1e-3f));
   // Stride adaptation is not a no-op here: it really shortens the step.
   CHECK(stride < 1.0f);

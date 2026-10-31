@@ -8,6 +8,7 @@
 #include "football/player/player_kinematics.hpp"
 #include "football/contact/player_body_collider_motion.hpp"
 #include "football/player/player_body_profile.hpp"
+#include "football/animation/foot_support.hpp"
 #include "football/player/execution/player_foot_ik.hpp"
 
 // PoseFrame contains LOCAL keyframe rotations, not 14 world-space joint points.
@@ -19,45 +20,6 @@ struct BakedBodyPose {
   std::array<football::math::Vector3, kBodyPartCount> joints;
   std::array<football::math::Quaternion, kBodyPartCount> orientations;
 };
-
-// The FK hierarchy and its versioned bind offsets, in one place: forward
-// kinematics, the collider builders and the foot-IK pose write-back all read
-// this table, so a bind change cannot land in only one of them.
-struct BakedBindJoint {
-  BodyPart part;
-  BodyPart parent;
-  football::math::Vector3 offset;
-};
-inline const std::array<BakedBindJoint, 13> kBakedBindJoints{{
-    {body, player, {0, 0, .96f}},
-    {middle, body, {0, 0, .15f}},
-    {neck, middle, {0, -.03f, .5f}},
-    {left_thigh, body, {.087f, 0, -.01f}},
-    {right_thigh, body, {-.087f, 0, -.01f}},
-    {left_knee, left_thigh, {0, 0, -.42f}},
-    {right_knee, right_thigh, {0, 0, -.42f}},
-    {left_ankle, left_knee, {0, -.04f, -.44f}},
-    {right_ankle, right_knee, {0, -.04f, -.44f}},
-    {left_shoulder, middle, {.16f, -.01f, .48f}},
-    {right_shoulder, middle, {-.16f, -.01f, .48f}},
-    {left_elbow, left_shoulder, {-.01f, 0, -.33f}},
-    {right_elbow, right_shoulder, {.01f, 0, -.33f}},
-}};
-
-inline const football::math::Vector3& BakedBindOffset(BodyPart part) {
-  for (const auto& bind : kBakedBindJoints) {
-    if (bind.part == part) return bind.offset;
-  }
-  throw std::out_of_range("no bind offset for this body part");
-}
-
-inline BodyPart BakedBindParent(BodyPart part) {
-  for (const auto& bind : kBakedBindJoints) {
-    if (bind.part == part) return bind.parent;
-  }
-  // The root has no parent bind; it anchors the hierarchy.
-  return part;
-}
 
 // Minimal swing that takes one bone direction onto another. This is how a
 // solved joint position becomes a local rotation again.
@@ -98,7 +60,7 @@ inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
   out.orientations[BodyPart::player] = football::math::Quaternion{};
   football::math::Quaternion base;
   base.SetAngleAxis(animation_base_angle, {0, 0, 1});
-  for (const auto& bind : kBakedBindJoints) {
+  for (const auto& bind : kPlayerBindJoints) {
     out.joints[bind.part] =
         out.joints[bind.parent] +
         out.orientations[bind.parent] * (bind.offset * scale);
@@ -167,17 +129,17 @@ inline BakedPoseFootSolve ApplyWorldFootTargetsToPose(
     applied = true;
 
     // Thigh: aim the upper bone at the solved knee.
-    const Vector3 thigh_bind = BakedBindOffset(knee) * scale;
+    const Vector3 thigh_bind = PlayerBindOffset(knee) * scale;
     const Quaternion thigh_swing = BakedRotationBetweenDirections(
         world.orientations[thigh] * thigh_bind, solved.knee - world.joints[thigh]);
     const Quaternion thigh_world =
         (thigh_swing * world.orientations[thigh]).GetNormalized();
     out.pose.orientations[thigh] =
-        (world.orientations[BakedBindParent(thigh)].GetInverse() * thigh_world)
+        (world.orientations[PlayerBindParent(thigh)].GetInverse() * thigh_world)
             .GetNormalized();
     // Shin: aim the lower bone at the solved ankle, from the new upper frame.
     const Quaternion knee_world_before = thigh_world * pose.orientations[knee];
-    const Vector3 shin_bind = BakedBindOffset(ankle) * scale;
+    const Vector3 shin_bind = PlayerBindOffset(ankle) * scale;
     const Quaternion shin_swing = BakedRotationBetweenDirections(
         knee_world_before * shin_bind, solved.ankle - solved.knee);
     const Quaternion knee_world =

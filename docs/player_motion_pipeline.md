@@ -474,18 +474,59 @@ the plant has to absorb ~1 m/s for the whole stance. That is the material the
 Baker support track (next stage) and a foot-lock rate calibration
 (`rate = achieved / stance_foot_speed` instead of `/ root_track_speed`) are for.
 
+### Stage 2 result: the baked support track and foot-lock speed
+
+The support decision is now an animation fact, not a Player heuristic.
+
+- **Phase track.** `FootPhase { Swing, Landing, Stance, Takeoff }` per foot per
+  frame, derived from the clip's own leg poses by `DeriveFootSupport()` and
+  cached on the clip when `AnimationLibrary::Load` reads it. `Landing` is the
+  first contact frame, `Takeoff` the last, `Stance` everything between; the walk
+  is cyclic with hysteresis (down at 4 cm above the clip's lowest ankle, up at
+  9 cm), so a stance that crosses the loop boundary still gets both edges.
+- **No artifact change.** The derivation is one implementation in the animation
+  module (`src/animation/foot_support.cpp`), not a second one in the Python bake.
+  The artifact format stays v7, and if a bake-time track is ever written the
+  query API (`SampleFootSupport`) does not change.
+- **Shared skeleton declaration.** The 14-bone hierarchy and its bind offsets
+  moved to `football/animation/foot_support.hpp` (`kPlayerBindJoints`), because
+  both the animation derivation and the Player's forward kinematics/colliders
+  must read the same table.
+- **Foot-lock speed.** The derivation also reports `clip.stance_speed`, how fast
+  a stance foot travels backwards *inside the clip*, and `LocomotionClipGaitSpeed`
+  prefers it over the root track for playback. Authored clips disagree with their
+  own root track: on the shipped catalog clip 768 the stance foot moves at
+  3.51 m/s while the root track claims 5.05 m/s, so a rate derived from the root
+  track dragged the foot across ~1 m/s for a whole stance.
+- **Guard.** Baked phases assume the clip is played along its own direction. When
+  the body turns while the animation still says "stance", the foot is pivoting,
+  not planting: a foot whose *world* speed exceeds `kStanceMaxWorldSpeed` (2.5
+  m/s) is not locked, whatever the track says. Without that guard the 90° turn
+  scenario shipped 0.146 m of slip; with it, 0.006 m.
+- The Player still falls back to its velocity-based `SelectFootSupport` for clips
+  without a track, and `PlayerFootIkTargets`/plant anchors behave as before.
+
+Measured through the production chain on clip 768 (5.05 m/s root track,
+3.51 m/s stance) and clip 302 (turn):
+
+| scenario | shipped slip before | shipped slip after | leg step before | after |
+|---|---|---|---|---|
+| cruise | 0.084 m | **0.032 m** | 0.90 rad | 0.91 rad |
+| brake 5→0.75 m/s | 0.072 m | **0.020 m** | 1.01 rad | 0.91 rad |
+| stop | 0.081 m | **0.024 m** | 0.50 rad | 0.90 rad |
+| turn 90° | 0.040 m | **0.006 m** | 1.28 rad | **0.44 rad** |
+
 ### What is still open
 
-- **Baked support intervals** (`Swing/Landing/Stance/Takeoff` per foot, sampleable
-  at a fractional frame time). The velocity-based `SelectFootSupport` is the
-  bridge; the bake is where the answer belongs.
-- **Foot-lock rate calibration**: derive the playback rate from the *stance foot*
-  speed rather than the root track speed, which removes the ~1 m/s residual for
-  clips with baked foot slide.
+- The support track is derived at **load** time. If the pipeline ever wants it in
+  the artifact, the same function can run in the bake; nothing downstream changes.
+- `stance_speed` is one number per clip. A per-phase profile (landing/stance/
+  takeoff) would let playback follow the foot through a step that changes speed.
+- The peak leg-joint step (0.9 rad/tick on the cruise clip) is reported by
+  `max_leg_joint_step` but not bounded; bounding it needs a release ramp, not
+  another global limiter.
 - The entry damping is driven by the action cursor (`PlayerActionState::Frame`),
   a per-clip tick counter.
-- The peak leg-joint step (up to 1.3 rad/tick at a support handover) is measured
-  but not bounded. Bounding it needs a release ramp, not another global limiter.
 - Runtime contact still resolves pairs one after another, so a chain of
   corrections in one tick re-settles once per correction instead of being
   coalesced. That is a cost, not an inconsistency.

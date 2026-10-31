@@ -21,6 +21,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "football/animation/foot_support.hpp"
 #include "football/animation/format.hpp"
 
 bool AnimationLibrary::Load(const std::filesystem::path& path) {
@@ -53,6 +54,10 @@ bool AnimationLibrary::Load(const std::filesystem::path& path) {
   for (uint32_t i = 0; i < clip_count; ++i) {
     clips_.push_back(AnimationClip::Deserialize(is, i));
   }
+  // The support track is derived once, here, from the clip's own poses: the
+  // Player needs a per-frame answer to "which foot carries weight" and the
+  // artifact does not carry one.
+  for (AnimationClip& clip : clips_) DeriveFootSupport(clip);
   content_hash_ = hash;
   return true;
 }

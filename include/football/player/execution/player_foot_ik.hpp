@@ -94,6 +94,10 @@ struct PlayerFootSupportInput {
   float switch_margin = 0.01f;
 };
 
+// A foot moving faster than this in the world is not standing still, whatever a
+// support track says: a turning body pivots the foot instead of planting it.
+inline constexpr float kStanceMaxWorldSpeed = 2.5f;
+
 struct PlayerFootSupportResult {
   bool left_support = false;
   bool right_support = false;

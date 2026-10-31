@@ -219,11 +219,20 @@ observation, controls and stored physics are all the Stadium Frame.
   that write-back. Never re-solve a second pose for geometry: the committed
   sample carries no foot targets, so `Geometry()`/`ContactRegions()` are a pure
   forward-kinematics pass over the Final Pose. A raw preview clears them too.
-- Support feet are decided by `SelectFootSupport`: the foot travelling backwards
-  relative to the body carries weight. Height alone mislabels authored run clips.
-  An anchor the leg cannot reach relaxes (bounded slide toward the foot) or, past
-  a hard threshold, releases - never pinned at maximum extension. The baked
-  per-frame support track will answer the same question later.
+- Support feet come from the clip: `FootPhase { Swing, Landing, Stance, Takeoff }`
+  per foot per frame, derived once per clip at load (`DeriveFootSupport`,
+  `SampleFootSupport`). Height alone mislabels authored clips. The derivation also
+  reports `clip.stance_speed`, the speed a stance foot travels inside the clip,
+  which playback follows instead of the root track (`LocomotionClipGaitSpeed`):
+  authored clips carry foot slide that the plant would otherwise absorb. A foot
+  the clip calls stance is still not locked when it moves faster than
+  `kStanceMaxWorldSpeed` in the world - a turning body pivots its foot. Clips
+  without a track fall back to `SelectFootSupport`. An anchor the leg cannot
+  reach relaxes (bounded slide toward the foot) or, past a hard threshold,
+  releases - never pinned at maximum extension.
+- The 14-bone declaration (`kPlayerBindJoints`) lives in
+  `football/animation/foot_support.hpp` and is shared by the animation support
+  derivation and the Player's forward kinematics, colliders and foot solve.
 - `PlayerExecutionState::final_pose_` is the one Final Pose channel:
   `ComposeFinalPose` produces it once per tick as blend -> Warp -> Realize ->
   stride/plant settle, and `Pose()`, `BakedPoseSample()`, `Geometry()`,

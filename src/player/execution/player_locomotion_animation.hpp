@@ -128,6 +128,30 @@ inline float LocomotionClipReferenceSpeed(const AnimationClip& clip) {
   return dist / span_s;
 }
 
+// The speed the *feet* imply, which is what playback must follow.
+//
+// Authored clips carry foot slide: on the shipped catalog a run clip's stance
+// foot travels ~3.5 m/s inside the animation while its root track claims ~5 m/s.
+// Playing such a clip at `achieved / root_track_speed` therefore drags the stance
+// foot across the ground for the whole stance, and the plant has to absorb it.
+// The derived support track (`clip.stance_speed`, see foot_support.hpp) states how
+// fast the stance foot actually travels, so this is the speed a foot-locked
+// playback should use.
+//
+// Falls back to the root-track definition when the clip has no usable stance
+// data (idle clips, actions, or a derivation that found nothing).
+inline float LocomotionClipGaitSpeed(const AnimationClip& clip) {
+  const float root_speed = LocomotionClipReferenceSpeed(clip);
+  const float stance_speed = clip.stance_speed;
+  if (stance_speed <= 0.5f) return root_speed;
+  // A stance foot cannot travel much faster than the body it carries; anything
+  // beyond that is derivation noise, not a cadence reference.
+  if (root_speed > 1e-3f && stance_speed > 1.5f * root_speed + 1.0f) {
+    return root_speed;
+  }
+  return stance_speed;
+}
+
 // The stride scale the achieved/reference speed mismatch asks for.
 inline float LocomotionStrideScaleTarget(float achieved_speed, float reference_speed) {
   if (reference_speed <= 1e-3f || achieved_speed <= 0.0f) return 1.0f;
@@ -196,8 +220,7 @@ inline LocomotionPlaybackRequest AdvanceLocomotionPlayback(
   // A clip with no speed reference (idle, stance) has no cadence to derive from
   // the motion, so it keeps playing at its own rate - standing still must not
   // freeze an idle breathing cycle.
-  const float reference_speed =
-      LocomotionClipReferenceSpeed(clip) * stride_scale;
+  const float reference_speed = LocomotionClipGaitSpeed(clip) * stride_scale;
   if (reference_speed > 1e-3f) {
     next.playback_rate =
         achieved_speed <= kLocomotionStopSpeed

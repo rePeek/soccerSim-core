@@ -281,7 +281,8 @@ class PlayerExecution final {
   // support foot from the gait heights, locks planted feet to their anchors and
   // writes the result back into the skeleton's local rotations. Movement clips
   // only; every other action keeps its sampled pose.
-  PoseFrame SettleMovementPose(const PoseFrame& pose, float base_angle);
+  PoseFrame SettleMovementPose(const PoseFrame& pose, float base_angle,
+                               const AnimationClip& clip, float clip_frame_time);
   // M3: the one place the Final Pose is produced, once per real playback tick:
   // warp -> bounded realization -> stride/plant settle. Every consumer reads the
   // result, so the rendered skeleton and the colliding skeleton cannot diverge.

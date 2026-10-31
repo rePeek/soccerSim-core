@@ -16,6 +16,7 @@ add_library(football_animation_base STATIC
   clip.cpp
   library.cpp
   selector.cpp
+  foot_support.cpp
 )
 add_library(football::animation_base ALIAS football_animation_base)
 target_sources(football_animation_base PUBLIC FILE_SET HEADERS
@@ -28,7 +29,8 @@ target_sources(football_animation_base PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/selector.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/selection_math.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/selection_query.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/quadrant.hpp)
+    ${PROJECT_SOURCE_DIR}/include/football/animation/quadrant.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/foot_support.hpp)
 target_compile_features(football_animation_base PUBLIC cxx_std_23)
 target_link_libraries(football_animation_base PUBLIC football::foundation)
 football_configure_target(football_animation_base)

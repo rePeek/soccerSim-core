@@ -127,6 +127,10 @@ struct PlayerExecutionState {
   // offsets, plus which foot was support. A foot travelling backwards relative
   // to the body is the one carrying weight (see SelectFootSupport).
   float previous_fore_aft_[2] = {0.0f, 0.0f};
+  // World ankle positions of the previous tick's gait pose, used to check that a
+  // foot the clip calls "stance" is really standing still in the world.
+  football::math::Vector3 previous_world_ankle_[2] = {
+      football::math::Vector3(0), football::math::Vector3(0)};
   bool have_previous_fore_aft_ = false;
   bool support_left_ = false;
   bool have_support_ = false;

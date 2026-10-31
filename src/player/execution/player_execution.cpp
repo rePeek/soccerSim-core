@@ -117,6 +117,8 @@ void PlayerExecution::ResetPoseChannel() {
   state_.previous_fore_aft_[0] = 0.0f;
   state_.previous_fore_aft_[1] = 0.0f;
   state_.have_previous_fore_aft_ = false;
+  state_.previous_world_ankle_[0] = Vector3(0);
+  state_.previous_world_ankle_[1] = Vector3(0);
   state_.support_left_ = false;
   state_.have_support_ = false;
   state_.final_pose_ = PoseFrame{};

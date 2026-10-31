@@ -16,7 +16,8 @@ add_executable(football_animation_unit_tests
   entry_frame_continuity_test.cpp
   touch_match_test.cpp
   touch_scoring_test.cpp
-  touch_geometry_test.cpp)
+  touch_geometry_test.cpp
+  foot_support_test.cpp)
 football_require_animation_cache(football_animation_unit_tests)
 target_link_libraries(football_animation_unit_tests
   PRIVATE

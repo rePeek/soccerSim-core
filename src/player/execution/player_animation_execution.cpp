@@ -10,6 +10,7 @@
 
 #include <bq_log/bq_log.h>
 
+#include "football/animation/foot_support.hpp"
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "football/player/execution/player_foot_ik.hpp"
@@ -239,7 +240,9 @@ void PlayerExecution::UpdateLocomotionPlayback(AnimationId clip_id, float frame_
 
 
 PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
-                                              float base_angle) {
+                                              float base_angle,
+                                              const AnimationClip& clip,
+                                              float clip_frame_time) {
   // P3b: only ordinary movement carries a support foot. Slide/trip/fall/header
   // intentionally keep both feet free and keep the sampled pose untouched.
   if (state_.installed_action_.function_type != e_FunctionType_Movement) {
@@ -291,7 +294,38 @@ PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
   support_input.previous_support_left = state_.support_left_;
   support_input.have_previous_support = state_.have_support_;
   support_input.switch_margin = kSupportSwitchMargin;
-  const PlayerFootSupportResult support = SelectFootSupport(support_input);
+  // The clip's own support track answers this question; the velocity rule is the
+  // fallback for clips without one (and keeps the history warm for them).
+  const FootSupportFrame track = SampleFootSupport(clip, clip_frame_time);
+  PlayerFootSupportResult support;
+  if (!clip.foot_support.empty()) {
+    support.left_support = FootIsSupporting(track.left);
+    support.right_support = FootIsSupporting(track.right);
+    // The baked phases assume the clip is played along its own direction. When
+    // the Player turns while the animation is still "stance", the foot is
+    // pivoting on the ground and must not be locked to a fixed world point: the
+    // world motion has the final say on whether the foot is standing still.
+    if (state_.have_previous_fore_aft_) {
+      const auto world_speed = [&](BodyPart ankle, int index) {
+        return (gait.joints[ankle] - state_.previous_world_ankle_[index])
+                   .Get2D()
+                   .GetLength() /
+               0.01f;
+      };
+      const float left_world = world_speed(BodyPart::left_ankle, 0);
+      const float right_world = world_speed(BodyPart::right_ankle, 1);
+      if (support.left_support && left_world > kStanceMaxWorldSpeed) {
+        support.left_support = false;
+      }
+      if (support.right_support && right_world > kStanceMaxWorldSpeed) {
+        support.right_support = false;
+      }
+    }
+  } else {
+    support = SelectFootSupport(support_input);
+  }
+  state_.previous_world_ankle_[0] = gait.joints[BodyPart::left_ankle];
+  state_.previous_world_ankle_[1] = gait.joints[BodyPart::right_ankle];
   state_.previous_fore_aft_[0] = left_fore_aft;
   state_.previous_fore_aft_[1] = right_fore_aft;
   state_.have_previous_fore_aft_ = true;
@@ -415,7 +449,13 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
   //    already lifted it.
   state_.settle_source_pose_ = realized.pose;
   state_.settle_source_valid_ = true;
-  const PoseFrame settled = SettleMovementPose(realized.pose, warped_base_angle);
+  // The support track is a clip-time fact: locomotion ticks sample the
+  // motion-driven clip time, action-clock ticks the action cursor.
+  const float clip_frame_time =
+      motion_driven ? state_.locomotion_playback_.frame_time
+                    : static_cast<float>(state_.actionState.Frame());
+  const PoseFrame settled = SettleMovementPose(realized.pose, warped_base_angle,
+                                               clip, clip_frame_time);
 
   // P1: the realization bounds the *incoming animation*, and the plant solve has
   // the last word on the legs. Report how fast the shipped leg joints actually
@@ -455,7 +495,9 @@ bool PlayerExecution::ResettleFinalPose(PlayerExecutionPort& owner) {
   // root; the plant anchors are world-fixed, so the legs re-reach the feet and
   // the residual stays bounded by the IK reach. No clip time is consumed.
   const PoseFrame settled =
-      SettleMovementPose(state_.settle_source_pose_, state_.final_pose_base_angle_);
+      SettleMovementPose(state_.settle_source_pose_, state_.final_pose_base_angle_,
+                         GetCurrentBakedClip(),
+                         static_cast<float>(state_.actionState.Frame()));
   state_.final_pose_ = settled;
   state_.final_pose_valid_ = true;
   state_.playback_state_.SetBlendSource(state_.final_pose_,

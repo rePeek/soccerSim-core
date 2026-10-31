@@ -36,6 +36,33 @@ const float idleDribbleSwitch = 1.8f;
 const float dribbleWalkSwitch = 4.2f;
 const float walkSprintSwitch = 6.0f;
 
+// Foot support phases, as an animation-domain fact.
+//
+// A gait clip knows which foot is carrying weight and when. Player Execution
+// needs that answer to decide when a world-space support anchor may be planted
+// or released; deriving it from ankle height alone mislabels authored clips (a
+// swinging foot can hang lower than a stance foot), and deriving it from the
+// settled pose cannot work at all (a locked foot keeps its height).
+enum class FootPhase : std::uint8_t {
+  Swing = 0,
+  // First frame of a contact: the foot touches down this frame.
+  Landing = 1,
+  // Carrying weight.
+  Stance = 2,
+  // Last frame of a contact: the foot leaves the ground after this frame.
+  Takeoff = 3,
+};
+
+struct FootSupportFrame {
+  FootPhase left = FootPhase::Swing;
+  FootPhase right = FootPhase::Swing;
+};
+
+inline bool FootIsSupporting(FootPhase phase) {
+  return phase == FootPhase::Landing || phase == FootPhase::Stance ||
+         phase == FootPhase::Takeoff;
+}
+
 enum e_Velocity {
   e_Velocity_Idle,
   e_Velocity_Dribble,
