@@ -205,6 +205,7 @@ class PlayerExecution final {
   int InstallCursorMismatches() const { return audit_.install_cursor_mismatches_; }
   int TouchSelectionSuccesses() const { return audit_.touch_selection_successes_; }
   int PoseResolves() const { return audit_.pose_resolves_; }
+  int PlantReleases() const { return audit_.plant_releases_; }
 
   // The compatibility projection, as the values the Player's kinematic oracle
   // compares against the committed state.
@@ -386,6 +387,9 @@ class PlayerExecution final {
   void ResetLegacySituation(const Vector3& focus_position);
   void ApplyLegacyPositionOffset(const Vector3& offset);
   void ResetRuntimeState(const Vector3& focus_position, football::sim::Tick now);
+  // Playback, cadence, support anchors and the Final Pose channel, as one
+  // contract. Every reset path goes through here.
+  void ResetPoseChannel();
 
   // --- decision clock and scheduling ------------------------------------
   CommandBuildResult RequestCommand(const PlayerCommandInputs& inputs);

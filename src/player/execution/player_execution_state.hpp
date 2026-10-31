@@ -123,6 +123,13 @@ struct PlayerExecutionState {
   bool playback_blend_enabled_ = true;
   // P3b: support-foot world anchors. Only Movement clips populate this.
   PlayerFootPlantState foot_plant_;
+  // Support detection state: the previous tick's hip-relative fore-aft ankle
+  // offsets, plus which foot was support. A foot travelling backwards relative
+  // to the body is the one carrying weight (see SelectFootSupport).
+  float previous_fore_aft_[2] = {0.0f, 0.0f};
+  bool have_previous_fore_aft_ = false;
+  bool support_left_ = false;
+  bool have_support_ = false;
   // LOCO-2.3b: fresh snapshot of the last committed locomotion tick.
   std::optional<LocomotionAnimationInput> locomotion_animation_input_;
   // M2: the motion-driven playback cursor. Carried across ticks so the gait
@@ -208,6 +215,8 @@ struct PlayerExecutionAuditState {
   int touch_selection_successes_ = 0;
   // M4: how often a root corrected after the tick forced a bounded re-settle.
   int pose_resolves_ = 0;
+  // P1: how often an unreachable support anchor was released.
+  int plant_releases_ = 0;
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_EXECUTION_STATE_HPP

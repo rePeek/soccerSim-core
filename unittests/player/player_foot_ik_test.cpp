@@ -244,3 +244,81 @@ TEST_CASE("the pose write-back is idempotent under re-evaluation",
   CHECK(twice.left_residual <=
         once.left_residual + 1e-4f);
 }
+
+TEST_CASE("an unreachable support anchor slides instead of pinning the leg",
+          "[player][footik][p1]") {
+  PlayerFootPlantState plant;
+  plant.left_planted = true;
+  plant.left_anchor = Vector3(0.0f, 0.0f, 0.0f);
+  plant.left_phase = FootContactPhase::Planted;
+  plant.right_planted = true;
+  plant.right_anchor = Vector3(0.1f, 0.0f, 0.0f);
+  PlayerFootIkTargets targets;
+  targets.has_left = true;
+  targets.left = Vector3(0.4f, 0.0f, 0.0f);    // out of reach
+  targets.has_right = true;
+  targets.right = Vector3(0.1f, 0.03f, 0.0f);  // 3 cm: ordinary discretisation
+
+  // Small residual: keep the anchor untouched.
+  auto keep = RelaxFootPlant(plant, targets, 0.02f, 0.03f);
+  CHECK_FALSE(keep.left_released);
+  CHECK_FALSE(keep.right_released);
+  CHECK(keep.left_slide == Catch::Approx(0.0f));
+  CHECK(keep.right_slide == Catch::Approx(0.0f));
+  CHECK(keep.plant.left_anchor == plant.left_anchor);
+
+  // Large residual: slide toward the foot by a bounded step, never all the way.
+  auto slide = RelaxFootPlant(plant, targets, 0.30f, 0.03f);
+  CHECK_FALSE(slide.left_released);
+  CHECK(slide.left_slide == Catch::Approx(kPlantRelaxSlide).margin(1e-6f));
+  CHECK((slide.plant.left_anchor - plant.left_anchor).GetLength() ==
+        Catch::Approx(kPlantRelaxSlide).margin(1e-6f));
+  CHECK(slide.plant.left_planted);
+
+  // A discontinuity (teleport/reset) releases instead of sliding forever.
+  auto release = RelaxFootPlant(plant, targets, 0.9f, 0.0f);
+  CHECK(release.left_released);
+  CHECK_FALSE(release.plant.left_planted);
+  CHECK(release.plant.left_anchor.GetLength() == Catch::Approx(0.0f));
+  CHECK(release.plant.left_phase == FootContactPhase::Releasing);
+  CHECK(release.plant.right_planted);
+
+  // Deterministic.
+  const auto again = RelaxFootPlant(plant, targets, 0.30f, 0.03f);
+  CHECK(again.left_slide == slide.left_slide);
+  CHECK(again.plant.left_anchor.coords[0] == slide.plant.left_anchor.coords[0]);
+}
+
+TEST_CASE("support is the foot that travels backwards, not the lower one",
+          "[player][footik][p1]") {
+  PlayerFootSupportInput input;
+  // No comparison yet: claim nothing rather than guess.
+  CHECK_FALSE(SelectFootSupport(input).left_support);
+  CHECK_FALSE(SelectFootSupport(input).right_support);
+
+  input.have_previous = true;
+  input.left_backward_rate = 0.05f;   // planted: moving backwards with the body
+  input.right_backward_rate = -0.03f; // swinging: moving forwards
+  auto support = SelectFootSupport(input);
+  CHECK(support.left_support);
+  CHECK_FALSE(support.right_support);
+
+  // Flight: both feet are travelling forwards, so neither carries weight.
+  input.left_backward_rate = -0.02f;
+  input.right_backward_rate = -0.04f;
+  support = SelectFootSupport(input);
+  CHECK_FALSE(support.left_support);
+  CHECK_FALSE(support.right_support);
+
+  // Hysteresis: the current support keeps the lock unless the other foot is
+  // clearly more planted.
+  PlayerFootSupportInput handover;
+  handover.have_previous = true;
+  handover.have_previous_support = true;
+  handover.previous_support_left = true;
+  handover.left_backward_rate = 0.030f;
+  handover.right_backward_rate = 0.035f;  // inside the margin
+  CHECK(SelectFootSupport(handover).left_support);
+  handover.right_backward_rate = 0.060f;  // clearly more planted
+  CHECK(SelectFootSupport(handover).right_support);
+}

@@ -270,25 +270,41 @@ PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
 
   const PlayerFootPlantState previous_plant = state_.foot_plant_;
 
-  // Support is read from the *gait* ankle heights, never from the settled pose:
-  // a locked foot keeps its height by construction, so a settled-pose comparison
-  // can never release it. The switch needs a margin so a tie cannot flip the
-  // support every tick.
-  const float left_height = adapted.targets.left.coords[2];
-  const float right_height = adapted.targets.right.coords[2];
-  bool support_left = left_height <= right_height;
-  if (previous_plant.left_planted && !previous_plant.right_planted) {
-    support_left = (left_height - right_height) <= kSupportSwitchMargin;
-  } else if (previous_plant.right_planted && !previous_plant.left_planted) {
-    support_left = (left_height - right_height) < -kSupportSwitchMargin;
-  }
+  // Support detection: the foot that is travelling *backwards* relative to the
+  // body is the one carrying weight. Height alone cannot separate a stance foot
+  // from one that merely hangs lower, and a settled pose can never decide it at
+  // all (a locked foot keeps its height by construction).
+  const Vector3 facing = Vector3(0, -1, 0).GetRotated2D(final_base_angle);
+  const Vector3 left_offset = gait.joints[BodyPart::left_ankle] -
+                              gait.joints[BodyPart::left_thigh];
+  const Vector3 right_offset = gait.joints[BodyPart::right_ankle] -
+                               gait.joints[BodyPart::right_thigh];
+  const float left_fore_aft = left_offset.GetDotProduct(facing);
+  const float right_fore_aft = right_offset.GetDotProduct(facing);
+  PlayerFootSupportInput support_input;
+  // Positive = the ankle moved backwards along the facing axis since last tick.
+  support_input.left_backward_rate =
+      state_.previous_fore_aft_[0] - left_fore_aft;
+  support_input.right_backward_rate =
+      state_.previous_fore_aft_[1] - right_fore_aft;
+  support_input.have_previous = state_.have_previous_fore_aft_;
+  support_input.previous_support_left = state_.support_left_;
+  support_input.have_previous_support = state_.have_support_;
+  support_input.switch_margin = kSupportSwitchMargin;
+  const PlayerFootSupportResult support = SelectFootSupport(support_input);
+  state_.previous_fore_aft_[0] = left_fore_aft;
+  state_.previous_fore_aft_[1] = right_fore_aft;
+  state_.have_previous_fore_aft_ = true;
+  state_.support_left_ = support.left_support;
+  state_.have_support_ = support.left_support != support.right_support;
+
   PlayerFootPlantInput plant_input;
   // The anchor of a newly planted foot is the stride-adapted ankle, i.e. exactly
   // where the settled foot would be: planting never moves the foot.
   plant_input.left_ankle = adapted.targets.left;
   plant_input.right_ankle = adapted.targets.right;
-  plant_input.left_support = support_left;
-  plant_input.right_support = !support_left;
+  plant_input.left_support = support.left_support;
+  plant_input.right_support = support.right_support;
   plant_input.plant_height = 0.22f * body.height_scale;
   state_.foot_plant_ = PlayerFootIk::Update(previous_plant, plant_input);
 
@@ -320,6 +336,23 @@ PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
       state_.foot_plant_.left_planted ? solved.left_residual : 0.0f;
   state_.locomotion_diagnostics_.right_foot_slip =
       state_.foot_plant_.right_planted ? solved.right_residual : 0.0f;
+
+  // P1: an anchor the leg can no longer reach must not pin the leg at maximum
+  // extension. It slides toward the foot by a bounded step (the foot really does
+  // move when the body was pushed away), and only a discontinuity releases it.
+  // The relaxation target is where the animation's foot actually is, not the
+  // locked anchor it was replaced with.
+  const PlayerFootPlantRelax relax = RelaxFootPlant(
+      state_.foot_plant_, adapted.targets, solved.left_residual,
+      solved.right_residual);
+  if (relax.left_released || relax.right_released) {
+    state_.locomotion_diagnostics_.left_plant_released = relax.left_released;
+    state_.locomotion_diagnostics_.right_plant_released = relax.right_released;
+    ++audit_.plant_releases_;
+  }
+  state_.locomotion_diagnostics_.left_plant_slide = relax.left_slide;
+  state_.locomotion_diagnostics_.right_plant_slide = relax.right_slide;
+  state_.foot_plant_ = relax.plant;
   return solved.pose;
 }
 
@@ -383,6 +416,23 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
   state_.settle_source_pose_ = realized.pose;
   state_.settle_source_valid_ = true;
   const PoseFrame settled = SettleMovementPose(realized.pose, warped_base_angle);
+
+  // P1: the realization bounds the *incoming animation*, and the plant solve has
+  // the last word on the legs. Report how fast the shipped leg joints actually
+  // turn, so a support correction that exceeds the animation budget is visible
+  // instead of silently reintroducing foot slide through a second limiter.
+  if (state_.final_pose_valid_) {
+    float peak = 0.0f;
+    for (const BodyPart joint : {BodyPart::left_thigh, BodyPart::right_thigh,
+                                 BodyPart::left_knee, BodyPart::right_knee,
+                                 BodyPart::left_ankle, BodyPart::right_ankle}) {
+      auto before = state_.final_pose_.orientations[joint];
+      auto after = settled.orientations[joint];
+      const float dot = before.MakeSameNeighborhood(after);
+      peak = std::max(peak, 2.0f * std::acos(std::clamp(dot, -1.0f, 1.0f)));
+    }
+    state_.locomotion_diagnostics_.max_leg_joint_step = peak;
+  }
 
   // 4. The single Final Pose. Pose(), the baked sample, the colliders, the
   //    touch geometry and the renderer all read this one value.
@@ -569,6 +619,10 @@ PlayerBakedPoseSample PlayerExecution::PreviewRawPose(PlayerExecutionPort& owner
   sample.frame_clamped = sampled != requested;
   sample.pose = clip.poses[static_cast<std::size_t>(sampled)];
   sample.outgoing_special_state = !clip.metadata.outgoing_special_state.empty();
+  // A raw-clip preview is not a settled pose: it must not inherit this tick's
+  // support anchors, or the "original reference pose" would silently carry the
+  // current plant constraints.
+  sample.foot_targets = PlayerFootIkTargets{};
   return sample;
 }
 

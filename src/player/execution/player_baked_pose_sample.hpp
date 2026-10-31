@@ -9,6 +9,12 @@
 // Read-only sample of the current runtime animation slot, not a forecast and
 // not another Humanoid execution. The requested frame is retained so a caller
 // cannot silently mistake end-of-clip clamping for animation continuity.
+//
+// `pose` is the Player's Final Pose: it already contains the stride/plant solve
+// in its local joint rotations. `Geometry()`/`ContactRegions()` therefore run
+// forward kinematics only. `foot_targets` exists for a caller that deliberately
+// previews an un-solved pose (a forecast); the committed sample leaves it empty
+// so no second constraint solve can appear.
 struct PlayerBakedPoseSample {
   PoseFrame pose;
   PlayerKinematicState state;

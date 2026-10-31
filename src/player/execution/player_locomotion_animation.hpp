@@ -74,7 +74,8 @@ struct LocomotionPlaybackRequest {
   AnimationId clip_id = -1;
   // Continuous clip frame to sample this tick.
   float frame_time = 0.0f;
-  // Achieved speed / effective reference speed, clamped to a plausible range.
+  // Achieved speed / effective reference speed, bounded above only. 0 means the
+  // Player is standing and a movement clip must not advance.
   float playback_rate = 1.0f;
   // Position within the clip cycle, 0..1. Continuous across ticks and wraps.
   float gait_phase = 0.0f;
@@ -85,10 +86,15 @@ struct LocomotionPlaybackRequest {
 
 // One frame of clip time is 10 ms at playback rate 1 (the bake cadence).
 inline constexpr float kLocomotionClipFrame_ms = 10.0f;
-// A stride may be slowed or quickened, but not arbitrarily: outside this range
-// the clip no longer reads as the same gait.
-inline constexpr float kLocomotionMinPlaybackRate = 0.35f;
+// A stride may be quickened, but not arbitrarily: beyond this the clip no longer
+// reads as the same gait. There is deliberately no *lower* bound: the rate is
+// derived from the achieved speed, and flooring it would make the stance foot
+// travel faster than the root (which the plant would then have to absorb).
+// A stationary Player freezes a movement clip; an idle clip has no speed
+// reference and keeps its own cadence.
 inline constexpr float kLocomotionMaxPlaybackRate = 2.2f;
+// Below this the Player is treated as standing: a movement clip stops advancing.
+inline constexpr float kLocomotionStopSpeed = 0.05f;
 
 // STRIDE-1: how much of a speed mismatch is absorbed by stride length instead
 // of cadence. 0 = cadence only (the reference plays in slow motion), 1 = stride
@@ -187,12 +193,17 @@ inline LocomotionPlaybackRequest AdvanceLocomotionPlayback(
   next.clip_id = clip_id;
   next.stride_scale = stride_scale;
 
+  // A clip with no speed reference (idle, stance) has no cadence to derive from
+  // the motion, so it keeps playing at its own rate - standing still must not
+  // freeze an idle breathing cycle.
   const float reference_speed =
       LocomotionClipReferenceSpeed(clip) * stride_scale;
-  if (reference_speed > 1e-3f && achieved_speed > 0.0f) {
-    next.playback_rate = std::clamp(achieved_speed / reference_speed,
-                                    kLocomotionMinPlaybackRate,
-                                    kLocomotionMaxPlaybackRate);
+  if (reference_speed > 1e-3f) {
+    next.playback_rate =
+        achieved_speed <= kLocomotionStopSpeed
+            ? 0.0f
+            : std::clamp(achieved_speed / reference_speed, 0.0f,
+                         kLocomotionMaxPlaybackRate);
   }
 
   const float frame_count = static_cast<float>(std::max(clip.frame_count, 1u));
@@ -232,6 +243,15 @@ struct LocomotionPoseDiagnostics {
   // anchor. Non-zero only when the plant target was outside the leg's reach.
   float left_foot_slip = 0.0f;
   float right_foot_slip = 0.0f;
+  // P1: an anchor the leg could not reach was given up / slid this tick.
+  bool left_plant_released = false;
+  bool right_plant_released = false;
+  float left_plant_slide = 0.0f;
+  float right_plant_slide = 0.0f;
+  // P1: peak leg-joint rotation between the previous and this Final Pose, in
+  // radians per tick. The animation realization budgets the incoming pose, not
+  // the plant solve that follows it, so this is the measured truth.
+  float max_leg_joint_step = 0.0f;
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_LOCOMOTION_ANIMATION_HPP

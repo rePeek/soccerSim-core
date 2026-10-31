@@ -69,6 +69,125 @@ inline PlayerFootPlantSlip MeasureFootPlantSlip(
   return slip;
 }
 
+// Which foot is carrying weight?
+//
+// A planted foot travels *backwards* relative to the body at the body's speed,
+// while a swinging foot travels forwards. That is a clip-intrinsic signal: it
+// does not depend on the playback rate or on the achieved speed, and it survives
+// a real clip whose stance foot slides a little inside the animation.
+//
+// The height-only heuristic that came before cannot tell a stance foot from a
+// foot that merely hangs lower; on authored run clips it mislabels half a cycle
+// and drags the leg toward a stale anchor. This replaces it until the baked
+// per-frame support track exists; the interface is the same question, so the
+// track can answer it later without touching the callers.
+//
+// `backward_rate` is metres of backward hip-relative travel since the previous
+// tick, along the body's facing axis.
+struct PlayerFootSupportInput {
+  float left_backward_rate = 0.0f;
+  float right_backward_rate = 0.0f;
+  bool have_previous = false;
+  bool previous_support_left = false;
+  bool have_previous_support = false;
+  // A handover needs the other foot to be clearly more planted (m per tick).
+  float switch_margin = 0.01f;
+};
+
+struct PlayerFootSupportResult {
+  bool left_support = false;
+  bool right_support = false;
+};
+
+inline PlayerFootSupportResult SelectFootSupport(
+    const PlayerFootSupportInput& input) {
+  PlayerFootSupportResult result;
+  // The first tick has no comparison yet: no foot is claimed, which is the safe
+  // answer (a plant is established on a later tick, never guessed).
+  if (!input.have_previous) return result;
+
+  float left = input.left_backward_rate;
+  float right = input.right_backward_rate;
+  if (input.have_previous_support) {
+    // The current support keeps a margin, so a crossover does not chatter.
+    if (input.previous_support_left) {
+      left += input.switch_margin;
+    } else {
+      right += input.switch_margin;
+    }
+  }
+  const bool left_wins = left > right;
+  const bool right_wins = right > left;
+  // Winning on a margin is not enough: only a foot that is really travelling
+  // backwards is carrying weight. Both feet forward means flight.
+  if (left_wins && input.left_backward_rate > 0.0f) result.left_support = true;
+  if (right_wins && input.right_backward_rate > 0.0f) result.right_support = true;
+  return result;
+}
+
+// What to do when a support anchor is no longer reachable.
+//
+// Dropping the anchor outright un-pins the leg, but it also snaps the pose back
+// to the raw gait - which is exactly what a leg pinned at maximum extension was
+// hiding. Sliding the anchor toward the foot by a bounded amount keeps the leg
+// off the reach limit without a discontinuity: the foot ends up moving, which is
+// the honest outcome when the body was pushed away from it.
+//
+//   residual <= release_residual   ordinary discretisation: keep the anchor
+//   release_residual..hard_release slide the anchor toward the foot, bounded
+//   above hard_release             a discontinuity (teleport/reset): release
+inline constexpr float kPlantReleaseResidual = 0.06f;
+// Bounded slide, in metres per tick (3 cm = 3 m/s of anchor travel).
+inline constexpr float kPlantRelaxSlide = 0.03f;
+// Beyond this the pose is not a support problem any more.
+inline constexpr float kPlantHardReleaseResidual = 0.35f;
+
+struct PlayerFootPlantRelax {
+  PlayerFootPlantState plant;
+  bool left_released = false;
+  bool right_released = false;
+  float left_slide = 0.0f;
+  float right_slide = 0.0f;
+};
+
+inline PlayerFootPlantRelax RelaxFootPlant(
+    const PlayerFootPlantState& plant, const PlayerFootIkTargets& targets,
+    float left_residual, float right_residual,
+    float release_residual = kPlantReleaseResidual,
+    float max_slide = kPlantRelaxSlide,
+    float hard_release = kPlantHardReleaseResidual) {
+  PlayerFootPlantRelax result;
+  result.plant = plant;
+  const auto relax = [&](bool planted, float residual, bool has_target,
+                         const football::math::Vector3& foot, bool& released,
+                         float& slide, bool& flag, football::math::Vector3& anchor) {
+    if (!planted) return;
+    if (residual <= release_residual) return;
+    if (residual > hard_release || !has_target) {
+      released = true;
+      flag = false;
+      anchor = football::math::Vector3(0);
+      return;
+    }
+    const football::math::Vector3 to_foot = foot - anchor;
+    const float distance = to_foot.GetLength();
+    if (distance <= 1e-6f) return;
+    const float step = std::min(std::min(residual - release_residual, max_slide),
+                                distance);
+    anchor += to_foot * (step / distance);
+    slide = step;
+  };
+  relax(plant.left_planted, left_residual, targets.has_left, targets.left,
+        result.left_released, result.left_slide, result.plant.left_planted,
+        result.plant.left_anchor);
+  relax(plant.right_planted, right_residual, targets.has_right, targets.right,
+        result.right_released, result.right_slide, result.plant.right_planted,
+        result.plant.right_anchor);
+  if (result.left_released) result.plant.left_phase = FootContactPhase::Releasing;
+  if (result.right_released) result.plant.right_phase = FootContactPhase::Releasing;
+  return result;
+}
+
 // The support authority: a planted foot is released from whatever the gait
 // wanted and targets the anchor it was planted on. This is the only place
 // support overrides the stride, so shortening a stride can never stretch or

@@ -420,14 +420,72 @@ arbitration) happen after the tick. They go through
   tick;
 - `Player::Diagnostics().pose_resolves` counts them.
 
+### Stage 1 result: consistency fixes and real-clip acceptance
+
+Four defects found in review, plus the boundary rules they exposed:
+
+- **Geometry no longer re-solves the pose.** `BakedPoseSample()` leaves
+  `foot_targets` empty because the committed pose already carries the foot solve
+  in its local rotations; `Geometry()`/`ContactRegions()` are a pure FK pass.
+  `PreviewRawPose()` explicitly clears the targets, so a raw-clip preview cannot
+  silently inherit the current support anchors. Measured difference between the
+  two paths on the settled pose: < 2 mm (they describe the same skeleton).
+- **Zero-speed playback.** The playback rate is derived, and there is no lower
+  clamp: a stationary Player freezes a movement clip instead of letting it walk
+  on its own, while a clip with no speed reference (idle/stance) keeps its own
+  cadence so standing still does not freeze a breathing cycle. The old 0.35 floor
+  made the stance foot travel faster than the root at low speed - exactly the
+  slide the plant then had to absorb.
+- **One reset contract.** `PlayerExecution::ResetPoseChannel()` clears playback,
+  cadence, support anchors, the support-detection history and the Final Pose
+  channel together. A stale anchor is a *world* position, so leaving one behind
+  would pull the next pose toward where the Player used to stand.
+- **Support is now the foot that travels backwards**, not the lower one
+  (`SelectFootSupport`). It is clip-intrinsic: it does not depend on the playback
+  rate or the achieved speed. Height alone mislabels half a cycle on authored run
+  clips (measured on clip 768: the lower foot was swinging at 9.8 m/s while the
+  other was in stance at 2.1 m/s), which produced a 0.58 m anchor drift and a
+  1.34 rad/tick leg snap.
+- **An unreachable anchor relaxes instead of pinning the leg**
+  (`RelaxFootPlant`): below 6 cm residual nothing happens; above it the anchor
+  slides toward the foot by at most 3 cm/tick (the foot really does move when the
+  body was pushed away); above 35 cm the pose is not a support problem and the
+  anchor is released. `LocomotionPoseDiagnostics` reports
+  `*_plant_released`/`*_plant_slide`.
+- **Measured, not hidden**: `LocomotionPoseDiagnostics::max_leg_joint_step` is the
+  peak leg-joint rotation between the previous and this Final Pose. The
+  realization budgets the *incoming* animation; the plant solve has the last
+  word, so this is the shipped truth and it is reported rather than capped (a
+  second limiter would reintroduce foot slide).
+
+Real-catalog acceptance (`unittests/loco_animation/loco_motion_pose_test.cpp`,
+clip 768 at 5.05 m/s reference, 80 ticks):
+
+| scenario | bone error | shipped slip | IK residual | anchor slide | leg step |
+|---|---|---|---|---|---|
+| cruise | 0 | 0.084 m | 0.111 m | 0.03 m/tick | 0.90 rad |
+| brake 5→0.75 m/s | 0 | 0.072 m | 0.099 m | 0.03 m/tick | 1.01 rad |
+| stop | 0 | 0.081 m | 0.109 m | 0.03 m/tick | 0.50 rad |
+| turn 90° | 0 | 0.040 m | 0.040 m | 0 | 1.31 rad |
+
+The remaining slip is **authored into the clip**: on clip 768 the stance foot
+travels ~4 m/s inside the animation while its own root track claims ~5.05 m/s, so
+the plant has to absorb ~1 m/s for the whole stance. That is the material the
+Baker support track (next stage) and a foot-lock rate calibration
+(`rate = achieved / stance_foot_speed` instead of `/ root_track_speed`) are for.
+
 ### What is still open
 
-- Foot-plant **events** are still derived from geometry. The bake should emit
-  explicit left/right support intervals (283 sources + 443 procedural clips);
-  the height heuristic is a bridge, not the final contract.
+- **Baked support intervals** (`Swing/Landing/Stance/Takeoff` per foot, sampleable
+  at a fractional frame time). The velocity-based `SelectFootSupport` is the
+  bridge; the bake is where the answer belongs.
+- **Foot-lock rate calibration**: derive the playback rate from the *stance foot*
+  speed rather than the root track speed, which removes the ~1 m/s residual for
+  clips with baked foot slide.
 - The entry damping is driven by the action cursor (`PlayerActionState::Frame`),
-  a per-clip tick counter. A gait-phase-driven entry weight would be more
-  expressive, but the action cursor remains the clip-time authority.
+  a per-clip tick counter.
+- The peak leg-joint step (up to 1.3 rad/tick at a support handover) is measured
+  but not bounded. Bounding it needs a release ramp, not another global limiter.
 - Runtime contact still resolves pairs one after another, so a chain of
   corrections in one tick re-settles once per correction instead of being
   coalesced. That is a cost, not an inconsistency.

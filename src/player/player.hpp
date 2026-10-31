@@ -75,6 +75,8 @@ struct PlayerExecutionDiagnostics {
   int touch_selection_successes = 0;
   // M4: bounded Final Pose re-settles caused by a root corrected after the tick.
   int pose_resolves = 0;
+  // P1: support anchors released because the leg could not reach them.
+  int plant_releases = 0;
 };
 
 // PEX-4: the Player is the player entity - identity, capability, match state,

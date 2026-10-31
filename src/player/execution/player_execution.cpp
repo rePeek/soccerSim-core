@@ -103,20 +103,36 @@ void PlayerExecution::Exit(PlayerExecutionPort& owner, football::sim::Tick now) 
   ResetRuntimeState(port().GetPosition(), now);
 }
 
+void PlayerExecution::ResetPoseChannel() {
+  // One contract for every reset: playback, the motion-driven cadence, the
+  // support anchors and the Final Pose channel are cleared together. A stale
+  // plant anchor is a *world* position, so leaving one behind would pull the
+  // next pose toward where the Player used to stand.
+  state_.playback_state_.Reset();
+  state_.locomotion_playback_ = LocomotionPlaybackRequest{};
+  state_.locomotion_reference_delta_ = Vector3(0);
+  state_.stride_scale_ = 1.0f;
+  state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
+  state_.foot_plant_ = PlayerFootPlantState{};
+  state_.previous_fore_aft_[0] = 0.0f;
+  state_.previous_fore_aft_[1] = 0.0f;
+  state_.have_previous_fore_aft_ = false;
+  state_.support_left_ = false;
+  state_.have_support_ = false;
+  state_.final_pose_ = PoseFrame{};
+  state_.final_pose_base_angle_ = 0.0f;
+  state_.final_pose_valid_ = false;
+  state_.settle_source_pose_ = PoseFrame{};
+  state_.settle_source_valid_ = false;
+}
+
 void PlayerExecution::ResetPosition(PlayerExecutionPort& owner, const Vector3& new_position,
                                     const Vector3& focus_position) {
   PortScope scope(*this, owner);
   ResetLegacyPosition(new_position, focus_position);
   // ANIM-1.1: re-placement clears any pending active/passive request.
   state_.pending_action_request_.reset();
-  state_.playback_state_.Reset();
-  state_.locomotion_playback_ = LocomotionPlaybackRequest{};
-  state_.locomotion_reference_delta_ = Vector3(0);
-  state_.stride_scale_ = 1.0f;
-  state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
-  state_.final_pose_ = PoseFrame{};
-  state_.final_pose_base_angle_ = 0.0f;
-  state_.final_pose_valid_ = false;
+  ResetPoseChannel();
   state_.pending_reaction_.reset();
   state_.pending_passive_trip_.reset();
   port().CommitLegacyActionMotion();
@@ -136,15 +152,7 @@ void PlayerExecution::ResetRuntimeState(const Vector3& focus_position,
   port().ResetTouchRecord();
   // ANIM-1.1: a reset must not leave a stale active/passive request behind.
   state_.pending_action_request_.reset();
-  state_.playback_state_.Reset();
-  // M2: a reset is a continuity break for the gait phase as well.
-  state_.locomotion_playback_ = LocomotionPlaybackRequest{};
-  state_.locomotion_reference_delta_ = Vector3(0);
-  state_.stride_scale_ = 1.0f;
-  state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
-  state_.final_pose_ = PoseFrame{};
-  state_.final_pose_base_angle_ = 0.0f;
-  state_.final_pose_valid_ = false;
+  ResetPoseChannel();
   state_.pending_reaction_.reset();
   state_.pending_passive_trip_.reset();
   if (port().IsActive()) {
@@ -224,14 +232,11 @@ PlayerBakedPoseSample PlayerExecution::BakedPoseSample(PlayerExecutionPort& owne
       sample.pose.positions[BodyPart::player].coords[2] *
       sample.body_profile.height_scale;
   sample.state.vertical_authoritative = state_.playback_state_.have_pose;
-  if (state_.foot_plant_.left_planted) {
-    sample.foot_targets.has_left = true;
-    sample.foot_targets.left = state_.foot_plant_.left_anchor;
-  }
-  if (state_.foot_plant_.right_planted) {
-    sample.foot_targets.has_right = true;
-    sample.foot_targets.right = state_.foot_plant_.right_anchor;
-  }
+  // No foot targets here. This pose already carries the foot solve in its local
+  // joint rotations, so geometry must be a pure forward-kinematics pass over it.
+  // A second constraint solve would be a second pose, which is exactly what the
+  // Final Pose channel exists to prevent. Foot targets stay available for a
+  // caller that deliberately previews an *un*-solved pose (see PreviewRawPose).
   return sample;
 }
 

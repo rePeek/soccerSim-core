@@ -468,7 +468,8 @@ PlayerExecutionDiagnostics Player::Diagnostics() const {
       execution_->InstallCursorMatches(),
       execution_->InstallCursorMismatches(),
       execution_->TouchSelectionSuccesses(),
-      execution_->PoseResolves()};
+      execution_->PoseResolves(),
+      execution_->PlantReleases()};
 }
 
 void Player::CheckSimulationActionOracle() const {

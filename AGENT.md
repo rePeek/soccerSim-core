@@ -216,7 +216,14 @@ observation, controls and stored physics are all the Stadium Frame.
 - A Final Pose is the skeleton the colliders read: foot IK writes local joint
   rotations (`ApplyWorldFootTargetsToPose`), not only world joint points, and
   the FK bind table (`kBakedBindJoints`) is shared by forward kinematics and
-  that write-back. Never re-solve a second pose for geometry.
+  that write-back. Never re-solve a second pose for geometry: the committed
+  sample carries no foot targets, so `Geometry()`/`ContactRegions()` are a pure
+  forward-kinematics pass over the Final Pose. A raw preview clears them too.
+- Support feet are decided by `SelectFootSupport`: the foot travelling backwards
+  relative to the body carries weight. Height alone mislabels authored run clips.
+  An anchor the leg cannot reach relaxes (bounded slide toward the foot) or, past
+  a hard threshold, releases - never pinned at maximum extension. The baked
+  per-frame support track will answer the same question later.
 - `PlayerExecutionState::final_pose_` is the one Final Pose channel:
   `ComposeFinalPose` produces it once per tick as blend -> Warp -> Realize ->
   stride/plant settle, and `Pose()`, `BakedPoseSample()`, `Geometry()`,

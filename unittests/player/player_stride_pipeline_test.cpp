@@ -494,3 +494,107 @@ TEST_CASE("a correction beyond the leg's reach is reported, never hidden",
   CHECK(far.anchored_error > 0.5f);
   CHECK(far.bone_error < 1e-3f);
 }
+
+TEST_CASE("the settled pose needs no second constraint solve for geometry",
+          "[player][m3][p0]") {
+  // The committed sample carries the IK in its skeleton, so geometry must be a
+  // pure FK pass. Re-applying this tick's plant anchors must change nothing.
+  const AnimationClip clip = GaitClip();
+  const float reference = LocomotionClipReferenceSpeed(clip);
+  PlayerKinematicState state;
+  state.velocity = Vector3(0, -reference, 0);
+  LocomotionPlaybackRequest playback;
+  PlayerFootPlantState plant;
+  PoseFrame realized;
+  bool realized_valid = false;
+
+  for (int tick = 0; tick < 30; ++tick) {
+    playback = AdvanceLocomotionPlayback(playback, clip.id, clip, reference, 0.0f,
+                                         kTickSeconds, 1.0f);
+    const PoseFrame sampled = SamplePose(clip, playback.frame_time);
+    PlayerPoseRealizeInput realize;
+    realize.previous_pose = realized_valid ? realized : sampled;
+    realize.target_pose = sampled;
+    realize.body = Body();
+    realized = PlayerPoseAdapter::Realize(realize).pose;
+    realized_valid = true;
+
+    const BakedBodyPose gait = EvaluateBakedBodyPose(realized, state, 0.0f, Body());
+    PlayerStrideAdaptInput adapt;
+    adapt.left.valid = true;
+    adapt.left.hip = gait.joints[BodyPart::left_thigh];
+    adapt.left.ankle = gait.joints[BodyPart::left_ankle];
+    adapt.right.valid = true;
+    adapt.right.hip = gait.joints[BodyPart::right_thigh];
+    adapt.right.ankle = gait.joints[BodyPart::right_ankle];
+    adapt.facing = Vector3(0, -1, 0);
+    adapt.stride_scale = 1.0f;
+    adapt.gait_phase = playback.gait_phase;
+    const PlayerStrideAdaptResult adapted = PlayerPoseAdapter::AdaptStride(adapt);
+
+    const float left_height = adapted.targets.left.coords[2];
+    const float right_height = adapted.targets.right.coords[2];
+    bool support_left = left_height <= right_height;
+    if (plant.left_planted && !plant.right_planted) {
+      support_left = (left_height - right_height) <= kSupportSwitchMargin;
+    } else if (plant.right_planted && !plant.left_planted) {
+      support_left = (left_height - right_height) < -kSupportSwitchMargin;
+    }
+    PlayerFootPlantInput plant_input;
+    plant_input.left_ankle = adapted.targets.left;
+    plant_input.right_ankle = adapted.targets.right;
+    plant_input.left_support = support_left;
+    plant_input.right_support = !support_left;
+    plant_input.plant_height = 0.25f;
+    plant = PlayerFootIk::Update(plant, plant_input);
+    const PlayerFootIkTargets targets = ApplyFootPlantLocks(plant, adapted.targets);
+    const BakedPoseFootSolve solved =
+        ApplyWorldFootTargetsToPose(realized, state, 0.0f, Body(), targets);
+
+    // What geometry does: forward kinematics over the settled pose only.
+    const BakedBodyPose fk = EvaluateBakedBodyPose(solved.pose, state, 0.0f, Body());
+    // What it used to do: forward kinematics plus the plant anchors again.
+    PlayerFootIkTargets again;
+    if (plant.left_planted) {
+      again.has_left = true;
+      again.left = plant.left_anchor;
+    }
+    if (plant.right_planted) {
+      again.has_right = true;
+      again.right = plant.right_anchor;
+    }
+    const BakedBodyPose resolved =
+        EvaluateBakedBodyPose(solved.pose, state, 0.0f, Body(), &again);
+
+    for (const BodyPart joint : {BodyPart::left_ankle, BodyPart::right_ankle,
+                                 BodyPart::left_knee, BodyPart::right_knee}) {
+      CHECK((fk.joints[joint] - resolved.joints[joint]).GetLength() < 2e-3f);
+    }
+    state.position += Vector3(0, -reference * kTickSeconds, 0);
+  }
+}
+
+TEST_CASE("a released plant leaves no anchor for the next pose",
+          "[player][stride][p1]") {
+  // After a release the anchor is gone, so the next stride target is not pulled
+  // back to an unreachable world point.
+  PlayerFootPlantState plant;
+  plant.left_planted = true;
+  plant.left_anchor = Vector3(0.0f, 0.0f, 0.0f);
+  PlayerFootIkTargets far;
+  far.has_left = true;
+  far.left = Vector3(0.0f, -0.2f, 0.05f);
+  const auto release = RelaxFootPlant(plant, far, 0.9f, 0.0f);
+  REQUIRE(release.left_released);
+
+  PlayerStrideAdaptInput adapt;
+  adapt.left.valid = true;
+  adapt.left.hip = Vector3(0.09f, 0.0f, 0.9f);
+  adapt.left.ankle = Vector3(0.09f, -0.2f, 0.05f);
+  adapt.facing = Vector3(0, -1, 0);
+  adapt.stride_scale = 1.0f;
+  const PlayerStrideAdaptResult adapted = PlayerPoseAdapter::AdaptStride(adapt);
+  const PlayerFootIkTargets locked = ApplyFootPlantLocks(release.plant, adapted.targets);
+  // The gait target survives the lock instead of being replaced by an anchor.
+  CHECK(locked.left.coords[1] == adapted.targets.left.coords[1]);
+}
