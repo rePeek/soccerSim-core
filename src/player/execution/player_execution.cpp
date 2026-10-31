@@ -635,9 +635,25 @@ void PlayerExecution::PublishCadenceLocomotion(ActionTickFrame& frame) {
 }
 
 void PlayerExecution::ApplyPostActionTick(ActionTickFrame& frame) {
-  frame.ball_retainer = ProcessActionTouches(
-      frame.now, *frame.tick, frame.ball_retainer,
-      *frame.touch_sink, *frame.runtime_sink);
+  // M4 phase order. The motion is already committed by
+  // AdvanceActionAndMovement; the tail is:
+  //
+  //   ApplyMovementOffsets   smuggle evolution + goalkeeper clamps: the last
+  //                          root mutations the tick performs itself
+  //   ComposePose            sample -> warp -> realize -> settle: the one Final
+  //                          Pose of this tick
+  //   PrepareActionContacts   touches consume that pose, never a stale one
+  //
+  // A contact response that arrives from outside (Runtime pair contact or ball
+  // arbitration) comes after the tick, so it may not edit a settled pose in
+  // place: `Player::OffsetPosition` re-settles the pose against the corrected
+  // root (`ResettleFinalPose`) or the response lands on the next tick.
+  ApplyMovementOffsets(frame);
+  ComposePose(frame);
+  PrepareActionContacts(frame);
+}
+
+void PlayerExecution::ApplyMovementOffsets(ActionTickFrame& frame) {
   // ANIM-1 A9 step 2: the action/movement/rotation smuggle evolution is a pure
   // PlayerMotion calculation; this applies its deltas in the legacy order.
   ActionSmuggleTickInput smuggle_input;
@@ -663,7 +679,9 @@ void PlayerExecution::ApplyPostActionTick(ActionTickFrame& frame) {
 
   // ANIM-1 A9 step 3: the goalkeeper boundary clamps are Player-owned.
   ApplyGoalkeeperBoundaryClamps(*frame.tick, frame.ball_retainer);
+}
 
+void PlayerExecution::ComposePose(ActionTickFrame& frame) {
   // ANIM-1 A5: the Player owns the final pose. The action tick only hands over
   // the selected clip/frame and the base yaw once per tick; the Player's
   // playback state samples/blends it.
@@ -671,6 +689,10 @@ void PlayerExecution::ApplyPostActionTick(ActionTickFrame& frame) {
   // M2: on a pure-locomotion tick the achieved motion owns the clip time. The
   // locomotion snapshot is refreshed by CommitLocomotion in this same tick, so
   // it cannot be stale when the predicate holds.
+  //
+  // M4: the classification uses the retainer state the *motion* was committed
+  // with (before this tick's touches), so the pose cannot be produced from a
+  // different locomotion mode than the root it describes.
   const bool motion_driven =
       UsesProceduralLocomotion(frame.ball_retainer) &&
       state_.locomotion_animation_input_.has_value() &&
@@ -681,4 +703,13 @@ void PlayerExecution::ApplyPostActionTick(ActionTickFrame& frame) {
           state_.legacy_anim_state_.functionType == e_FunctionType_Movement &&
           IsEligibleForProceduralLocomotion(frame.ball_retainer == self())),
       motion_driven);
+}
+
+void PlayerExecution::PrepareActionContacts(ActionTickFrame& frame) {
+  // M4: contacts are last, so the touch geometry is the settled pose of this
+  // tick and the root under it. A touch decided here cannot move the root: it
+  // only proposes, and Runtime arbitrates after every actor has ticked.
+  frame.ball_retainer = ProcessActionTouches(
+      frame.now, *frame.tick, frame.ball_retainer,
+      *frame.touch_sink, *frame.runtime_sink);
 }

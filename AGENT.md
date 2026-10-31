@@ -179,6 +179,14 @@ observation, controls and stored physics are all the Stadium Frame.
   executor's `ActionState()` are the movement and action-clock authorities;
   `legacy_anim_state_` and `legacy_spatial_state_` are compatibility
   projections, never a second authority.
+- The tick tail order is a contract: motion commit -> action resolve ->
+  `ApplyMovementOffsets` (the last in-tick root mutations) -> `ComposePose` ->
+  `PrepareActionContacts`. Contacts are last so the touch geometry, the pose and
+  the root belong to the same tick, and the pose is classified with the retainer
+  state the motion was committed with. A touch only proposes; it never moves the
+  root. A root corrected after the tick (`Player::OffsetPosition`) re-settles the
+  same pose through `PlayerExecution::ResettleFinalPose` - bounded, no clip time
+  consumed, residual visible instead of a stretched skeleton.
 - Motion and animation authority are separate facts. `PlayerMotionAdapter`
   returns the one admissible displacement; `achieved_delta` and the committed
   velocity must describe that same motion (a speed ceiling publishes the

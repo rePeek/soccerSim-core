@@ -380,6 +380,8 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
   //    anchor and shipped pose are decided together, so no anchor is ever
   //    captured on a pose nobody sees and no foot stays locked after the gait
   //    already lifted it.
+  state_.settle_source_pose_ = realized.pose;
+  state_.settle_source_valid_ = true;
   const PoseFrame settled = SettleMovementPose(realized.pose, warped_base_angle);
 
   // 4. The single Final Pose. Pose(), the baked sample, the colliders, the
@@ -390,6 +392,26 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
   // A later clip switch must blend from what the body actually looked like.
   state_.playback_state_.SetBlendSource(state_.final_pose_,
                                        state_.final_pose_base_angle_);
+}
+
+bool PlayerExecution::ResettleFinalPose(PlayerExecutionPort& owner) {
+  PortScope scope(*this, owner);
+  if (!state_.final_pose_valid_ || !state_.settle_source_valid_) return false;
+  if (state_.installed_action_.function_type != e_FunctionType_Movement) {
+    return false;
+  }
+  // M4: a root that changed after the tick invalidates the settled pose, not the
+  // clip. Re-run the same settle on the same realized pose with the corrected
+  // root; the plant anchors are world-fixed, so the legs re-reach the feet and
+  // the residual stays bounded by the IK reach. No clip time is consumed.
+  const PoseFrame settled =
+      SettleMovementPose(state_.settle_source_pose_, state_.final_pose_base_angle_);
+  state_.final_pose_ = settled;
+  state_.final_pose_valid_ = true;
+  state_.playback_state_.SetBlendSource(state_.final_pose_,
+                                       state_.final_pose_base_angle_);
+  ++audit_.pose_resolves_;
+  return true;
 }
 
 void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,

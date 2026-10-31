@@ -133,6 +133,13 @@ class PlayerExecution final {
     state_.locomotion_animation_input_ = input;
   }
 
+  // --- post-tick pose repair --------------------------------------------
+  // A root corrected after the tick (Runtime pair contact, ball arbitration)
+  // invalidates the settled pose. Re-run the settle on the same realized pose,
+  // stride scale, gait phase and plant anchors: bounded, no clip time consumed.
+  // Returns false when this tick has no movement pose to re-settle.
+  bool ResettleFinalPose(PlayerExecutionPort& owner);
+
   // --- observation ------------------------------------------------------
   const PlayerActionState& ActionState() const { return state_.actionState; }
   const football::sim::SelectedAction& InstalledAction() const {
@@ -197,6 +204,7 @@ class PlayerExecution final {
   int InstallCursorMatches() const { return audit_.install_cursor_matches_; }
   int InstallCursorMismatches() const { return audit_.install_cursor_mismatches_; }
   int TouchSelectionSuccesses() const { return audit_.touch_selection_successes_; }
+  int PoseResolves() const { return audit_.pose_resolves_; }
 
   // The compatibility projection, as the values the Player's kinematic oracle
   // compares against the committed state.
@@ -252,7 +260,12 @@ class PlayerExecution final {
   void EvaluateActionRequeue(ActionTickFrame& frame);
   void SelectActionForFrame(ActionTickFrame& frame);
   void PublishCadenceLocomotion(ActionTickFrame& frame);
+  // M4 tail: root offsets -> Final Pose -> contacts.
   void ApplyPostActionTick(ActionTickFrame& frame);
+  void ApplyMovementOffsets(ActionTickFrame& frame);
+  void ComposePose(ActionTickFrame& frame);
+  void PrepareActionContacts(ActionTickFrame& frame);
+
 
   // --- action timeline and playback -------------------------------------
   void UpdatePlayback(AnimationId clip_id, int frame, float base_angle, int blend_ticks);

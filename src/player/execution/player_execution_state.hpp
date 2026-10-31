@@ -113,6 +113,10 @@ struct PlayerExecutionState {
   PoseFrame final_pose_;
   float final_pose_base_angle_ = 0.0f;
   bool final_pose_valid_ = false;
+  // The realized pose the Final Pose was settled from. A root correction after
+  // the tick re-settles this pose instead of re-deriving one.
+  PoseFrame settle_source_pose_;
+  bool settle_source_valid_ = false;
   // ANIM-2 A10.1: the tick of the last real playback update, so a repeated
   // same-tick call cannot advance the transition twice.
   std::optional<football::sim::Tick> last_playback_tick_;
@@ -202,6 +206,8 @@ struct PlayerExecutionAuditState {
   int reaction_trip_interrupts_scheduled_ = 0;
   int action_request_preemptions_ = 0;
   int touch_selection_successes_ = 0;
+  // M4: how often a root corrected after the tick forced a bounded re-settle.
+  int pose_resolves_ = 0;
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_EXECUTION_STATE_HPP

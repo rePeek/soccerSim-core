@@ -73,6 +73,8 @@ struct PlayerExecutionDiagnostics {
   int install_cursor_matches = 0;
   int install_cursor_mismatches = 0;
   int touch_selection_successes = 0;
+  // M4: bounded Final Pose re-settles caused by a root corrected after the tick.
+  int pose_resolves = 0;
 };
 
 // PEX-4: the Player is the player entity - identity, capability, match state,

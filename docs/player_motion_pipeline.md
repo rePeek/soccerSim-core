@@ -377,6 +377,49 @@ playback blend            playback_state_.final_pose        (Animation)
   base yaw and consumes the Player's pose unchanged, so the collider can no
   longer lag the pose the touch decisions and the renderer use.
 
+### M4 result: tick order and the contact hand-back
+
+The Player tick tail now runs in the order the pose needs, not the order the
+legacy code happened to have:
+
+```
+... AdvanceActionAndMovement   motion committed (root, velocity, facing)
+    SelectActionForFrame        action resolved
+    ApplyMovementOffsets        smuggle + goalkeeper clamps: the last root
+                                mutations the tick performs itself
+    ComposePose                 sample -> warp -> realize -> settle: the pose
+                                that belongs to the root above
+    PrepareActionContacts       touches consume that settled pose
+```
+
+- Contacts moved **last**: the boot surface point, the pose and the root under it
+  now belong to the same tick. Previously the touch stage read the previous
+  tick's pose while this tick's root had already been committed.
+- The locomotion classification used for the pose comes from the retainer state
+  the *motion* was committed with (before this tick's touches), so the pose can
+  never be produced from a different locomotion mode than the root it describes.
+  A possession gain therefore takes effect from the next tick, which is also
+  when its action actually runs.
+- A touch can only **propose**. It never moves the root, so nothing can leave a
+  settled pose stale from inside the tick.
+
+Root corrections that arrive from outside (Runtime pair contact, ball
+arbitration) happen after the tick. They go through
+`Player::OffsetPosition` -> `Player::ApplyPositionCorrection` ->
+`PlayerExecution::ResettleFinalPose`:
+
+- the settle is re-run on the **same** realized pose, stride scale, gait phase
+  and plant anchors - no clip time is consumed and no new sample is taken, so
+  the action/touch clock cannot drift;
+- the plant anchors are world-fixed, so the legs re-reach the feet that are
+  still on the ground; the result is bounded by the two-bone reach and the
+  residual is reported (`BakedPoseFootSolve::left/right_residual`,
+  `LocomotionPoseDiagnostics::*_foot_slip`);
+- an out-of-reach correction shows up as a large residual instead of a stretched
+  skeleton, which is the signal a caller needs to defer the response to the next
+  tick;
+- `Player::Diagnostics().pose_resolves` counts them.
+
 ### What is still open
 
 - Foot-plant **events** are still derived from geometry. The bake should emit
@@ -385,5 +428,6 @@ playback blend            playback_state_.final_pose        (Animation)
 - The entry damping is driven by the action cursor (`PlayerActionState::Frame`),
   a per-clip tick counter. A gait-phase-driven entry weight would be more
   expressive, but the action cursor remains the clip-time authority.
-- Contact/Runtime ordering (M4) is unchanged: touches still run before the pose
-  is settled within the tick.
+- Runtime contact still resolves pairs one after another, so a chain of
+  corrections in one tick re-settles once per correction instead of being
+  coalesced. That is a cost, not an inconsistency.

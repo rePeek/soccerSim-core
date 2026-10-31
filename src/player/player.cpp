@@ -229,6 +229,11 @@ void Player::OffsetPosition(const Vector3 &offset) {
   // compatibility pass cannot: the animation state is mid-update there.
   ApplyPositionCorrection(offset);
   execution_->CheckSimulationActionOracle();
+  // M4: the root moved after this tick's pose was settled. The feet were locked
+  // to world anchors, so the pose has to be re-settled against the corrected
+  // root instead of shipping a skeleton that no longer matches the ground it
+  // stands on. Bounded: one extra settle, no clip time consumed.
+  execution_->ResettleFinalPose(Port());
 }
 
 void Player::ResetPosition(const Vector3 &newPos, const Vector3 &focusPos) {
@@ -462,7 +467,8 @@ PlayerExecutionDiagnostics Player::Diagnostics() const {
       execution_->InstallCursorChecks(),
       execution_->InstallCursorMatches(),
       execution_->InstallCursorMismatches(),
-      execution_->TouchSelectionSuccesses()};
+      execution_->TouchSelectionSuccesses(),
+      execution_->PoseResolves()};
 }
 
 void Player::CheckSimulationActionOracle() const {

@@ -360,3 +360,137 @@ TEST_CASE("bounded realization does not break the support-foot lock",
   // realization is a pass-through here; it must not manufacture lag either.
   CHECK(paired.max_realized_lag < 0.05f);
 }
+
+// ---------------------------------------------------------------------------
+// M4: a root corrected *after* the tick must not leave the feet behind. The
+// Player re-settles the same realized pose against the corrected root; the plant
+// anchors are world-fixed, so the legs re-reach and nothing is re-timed.
+// ---------------------------------------------------------------------------
+namespace {
+
+struct ResettleResult {
+  bool had_plant = false;
+  float anchored_error = 0.0f;   // |settled ankle - anchor| for the planted foot
+  float bone_error = 0.0f;
+  float target_residual = 0.0f;
+};
+
+// Runs the production compose chain until a foot is planted and the gait is
+// mid-stance, then repeats the final settle step against a corrected root.
+ResettleResult RunAndCorrectRoot(float shift_x) {
+  const AnimationClip clip = GaitClip();
+  const float reference = LocomotionClipReferenceSpeed(clip);
+  PlayerKinematicState state;
+  state.velocity = Vector3(0, -reference, 0);
+  state.bodyFacing = Vector3(0, -1, 0);
+  LocomotionPlaybackRequest playback;
+  PlayerFootPlantState plant;
+  PoseFrame realized;
+  bool realized_valid = false;
+  const BakedBodyPose rest = EvaluateBakedBodyPose(PoseFrame{}, state, 0.0f, Body());
+  const float thigh_length = (rest.joints[BodyPart::left_knee] -
+                              rest.joints[BodyPart::left_thigh]).GetLength();
+
+  ResettleResult result;
+  for (int tick = 0; tick < 12; ++tick) {
+    playback = AdvanceLocomotionPlayback(playback, clip.id, clip, reference, 0.0f,
+                                         kTickSeconds, 1.0f);
+    const PoseFrame sampled = SamplePose(clip, playback.frame_time);
+    PlayerPoseRealizeInput realize;
+    realize.previous_pose = realized_valid ? realized : sampled;
+    realize.target_pose = sampled;
+    realize.body = Body();
+    realized = PlayerPoseAdapter::Realize(realize).pose;
+    realized_valid = true;
+
+    const BakedBodyPose gait = EvaluateBakedBodyPose(realized, state, 0.0f, Body());
+    PlayerStrideAdaptInput adapt;
+    adapt.left.valid = true;
+    adapt.left.hip = gait.joints[BodyPart::left_thigh];
+    adapt.left.ankle = gait.joints[BodyPart::left_ankle];
+    adapt.right.valid = true;
+    adapt.right.hip = gait.joints[BodyPart::right_thigh];
+    adapt.right.ankle = gait.joints[BodyPart::right_ankle];
+    adapt.facing = Vector3(0, -1, 0);
+    adapt.stride_scale = 1.0f;
+    adapt.gait_phase = playback.gait_phase;
+    const PlayerStrideAdaptResult adapted = PlayerPoseAdapter::AdaptStride(adapt);
+
+    const float left_height = adapted.targets.left.coords[2];
+    const float right_height = adapted.targets.right.coords[2];
+    bool support_left = left_height <= right_height;
+    if (plant.left_planted && !plant.right_planted) {
+      support_left = (left_height - right_height) <= kSupportSwitchMargin;
+    } else if (plant.right_planted && !plant.left_planted) {
+      support_left = (left_height - right_height) < -kSupportSwitchMargin;
+    }
+    PlayerFootPlantInput plant_input;
+    plant_input.left_ankle = adapted.targets.left;
+    plant_input.right_ankle = adapted.targets.right;
+    plant_input.left_support = support_left;
+    plant_input.right_support = !support_left;
+    plant_input.plant_height = 0.25f;
+    plant = PlayerFootIk::Update(plant, plant_input);
+    state.position += Vector3(0, -reference * kTickSeconds, 0);
+  }
+
+  result.had_plant = plant.left_planted || plant.right_planted;
+  if (!result.had_plant) return result;
+
+  // The same re-settle the Player performs after an external root correction.
+  state.position += Vector3(shift_x, 0, 0);
+  const BakedBodyPose gait = EvaluateBakedBodyPose(realized, state, 0.0f, Body());
+  PlayerStrideAdaptInput adapt;
+  adapt.left.valid = true;
+  adapt.left.hip = gait.joints[BodyPart::left_thigh];
+  adapt.left.ankle = gait.joints[BodyPart::left_ankle];
+  adapt.right.valid = true;
+  adapt.right.hip = gait.joints[BodyPart::right_thigh];
+  adapt.right.ankle = gait.joints[BodyPart::right_ankle];
+  adapt.facing = Vector3(0, -1, 0);
+  adapt.stride_scale = 1.0f;
+  adapt.gait_phase = playback.gait_phase;
+  const PlayerStrideAdaptResult adapted = PlayerPoseAdapter::AdaptStride(adapt);
+  const PlayerFootIkTargets targets = ApplyFootPlantLocks(plant, adapted.targets);
+  const BakedPoseFootSolve solved =
+      ApplyWorldFootTargetsToPose(realized, state, 0.0f, Body(), targets);
+  const BakedBodyPose settled =
+      EvaluateBakedBodyPose(solved.pose, state, 0.0f, Body());
+
+  const bool left = plant.left_planted;
+  const Vector3& anchor = left ? plant.left_anchor : plant.right_anchor;
+  result.anchored_error =
+      (settled.joints[left ? BodyPart::left_ankle : BodyPart::right_ankle] -
+       anchor)
+          .GetLength();
+  result.target_residual = left ? solved.left_residual : solved.right_residual;
+  result.bone_error =
+      std::fabs((settled.joints[BodyPart::left_knee] -
+                 settled.joints[BodyPart::left_thigh])
+                    .GetLength() -
+                thigh_length);
+  return result;
+}
+
+}  // namespace
+
+TEST_CASE("a root corrected after the tick re-settles onto the plant anchor",
+          "[player][m4]") {
+  const auto shifted = RunAndCorrectRoot(0.05f);
+  REQUIRE(shifted.had_plant);
+  // The support foot is still on its world anchor: the pose follows the root.
+  CHECK(shifted.anchored_error < 0.02f);
+  CHECK(shifted.target_residual < 0.02f);
+  CHECK(shifted.bone_error < 1e-3f);
+}
+
+TEST_CASE("a correction beyond the leg's reach is reported, never hidden",
+          "[player][m4]") {
+  const auto far = RunAndCorrectRoot(1.5f);
+  REQUIRE(far.had_plant);
+  // The settle clamps at the leg's reach and reports the residual, so a caller
+  // can defer the response instead of shipping a stretched skeleton.
+  CHECK(far.target_residual > 0.5f);
+  CHECK(far.anchored_error > 0.5f);
+  CHECK(far.bone_error < 1e-3f);
+}
