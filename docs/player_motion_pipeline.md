@@ -516,7 +516,79 @@ Measured through the production chain on clip 768 (5.05 m/s root track,
 | stop | 0.081 m | **0.024 m** | 0.50 rad | 0.90 rad |
 | turn 90° | 0.040 m | **0.006 m** | 1.28 rad | **0.44 rad** |
 
+### ACFG-0..2 result: shared clips, per-player configuration
+
+Three kinds of data are now separate, which is what keeps the Animation module
+simple:
+
+| kind | owner | lifetime |
+|---|---|---|
+| `AnimationClip` (+ derived `foot_support`, `stance_speed`) | `AnimationLibrary`, one per process | immutable, shared |
+| `PlayerAnimationConfig` (one `ClipTuning` per clip) | the Player, built in its constructor | constant for the match |
+| `PlayerAnimationState` (playback time, stride scale, plant, `final_pose_`) | `PlayerExecutionState` | per tick |
+
+- `AnimationStyle` (`include/football/player/player_animation_style.hpp`) is the
+  user-facing input: stride/cadence preference, stride response, pelvis-bob scale
+  plus two reserved pose scales. Presets are Natural / LongStrideLowCadence /
+  ShortStrideHighCadence; `PlayerDefinition::animation_style` is optional, so the
+  shipped data is unchanged (neutral style).
+- `BuildPlayerAnimationConfig(definition, body, library, overrides)` runs once in
+  the Player constructor and produces a `const PlayerAnimationConfig` inside the
+  execution. It copies no skeleton frame (~6 floats per clip). Tuning is
+  sanitized (clamped, NaN-safe) and deterministic. Overrides are keyed by the
+  clip's **stable name**, never by numeric id (ids follow load order).
+- `ResetPoseChannel()` clears playback/support/final-pose state and cannot touch
+  the configuration: it is `const`, so an action switch, a reset or a fall cannot
+  lose a player's style.
+
+Stride/cadence math (`LocomotionStrideScaleFor`):
+
+```
+q    = A / (R * S0 * C0)      A achieved, R clip gait speed, S0/C0 the player's preference
+S    = clamp(S0 * q^lambda)   lambda = stride_response
+rate = A / (R * S)
+```
+
+At the player's preferred speed `A = R*S0*C0`, the stride is exactly `S0` and the
+derived rate is exactly `C0` - the two preferences mean what they say. With the
+neutral style the formula is algebraically identical to the shipped
+`(A/R)^0.5`, which the tests assert bit-for-bit against the old entry point.
+
+One effective gait speed: `LocomotionClipGaitSpeed(clip) * body.height_scale`
+drives both the stride target and the playback rate (root track only as a
+fallback). Clip *selection* deliberately keeps the root-track definition, because
+the coarse candidate filter runs on the baked velocity metadata - ranking by a
+different speed definition collapses the walk/sprint buckets (measured: a walk
+and a sprint query both selected clip 566).
+
+Acceptance (same clip, same 4 m/s, two styles, 60 ticks):
+
+| | world distance | shipped slip | bone error | cadence |
+|---|---|---|---|---|
+| short stride / high cadence | 2.40 m | 0.010 m | 0 | higher |
+| long stride / low cadence | 2.40 m | 0.061 m | 0 | lower |
+
+The world displacement is identical because the animation cannot move the Player;
+only the gait differs. The long-stride residual is larger because the requested
+step is close to the leg's reach - reported, not hidden.
+
+Reserved: `torso_sway_scale` / `arm_swing_scale` are carried by the configuration
+but not applied yet; a blanket joint-rotation scale would distort the gait, so
+they need a per-joint, pose-relative implementation (and visual acceptance).
+
 ### What is still open
+
+- ACFG-3: move the action *decision* (`Match`, `MatchTouch`, `SelectTripMatch`)
+  into the Player. Animation keeps `SamplePose`, `BlendPose`, `SelectEntryFrame`
+  and `PoseDistance`. The touch matcher must move together with its execution
+  semantics (touch timing, ball prediction, contact geometry), not be replaced by
+  a `FindByType(Shot)`.
+- ACFG-4: once the production callers are migrated, slim the Animation build
+  targets and keep `BakedAnimationSelector` only for the offline baker.
+- A stride preference near the leg's reach is bounded by the IK, not by the
+  configuration. A reach-aware clamp inside `LocomotionStrideScaleFor` would keep
+  an aggressive style from asking for a step it cannot make.
+- Torso/arm pose scales are reserved (above).
 
 - The support track is derived at **load** time. If the pipeline ever wants it in
   the artifact, the same function can run in the bake; nothing downstream changes.

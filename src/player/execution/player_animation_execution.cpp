@@ -416,6 +416,9 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
     warp.achieved_delta =
         (locomotion.next.position - locomotion.current.position).Get2D();
     warp.body = body;
+    // The player's own vertical style scales the pelvis bob; the warp's own
+    // bob ratio still follows the achieved distance.
+    warp.pelvis_bob_scale = animation_config_.Get(clip.id).pelvis_bob_scale;
     // A pose correction, not a turn: bound how far the body yaw may be
     // corrected in one tick.
     warp.max_yaw_correction = kPlayerPoseWarpMaxYawPerTick;
@@ -454,6 +457,7 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
   const float clip_frame_time =
       motion_driven ? state_.locomotion_playback_.frame_time
                     : static_cast<float>(state_.actionState.Frame());
+  state_.settle_clip_frame_time_ = clip_frame_time;
   const PoseFrame settled = SettleMovementPose(realized.pose, warped_base_angle,
                                                clip, clip_frame_time);
 
@@ -496,8 +500,7 @@ bool PlayerExecution::ResettleFinalPose(PlayerExecutionPort& owner) {
   // the residual stays bounded by the IK reach. No clip time is consumed.
   const PoseFrame settled =
       SettleMovementPose(state_.settle_source_pose_, state_.final_pose_base_angle_,
-                         GetCurrentBakedClip(),
-                         static_cast<float>(state_.actionState.Frame()));
+                         GetCurrentBakedClip(), state_.settle_clip_frame_time_);
   state_.final_pose_ = settled;
   state_.final_pose_valid_ = true;
   state_.playback_state_.SetBlendSource(state_.final_pose_,
@@ -524,14 +527,24 @@ void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
     const LocomotionAnimationInput& locomotion = *state_.locomotion_animation_input_;
     const float achieved_speed = locomotion.next.velocity.GetLength();
     const float entry_frame_time = static_cast<float>(state_.last_begun_start_frame_);
-    // STRIDE-1: the stride scale is a slow, per-gait-cycle adaptation. It feeds
-    // the playback rate below, so cadence and step length move together and the
+    // ACFG: one effective gait speed for this clip, scaled by the body, drives
+    // both the stride target and the playback rate. Using the root track here and
+    // the stance-foot speed there is what made the pairing disagree on authored
+    // clips. Selection uses the same definition.
+    const float reference_speed =
+        LocomotionClipGaitSpeed(clip) * port().BodyProfile().height_scale;
+    // The player's own stride/cadence preference, fixed at creation.
+    const ClipTuning& tuning = animation_config_.Get(authority_clip);
+    LocomotionStrideStyle style;
+    style.stride_preference = tuning.stride_preference;
+    style.cadence_preference = tuning.cadence_preference;
+    style.stride_response = tuning.stride_response;
+    // The stride scale stays a slow, per-gait-cycle adaptation: it feeds the
+    // playback rate below, so cadence and step length move together and the
     // support foot keeps its world anchor.
     state_.stride_scale_ = SmoothLocomotionStrideScale(
         state_.stride_scale_,
-        LocomotionStrideScaleTarget(achieved_speed,
-                                    LocomotionClipReferenceSpeed(clip)),
-        0.01f);
+        LocomotionStrideScaleFor(style, achieved_speed, reference_speed), 0.01f);
     const LocomotionPlaybackRequest previous = state_.locomotion_playback_;
     state_.locomotion_playback_ = AdvanceLocomotionPlayback(
         previous, authority_clip, clip, achieved_speed, entry_frame_time, 0.01f,

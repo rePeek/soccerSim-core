@@ -37,6 +37,7 @@ set(_player_upper_layer_regex "#include \"(football/)?(event|observation|runtime
 # its root also contains the concrete actor and private execution-facing types.
 set(_player_model_headers
   ${PROJECT_SOURCE_DIR}/include/football/player/player_definition.hpp
+  ${PROJECT_SOURCE_DIR}/include/football/player/player_animation_style.hpp
   ${PROJECT_SOURCE_DIR}/include/football/player/player_kinematics.hpp
   ${PROJECT_SOURCE_DIR}/include/football/player/player_action.hpp
   ${PROJECT_SOURCE_DIR}/include/football/player/player_body_profile.hpp

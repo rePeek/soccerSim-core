@@ -32,6 +32,9 @@ struct PlayerPoseWarpInput {
   // tick. 0 disables the bound (the pure transform), a production caller passes
   // a per-tick rate.
   float max_yaw_correction = 0.0f;
+  // Per-player style: scales the pelvis bob before the achieved/reference ratio
+  // is applied. 1.0 = as authored.
+  float pelvis_bob_scale = 1.0f;
 };
 
 // Default per-tick yaw budget for the warp (12 rad/s over a 10 ms tick, ~7 deg).

@@ -11,6 +11,7 @@ add_library(football_player_execution STATIC
   player_control_builder.cpp
   kick_targeting.cpp
   player_action_motion.cpp
+  player_animation_config.cpp
   player_action_selection.cpp
   player_anim_selection.cpp
   player_animation_execution.cpp

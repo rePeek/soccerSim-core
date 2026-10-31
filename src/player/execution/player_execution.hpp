@@ -20,6 +20,7 @@
 #include "football/animation/types.hpp"
 #include "football/player/player_control.hpp"
 #include "player/execution/player_action_feedback.hpp"
+#include "player/execution/player_animation_config.hpp"
 #include "player/execution/player_baked_pose_sample.hpp"
 #include "player/execution/player_command.hpp"
 #include "player/execution/player_execution_port.hpp"
@@ -47,8 +48,11 @@ struct LocomotionAnimationInput;
 
 class PlayerExecution final {
  public:
-  // Read-only, lifetime-stable dependency. Everything else arrives per call.
-  explicit PlayerExecution(const AnimationLibrary& animations);
+  // Read-only, lifetime-stable dependencies. The animation configuration is the
+  // player's own, built once at creation; it is `const` here so no tick, action
+  // switch, reset or fall can lose it.
+  PlayerExecution(const AnimationLibrary& animations,
+                  PlayerAnimationConfig animation_config);
   ~PlayerExecution();
 
   PlayerExecution(const PlayerExecution&) = delete;
@@ -153,7 +157,13 @@ class PlayerExecution final {
     return state_.final_pose_valid_ ? state_.final_pose_
                                     : state_.playback_state_.final_pose;
   }
-  float PlaybackBaseAngle() const { return state_.playback_state_.final_base_angle; }
+  // The base yaw that belongs to PlaybackPose(): the Final Pose's own angle once
+  // one exists, so a caller can never pair a corrected pose with the animation's
+  // raw blend angle.
+  float PlaybackBaseAngle() const {
+    return state_.final_pose_valid_ ? state_.final_pose_base_angle_
+                                    : state_.playback_state_.final_base_angle;
+  }
   PoseFrame Pose(PlayerExecutionPort& owner) const;
   PlayerBakedPoseSample BakedPoseSample(PlayerExecutionPort& owner) const;
   PlayerBakedPoseSample PreviewRawPose(PlayerExecutionPort& owner, int frame_offset) const;
@@ -436,11 +446,14 @@ class PlayerExecution final {
   PlayerBakedPoseSample SampleBakedPose(const PlayerKinematicState& state,
                                         const football::player::PlayerBodyProfile& profile) const;
 
+  // Lifetime-stable dependencies, declared first so the constructor's
+  // initialiser list matches declaration order.
+  const AnimationLibrary& animations_;
+  const PlayerAnimationConfig animation_config_;
   PlayerExecutionState state_;
   // Measurement-only: see PlayerExecutionState for the split. Never consulted
   // by a gameplay decision.
   PlayerExecutionAuditState audit_;
-  const AnimationLibrary& animations_;
   // Per-call borrow. Null outside a public entry point; never inspected while
   // null, so no call path can observe a stale owner.
   mutable PlayerExecutionPort* port_ = nullptr;

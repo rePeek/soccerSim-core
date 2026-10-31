@@ -26,6 +26,7 @@
 #include "football/ball/ball_timing.hpp"
 #include "football/player/execution/player_body_facing.hpp"
 #include "football/player/execution/player_motion.hpp"
+#include "player/execution/player_animation_config.hpp"
 #include "player/execution/player_execution.hpp"
 #include "player/execution/player_locomotion.hpp"
 #include "player/execution/player_motion_constants.hpp"
@@ -81,7 +82,9 @@ Player::Player(int team_id, football::sim::TeamSide side,
       body_profile_(football::player::MakePlayerBodyProfile(model_)),
       team_id_(team_id),
       side_(side),
-      execution_(std::make_unique<PlayerExecution>(animations)) {
+      execution_(std::make_unique<PlayerExecution>(
+          animations,
+          BuildPlayerAnimationConfig(model_, body_profile_, animations))) {
   // `pitch` is part of the construction contract (the actor is placed in the
   // pitch frame before its first tick) but the Player keeps no borrowed
   // reference to it: geometry arrives through the tick context.

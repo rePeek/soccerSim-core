@@ -66,8 +66,14 @@ PlayerPoseWarpResult PlayerPoseAdapter::Warp(const PlayerPoseWarpInput& input) {
       NormalizeAngle(input.reference_base_angle + yaw_correction);
   result.yaw_correction = yaw_correction;
   // Baked root Z is pelvis bob, not world height. Warping it keeps the visual
-  // cadence proportional to the distance the root actually achieved.
-  result.pose.positions[BodyPart::player].coords[2] *= bob_ratio;
+  // cadence proportional to the distance the root actually achieved; the
+  // player's style scale decides how pronounced his bob is in the first place.
+  const float style_scale =
+      std::isfinite(input.pelvis_bob_scale) && input.pelvis_bob_scale > 0.0f
+          ? input.pelvis_bob_scale
+          : 1.0f;
+  result.pose.positions[BodyPart::player].coords[2] *=
+      bob_ratio * style_scale;
   result.pose_warped = true;
   return result;
 }

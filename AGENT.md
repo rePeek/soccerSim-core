@@ -202,6 +202,14 @@ observation, controls and stored physics are all the Stadium Frame.
   may change the gait, never the world trajectory. One-shot actions keep the
   action clock as their clip-time authority; only locomotion owns clip time,
   and `PlaybackState::frame` is a derived integer, not that authority.
+- Animation is a shared immutable resource: one `AnimationLibrary` per process,
+  its clips read-only (including the derived foot-support track). Per-player
+  animation behaviour lives in `PlayerAnimationConfig`, built once in the Player
+  constructor from `PlayerDefinition::animation_style` and held `const` by the
+  execution, so no tick, reset, action switch or fall can change or lose it.
+  A style is a style, not an ability: stride/cadence preferences can never change
+  the world displacement, a bone length, a touch frame or a contact impulse, and
+  a neutral style must reproduce the shipped gait exactly.
 - Cadence and stride length are one pair, never independent knobs. A movement
   pose is settled by `PlayerExecution::SettleMovementPose`: stride target ->
   support from the *gait* ankle heights -> plant lock -> local-rotation

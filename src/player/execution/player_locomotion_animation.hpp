@@ -8,6 +8,7 @@
 
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
+#include "football/player/player_animation_style.hpp"
 #include "football/player/player_body_profile.hpp"
 #include "football/player/player_kinematics.hpp"
 
@@ -153,10 +154,54 @@ inline float LocomotionClipGaitSpeed(const AnimationClip& clip) {
 }
 
 // The stride scale the achieved/reference speed mismatch asks for.
+//
+// Neutral style (stride 1, cadence 1, response kLocomotionStrideCoupling) gives
+// exactly `(achieved / reference) ^ kLocomotionStrideCoupling`, which is the
+// behaviour this pipeline shipped before per-player styles existed.
 inline float LocomotionStrideScaleTarget(float achieved_speed, float reference_speed) {
   if (reference_speed <= 1e-3f || achieved_speed <= 0.0f) return 1.0f;
   const float ratio = achieved_speed / reference_speed;
   return std::clamp(std::pow(ratio, kLocomotionStrideCoupling),
+                    kLocomotionMinStrideScale, kLocomotionMaxStrideScale);
+}
+
+// A player's stride/cadence preference, as the playback needs it.
+struct LocomotionStrideStyle {
+  float stride_preference = 1.0f;
+  float cadence_preference = 1.0f;
+  float stride_response = kLocomotionStrideCoupling;
+};
+
+// Personal stride target.
+//
+//   q    = A / (R * S0 * C0)      how far the motion sits from this player's
+//                                 preferred gait speed for this clip
+//   S    = clamp(S0 * q^lambda)   share `lambda` of the difference goes to the
+//                                 step length, the rest to cadence
+//   rate = A / (R * S)            derived, never chosen independently
+//
+// At the preferred speed (A = R * S0 * C0) this returns exactly S0, and the
+// playback rate comes out as C0: the two preferences mean what they say.
+inline float LocomotionStrideScaleFor(const LocomotionStrideStyle& style,
+                                      float achieved_speed,
+                                      float reference_speed) {
+  const float stride_preference =
+      std::clamp(style.stride_preference, kAnimationStrideMin, kAnimationStrideMax);
+  const float cadence_preference =
+      std::clamp(style.cadence_preference, kAnimationCadenceMin, kAnimationCadenceMax);
+  const float response =
+      std::clamp(style.stride_response, 0.0f, 1.0f);
+  if (reference_speed <= 1e-3f || achieved_speed <= 0.0f) {
+    return std::clamp(stride_preference, kLocomotionMinStrideScale,
+                      kLocomotionMaxStrideScale);
+  }
+  const float preferred_speed = reference_speed * stride_preference * cadence_preference;
+  if (preferred_speed <= 1e-6f) {
+    return std::clamp(stride_preference, kLocomotionMinStrideScale,
+                      kLocomotionMaxStrideScale);
+  }
+  const float ratio = achieved_speed / preferred_speed;
+  return std::clamp(stride_preference * std::pow(ratio, response),
                     kLocomotionMinStrideScale, kLocomotionMaxStrideScale);
 }
 

@@ -112,6 +112,10 @@ struct PlayerExecutionState {
   // animation matching still sees local joint rotations.
   PoseFrame final_pose_;
   float final_pose_base_angle_ = 0.0f;
+  // The clip time the Final Pose was settled from. A post-tick re-settle must
+  // reuse it, not re-derive one from the integer action cursor: a locomotion
+  // pose lives at a fractional clip time.
+  float settle_clip_frame_time_ = 0.0f;
   bool final_pose_valid_ = false;
   // The realized pose the Final Pose was settled from. A root correction after
   // the tick re-settles this pose instead of re-deriving one.

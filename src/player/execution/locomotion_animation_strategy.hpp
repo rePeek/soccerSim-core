@@ -35,6 +35,10 @@ inline float Deg(float rad) { return rad * 180.0f / football::math::pi; }
 // the motion-driven playback driver, so selection and sampling cannot
 // disagree about what the clip's native speed is).
 inline float ClipReferenceSpeed(const AnimationClip& clip) {
+  // Deliberately the root-track definition, not the stance-foot speed used by
+  // playback: the coarse candidate filter runs on the baked velocity metadata
+  // (a root-track fact), so ranking by a different speed definition collapses the
+  // walk/sprint buckets. Playback is where the foot speed matters.
   return LocomotionClipReferenceSpeed(clip);
 }
 

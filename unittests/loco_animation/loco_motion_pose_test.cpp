@@ -24,6 +24,7 @@
 #include "football/player/player_kinematics.hpp"
 #include "player/execution/locomotion_animation_strategy.hpp"
 #include "player/execution/player_baked_body_pose.hpp"
+#include "player/execution/player_animation_config.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
 
 using football::math::Vector3;
@@ -511,4 +512,145 @@ TEST_CASE("the derived support track matches the clip's own gait") {
   CHECK(clip.stance_speed <= LocomotionClipReferenceSpeed(clip) + 1e-3f);
   CHECK(LocomotionClipGaitSpeed(clip) ==
         Catch::Approx(clip.stance_speed).margin(1e-4f));
+}
+
+// ---------------------------------------------------------------------------
+// ACFG: per-player animation configuration.
+// ---------------------------------------------------------------------------
+TEST_CASE("a player's configuration is built once and covers every clip") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
+
+  football::player::PlayerDefinition definition;
+  definition.height = 1.80f;
+  definition.weight = 75.0f;
+  const PlayerBodyProfile body = MakePlayerBodyProfile(definition);
+
+  // No style: neutral everywhere, i.e. exactly the shipped playback behaviour.
+  const PlayerAnimationConfig neutral =
+      BuildPlayerAnimationConfig(definition, body, library);
+  REQUIRE(neutral.size() == library.Clips().size());
+  for (const auto& tuning : neutral.clips) {
+    CHECK(tuning.stride_preference == Catch::Approx(1.0f));
+    CHECK(tuning.cadence_preference == Catch::Approx(1.0f));
+    CHECK(tuning.stride_response == Catch::Approx(kLocomotionStrideCoupling));
+    CHECK(tuning.pelvis_bob_scale == Catch::Approx(1.0f));
+  }
+  // Out-of-range ids are neutral, never a crash.
+  CHECK(neutral.Get(-1).stride_preference == Catch::Approx(1.0f));
+  CHECK(neutral.Get(1 << 20).stride_preference == Catch::Approx(1.0f));
+
+  // A style is applied to every clip and is stable across rebuilds.
+  definition.animation_style =
+      MakeAnimationStyle(AnimationStylePreset::LongStrideLowCadence);
+  const PlayerAnimationConfig styled =
+      BuildPlayerAnimationConfig(definition, body, library);
+  const PlayerAnimationConfig again =
+      BuildPlayerAnimationConfig(definition, body, library);
+  REQUIRE(styled.size() == again.size());
+  for (std::size_t id = 0; id < styled.size(); ++id) {
+    CHECK(styled.clips[id].stride_preference ==
+          Catch::Approx(again.clips[id].stride_preference));
+    CHECK(styled.clips[id].stride_preference ==
+          Catch::Approx(1.1f).margin(1e-6f));
+    CHECK(styled.clips[id].cadence_preference ==
+          Catch::Approx(0.9f).margin(1e-6f));
+  }
+
+  // An out-of-range style is clamped, not rejected.
+  definition.animation_style = AnimationStyle{};
+  definition.animation_style->stride_preference = 12.0f;
+  const PlayerAnimationConfig clamped =
+      BuildPlayerAnimationConfig(definition, body, library);
+  CHECK(clamped.Get(0).stride_preference ==
+        Catch::Approx(kAnimationStrideMax));
+}
+
+TEST_CASE("clip overrides bind to stable names, never to numeric ids") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
+  football::player::PlayerDefinition definition;
+  const PlayerBodyProfile body = MakePlayerBodyProfile(definition);
+
+  const AnimationClip& target = library.Get(3);
+  AnimationClipOverrideMap overrides;
+  ClipTuning tuning;
+  tuning.stride_preference = 0.7f;
+  tuning.pelvis_bob_scale = 1.3f;
+  overrides.emplace(target.name, tuning);
+  // A name no bake provides is ignored rather than fatal.
+  overrides.emplace("no_such_clip_name", tuning);
+
+  const PlayerAnimationConfig config =
+      BuildPlayerAnimationConfig(definition, body, library, &overrides);
+  CHECK(config.Get(3).stride_preference == Catch::Approx(0.7f));
+  CHECK(config.Get(3).pelvis_bob_scale == Catch::Approx(1.3f));
+  CHECK(config.Get(4).stride_preference == Catch::Approx(1.0f));
+}
+
+TEST_CASE("two styles at one speed move the same body differently") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
+  const AnimationClip& clip = CruiseClip(library, 5.0f);
+  const float reference = LocomotionClipGaitSpeed(clip);
+  REQUIRE(reference > 1.0f);
+
+  football::player::PlayerDefinition short_definition;
+  short_definition.animation_style =
+      MakeAnimationStyle(AnimationStylePreset::ShortStrideHighCadence);
+  football::player::PlayerDefinition long_definition;
+  long_definition.animation_style =
+      MakeAnimationStyle(AnimationStylePreset::LongStrideLowCadence);
+  const PlayerBodyProfile body = Body();
+  const PlayerAnimationConfig short_config =
+      BuildPlayerAnimationConfig(short_definition, body, library);
+  const PlayerAnimationConfig long_config =
+      BuildPlayerAnimationConfig(long_definition, body, library);
+
+  // The acceptance scenario: the same physical speed for both players.
+  const float achieved = 4.0f;
+  const auto style_of = [&](const PlayerAnimationConfig& config) {
+    const ClipTuning& tuning = config.Get(clip.id);
+    LocomotionStrideStyle style;
+    style.stride_preference = tuning.stride_preference;
+    style.cadence_preference = tuning.cadence_preference;
+    style.stride_response = tuning.stride_response;
+    return style;
+  };
+  const LocomotionStrideStyle short_style = style_of(short_config);
+  const LocomotionStrideStyle long_style = style_of(long_config);
+
+  const float short_stride =
+      LocomotionStrideScaleFor(short_style, achieved, reference);
+  const float long_stride =
+      LocomotionStrideScaleFor(long_style, achieved, reference);
+  REQUIRE(short_stride < long_stride);
+
+  Run short_run = Begin(clip);
+  Run long_run = Begin(clip);
+  for (int tick = 0; tick < 60; ++tick) {
+    Step(short_run, Vector3(0, -achieved, 0), short_stride, Vector3(0, -1, 0));
+    Step(long_run, Vector3(0, -achieved, 0), long_stride, Vector3(0, -1, 0));
+  }
+  Dump("style:short", short_run);
+  Dump("style:long", long_run);
+
+  // The Player owns the trajectory: identical world displacement per tick,
+  // whatever the gait looks like.
+  CHECK(short_run.metrics.distance ==
+        Catch::Approx(long_run.metrics.distance).margin(1e-6f));
+  CHECK(short_run.metrics.distance ==
+        Catch::Approx(achieved * 0.01f * 60).margin(1e-4f));
+  // Different gait: cadence and clip time really differ.
+  CHECK(short_run.playback.playback_rate !=
+        Catch::Approx(long_run.playback.playback_rate).margin(1e-3f));
+  CHECK(short_run.metrics.max_bone_error < 1e-3f);
+  CHECK(long_run.metrics.max_bone_error < 1e-3f);
+  // The support foot is still locked for both, and the anchor never has to slide
+  // beyond its bound. The long-stride style asks for a step the leg can only just
+  // reach, so its residual is larger - it is reported, not hidden.
+  CHECK(short_run.metrics.max_final_slip < 0.05f);
+  CHECK(long_run.metrics.max_final_slip < 0.10f);
+  CHECK(short_run.metrics.max_plant_slide <= kPlantRelaxSlide + 1e-6f);
+  CHECK(long_run.metrics.max_plant_slide <= kPlantRelaxSlide + 1e-6f);
 }

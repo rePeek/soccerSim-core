@@ -8,6 +8,8 @@
 #include <optional>
 #include <string>
 
+#include "football/player/player_animation_style.hpp"
+
 namespace football::player {
 
 // Caller-provided identity, independent of roster order and match indexing.
@@ -94,6 +96,10 @@ struct PlayerDefinition {
   float weight = 75.0f;
   PlayerAttributes attributes;
   PlayerAppearance appearance;
+  // Optional: absent means the neutral style (the standard clips as authored).
+  // Set before the match; the runtime builds the per-clip configuration from it
+  // once and never re-reads it.
+  std::optional<AnimationStyle> animation_style;
 };
 
 }  // namespace football::player

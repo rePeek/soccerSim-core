@@ -299,3 +299,101 @@ TEST_CASE("a stopped movement clip holds its stride instead of slowing to a floo
   // product still holds and the cadence carries the rest.
   CHECK(previous_rate > 0.0f);
 }
+
+// ---------------------------------------------------------------------------
+// ACFG: per-player stride/cadence preference.
+// ---------------------------------------------------------------------------
+TEST_CASE("a neutral style reproduces the shipped stride coupling") {
+  LocomotionStrideStyle neutral;
+  for (const auto& [achieved, reference] :
+       {std::pair<float, float>{1.0f, 6.0f}, {3.0f, 6.0f}, {6.0f, 6.0f},
+        {9.0f, 6.0f}, {0.2f, 6.0f}}) {
+    CHECK(LocomotionStrideScaleFor(neutral, achieved, reference) ==
+          Catch::Approx(LocomotionStrideScaleTarget(achieved, reference))
+              .margin(1e-6f));
+  }
+}
+
+TEST_CASE("preferences mean what they say at the preferred gait speed") {
+  const AnimationClip clip = LocomotionClip(1);
+  const float reference = LocomotionClipReferenceSpeed(clip);
+  LocomotionStrideStyle style;
+  style.stride_preference = 1.1f;
+  style.cadence_preference = 0.9f;
+  style.stride_response = 0.5f;
+
+  // At the speed this player prefers for this clip, the stride is exactly his
+  // preference and the playback rate comes out as his cadence preference.
+  const float preferred_speed =
+      reference * style.stride_preference * style.cadence_preference;
+  const float stride =
+      LocomotionStrideScaleFor(style, preferred_speed, reference);
+  CHECK(stride == Catch::Approx(style.stride_preference).margin(1e-5f));
+
+  LocomotionPlaybackRequest request;
+  request = AdvanceLocomotionPlayback(request, 1, clip, preferred_speed, 0.0f,
+                                      0.01f, stride);
+  CHECK(request.playback_rate ==
+        Catch::Approx(style.cadence_preference).margin(1e-4f));
+}
+
+TEST_CASE("two styles at one speed agree on the motion, not on the gait") {
+  const AnimationClip clip = LocomotionClip(1);
+  const float reference = LocomotionClipReferenceSpeed(clip);
+  const float achieved = reference;
+
+  LocomotionStrideStyle short_steps;
+  short_steps.stride_preference = 0.8f;
+  short_steps.cadence_preference = 1.2f;
+  LocomotionStrideStyle long_steps;
+  long_steps.stride_preference = 1.1f;
+  long_steps.cadence_preference = 1.0f;
+
+  const float stride_a = LocomotionStrideScaleFor(short_steps, achieved, reference);
+  const float stride_b = LocomotionStrideScaleFor(long_steps, achieved, reference);
+  CHECK(stride_a < stride_b);
+
+  LocomotionPlaybackRequest a;
+  LocomotionPlaybackRequest b;
+  for (int tick = 0; tick < 5; ++tick) {
+    a = AdvanceLocomotionPlayback(a, 1, clip, achieved, 0.0f, 0.01f, stride_a);
+    b = AdvanceLocomotionPlayback(b, 1, clip, achieved, 0.0f, 0.01f, stride_b);
+  }
+  // Different cadence for the same motion...
+  CHECK(a.playback_rate != Catch::Approx(b.playback_rate).margin(1e-3f));
+  CHECK(a.frame_time != Catch::Approx(b.frame_time).margin(1e-3f));
+  // ...but the foot-lock pairing still holds for both: the stance foot travels
+  // at the achieved speed whatever the style is.
+  CHECK(stride_a * reference * a.playback_rate ==
+        Catch::Approx(achieved).margin(1e-3f));
+  CHECK(stride_b * reference * b.playback_rate ==
+        Catch::Approx(achieved).margin(1e-3f));
+}
+
+TEST_CASE("style values are sanitized deterministically") {
+  AnimationStyle style;
+  style.stride_preference = 50.0f;
+  style.cadence_preference = -3.0f;
+  style.stride_response = std::nanf("");
+  style.pelvis_bob_scale = 0.0f;
+  const AnimationStyle sane = SanitizeAnimationStyle(style);
+  CHECK(sane.stride_preference == Catch::Approx(kAnimationStrideMax));
+  CHECK(sane.cadence_preference == Catch::Approx(kAnimationCadenceMin));
+  CHECK(sane.stride_response == Catch::Approx(0.5f));
+  CHECK(sane.pelvis_bob_scale == Catch::Approx(kAnimationPoseScaleMin));
+  // Idempotent and repeatable.
+  CHECK(SanitizeAnimationStyle(sane) == sane);
+  CHECK(SanitizeAnimationStyle(style) == sane);
+
+  // Presets are distinguishable and neutral by default.
+  const AnimationStyle natural = MakeAnimationStyle(AnimationStylePreset::Natural);
+  const AnimationStyle long_stride =
+      MakeAnimationStyle(AnimationStylePreset::LongStrideLowCadence);
+  const AnimationStyle short_stride =
+      MakeAnimationStyle(AnimationStylePreset::ShortStrideHighCadence);
+  CHECK(natural == AnimationStyle{});
+  CHECK(long_stride.stride_preference > natural.stride_preference);
+  CHECK(long_stride.cadence_preference < natural.cadence_preference);
+  CHECK(short_stride.stride_preference < natural.stride_preference);
+  CHECK(short_stride.cadence_preference > natural.cadence_preference);
+}

@@ -60,8 +60,9 @@ struct PlayerExecution::ActionTickFrame {
   bool simulation_due = false;
 };
 
-PlayerExecution::PlayerExecution(const AnimationLibrary& animations)
-    : animations_(animations) {}
+PlayerExecution::PlayerExecution(const AnimationLibrary& animations,
+                                 PlayerAnimationConfig animation_config)
+    : animations_(animations), animation_config_(std::move(animation_config)) {}
 
 PlayerExecution::~PlayerExecution() = default;
 
@@ -124,6 +125,7 @@ void PlayerExecution::ResetPoseChannel() {
   state_.final_pose_ = PoseFrame{};
   state_.final_pose_base_angle_ = 0.0f;
   state_.final_pose_valid_ = false;
+  state_.settle_clip_frame_time_ = 0.0f;
   state_.settle_source_pose_ = PoseFrame{};
   state_.settle_source_valid_ = false;
 }
