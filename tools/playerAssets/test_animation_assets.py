@@ -138,6 +138,20 @@ class CatalogTest(unittest.TestCase):
         self.assertEqual(clips, simanim.load(path))
         self.assertEqual([c.id for c in clips], list(range(len(clips))))
 
+    def test_motion_template_catalog_is_canonical(self):
+        manifest = REPO / "assets/motion_templates/manifest.json"
+        clips = assets.load(manifest)
+        self.assertEqual(len(clips), 10)
+        self.assertEqual([clip.id for clip in clips], list(range(10)))
+        for clip in clips:
+            self.assertEqual(len(clip.poses), 25)
+            self.assertEqual(len(clip.poses[0]), 14)
+            self.assertEqual(clip.metadata["action_type"], 14)
+            self.assertIsNone(clip.contact)
+            self.assertEqual(clip.touches, [])
+            self.assertGreaterEqual(clip.metadata["incoming_velocity"], 0.0)
+            self.assertGreaterEqual(clip.metadata["outgoing_velocity"], 0.0)
+
     def test_virtual_mirrors_resolve_from_authored_clips(self):
         doc = assets.json_read(MANIFEST)
         entries = doc["clips"]

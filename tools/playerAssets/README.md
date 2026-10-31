@@ -54,6 +54,13 @@ A0 镜像虚拟化后，`manifest.json` 只有 726 个 authored GLB；另外 726
 quadrant。`animation_assets.py virtualize-mirrors` 用于一次性迁移：默认只检查，
 `--write` 改写 manifest，`--delete-files` 才删除已迁移的镜像 GLB。
 
+A1a 将 10 个 legacy `.anim` 运动模板转换为 `assets/motion_templates/` 的 canonical
+GLB；它只是程序化 Autogen 的输入，还没有替换现有 443 个 Autogen GLB：
+
+```sh
+python3 tools/playerAssets/import_templates.py
+```
+
 正式外观包（皮肤、球衣、球鞋、发型）由 `export_character_parts.py` 生成，
 需要下方 `default_14_smooth.blend` 预览模板：
 

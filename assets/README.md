@@ -5,6 +5,9 @@ assets/
 ├── animations/
 │   ├── manifest.json       1452 个逻辑动作的稳定 ID；镜像条目只保存 mirror_of
 │   └── *.glb               726 个 authored 动作；镜像在编译时由源动作派生
+├── motion_templates/
+│   ├── manifest.json       10 个 legacy 运动模板的 canonical 描述
+│   └── *.glb               供后续程序化 Autogen 生成器使用的 14 骨骼模板
 ├── characters/
 │   ├── manifest.json       可替换外观包及各插槽 (skin/kit/shoes/hair)
 │   ├── default/body.glb    完整默认外观（平滑人物 + 黑色短发）
@@ -115,6 +118,9 @@ Blender 默认导出（显示骨骼基、轨道优化等）**不保证可直接�
 `data/` 中旧 `.anim`、ASE、XML、BMP 保留为来源/建模参考；不再是正常构建时的
 动作权威来源。`tools/animBaker` 是显式选择才构建的历史恢复工具。
 `animation_assets.py migrate-legacy` 是一次性迁移/恢复命令，不参与正常构建。
+`import_templates.py` 把 `data/media/animations/templates/` 的 10 个 `.anim` 模板
+转换为 `assets/motion_templates/` 的 canonical GLB；这是 A1 程序化 Autogen 的
+输入，尚未替换现有 443 个 Autogen GLB。
 
 `tools/playerAssets/` 中预览工具默认读取新 GLB catalog，保留读取生成缓存的能力。
 它们的 `.blend`、实验骨架和截图仍输出到 Git 忽略的 `build/`。重新制作外观后，
