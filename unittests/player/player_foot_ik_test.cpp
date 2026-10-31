@@ -93,3 +93,23 @@ TEST_CASE("final pose geometry consumes world foot targets",
                                     .GetLength())
                                 .margin(1e-4f));
 }
+
+TEST_CASE("P7-lite vertical authority overrides local bob exactly",
+          "[player][vertical][p7lite]") {
+  football::player::PlayerBodyProfile body;
+  body.height_scale = 1.0f;
+  body.girth_scale = 1.0f;
+  PlayerKinematicState state;
+  state.vertical_authoritative = true;
+  state.vertical_offset = 0.75f;
+  PoseFrame pose;
+  pose.positions[BodyPart::player].coords[2] = 0.1f;
+  const BakedBodyPose world = EvaluateBakedBodyPose(pose, state, 0.0f, body);
+  CHECK(world.joints[BodyPart::player].coords[2] ==
+        Catch::Approx(0.75f).margin(1e-6f));
+
+  state.vertical_authoritative = false;
+  const BakedBodyPose local = EvaluateBakedBodyPose(pose, state, 0.0f, body);
+  CHECK(local.joints[BodyPart::player].coords[2] ==
+        Catch::Approx(0.1f).margin(1e-6f));
+}

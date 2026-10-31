@@ -29,8 +29,10 @@ inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
   // No root XY duplication: procedural/animated PlayerState already contains it.
   // Baked vertical root displacement is NOT in the 2D PlayerState.
   BakedBodyPose out;
-  out.joints[BodyPart::player] = state.position +
-      football::math::Vector3(0, 0, pose.positions[BodyPart::player].coords[2] * scale);
+  const float local_bob = pose.positions[BodyPart::player].coords[2] * scale;
+  const float world_z = state.vertical_authoritative ? state.vertical_offset : local_bob;
+  out.joints[BodyPart::player] =
+      state.position + football::math::Vector3(0, 0, world_z);
   out.orientations[BodyPart::player] = football::math::Quaternion{};
   football::math::Quaternion base;
   base.SetAngleAxis(animation_base_angle, {0, 0, 1});

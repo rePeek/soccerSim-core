@@ -174,3 +174,14 @@ A1 and later are **not** implemented in this commit.
 
 Remaining P3b gap: bake/sample explicit `FootContactPhase` events for all 283
 sources + 443 procedural clips, then replace the `SpatialState::foot` heuristic.
+
+## P7-lite result
+
+- `PlayerKinematicState` now carries `vertical_offset` and
+  `vertical_authoritative`.
+- `PlayerBakedPoseSample` exposes the baked local root Z as the Player's world
+  vertical offset.
+- `EvaluateBakedBodyPose` consumes the authoritative world offset when set and
+  falls back to the local baked bob otherwise.
+- This is visual/geometry plumbing only: no gravity, vertical velocity, landing
+  constraint, 3D body sweep or airborne ball arbitration.

@@ -25,6 +25,10 @@ struct PlayerKinematicState {
   football::math::Vector3 velocity = football::math::Vector3(0);
   // Exact shadow of the compatibility animation-derived body pose.
   football::math::Vector3 bodyFacing = football::math::Vector3(0, -1, 0);
+  // P7-lite: world vertical offset supplied by the final pose. When
+  // `vertical_authoritative` is false the baked local root bob is used directly.
+  float vertical_offset = 0.0f;
+  bool vertical_authoritative = false;
   float GetSpeed() const { return velocity.GetLength(); }
 
   // Derived locomotion heading: the velocity direction while numerically

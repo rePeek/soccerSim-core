@@ -196,6 +196,12 @@ PlayerBakedPoseSample PlayerExecution::BakedPoseSample(PlayerExecutionPort& owne
     sample.pose = state_.playback_state_.final_pose;
     sample.base_angle = state_.playback_state_.final_base_angle;
   }
+  // P7-lite: expose the baked local root height as the Player's world vertical
+  // offset. Geometry consumes the authoritative value; no gravity/landing yet.
+  sample.state.vertical_offset =
+      sample.pose.positions[BodyPart::player].coords[2] *
+      sample.body_profile.height_scale;
+  sample.state.vertical_authoritative = state_.playback_state_.have_pose;
   if (state_.foot_plant_.left_planted) {
     sample.foot_targets.has_left = true;
     sample.foot_targets.left = state_.foot_plant_.left_anchor;
