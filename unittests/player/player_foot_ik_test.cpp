@@ -44,21 +44,25 @@ TEST_CASE("foot plant anchors persist until support or ground is lost",
   input.left_ankle = Vector3(0.1f, 0.2f, 0.1f);
   auto state = PlayerFootIk::Update(PlayerFootPlantState{}, input);
   REQUIRE(state.left_planted);
+  CHECK(state.left_phase == FootContactPhase::Planting);
   const Vector3 anchor = state.left_anchor;
   CHECK(anchor == input.left_ankle);
 
   input.left_ankle = Vector3(0.2f, 0.3f, 0.1f);
   state = PlayerFootIk::Update(state, input);
   CHECK(state.left_anchor == anchor);
+  CHECK(state.left_phase == FootContactPhase::Planted);
 
   input.left_support = false;
   state = PlayerFootIk::Update(state, input);
   CHECK_FALSE(state.left_planted);
+  CHECK(state.left_phase == FootContactPhase::Releasing);
 
   input.left_support = true;
   input.left_ankle = Vector3(0.0f, 0.0f, 0.5f);
   state = PlayerFootIk::Update(state, input);
   CHECK_FALSE(state.left_planted);
+  CHECK(state.left_phase == FootContactPhase::Swing);
 }
 
 TEST_CASE("foot plant update is deterministic", "[player][footik][p3b]") {

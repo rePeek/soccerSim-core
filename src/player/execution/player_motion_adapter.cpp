@@ -55,6 +55,22 @@ PlayerMotionConstraintResult PlayerMotionAdapter::Step(
     // that clamps speed and applies the turn penalty, exactly as before P4.
   }
 
+  if (input.authority == PlayerMotionAuthority::KinematicReference) {
+    PlayerKinematicState next = input.current;
+    football::math::Vector3 delta = scaled_reference;
+    const float max_delta = input.capability.max_speed * input.dt;
+    const float length = delta.GetLength();
+    if (length > max_delta && length > 1e-6f)
+      delta = delta * (max_delta / length);
+    next.position += delta;
+    next.velocity = delta * (1.0f / input.dt);
+    PlayerMotionConstraintResult direct;
+    direct.state = next;
+    direct.achieved_delta = delta;
+    direct.constrained = (delta - scaled_reference).GetLength() > 1e-5f;
+    return direct;
+  }
+
   PlayerKinematicState next = input.current;
   PlayerLocomotionInput locomotion_input;
   locomotion_input.desiredVelocity = target_velocity;

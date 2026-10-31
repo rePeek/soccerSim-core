@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 
 #include "football/foundation/math/vector3.hpp"
 
@@ -13,11 +14,20 @@
 // The caller supplies world-space ankle positions and support flags; it receives
 // world-space knee/ankle targets and a released flag when the anchor is outside
 // the leg's reach. Pose/Final Pose integration consumes these targets.
+enum class FootContactPhase : std::uint8_t {
+  Swing,
+  Planting,
+  Planted,
+  Releasing,
+};
+
 struct PlayerFootPlantState {
   bool left_planted = false;
   bool right_planted = false;
   football::math::Vector3 left_anchor = football::math::Vector3(0);
   football::math::Vector3 right_anchor = football::math::Vector3(0);
+  FootContactPhase left_phase = FootContactPhase::Swing;
+  FootContactPhase right_phase = FootContactPhase::Swing;
 };
 
 struct PlayerFootPlantInput {
@@ -106,22 +116,29 @@ class PlayerFootIk final {
       const PlayerFootPlantState& previous, const PlayerFootPlantInput& input) {
     PlayerFootPlantState next = previous;
     const auto update = [&](bool support, const football::math::Vector3& ankle,
-                            bool& planted, football::math::Vector3& anchor) {
+                            bool& planted, football::math::Vector3& anchor,
+                            FootContactPhase& phase) {
       const bool in_band = ankle.coords[2] <= input.plant_height;
       if (!support || !in_band) {
+        const bool was_planted = planted;
         planted = false;
         anchor = football::math::Vector3(0);
+        phase = was_planted ? FootContactPhase::Releasing
+                            : FootContactPhase::Swing;
         return;
       }
       if (!planted) {
         planted = true;
         anchor = ankle;
+        phase = FootContactPhase::Planting;
+        return;
       }
+      phase = FootContactPhase::Planted;
     };
     update(input.left_support, input.left_ankle, next.left_planted,
-           next.left_anchor);
+           next.left_anchor, next.left_phase);
     update(input.right_support, input.right_ankle, next.right_planted,
-           next.right_anchor);
+           next.right_anchor, next.right_phase);
     return next;
   }
 };

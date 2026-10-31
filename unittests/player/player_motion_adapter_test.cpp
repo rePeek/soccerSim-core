@@ -115,3 +115,21 @@ TEST_CASE("PlayerMotion delegates locomotion to the adapter core",
   CHECK(step.sample.velocity.GetLength() ==
         Catch::Approx(step.state.velocity.GetLength()));
 }
+
+TEST_CASE("KinematicReference preserves action displacement and caps speed",
+          "[player][motion][adapter][p6]") {
+  PlayerMotionConstraintInput input;
+  input.current.position = Vector3(1, 2, 0);
+  input.current.velocity = Vector3(0, -3, 0);
+  input.reference_delta = Vector3(0.02f, -0.03f, 0);
+  input.body = ReferenceBody();
+  input.capability = SprintProfile();
+  input.capability.max_speed = 4.0f;
+  input.authority = PlayerMotionAuthority::KinematicReference;
+  const auto result = PlayerMotionAdapter::Step(input);
+  CHECK(result.achieved_delta.coords[0] == Catch::Approx(0.02f).margin(1e-6f));
+  CHECK(result.achieved_delta.coords[1] == Catch::Approx(-0.03f).margin(1e-6f));
+  CHECK(result.state.velocity.GetLength() ==
+        Catch::Approx(std::sqrt(0.02f * 0.02f + 0.03f * 0.03f) * 100.0f)
+            .margin(1e-4f));
+}

@@ -185,3 +185,15 @@ sources + 443 procedural clips, then replace the `SpatialState::foot` heuristic.
   falls back to the local baked bob otherwise.
 - This is visual/geometry plumbing only: no gravity, vertical velocity, landing
   constraint, 3D body sweep or airborne ball arbitration.
+
+## P3b/P6 updates
+
+- `PlayerFootPlantState` now carries `FootContactPhase` (`Swing`, `Planting`,
+  `Planted`, `Releasing`).
+- P6: baked action root motion now commits through
+  `PlayerMotionAdapter::KinematicReference`; the reference displacement is
+  preserved and only the speed ceiling is applied. `PlayerActionMotion` remains
+  the source of the reference trajectory, not a second commit authority.
+- Touch preparation already consumes `BakedPoseSample`/`ContactRegions`, so P5a
+  uses the IK-adjusted final pose. P5b (TOI + Runtime arbitration) is still
+  outside the Player module and is not claimed complete.

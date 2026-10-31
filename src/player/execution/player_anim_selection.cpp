@@ -21,6 +21,7 @@
 #include "player/execution/player_action_motion.hpp"
 #include "player/execution/locomotion_animation_strategy.hpp"
 #include "player/execution/player_motion_constants.hpp"
+#include "football/player/execution/player_motion_adapter.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -803,7 +804,22 @@ void PlayerExecution::ComputeAndCommitActionMotion() {
 
   const ActionMotionVectorResult motion =
       PlayerActionMotion::ActionMotionVector(motion_input);
-  const Vector3 position = motion.position;
+
+  // P6: the baked action reference is now committed through the one motion
+  // constraint core. KinematicReference preserves the reference displacement
+  // and only clamps the speed ceiling; no second world-position authority.
+  PlayerMotionConstraintInput motion_constraint;
+  motion_constraint.current = port().GetKinematicState();
+  motion_constraint.reference_delta = motion.position - motion_constraint.current.position;
+  motion_constraint.reference_delta.coords[2] = 0.0f;
+  motion_constraint.body = port().BodyProfile();
+  motion_constraint.capability = PlayerMotionProfile{};
+  motion_constraint.capability.max_speed = port().GetMaxVelocity();
+  motion_constraint.authority = PlayerMotionAuthority::KinematicReference;
+  const PlayerMotionConstraintResult constrained =
+      PlayerMotionAdapter::Step(motion_constraint);
+  const Vector3 position = motion_constraint.current.position +
+                           constrained.achieved_delta;
 
   if (currentAnim.frameNum > 12) {
     spatialState.foot = static_cast<e_Foot>(clip.metadata.outgoing_foot);

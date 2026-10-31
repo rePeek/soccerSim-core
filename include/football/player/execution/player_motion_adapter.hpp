@@ -26,6 +26,9 @@ enum class PlayerMotionAuthority : std::uint8_t {
   // Passive collision reaction: physics owns the trajectory; the reference is
   // only a pose source.
   PhysicalReaction,
+  // Baked action root motion: follow the reference displacement directly, with
+  // only the speed ceiling applied. P6 migration path.
+  KinematicReference,
 };
 
 struct PlayerMotionConstraintInput {
