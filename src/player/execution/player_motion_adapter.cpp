@@ -18,11 +18,11 @@ PlayerLocomotionParameters ToLocomotionParameters(
   return parameters;
 }
 
-football::math::Vector3 ClampSpeed(const football::math::Vector3& velocity,
-                                   float max_speed) {
-  const float speed = velocity.GetLength();
-  if (speed <= max_speed || speed <= 1e-6f) return velocity;
-  return velocity * (max_speed / speed);
+football::math::Vector3 ResolveIdleFacing(
+    const PlayerMotionConstraintInput& input) {
+  const football::math::Vector3 idle = input.idle_facing.Get2D();
+  if (idle.GetLength() > 1e-6f) return idle.GetNormalized();
+  return input.current.GetFacing();
 }
 
 }  // namespace
@@ -50,14 +50,15 @@ PlayerMotionConstraintResult PlayerMotionAdapter::Step(
     } else {
       target_velocity = football::math::Vector3(0);
     }
-  } else {
-    target_velocity = ClampSpeed(target_velocity, input.capability.max_speed);
+  } else if (input.authority == PlayerMotionAuthority::Locomotion) {
+    // Keep the control target untouched: PlayerLocomotion is the one place
+    // that clamps speed and applies the turn penalty, exactly as before P4.
   }
 
   PlayerKinematicState next = input.current;
   PlayerLocomotionInput locomotion_input;
   locomotion_input.desiredVelocity = target_velocity;
-  locomotion_input.idleFacing = input.current.GetFacing();
+  locomotion_input.idleFacing = ResolveIdleFacing(input);
   PlayerLocomotion::Step(next, locomotion_input,
                          ToLocomotionParameters(input.capability), input.dt);
 

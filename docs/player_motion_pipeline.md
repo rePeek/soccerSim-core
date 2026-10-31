@@ -1,7 +1,7 @@
 # Player × Animation: reference motion → adapted root → final pose
 
-Status: P0/P1 audit and P2 adapter foundation. This document is the contract for
-the staged migration; it does not claim that P3–P7 are implemented.
+Status: P0/P1 audit, P2 adapter, P3a root/pose warp and P4 locomotion
+authority consolidation are implemented. P3b foot IK and P5–P7 are not.
 
 ## Target chain
 
@@ -86,8 +86,22 @@ Rules:
    returns the candidate root; collision/pose stages may later constrain it and
    must feed the final achieved delta into the pose adapter.
 
+## P3/P4 status
+
+- P3a (`PlayerPoseAdapter`) warps the final base yaw toward the achieved
+  displacement direction and scales pelvis bob by the achieved/reference
+  distance ratio. Identity inputs are bit-preserving.
+- P3b foot planting/IK is **not** implemented: it requires P1 foot-plant
+  events and a two-bone solve against the baked bind skeleton. The adapter
+  therefore reports `foot_lock_applied == false`.
+- P4: `PlayerMotion` is now a compatibility facade over
+  `PlayerMotionAdapter` in Locomotion mode. The production locomotion path
+  (`Player::CommitLocomotion`) therefore has one constraint core.
+- P4 does **not** switch one-shot action root motion. Slide/pass/trip/fall
+  still use the legacy `PlayerActionMotion` trajectory until P5/P6.
+
 ## Remaining phases
 
-P3 pose warping/foot IK, P4 switching the Movement authority, P5 pass/shot
-contact, P6 remaining actions, P7 vertical root/jump/landing. Each has its own
-gate; they are deliberately not bundled into this foundation.
+P3b foot IK, P5 pass/shot contact, P6 remaining actions, P7 vertical
+root/jump/landing. Each has its own gate; they are deliberately not bundled
+into this foundation.

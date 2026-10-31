@@ -4,6 +4,7 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include "football/player/execution/player_motion.hpp"
 #include "football/player/execution/player_motion_adapter.hpp"
 
 using football::math::Vector3;
@@ -98,4 +99,19 @@ TEST_CASE("adapter is deterministic for identical inputs",
   CHECK(first.state.position.coords[1] == second.state.position.coords[1]);
   CHECK(first.achieved_delta.coords[1] == second.achieved_delta.coords[1]);
   CHECK(first.constrained == second.constrained);
+}
+
+TEST_CASE("PlayerMotion delegates locomotion to the adapter core",
+          "[player][motion][adapter][p4]") {
+  PlayerKinematicState current;
+  current.velocity = Vector3(0);
+  current.bodyFacing = Vector3(0, -1, 0);
+  auto profile = SprintProfile();
+  const MotionStep step = PlayerMotion::StepContinuous(
+      current, profile, Vector3(0, -8.0f, 0), Vector3(0, -1, 0), 0.01f);
+  CHECK(step.state.velocity.GetLength() == Catch::Approx(0.06f).margin(1e-5f));
+  CHECK(step.sample.displacement.GetLength() ==
+        Catch::Approx(0.0006f).margin(1e-6f));
+  CHECK(step.sample.velocity.GetLength() ==
+        Catch::Approx(step.state.velocity.GetLength()));
 }

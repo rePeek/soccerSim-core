@@ -34,10 +34,11 @@ struct PlayerMotionConstraintInput {
   PlayerKinematicState current;
   football::player::PlayerBodyProfile body;
   PlayerMotionProfile capability;
-  // Control intent. For Locomotion it is the target velocity; for
-  // ReferenceAction it only caps the reference speed when non-zero.
   football::math::Vector3 desired_velocity = football::math::Vector3(0);
+  // Facing used when velocity is zero. A zero vector means derive it from
+  // `current` (the legacy GetFacing() contract).
   PlayerMotionAuthority authority = PlayerMotionAuthority::ReferenceAction;
+  football::math::Vector3 idle_facing = football::math::Vector3(0);
   float dt = 0.01f;
 };
 

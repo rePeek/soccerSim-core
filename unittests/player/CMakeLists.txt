@@ -18,7 +18,8 @@ add_executable(football_player_unit_tests
   player_selection_decisions_test.cpp
   player_action_motion_test.cpp
   player_action_cursor_test.cpp
-  player_motion_adapter_test.cpp)
+  player_motion_adapter_test.cpp
+  player_pose_adapter_test.cpp)
 target_include_directories(football_player_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/../animation)

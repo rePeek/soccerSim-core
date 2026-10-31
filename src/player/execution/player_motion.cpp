@@ -1,31 +1,29 @@
 #include "football/player/execution/player_motion.hpp"
 
-#include "player/execution/player_locomotion.hpp"
-
-namespace {
-PlayerLocomotionParameters ToLocomotionParameters(
-    const PlayerMotionProfile& profile) {
-  PlayerLocomotionParameters parameters;
-  parameters.maxSpeed = profile.max_speed;
-  parameters.acceleration = profile.acceleration;
-  parameters.braking = profile.braking;
-  parameters.maxTurnRate = profile.turn_rate;
-  return parameters;
-}
-}  // namespace
+#include "football/player/execution/player_motion_adapter.hpp"
 
 MotionStep PlayerMotion::StepContinuous(
     const PlayerKinematicState& current, const PlayerMotionProfile& profile,
     const football::math::Vector3& desired_velocity,
     const football::math::Vector3& idle_facing, float dt) {
+  // P4: PlayerMotion is now a compatibility facade over the single motion
+  // constraint core. Locomotion mode consumes the control target directly; the
+  // reference delta is only used to report whether the target was reproduced.
+  PlayerMotionConstraintInput input;
+  input.reference_delta = desired_velocity * dt;
+  input.current = current;
+  input.body = football::player::PlayerBodyProfile{};
+  input.capability = profile;
+  input.desired_velocity = desired_velocity;
+  input.authority = PlayerMotionAuthority::Locomotion;
+  input.dt = dt;
+  input.idle_facing = idle_facing;
+  const PlayerMotionConstraintResult result = PlayerMotionAdapter::Step(input);
+
   MotionStep step;
-  step.state = current;
-  PlayerLocomotionInput input;
-  input.desiredVelocity = desired_velocity;
-  input.idleFacing = idle_facing;
-  PlayerLocomotion::Step(step.state, input, ToLocomotionParameters(profile), dt);
-  step.sample.displacement = step.state.position - current.position;
-  step.sample.velocity = step.state.velocity;
+  step.state = result.state;
+  step.sample.displacement = result.achieved_delta;
+  step.sample.velocity = result.state.velocity;
   return step;
 }
 
