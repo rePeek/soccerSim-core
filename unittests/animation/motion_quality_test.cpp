@@ -138,3 +138,52 @@ TEST_CASE("the shipped catalog reports a consistent quality census",
     CHECK(std::isfinite(clip.motion_quality.seam_root_speed_delta));
   }
 }
+
+// RM-0: the strict gate is only useful if a refusal is explainable.
+// This test makes the zero-usable baseline a measurement instead of a
+// comment: every ordinary movement clip is either usable or lands in at
+// least one measured failure bucket, and the census equals the per-clip
+// verdicts.
+TEST_CASE("RM-0: every movement clip's gate verdict has a measured reason",
+          "[animation][motionquality][catalog][rm0]") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_ANIMATION_CATALOG_PATH));
+  const AnimationLibrary::MotionQualityCensus census =
+      library.QualityCensus();
+  REQUIRE(census.movement > 0);
+  INFO("movement=" << census.movement
+       << " usable=" << census.ik_free_usable
+       << " rejected=" << census.movement_rejected
+       << " untracked=" << census.movement_untracked
+       << " untrusted=" << census.movement_support_untrusted
+       << " loop=" << census.movement_loop_discontinuous
+       << " misaligned=" << census.movement_stance_misaligned
+       << " slip=" << census.movement_support_slip
+       << " slow_root=" << census.movement_slow_root
+       << " slow_stance=" << census.movement_slow_stance);
+  CHECK(census.movement == census.ik_free_usable + census.movement_rejected);
+  CHECK(census.movement_untracked <= census.movement);
+  CHECK(census.movement_support_untrusted <= census.movement);
+  CHECK(census.movement_loop_discontinuous <= census.movement);
+  CHECK(census.movement_stance_misaligned <= census.movement);
+  CHECK(census.movement_support_slip <= census.movement);
+  // A rejected clip must name a reason; a usable clip must not be rejected.
+  std::size_t explained = 0;
+  for (const AnimationClip& clip : library.Clips()) {
+    if (clip.metadata.action_type != e_DefString_Movement) continue;
+    const bool usable = clip.motion_quality.ik_free_usable;
+    const bool reason =
+        !clip.motion_quality.tracked ||
+        !FootSupportTrusted(clip.foot_support_summary,
+                            !clip.foot_support.empty()) ||
+        !clip.motion_quality.loop_continuous ||
+        clip.motion_quality.stance_direction_alignment < 0.9f ||
+        !clip.motion_quality.support_consistent ||
+        clip.motion_quality.root_speed <= 0.5f ||
+        clip.motion_quality.stance_speed <= 0.5f;
+    CHECK((usable || reason));
+    CHECK_FALSE((usable && !reason));
+    if (!usable && reason) ++explained;
+  }
+  CHECK(explained == census.movement_rejected);
+}
