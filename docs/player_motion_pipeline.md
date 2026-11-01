@@ -613,7 +613,66 @@ Known leftovers for a later pass: `select_clip.hpp` has no production consumer
 (only its own test), and `BakedAnimationSelector`'s legacy interface is still used
 by the crude filter. Both are candidates for the next slimming, not for this one.
 
+### ACFG-FIX / STRIDE-REACH / FOOT-CONSISTENCY
+
+Three defects from review, plus the measurement that decides what is next.
+
+- **One speed scale.** `AdvanceLocomotionPlayback` no longer derives a reference
+  speed internally: `LocomotionEffectiveGaitSpeed(clip, height_scale)` is computed
+  once by the caller and passed in, so the stride target and the playback rate
+  cannot be paired against different scales (previously the stride used
+  `gait_speed * height_scale` and the rate used `gait_speed`).
+- **Pelvis bob style always applies.** `Warp` used to return early when the yaw
+  correction and the bob ratio were both neutral, which silently dropped
+  `pelvis_bob_scale != 1`. The style scale is now part of the decision.
+- **Reach-aware stride, before the pairing.** `ClipTuning::max_stride_scale` is
+  computed once per player and clip in `BuildPlayerAnimationConfig`: walk the
+  clip's own poses, take each leg's hip-relative ankle offset, and keep the
+  tightest `S` satisfying `(S*f)^2 + |r|^2 <= (thigh+shin)^2` (2% safety margin).
+  The executor clamps the style's target stride with it *before* smoothing and
+  before deriving the rate, because clamping after the rate would break the
+  pairing and reintroduce foot slide. `AdaptStride` also clamps per leg when a
+  caller supplies `reach`, and reports `applied_stride_scale`/`reach_limited`.
+- **Final Pose matches the plant state it ships with.** When `RelaxFootPlant`
+  moves or releases an anchor, the pose is solved once more against the new
+  anchors (bounded: only on relaxing ticks). Previously the tick returned a pose
+  solved for the anchor that had just been abandoned.
+- **Residual provenance.** `LocomotionPoseDiagnostics` now separates
+  `max_plant_residual` (a locked support anchor the leg cannot reach) from
+  `max_swing_residual` (a swinging foot's own target out of reach). They mean
+  different things and are no longer conflated.
+
+That separation answers the open question about the 0.061 m residual: across the
+whole acceptance matrix it is **100 % plant-side** (`swing = 0.000` everywhere),
+i.e. the clip's baked stance-foot disparity drifting the anchor away from the
+foot - not an over-long stride request. Reach-aware stride therefore protects the
+swing target and bounds the style, but it does not remove that residual; the
+foot-lock playback speed is what reduced it, and the next step for the rest is the
+baked support/contact contract, not a stricter stride clamp.
+
+Acceptance matrix (`loco_motion_pose_test`, clip 768, 4 m/s, 40 ticks, each
+variant driving its own skeleton):
+
+| variant | plant residual | swing residual | bone error | anchor slide |
+|---|---|---|---|---|
+| natural / 1.62 m | 0.085 m | 0 | 0 | 0.025 m |
+| natural / 1.80 m | 0.058 m | 0 | 0 | 0 |
+| natural / 1.98 m | 0.021 m | 0 | 0 | 0 |
+| short steps / 1.80 m | 0.004 m | 0 | 0 | 0 |
+| long steps / 1.80 m | 0.086 m | 0 | 0 | 0.026 m |
+| long steps / 1.98 m | 0.066 m | 0 | 0 | 0.006 m |
+
+Every variant covers the same 1.60 m of ground: height and style change the gait,
+never the trajectory. Taller players have smaller residuals because their legs
+reach the drifted anchor for longer.
+
 ### What is still open
+
+- The remaining plant-side residual is the clip's baked stance-foot disparity
+  plus the anchor drift it causes. Removing it needs the baked support **and
+  contact** contract (per-phase stance speed, foot contact point), not a tighter
+  stride clamp - the diagnostic shows the swing target is never the problem.
+- `torso_sway_scale` / `arm_swing_scale` are still carried but unapplied.
 
 - `select_clip.hpp` has no production consumer; `BakedAnimationSelector` still
   exposes its legacy interface to the crude filter. Slim only after the remaining

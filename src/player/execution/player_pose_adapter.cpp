@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 using football::math::Vector3;
 
@@ -56,9 +57,16 @@ PlayerPoseWarpResult PlayerPoseAdapter::Warp(const PlayerPoseWarpInput& input) {
   }
   const float bob_ratio = std::clamp(achieved_length / reference_length,
                                      0.5f, 1.5f);
+  // The player's own vertical style is a pose fact, not a motion correction: it
+  // must apply even when the reference and achieved motion agree exactly.
+  const float style_scale =
+      std::isfinite(input.pelvis_bob_scale) && input.pelvis_bob_scale > 0.0f
+          ? input.pelvis_bob_scale
+          : 1.0f;
 
   if (std::fabs(yaw_correction) <= kWarpEpsilon &&
-      std::fabs(bob_ratio - 1.0f) <= kWarpEpsilon) {
+      std::fabs(bob_ratio - 1.0f) <= kWarpEpsilon &&
+      std::fabs(style_scale - 1.0f) <= kWarpEpsilon) {
     return result;
   }
 
@@ -68,10 +76,6 @@ PlayerPoseWarpResult PlayerPoseAdapter::Warp(const PlayerPoseWarpInput& input) {
   // Baked root Z is pelvis bob, not world height. Warping it keeps the visual
   // cadence proportional to the distance the root actually achieved; the
   // player's style scale decides how pronounced his bob is in the first place.
-  const float style_scale =
-      std::isfinite(input.pelvis_bob_scale) && input.pelvis_bob_scale > 0.0f
-          ? input.pelvis_bob_scale
-          : 1.0f;
   result.pose.positions[BodyPart::player].coords[2] *=
       bob_ratio * style_scale;
   result.pose_warped = true;
@@ -82,11 +86,29 @@ PlayerStrideAdaptResult PlayerPoseAdapter::AdaptStride(
     const PlayerStrideAdaptInput& input) {
   PlayerStrideAdaptResult result;
   const Vector3 forward_axis = FacingAxis(input.facing);
-  const float scale =
-      std::isfinite(input.stride_scale) && input.stride_scale > 0.0f
-          ? input.stride_scale
-          : 1.0f;
+  float scale = std::isfinite(input.stride_scale) && input.stride_scale > 0.0f
+                    ? input.stride_scale
+                    : 1.0f;
   static_cast<void>(input.gait_phase);  // carried for diagnostics only
+
+  // Reach ceiling, applied to the whole gait before anything is scaled: the
+  // cadence pairing needs one scale for both legs and the stride target, and a
+  // per-leg cap would silently break that equality.
+  if (input.left.valid || input.right.valid) {
+    float ceiling = std::numeric_limits<float>::infinity();
+    const auto consider = [&](const PlayerStrideAdaptLeg& leg) {
+      if (!leg.valid || leg.reach <= 0.0f) return;
+      ceiling = std::min(ceiling, LegStrideReachLimit(leg.hip, leg.ankle,
+                                                     input.facing, leg.reach));
+    };
+    consider(input.left);
+    consider(input.right);
+    if (std::isfinite(ceiling) && ceiling < scale) {
+      scale = ceiling;
+      result.reach_limited = true;
+    }
+  }
+  result.applied_stride_scale = scale;
 
   const auto adapt_leg = [&](const PlayerStrideAdaptLeg& leg, bool& has_target,
                              Vector3& target, bool& adapted) {

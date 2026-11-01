@@ -362,14 +362,8 @@ PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
   // authority overrides the gait for planted feet.
   const PlayerFootIkTargets targets =
       ApplyFootPlantLocks(state_.foot_plant_, adapted.targets);
-  const BakedPoseFootSolve solved = ApplyWorldFootTargetsToPose(
+  const BakedPoseFootSolve first = ApplyWorldFootTargetsToPose(
       sampled_pose, kinematics, final_base_angle, body, targets);
-  // A planted leg targets its anchor, so the solve residual *is* the slide the
-  // final pose ships. An unplanted leg reports nothing.
-  state_.locomotion_diagnostics_.left_foot_slip =
-      state_.foot_plant_.left_planted ? solved.left_residual : 0.0f;
-  state_.locomotion_diagnostics_.right_foot_slip =
-      state_.foot_plant_.right_planted ? solved.right_residual : 0.0f;
 
   // P1: an anchor the leg can no longer reach must not pin the leg at maximum
   // extension. It slides toward the foot by a bounded step (the foot really does
@@ -377,8 +371,11 @@ PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
   // The relaxation target is where the animation's foot actually is, not the
   // locked anchor it was replaced with.
   const PlayerFootPlantRelax relax = RelaxFootPlant(
-      state_.foot_plant_, adapted.targets, solved.left_residual,
-      solved.right_residual);
+      state_.foot_plant_, adapted.targets, first.left_residual,
+      first.right_residual);
+  const bool plant_changed =
+      relax.left_slide > 0.0f || relax.right_slide > 0.0f ||
+      relax.left_released || relax.right_released;
   if (relax.left_released || relax.right_released) {
     state_.locomotion_diagnostics_.left_plant_released = relax.left_released;
     state_.locomotion_diagnostics_.right_plant_released = relax.right_released;
@@ -387,6 +384,34 @@ PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
   state_.locomotion_diagnostics_.left_plant_slide = relax.left_slide;
   state_.locomotion_diagnostics_.right_plant_slide = relax.right_slide;
   state_.foot_plant_ = relax.plant;
+
+  // The pose must match the plant state it ships with. If the anchor moved or was
+  // released, solve once more against the new anchors: bounded (only on the ticks
+  // that relaxed) and it is what keeps "Final Pose == contact state".
+  BakedPoseFootSolve solved = first;
+  if (plant_changed) {
+    const PlayerFootIkTargets relaxed_targets =
+        ApplyFootPlantLocks(state_.foot_plant_, adapted.targets);
+    solved = ApplyWorldFootTargetsToPose(sampled_pose, kinematics,
+                                         final_base_angle, body, relaxed_targets);
+    ++audit_.pose_resolves_;
+  }
+
+  // A planted leg targets its anchor, so the solve residual *is* the slide the
+  // final pose ships. An unplanted leg reports nothing.
+  state_.locomotion_diagnostics_.left_foot_slip =
+      state_.foot_plant_.left_planted ? solved.left_residual : 0.0f;
+  state_.locomotion_diagnostics_.right_foot_slip =
+      state_.foot_plant_.right_planted ? solved.right_residual : 0.0f;
+  // Where a residual comes from matters: a locked support anchor the leg cannot
+  // reach is a plant problem, a swinging foot's own target out of reach is a clip
+  // or stride problem.
+  state_.locomotion_diagnostics_.max_plant_residual = std::max(
+      state_.foot_plant_.left_planted ? solved.left_residual : 0.0f,
+      state_.foot_plant_.right_planted ? solved.right_residual : 0.0f);
+  state_.locomotion_diagnostics_.max_swing_residual = std::max(
+      !state_.foot_plant_.left_planted ? solved.left_residual : 0.0f,
+      !state_.foot_plant_.right_planted ? solved.right_residual : 0.0f);
   return solved.pose;
 }
 
@@ -531,24 +556,36 @@ void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
     // both the stride target and the playback rate. Using the root track here and
     // the stance-foot speed there is what made the pairing disagree on authored
     // clips. Selection uses the same definition.
-    const float reference_speed =
-        LocomotionClipGaitSpeed(clip) * port().BodyProfile().height_scale;
+    const float reference_speed = LocomotionEffectiveGaitSpeed(
+        clip, port().BodyProfile().height_scale);
     // The player's own stride/cadence preference, fixed at creation.
     const ClipTuning& tuning = animation_config_.Get(authority_clip);
     LocomotionStrideStyle style;
     style.stride_preference = tuning.stride_preference;
     style.cadence_preference = tuning.cadence_preference;
     style.stride_response = tuning.stride_response;
+    // Reach-aware ceiling first: a style may ask for a longer step than this
+    // body can make, and the ceiling has to be applied *before* the pairing, not
+    // after it. Otherwise the derived rate would be computed for a stride that
+    // is then silently shortened, and the foot would slide.
+    const float reach_ceiling =
+        std::min(tuning.max_stride_scale, kLocomotionMaxStrideScale);
+    const float target_stride = std::clamp(
+        LocomotionStrideScaleFor(style, achieved_speed, reference_speed),
+        kLocomotionMinStrideScale, reach_ceiling);
     // The stride scale stays a slow, per-gait-cycle adaptation: it feeds the
     // playback rate below, so cadence and step length move together and the
     // support foot keeps its world anchor.
-    state_.stride_scale_ = SmoothLocomotionStrideScale(
-        state_.stride_scale_,
-        LocomotionStrideScaleFor(style, achieved_speed, reference_speed), 0.01f);
+    state_.stride_scale_ =
+        SmoothLocomotionStrideScale(state_.stride_scale_, target_stride, 0.01f);
+    state_.stride_scale_ = std::min(state_.stride_scale_, reach_ceiling);
+    state_.locomotion_diagnostics_.reach_limited =
+        target_stride < LocomotionStrideScaleFor(style, achieved_speed, reference_speed) -
+                            1e-6f;
     const LocomotionPlaybackRequest previous = state_.locomotion_playback_;
     state_.locomotion_playback_ = AdvanceLocomotionPlayback(
-        previous, authority_clip, clip, achieved_speed, entry_frame_time, 0.01f,
-        state_.stride_scale_);
+        previous, authority_clip, clip, achieved_speed, reference_speed,
+        entry_frame_time, 0.01f, state_.stride_scale_);
     UpdateLocomotionPlayback(authority_clip, state_.locomotion_playback_.frame_time,
                              base_angle, blend_ticks);
 

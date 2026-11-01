@@ -217,6 +217,13 @@ observation, controls and stored physics are all the Stadium Frame.
   A style is a style, not an ability: stride/cadence preferences can never change
   the world displacement, a bone length, a touch frame or a contact impulse, and
   a neutral style must reproduce the shipped gait exactly.
+- The gait speed a player sees is `LocomotionEffectiveGaitSpeed(clip, height_scale)`
+  and it is computed once and passed to both the stride target and the playback
+  rate. Never derive it twice; a scale mismatch biases the pairing for every
+  player who is not the reference build. A style's stride is clamped by
+  `ClipTuning::max_stride_scale` (reach-aware, built once from the clip's poses
+  and the player's leg length) *before* the rate is derived - clamping after the
+  pairing breaks it.
 - Cadence and stride length are one pair, never independent knobs. A movement
   pose is settled by `PlayerExecution::SettleMovementPose`: stride target ->
   support from the *gait* ankle heights -> plant lock -> local-rotation

@@ -275,7 +275,8 @@ TEST_CASE("motion-driven playback shortens the cadence instead of the step") {
   const float stride = LocomotionStrideScaleTarget(achieved, reference);
   LocomotionPlaybackRequest request;
   for (int tick = 0; tick < 5; ++tick) {
-    request = AdvanceLocomotionPlayback(request, clip.id, clip, achieved, 0.0f,
+    request = AdvanceLocomotionPlayback(request, clip.id, clip, achieved,
+                                       LocomotionClipGaitSpeed(clip), 0.0f,
                                         0.01f, stride);
   }
   CHECK(request.playback_rate > 0.0f);

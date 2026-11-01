@@ -105,13 +105,15 @@ TEST_CASE("playback advances by the achieved/reference speed ratio") {
   LocomotionPlaybackRequest request;
 
   // Achieved 3.6 m/s at 1.8 m/s native => rate 2.0 => two clip frames per tick.
-  request = AdvanceLocomotionPlayback(request, 1, clip, 3.6f, 0.0f, 0.01f);
+  request = AdvanceLocomotionPlayback(request, 1, clip, 3.6f,
+                                       LocomotionClipGaitSpeed(clip), 0.0f, 0.01f);
   REQUIRE(request.clip_id == 1);
   REQUIRE(request.playback_rate == Catch::Approx(2.0f).margin(1e-4f));
   REQUIRE(request.frame_time == Catch::Approx(2.0f).margin(1e-4f));
 
   // Halved speed halves the cadence: continuity across ticks, not a re-sample.
-  request = AdvanceLocomotionPlayback(request, 1, clip, 0.9f, 0.0f, 0.01f);
+  request = AdvanceLocomotionPlayback(request, 1, clip, 0.9f,
+                                       LocomotionClipGaitSpeed(clip), 0.0f, 0.01f);
   REQUIRE(request.playback_rate == Catch::Approx(0.5f).margin(1e-4f));
   REQUIRE(request.frame_time == Catch::Approx(2.5f).margin(1e-4f));
 }
@@ -123,7 +125,8 @@ TEST_CASE("gait phase is continuous and wraps inside the clip cycle") {
   int wraps = 0;
   for (int tick = 0; tick < 40; ++tick) {
     const LocomotionPlaybackRequest previous = request;
-    request = AdvanceLocomotionPlayback(previous, 1, clip, 3.6f, 0.0f, 0.01f);
+    request = AdvanceLocomotionPlayback(previous, 1, clip, 3.6f,
+                                       LocomotionClipGaitSpeed(clip), 0.0f, 0.01f);
     // Inside a cycle the time only ever advances; a wrap is a true loop, not a
     // jump to an unrelated phase.
     REQUIRE(request.frame_time >= 0.0f);
@@ -147,12 +150,14 @@ TEST_CASE("a clip change reseeds playback from the matched entry frame") {
   const AnimationClip second = LocomotionClip(2);
   LocomotionPlaybackRequest request;
   for (int tick = 0; tick < 3; ++tick) {
-    request = AdvanceLocomotionPlayback(request, 1, first, 1.8f, 0.0f, 0.01f);
+    request = AdvanceLocomotionPlayback(request, 1, first, 1.8f,
+                                       LocomotionClipGaitSpeed(first), 0.0f, 0.01f);
   }
   REQUIRE(request.frame_time == Catch::Approx(3.0f).margin(1e-4f));
 
   const LocomotionPlaybackRequest switched =
-      AdvanceLocomotionPlayback(request, 2, second, 1.8f, 4.0f, 0.01f);
+      AdvanceLocomotionPlayback(request, 2, second, 1.8f,
+                                       LocomotionClipGaitSpeed(second), 4.0f, 0.01f);
   REQUIRE(switched.clip_id == 2);
   REQUIRE(switched.frame_time == Catch::Approx(5.0f).margin(1e-4f));
   REQUIRE_FALSE(switched.looped);
@@ -161,10 +166,12 @@ TEST_CASE("a clip change reseeds playback from the matched entry frame") {
 TEST_CASE("the playback request carries no world position") {
   const AnimationClip clip = LocomotionClip(1);
   const LocomotionPlaybackRequest request =
-      AdvanceLocomotionPlayback(LocomotionPlaybackRequest{}, 1, clip, 3.0f, 0.0f, 0.01f);
+      AdvanceLocomotionPlayback(LocomotionPlaybackRequest{}, 1, clip, 3.0f,
+                                       LocomotionClipGaitSpeed(clip), 0.0f, 0.01f);
   // Determinism: equal inputs give equal requests, bit for bit.
   const LocomotionPlaybackRequest again =
-      AdvanceLocomotionPlayback(LocomotionPlaybackRequest{}, 1, clip, 3.0f, 0.0f, 0.01f);
+      AdvanceLocomotionPlayback(LocomotionPlaybackRequest{}, 1, clip, 3.0f,
+                                       LocomotionClipGaitSpeed(clip), 0.0f, 0.01f);
   REQUIRE(request.frame_time == again.frame_time);
   REQUIRE(request.playback_rate == again.playback_rate);
   REQUIRE(request.gait_phase == again.gait_phase);
@@ -220,7 +227,8 @@ TEST_CASE("a shortened stride raises the cadence by the same factor") {
   const float achieved = 0.8f * reference;
   for (float scale : {kLocomotionMinStrideScale, 0.8f, 1.0f}) {
     LocomotionPlaybackRequest request;
-    request = AdvanceLocomotionPlayback(request, 1, clip, achieved, 0.0f, 0.01f,
+    request = AdvanceLocomotionPlayback(request, 1, clip, achieved,
+                                       LocomotionClipGaitSpeed(clip), 0.0f, 0.01f,
                                        scale);
     REQUIRE(request.playback_rate > 0.0f);
     REQUIRE(request.playback_rate <= kLocomotionMaxPlaybackRate);
@@ -257,10 +265,12 @@ TEST_CASE("a standing Player stops a movement clip but not an idle one") {
   // is not moving.
   const AnimationClip gait = LocomotionClip(1);
   LocomotionPlaybackRequest request;
-  request = AdvanceLocomotionPlayback(request, 1, gait, 3.0f, 0.0f, 0.01f);
+  request = AdvanceLocomotionPlayback(request, 1, gait, 3.0f,
+                                       LocomotionClipGaitSpeed(gait), 0.0f, 0.01f);
   const float moving_time = request.frame_time;
   for (int tick = 0; tick < 10; ++tick) {
-    request = AdvanceLocomotionPlayback(request, 1, gait, 0.0f, 0.0f, 0.01f);
+    request = AdvanceLocomotionPlayback(request, 1, gait, 0.0f,
+                                       LocomotionClipGaitSpeed(gait), 0.0f, 0.01f);
   }
   CHECK(request.playback_rate == Catch::Approx(0.0f));
   CHECK(request.frame_time == Catch::Approx(moving_time).margin(1e-6f));
@@ -271,7 +281,8 @@ TEST_CASE("a standing Player stops a movement clip but not an idle one") {
   idle.root_positions.assign(idle.frame_count, Vector3(0, 0, 0));
   LocomotionPlaybackRequest idle_request;
   for (int tick = 0; tick < 4; ++tick) {
-    idle_request = AdvanceLocomotionPlayback(idle_request, 2, idle, 0.0f, 0.0f,
+    idle_request = AdvanceLocomotionPlayback(idle_request, 2, idle, 0.0f,
+                                       LocomotionClipGaitSpeed(idle), 0.0f,
                                              0.01f);
   }
   CHECK(idle_request.playback_rate == Catch::Approx(1.0f));
@@ -288,7 +299,8 @@ TEST_CASE("a stopped movement clip holds its stride instead of slowing to a floo
   for (float achieved : {reference, 0.8f * reference, 0.4f * reference, 0.15f}) {
     const float stride = LocomotionStrideScaleTarget(achieved, reference);
     LocomotionPlaybackRequest request;
-    request = AdvanceLocomotionPlayback(request, 1, clip, achieved, 0.0f, 0.01f,
+    request = AdvanceLocomotionPlayback(request, 1, clip, achieved,
+                                       LocomotionClipGaitSpeed(clip), 0.0f, 0.01f,
                                         stride);
     CHECK(request.playback_rate <= previous_rate + 1e-5f);
     CHECK(stride * reference * request.playback_rate ==
@@ -331,7 +343,8 @@ TEST_CASE("preferences mean what they say at the preferred gait speed") {
   CHECK(stride == Catch::Approx(style.stride_preference).margin(1e-5f));
 
   LocomotionPlaybackRequest request;
-  request = AdvanceLocomotionPlayback(request, 1, clip, preferred_speed, 0.0f,
+  request = AdvanceLocomotionPlayback(request, 1, clip, preferred_speed,
+                                       LocomotionClipGaitSpeed(clip), 0.0f,
                                       0.01f, stride);
   CHECK(request.playback_rate ==
         Catch::Approx(style.cadence_preference).margin(1e-4f));
@@ -356,8 +369,10 @@ TEST_CASE("two styles at one speed agree on the motion, not on the gait") {
   LocomotionPlaybackRequest a;
   LocomotionPlaybackRequest b;
   for (int tick = 0; tick < 5; ++tick) {
-    a = AdvanceLocomotionPlayback(a, 1, clip, achieved, 0.0f, 0.01f, stride_a);
-    b = AdvanceLocomotionPlayback(b, 1, clip, achieved, 0.0f, 0.01f, stride_b);
+    a = AdvanceLocomotionPlayback(a, 1, clip, achieved,
+                                       LocomotionClipGaitSpeed(clip), 0.0f, 0.01f, stride_a);
+    b = AdvanceLocomotionPlayback(b, 1, clip, achieved,
+                                       LocomotionClipGaitSpeed(clip), 0.0f, 0.01f, stride_b);
   }
   // Different cadence for the same motion...
   CHECK(a.playback_rate != Catch::Approx(b.playback_rate).margin(1e-3f));

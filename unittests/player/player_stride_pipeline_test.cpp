@@ -169,6 +169,7 @@ RunResult RunStraight(float achieved_speed, uint32_t ticks, float stride_scale,
   for (uint32_t tick = 0; tick < ticks; ++tick) {
     const float rate_scale = pair_rate_with_stride ? stride_scale : 1.0f;
     playback = AdvanceLocomotionPlayback(playback, clip.id, clip, achieved_speed,
+                                       LocomotionClipGaitSpeed(clip),
                                          0.0f, kTickSeconds, rate_scale);
 
     const PoseFrame sampled_pose = SamplePose(clip, playback.frame_time);
@@ -393,7 +394,8 @@ ResettleResult RunAndCorrectRoot(float shift_x) {
 
   ResettleResult result;
   for (int tick = 0; tick < 12; ++tick) {
-    playback = AdvanceLocomotionPlayback(playback, clip.id, clip, reference, 0.0f,
+    playback = AdvanceLocomotionPlayback(playback, clip.id, clip, reference,
+                                       LocomotionClipGaitSpeed(clip), 0.0f,
                                          kTickSeconds, 1.0f);
     const PoseFrame sampled = SamplePose(clip, playback.frame_time);
     PlayerPoseRealizeInput realize;
@@ -509,7 +511,8 @@ TEST_CASE("the settled pose needs no second constraint solve for geometry",
   bool realized_valid = false;
 
   for (int tick = 0; tick < 30; ++tick) {
-    playback = AdvanceLocomotionPlayback(playback, clip.id, clip, reference, 0.0f,
+    playback = AdvanceLocomotionPlayback(playback, clip.id, clip, reference,
+                                       LocomotionClipGaitSpeed(clip), 0.0f,
                                          kTickSeconds, 1.0f);
     const PoseFrame sampled = SamplePose(clip, playback.frame_time);
     PlayerPoseRealizeInput realize;

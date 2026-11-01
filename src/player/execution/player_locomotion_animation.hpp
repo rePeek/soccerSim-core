@@ -247,17 +247,29 @@ inline football::math::Vector3 LocomotionReferenceDelta(
           LocomotionRootPositionAt(roots, 0.0f));
 }
 
+// The gait speed one player sees in a clip: the clip's own foot speed, scaled by
+// his body. Both the stride target and the playback rate must use this one value;
+// deriving it twice (once with the height scale, once without) biases the pairing
+// for every player who is not exactly the reference build.
+inline float LocomotionEffectiveGaitSpeed(const AnimationClip& clip,
+                                          float height_scale) {
+  return LocomotionClipGaitSpeed(clip) * height_scale;
+}
+
 // One tick of motion-driven playback. Pure: the same inputs always produce the
 // same request, and the request carries no world position.
 //
 // `entry_frame_time` seeds the clip when it changes (the match entry frame);
 // while the clip is unchanged the previous continuous time is carried over.
-// `stride_scale` shortens (or lengthens) the gait's fore-aft excursion; the
-// playback rate divides by it so the support foot stays locked.
+// `reference_speed` is the *effective* gait speed (already body-scaled); it is an
+// explicit input so a caller cannot accidentally pair the stride against one
+// speed and the rate against another. `stride_scale` shortens (or lengthens) the
+// gait's fore-aft excursion; the playback rate divides by it so the support foot
+// stays locked.
 inline LocomotionPlaybackRequest AdvanceLocomotionPlayback(
     const LocomotionPlaybackRequest& previous, AnimationId clip_id,
-    const AnimationClip& clip, float achieved_speed, float entry_frame_time,
-    float dt, float stride_scale = 1.0f) {
+    const AnimationClip& clip, float achieved_speed, float reference_speed,
+    float entry_frame_time, float dt, float stride_scale = 1.0f) {
   LocomotionPlaybackRequest next;
   next.clip_id = clip_id;
   next.stride_scale = stride_scale;
@@ -265,12 +277,12 @@ inline LocomotionPlaybackRequest AdvanceLocomotionPlayback(
   // A clip with no speed reference (idle, stance) has no cadence to derive from
   // the motion, so it keeps playing at its own rate - standing still must not
   // freeze an idle breathing cycle.
-  const float reference_speed = LocomotionClipGaitSpeed(clip) * stride_scale;
-  if (reference_speed > 1e-3f) {
+  const float effective_speed = reference_speed * stride_scale;
+  if (effective_speed > 1e-3f) {
     next.playback_rate =
         achieved_speed <= kLocomotionStopSpeed
             ? 0.0f
-            : std::clamp(achieved_speed / reference_speed, 0.0f,
+            : std::clamp(achieved_speed / effective_speed, 0.0f,
                          kLocomotionMaxPlaybackRate);
   }
 
@@ -320,6 +332,14 @@ struct LocomotionPoseDiagnostics {
   // radians per tick. The animation realization budgets the incoming pose, not
   // the plant solve that follows it, so this is the measured truth.
   float max_leg_joint_step = 0.0f;
+  // Reach-aware stride: the player's style asked for more than the legs can make
+  // and the ceiling was applied before the cadence pairing.
+  bool reach_limited = false;
+  // Where the residual comes from: a locked support anchor the leg cannot reach,
+  // or a swinging foot whose own target is out of reach. They mean different
+  // things and must not be conflated.
+  float max_plant_residual = 0.0f;
+  float max_swing_residual = 0.0f;
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_PLAYER_LOCOMOTION_ANIMATION_HPP

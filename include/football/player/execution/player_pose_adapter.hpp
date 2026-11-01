@@ -1,6 +1,8 @@
 #ifndef FOOTBALL_SIM_PLAYER_POSE_ADAPTER_HPP
 #define FOOTBALL_SIM_PLAYER_POSE_ADAPTER_HPP
 
+#include <limits>
+
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
 #include "football/foundation/math/vector3.hpp"
@@ -56,6 +58,10 @@ struct PlayerStrideAdaptLeg {
   bool valid = false;
   football::math::Vector3 hip = football::math::Vector3(0);
   football::math::Vector3 ankle = football::math::Vector3(0);
+  // Thigh + shin length in world units. 0 disables the reach clamp (a caller
+  // that has no skeleton); otherwise the adapted fore-aft offset can never ask
+  // for a foot outside this leg's reach.
+  float reach = 0.0f;
 };
 
 struct PlayerStrideAdaptInput {
@@ -80,7 +86,43 @@ struct PlayerStrideAdaptResult {
   bool right_adapted = false;
   // Largest fore-aft change applied to a leg (metres, unsigned).
   float max_fore_aft_correction = 0.0f;
+  // The stride scale actually applied. Equal to the requested one unless a leg's
+  // reach capped it; the cadence pairing must use this value.
+  float applied_stride_scale = 1.0f;
+  bool reach_limited = false;
 };
+
+// Reach-aware stride ceiling.
+//
+// `AdaptStride` may only send the foot where the leg can actually go. The bound
+// is geometric: with the hip-relative ankle offset split into a fore-aft part
+// `f` and the rest `r`, a scaled target sits at `(S*f)^2 + |r|^2 <= reach^2`.
+//
+//   S_max = sqrt(max(0, reach^2 - |r|^2)) / |f|
+//
+// This is the *ceiling*, not a suggestion: the caller must clamp the stride with
+// it before deriving the playback rate, or the pairing breaks and the foot slides.
+inline constexpr float kStrideReachSafety = 0.98f;
+
+// A leg's own ceiling, given where the ankle sits relative to the hip.
+inline float LegStrideReachLimit(const football::math::Vector3& hip,
+                                 const football::math::Vector3& ankle,
+                                 const football::math::Vector3& facing,
+                                 float reach) {
+  if (reach <= 0.0f) return std::numeric_limits<float>::infinity();
+  const football::math::Vector3 forward =
+      facing.Get2D().GetNormalized(football::math::Vector3(0, -1, 0));
+  const football::math::Vector3 offset = ankle - hip;
+  const float fore_aft = offset.GetDotProduct(forward);
+  if (std::fabs(fore_aft) <= 1e-4f) {
+    return std::numeric_limits<float>::infinity();
+  }
+  const football::math::Vector3 rest = offset - forward * fore_aft;
+  const float safe_reach = reach * kStrideReachSafety;
+  const float budget = safe_reach * safe_reach - rest.GetLength() * rest.GetLength();
+  if (budget <= 0.0f) return 0.0f;
+  return std::sqrt(budget) / std::fabs(fore_aft);
+}
 
 // M3 — bounded realization of the Final Pose.
 //

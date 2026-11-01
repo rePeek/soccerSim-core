@@ -32,11 +32,20 @@ struct ClipTuning {
   float pelvis_bob_scale = 1.0f;
   float torso_sway_scale = 1.0f;
   float arm_swing_scale = 1.0f;
+  // Reach-aware stride ceiling for this player and this clip, computed once at
+  // creation from the clip's own leg poses and this player's leg length. A style
+  // may ask for a longer step than the body can make; the ceiling is what the
+  // cadence pairing must use *before* deriving the playback rate.
+  float max_stride_scale = 1.0f;
 };
 
 // Per-clip tuning, indexed by the standard clip's id.
 struct PlayerAnimationConfig {
   std::vector<ClipTuning> clips;
+  // The library this configuration was built against. A mismatch means the
+  // configuration is stale (a rebuilt asset changed clip ids), not that a clip
+  // happens to be missing.
+  std::size_t library_clip_count = 0;
 
   // Out-of-range ids get the neutral tuning instead of throwing: a config is
   // built from a specific library, but a caller must not be able to crash a tick
@@ -50,6 +59,9 @@ struct PlayerAnimationConfig {
   }
   bool empty() const { return clips.empty(); }
   std::size_t size() const { return clips.size(); }
+  bool Matches(const AnimationLibrary& library) const {
+    return library_clip_count == library.Clips().size();
+  }
 };
 
 // Caller-supplied per-clip overrides, keyed by the clip's *stable name*, never by
@@ -64,8 +76,8 @@ using AnimationClipOverrideMap = std::unordered_map<std::string, ClipTuning>;
 //     -> one ClipTuning per clip in the given library
 //     -> optional name-keyed overrides resolved to clip ids
 //
-// `body` is accepted so a future per-build modulation can live here; a style is
-// deliberately independent of the skeleton (height is a scale, not a style).
+// `body` sets the leg length the reach ceiling is computed with; the style itself
+// stays independent of the skeleton (height is a scale, not a style).
 PlayerAnimationConfig BuildPlayerAnimationConfig(
     const football::player::PlayerDefinition& definition,
     const football::player::PlayerBodyProfile& body,
