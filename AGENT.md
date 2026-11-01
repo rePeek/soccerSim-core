@@ -206,14 +206,17 @@ observation, controls and stored physics are all the Stadium Frame.
   (`feasible == false`) falls back instead of being stretched. `Predict` is the
   same loop for a constant control horizon, so short-horizon forecasts reuse
   execution's own phase evolution.
-- RMA-1 clip quality is an Animation fact: `DeriveMotionQuality` fills
   `AnimationClip::motion_quality` once at load from the clip's own root and
-  support tracks (mean/worst stance slip, loop seam root/pose step).
-  `ClipMotionQuality::stance_calibrated` means the support track is readable and
-  loops, so the Player may drive the root from the stance-foot speed instead of
-  the authored root track (the in-memory calibrated reference). `ik_free_usable`
-  is the stricter source gate (root track already agrees). Never widen either
-  gate to make a test pass - the slide is a property of the source GLB.
+  support tracks (mean/worst stance slip, stance/root direction alignment, loop
+  seam root/pose step). `stance_calibrated` means the support track is readable,
+  loops, has a usable stance speed and that foot travels opposite the clip's
+  root direction, so the Player may drive the root from the stance-foot speed
+  instead of the authored root track (the in-memory calibrated reference).
+  `ik_free_usable` is the stricter source gate (root track already agrees).
+  Runtime execution is gated on `stance_calibrated`; the acceptance test states
+  that no shipped catalog clip currently passes it, so ordinary locomotion
+  falls back explicitly. Never widen either gate to make a test pass - the
+  slide is a property of the source GLB.
 - Module boundary: Animation owns the shared clip resource and the pure algorithms
   that turn a clip into data (`SamplePose`, `BlendPose`, `SelectEntryFrame`,
   `PoseDistance`, foot support, touch geometry). *Decisions* about which clip to

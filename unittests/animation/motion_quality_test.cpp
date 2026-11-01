@@ -36,6 +36,28 @@ AnimationClip StanceClip(const Vector3& per_frame_root) {
   return clip;
 }
 
+// A 2 m/s straight gait whose stance ankle travels backward at the same speed.
+// This is what the in-memory stance-speed calibration can execute.
+AnimationClip CalibratedStanceClip() {
+  AnimationClip clip;
+  clip.id = 2;
+  clip.frame_count = 8;
+  clip.metadata.action_type = e_DefString_Movement;
+  for (int f = 0; f < 8; ++f) {
+    PoseFrame pose;
+    // Rotating the thigh about +X moves the ankle forward in +Y; 0.023 rad per
+    // frame is about 2 cm, matching the root's 2 cm/frame backward travel.
+    pose.orientations[BodyPart::left_thigh].SetAngleAxis(
+        0.023f * static_cast<float>(f), Vector3(1, 0, 0));
+    clip.poses.push_back(pose);
+    clip.root_positions.push_back(Vector3(0, -0.02f * static_cast<float>(f), 0));
+    clip.foot_support.push_back(FootSupportFrame{FootPhase::Stance,
+                                                 FootPhase::Swing});
+  }
+  clip.stance_speed = 2.0f;
+  return clip;
+}
+
 }  // namespace
 
 TEST_CASE("motion quality reports a stance foot dragged by the root track",
@@ -52,9 +74,20 @@ TEST_CASE("motion quality reports a stance foot dragged by the root track",
         Catch::Approx(2.0f).margin(1e-4f));
   CHECK_FALSE(clip.motion_quality.support_consistent);
   CHECK_FALSE(clip.motion_quality.ik_free_usable);
-  // The support track is still readable, so the Player can calibrate the root
-  // from the stance speed instead of the authored root track.
+  // The foot does not travel backward, so calibration cannot claim it either.
+  CHECK_FALSE(clip.motion_quality.stance_calibrated);
+}
+
+TEST_CASE("a calibrated straight gait is IK-free usable",
+          "[animation][motionquality]") {
+  AnimationClip clip = CalibratedStanceClip();
+  DeriveMotionQuality(clip);
+  CHECK(clip.motion_quality.root_speed == Catch::Approx(2.0f).margin(1e-4f));
+  CHECK(clip.motion_quality.stance_speed == Catch::Approx(2.0f).margin(1e-4f));
+  CHECK(clip.motion_quality.stance_direction_alignment > 0.99f);
+  CHECK(clip.motion_quality.support_consistent);
   CHECK(clip.motion_quality.stance_calibrated);
+  CHECK(clip.motion_quality.ik_free_usable);
 }
 
 TEST_CASE("a stationary root with a planted foot has no slide",

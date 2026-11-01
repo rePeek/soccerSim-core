@@ -295,6 +295,12 @@ void DeriveMotionQuality(AnimationClip& clip) {
   constexpr float kFrameSeconds = 0.01f;
   float slip_total = 0.0f;
   int slip_samples = 0;
+  const Vector3 root_travel =
+      (clip.root_positions[frames - 1] - clip.root_positions[0]).Get2D();
+  const Vector3 root_direction =
+      root_travel.GetNormalized(football::math::Vector3(0, -1, 0));
+  float alignment_total = 0.0f;
+  float alignment_weight = 0.0f;
   const auto accumulate_slip = [&](const std::vector<Vector3>& ankles,
                                    bool left) {
     for (std::size_t f = 0; f + 1 < frames; ++f) {
@@ -312,12 +318,22 @@ void DeriveMotionQuality(AnimationClip& clip) {
       ++slip_samples;
       quality.worst_support_slip_speed =
           std::max(quality.worst_support_slip_speed, slip);
+      const Vector3 local_backward = (ankles[f] - ankles[f + 1]).Get2D();
+      const float local_distance = local_backward.GetLength();
+      if (local_distance > 1e-5f) {
+        alignment_total +=
+            local_backward.GetNormalized().GetDotProduct(root_direction) *
+            local_distance;
+        alignment_weight += local_distance;
+      }
     }
   };
   accumulate_slip(left_ankles, true);
   accumulate_slip(right_ankles, false);
   quality.support_slip_speed =
       slip_samples > 0 ? slip_total / static_cast<float>(slip_samples) : 0.0f;
+  quality.stance_direction_alignment =
+      alignment_weight > 1e-5f ? alignment_total / alignment_weight : 0.0f;
 
   // Loop continuity: the clip's last sample is the same gait instant as the
   // first for a cyclic movement clip. Compare the seam velocity and the seam
@@ -346,8 +362,13 @@ void DeriveMotionQuality(AnimationClip& clip) {
       FootSupportTrusted(clip.foot_support_summary, !clip.foot_support.empty());
   // Only an ordinary movement action makes a locomotion claim.
   const bool movement = clip.metadata.action_type == e_DefString_Movement;
+  // Calibration is only possible when the clip measured a usable stance-foot
+  // speed and that foot travels opposite the clip's root direction. A
+  // laterally moving (pivoting) foot is not a straight gait.
   quality.stance_calibrated = trusted && movement && quality.loop_continuous &&
-                              quality.root_speed > 0.5f;
+                              quality.root_speed > 0.5f &&
+                              quality.stance_speed > 0.5f &&
+                              quality.stance_direction_alignment >= 0.9f;
   // The strict gate additionally requires the source root track to agree.
   quality.ik_free_usable =
       quality.stance_calibrated && quality.support_consistent;

@@ -112,10 +112,13 @@ struct ClipMotionQuality {
   // (root track + joint position). Zero is a perfectly planted foot.
   float support_slip_speed = 0.0f;
   float worst_support_slip_speed = 0.0f;
-  // Loop seam: root velocity change (m/s) and the largest joint angle step
-  // (radians) between the last and first sample.
   float seam_root_speed_delta = 0.0f;
   float seam_pose_step = 0.0f;
+  // Mean alignment of the stance foot's backward travel with the clip's own
+  // root direction, weighted by displacement. A clip whose body is angled
+  // relative to its travel can move the foot sideways: that is a pivot, not a
+  // calibrated straight gait, and the IK-free root cannot follow it.
+  float stance_direction_alignment = 0.0f;
   // The clip has a derived support track to measure against.
   bool tracked = false;
   bool support_consistent = false;
