@@ -283,9 +283,15 @@ void PlayerExecution::RunActionTick(PlayerExecutionPort& owner, football::sim::T
   RefreshDecisionQueue(frame);
   AdvanceActionAndMovement(frame);
   EvaluateActionRequeue(frame);
+  // RM-5: the action selected at the end of this tick contributes from the
+  // next tick. Motion, pose and contacts above all belong to the selection
+  // that was already installed when the tick began, so an old clip can never
+  // supply the root while a new clip supplies the pose.
+  ApplyPostActionTick(frame);
   SelectActionForFrame(frame);
   PublishCadenceLocomotion(frame);
-  ApplyPostActionTick(frame);
+  // The requeue interrupt is consumed by the selection above.
+  state_.interruptAnim = e_InterruptAnim_None;
 }
 
 
@@ -640,8 +646,6 @@ void PlayerExecution::PublishCadenceLocomotion(ActionTickFrame& frame) {
     }
   }
   state_.reQueueDelayFrames = std::max(state_.reQueueDelayFrames - 1, 0);
-
-  state_.interruptAnim = e_InterruptAnim_None;
 }
 
 void PlayerExecution::ApplyPostActionTick(ActionTickFrame& frame) {
