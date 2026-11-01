@@ -142,7 +142,10 @@ FinalPoseMetrics Drive(const AnimationClip& clip, const PlayerBodyProfile& body)
     realize.previous_pose = have_final ? final_pose : warped.pose;
     realize.target_pose = warped.pose;
     realize.body = body;
-    realize.entry_weight = 0.0f;
+    // Playback entry damps the first eight frames; after that the running
+    // body gets the full follow budget (the production entry_weight shape).
+    realize.entry_weight =
+        tick < 8 ? std::sqrt(1.0f - static_cast<float>(tick) / 8.0f) : 0.0f;
     realize.outgoing_special_state = false;
     const PlayerPoseRealizeResult realized = PlayerPoseAdapter::Realize(realize);
     final_pose = realized.pose;
