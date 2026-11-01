@@ -30,6 +30,7 @@ target_link_libraries(football_animation_base PUBLIC football::foundation
 football_configure_target(football_animation_base)
 
 add_library(football_animation STATIC
+  reference_sample.cpp
   touch_geometry.cpp
   motion_clip.cpp
   pose_sampling.cpp
@@ -48,7 +49,8 @@ target_sources(football_animation PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/touch_geometry.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/transition.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/playback.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/entry_frame.hpp)
+    ${PROJECT_SOURCE_DIR}/include/football/animation/entry_frame.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/reference_sample.hpp)
 target_compile_features(football_animation PUBLIC cxx_std_23)
 target_link_libraries(football_animation PUBLIC football::animation_base)
 football_configure_target(football_animation)

@@ -760,6 +760,10 @@ bool AnimationLibrary::Load(const std::filesystem::path& manifest) {
       // RMA-1: report whether the (possibly repaired) root and support foot
       // agree before any Player can choose the IK-free adaptation.
       DeriveMotionQuality(clip);
+      // RM-2: only a movement clip whose loop seam is continuous has a cyclic
+      // root timeline. One-shot actions and a popping seam stay clamped.
+      clip.looping = clip.metadata.action_type == e_DefString_Movement &&
+                     clip.motion_quality.loop_continuous;
     }
     clips_ = std::move(clips);
     return true;

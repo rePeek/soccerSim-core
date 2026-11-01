@@ -87,6 +87,10 @@ struct AnimationClip {
 
   // Root motion, one position per frame (z already zeroed).
   std::vector<Vector3> root_positions;
+  // RM-2: the clip is a cyclic gait. SampleAnimationStep() then measures root
+  // deltas on the unwrapped timeline, so crossing the seam advances instead of
+  // jumping back to the first sample.
+  bool looping = false;
 
   // Full per-frame joint pose.
   std::vector<PoseFrame> poses;
