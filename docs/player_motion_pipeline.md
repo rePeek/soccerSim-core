@@ -596,8 +596,9 @@ algorithms are untouched: this is a relocation, not a rewrite.
 
 Stays in Animation (by design): `SamplePose`, `BlendPose`, `SelectEntryFrame`,
 `PoseDistance`, `AnimationTransitionState`, `PlaybackState`, the foot-support
-derivation, touch geometry, and `BakedAnimationSelector` (the offline baker and
-the crude candidate filter both read it).
+derivation and touch geometry. Candidate selection (the crude filter, its query
+and its quadrants) is Player code since R2; `Quadrant` stays here as a value type
+because the baker's legacy import assigns it.
 
 Build targets: `football_animation` lost the six decision translation units;
 `football_player_execution` gained them. `football_animation_base` still holds the
@@ -610,8 +611,8 @@ code. They are unchanged apart from the include/namespace. `unittests/animation`
 keeps only the resource and pure-algorithm suites.
 
 Known leftovers for a later pass: `select_clip.hpp` has no production consumer
-(only its own test), and `BakedAnimationSelector`'s legacy interface is still used
-by the crude filter. Both are candidates for the next slimming, not for this one.
+(removed in R2) and `BakedAnimationSelector`'s legacy interface (moved to the
+Player in R2).
 
 ### ACFG-FIX / STRIDE-REACH / FOOT-CONSISTENCY
 
@@ -748,9 +749,9 @@ rather than done on its own.
   stride clamp - the diagnostic shows the swing target is never the problem.
 - `torso_sway_scale` / `arm_swing_scale` are still carried but unapplied.
 
-- `select_clip.hpp` has no production consumer; `BakedAnimationSelector` still
-  exposes its legacy interface to the crude filter. Slim only after the remaining
-  callers move.
+- The artifact schema still carries 9 metadata fields with no reader and ~12 with
+  one to three call sites. Removing them needs a `.simanim` v8 bump plus a Python
+  writer change, for ~40 lines of saving.
 
 - ACFG-3: move the action *decision* (`Match`, `MatchTouch`, `SelectTripMatch`)
   into the Player. Animation keeps `SamplePose`, `BlendPose`, `SelectEntryFrame`
@@ -758,7 +759,8 @@ rather than done on its own.
   semantics (touch timing, ball prediction, contact geometry), not be replaced by
   a `FindByType(Shot)`.
 - ACFG-4: once the production callers are migrated, slim the Animation build
-  targets and keep `BakedAnimationSelector` only for the offline baker.
+  targets. The crude filter and its query now live in the Player, so the only
+  selection-shaped value left in Animation is `Quadrant`.
 - A stride preference near the leg's reach is bounded by the IK, not by the
   configuration. A reach-aware clamp inside `LocomotionStrideScaleFor` would keep
   an aggressive style from asking for a step it cannot make.
