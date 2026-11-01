@@ -125,3 +125,29 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
       !sample.diagnostics.ik_free_pose && !clip.foot_support.empty();
   return sample;
 }
+
+PredictedMotion PlayerActionAdapter::Predict(
+    const AnimationClip& clip, const PlayerKinematicState& initial,
+    const PlayerMotionProfile& capability,
+    const football::player::PlayerBodyProfile& body,
+    const PlayerActionControl& control, const PlayerPlaybackState& playback,
+    float dt, football::sim::TickSpan horizon) {
+  PredictedMotion predicted;
+  predicted.state = initial;
+  PlayerPlaybackState cursor = playback;
+  for (football::sim::TickSpan elapsed{};
+       elapsed < horizon; elapsed += football::sim::TickSpan{1}) {
+    const AdaptedMotionSample sample =
+        Evaluate(clip, predicted.state, capability, body, control, cursor, dt);
+    if (!sample.feasible) {
+      predicted.sample = sample;
+      return predicted;
+    }
+    predicted.state.position += sample.root_delta;
+    predicted.state.velocity = sample.velocity;
+    predicted.sample = sample;
+    cursor.frame_time = sample.clip_time;
+    cursor.stride_scale = sample.stride_scale;
+  }
+  return predicted;
+}

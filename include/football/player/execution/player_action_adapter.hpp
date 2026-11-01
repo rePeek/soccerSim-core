@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "football/animation/clip.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "football/player/execution/player_adapted_motion.hpp"
 #include "football/player/execution/player_motion_adapter.hpp"
 #include "football/player/execution/player_motion_profile.hpp"
@@ -61,6 +62,13 @@ struct PlayerPlaybackState {
   float entry_frame_time = 0.0f;
 };
 
+// RMA-4: a constant-control forecast. `state` is the kinematic state the
+// horizon ends in; `sample` is the last tick's adaptation (root/pose/timing).
+struct PredictedMotion {
+  PlayerKinematicState state;
+  AdaptedMotionSample sample;
+};
+
 class PlayerActionAdapter final {
  public:
   // Pure and deterministic. Requires `dt > 0` and a clip with at least one
@@ -72,6 +80,17 @@ class PlayerActionAdapter final {
       const football::player::PlayerBodyProfile& body,
       const PlayerActionControl& control,
       const PlayerPlaybackState& playback, float dt);
+
+  // RMA-4: constant-control prediction over a short horizon. It reuses
+  // Evaluate() every tick, so the phase/stride evolution and the root are the
+  // same ones execution commits. It never touches a Player or a world.
+  static PredictedMotion Predict(
+      const AnimationClip& clip, const PlayerKinematicState& initial,
+      const PlayerMotionProfile& capability,
+      const football::player::PlayerBodyProfile& body,
+      const PlayerActionControl& control,
+      const PlayerPlaybackState& playback, float dt,
+      football::sim::TickSpan horizon);
 };
 
 #endif  // FOOTBALL_SIM_PLAYER_ACTION_ADAPTER_HPP

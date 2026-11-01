@@ -12,6 +12,7 @@
 #include <cmath>
 
 #include "football/player/execution/player_action_adapter.hpp"
+#include "football/player/execution/player_motion.hpp"
 
 using football::math::Vector3;
 
@@ -164,4 +165,46 @@ TEST_CASE("support slip only counts a foot planted on both sides",
         Catch::Approx(0.02f).margin(1e-6f));
   CHECK(MeasureSupportSlip(false, true, before, after) == 0.0f);
   CHECK(MeasureSupportSlip(true, false, before, after) == 0.0f);
+}
+
+TEST_CASE("prediction reuses the one adaptation step",
+          "[player][adapter][rma4]") {
+  const AnimationClip clip = GaitClip(2.0f);
+  const PlayerKinematicState initial = Moving(1.0f);
+  const PlayerActionControl control = Control(Vector3(0, -2.0f, 0));
+  const PlayerPlaybackState playback{0.0f, 1.0f, 0.0f};
+  constexpr football::sim::TickSpan kHorizon{20};
+
+  const PredictedMotion predicted = PlayerActionAdapter::Predict(
+      clip, initial, Profile(), Body(), control, playback, 0.01f, kHorizon);
+
+  // The forecast is exactly the loop over Evaluate(): no second motion model.
+  PlayerKinematicState manual = initial;
+  PlayerPlaybackState cursor = playback;
+  for (football::sim::TickSpan elapsed{};
+       elapsed < kHorizon; elapsed += football::sim::TickSpan{1}) {
+    const AdaptedMotionSample sample = PlayerActionAdapter::Evaluate(
+        clip, manual, Profile(), Body(), control, cursor, 0.01f);
+    manual.position += sample.root_delta;
+    manual.velocity = sample.velocity;
+    cursor.frame_time = sample.clip_time;
+    cursor.stride_scale = sample.stride_scale;
+  }
+  CHECK(predicted.state.position.coords[1] ==
+        Catch::Approx(manual.position.coords[1]).margin(1e-9f));
+  CHECK(predicted.state.velocity.GetLength() ==
+        Catch::Approx(manual.velocity.GetLength()).margin(1e-9f));
+
+  // And it agrees with the established locomotion prediction it replaces.
+  football::sim::TickSpan elapsed{};
+  PlayerKinematicState stepped = initial;
+  while (elapsed < kHorizon) {
+    stepped = PlayerMotion::StepContinuous(
+                  stepped, Profile(), control.desired_velocity,
+                  initial.GetFacing(), 0.01f)
+                  .state;
+    elapsed += football::sim::TickSpan{1};
+  }
+  CHECK(predicted.state.position.coords[1] ==
+        Catch::Approx(stepped.position.coords[1]).margin(1e-6f));
 }
