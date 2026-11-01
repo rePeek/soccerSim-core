@@ -294,3 +294,59 @@ TEST_CASE("RM-4: a repaired real gait accelerates and brakes through the adapter
   CHECK(state.velocity.GetLength() <= kLocomotionStopSpeed + 1e-3f);
   CHECK(worst_acceleration <= profile.acceleration + 1e-2f);
 }
+
+// RM-F4: the repaired cycle changes frame count and native root speed. The
+// selection metadata must stay reachable and the source/mirror pair must remain
+// a symmetric description of the same gait.
+TEST_CASE("RM-F4: a repaired gait keeps its metadata and mirror symmetry",
+          "[loco][ikfree][catalog][rmf4]") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_ANIMATION_CATALOG_PATH));
+  int tested = 0;
+  for (const AnimationClip& clip : library.Clips()) {
+    if (clip.metadata.action_type != e_DefString_Movement) continue;
+    if (!clip.motion_quality.ik_free_usable) continue;
+    if (clip.name.starts_with("autogen")) continue;
+    ++tested;
+    INFO("clip " << clip.name);
+    CHECK(clip.frame_count == clip.poses.size());
+    CHECK(clip.frame_count > 25);
+    CHECK(clip.metadata.touch_frame == -1);
+    CHECK_FALSE(clip.has_contact);
+    CHECK(clip.touches.empty());
+    const float reachable =
+        clip.motion_quality.root_speed * 2.2f;
+    CHECK(clip.metadata.incoming_velocity <= reachable + 1e-3f);
+    CHECK(clip.metadata.outgoing_velocity <= reachable + 1e-3f);
+    CHECK(clip.metadata.incoming_movement.GetLength() <= reachable + 1e-3f);
+    CHECK(clip.metadata.outgoing_movement.GetLength() <= reachable + 1e-3f);
+    const Vector3 translation =
+        clip.root_positions.back() - clip.root_positions.front();
+    CHECK((clip.metadata.translation - translation).GetLength() <= 1e-4f);
+
+    // The catalog's mirror entry is the other half of the same description.
+    const bool is_mirror = clip.name.ends_with("_mirror");
+    const std::string partner_name =
+        is_mirror ? clip.name.substr(0, clip.name.size() - 7)
+                  : clip.name + "_mirror";
+    const AnimationClip* partner = nullptr;
+    for (const AnimationClip& candidate : library.Clips()) {
+      if (candidate.name == partner_name) {
+        partner = &candidate;
+        break;
+      }
+    }
+    REQUIRE(partner != nullptr);
+    CHECK(partner->frame_count == clip.frame_count);
+    CHECK(partner->motion_quality.ik_free_usable);
+    CHECK(partner->motion_quality.root_speed ==
+          Catch::Approx(clip.motion_quality.root_speed).margin(1e-4f));
+    for (std::size_t frame = 0; frame < clip.root_positions.size(); ++frame) {
+      CHECK(partner->root_positions[frame].coords[0] ==
+            Catch::Approx(-clip.root_positions[frame].coords[0]).margin(1e-4f));
+      CHECK(partner->root_positions[frame].coords[1] ==
+            Catch::Approx(clip.root_positions[frame].coords[1]).margin(1e-4f));
+    }
+  }
+  REQUIRE(tested > 0);
+}

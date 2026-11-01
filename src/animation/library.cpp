@@ -477,6 +477,34 @@ AnimationClip RetimeGaitCycle(const AnimationClip& source) {
   return result;
 }
 
+
+// RM-F4: a repaired cycle changes length and native root speed. Selection
+// metadata that still claims the old speed would ask the adapter to play a
+// clip outside its bounded range or label a walk as a sprint. Clamp the
+// declared in/out motion to what the repaired root can actually reach; this
+// keeps the existing velocity bucket truthful without inventing a new field.
+constexpr float kGaitRepairMaxPlaybackRate = 2.2f;
+
+void RevalidateRepairedMetadata(AnimationClip& clip) {
+  const float reachable =
+      clip.motion_quality.root_speed * kGaitRepairMaxPlaybackRate;
+  const auto clamp_speed = [&](float& speed) {
+    if (speed > reachable) speed = reachable;
+  };
+  clamp_speed(clip.metadata.incoming_velocity);
+  clamp_speed(clip.metadata.outgoing_velocity);
+  const auto clamp_movement = [&](football::math::Vector3& movement) {
+    const float length = movement.GetLength();
+    if (length > reachable && length > 1e-6f) {
+      movement = movement * (reachable / length);
+    }
+  };
+  clamp_movement(clip.metadata.incoming_movement);
+  clamp_movement(clip.metadata.outgoing_movement);
+  clip.metadata.translation =
+      clip.root_positions.back() - clip.root_positions.front();
+}
+
 void RepairGaitCycles(std::vector<AnimationClip>& clips,
                       const std::vector<int>& partner) {
   for (std::size_t index = 0; index < clips.size(); ++index) {
@@ -541,9 +569,15 @@ void RepairGaitCycles(std::vector<AnimationClip>& clips,
                   << " align=" << q.stance_direction_alignment
                   << " seamR=" << q.seam_root_speed_delta
                   << " seamP=" << q.seam_pose_step
-                  << " cons=" << q.support_consistent
-                  << " loop=" << q.loop_continuous
-                  << " cal=" << q.stance_calibrated << '\n';
+                  << " cal=" << q.stance_calibrated
+                  << " trusted="
+                  << FootSupportTrusted(cycle.foot_support_summary,
+                                        !cycle.foot_support.empty())
+                  << " no=" << cycle.foot_support_summary.no_support
+                  << " all=" << cycle.foot_support_summary.all_support
+                  << " short=" << cycle.foot_support_summary.stance_too_short
+                  << " out=" << cycle.foot_support_summary.speed_outlier
+                  << '\n';
       }
       reject("full cycle failed the strict gate");
       continue;
@@ -563,12 +597,10 @@ void RepairGaitCycles(std::vector<AnimationClip>& clips,
     const std::string second_name = second.name;
     cycle.id = first_id;
     cycle.name = first_name;
-    cycle.metadata.translation =
-        cycle.root_positions.back() - cycle.root_positions.front();
+    RevalidateRepairedMetadata(cycle);
     mirrored.id = second_id;
     mirrored.name = second_name;
-    mirrored.metadata.translation =
-        mirrored.root_positions.back() - mirrored.root_positions.front();
+    RevalidateRepairedMetadata(mirrored);
     clips[index] = std::move(cycle);
     clips[static_cast<std::size_t>(other)] = std::move(mirrored);
     std::cerr << "AnimationLibrary: repaired gait cycle " << first_name
