@@ -14,6 +14,7 @@
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "football/player/execution/player_foot_ik.hpp"
+#include "football/player/execution/player_action_adapter.hpp"
 #include "football/player/execution/player_motion.hpp"
 #include "football/player/execution/player_pose_adapter.hpp"
 #include "player/execution/player_baked_body_pose.hpp"
@@ -324,6 +325,19 @@ PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
   } else {
     support = SelectFootSupport(support_input);
   }
+  // RMA-0: measure the slip the settled support actually shipped, on the same
+  // adapted sample the root was committed with. Only a foot supported on both
+  // sides of the interval counts.
+  if (state_.adapted_locomotion_valid_) {
+    state_.adapted_locomotion_.diagnostics.left_support_slip =
+        MeasureSupportSlip(previous_plant.left_planted, support.left_support,
+                           state_.previous_world_ankle_[0],
+                           gait.joints[BodyPart::left_ankle]);
+    state_.adapted_locomotion_.diagnostics.right_support_slip =
+        MeasureSupportSlip(previous_plant.right_planted, support.right_support,
+                           state_.previous_world_ankle_[1],
+                           gait.joints[BodyPart::right_ankle]);
+  }
   state_.previous_world_ankle_[0] = gait.joints[BodyPart::left_ankle];
   state_.previous_world_ankle_[1] = gait.joints[BodyPart::right_ankle];
   state_.previous_fore_aft_[0] = left_fore_aft;
@@ -501,6 +515,9 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
       peak = std::max(peak, 2.0f * std::acos(std::clamp(dot, -1.0f, 1.0f)));
     }
     state_.locomotion_diagnostics_.max_leg_joint_step = peak;
+    if (state_.adapted_locomotion_valid_) {
+      state_.adapted_locomotion_.diagnostics.max_joint_rotation_step = peak;
+    }
   }
 
   // 4. The single Final Pose. Pose(), the baked sample, the colliders, the
@@ -534,6 +551,53 @@ bool PlayerExecution::ResettleFinalPose(PlayerExecutionPort& owner) {
   return true;
 }
 
+AdaptedMotionSample PlayerExecution::EvaluateAdaptedLocomotion(
+    const PlayerKinematicState& current,
+    const football::math::Vector3& desired_velocity,
+    const football::math::Vector3& idle_facing,
+    const PlayerMotionProfile& capability,
+    const football::player::PlayerBodyProfile& body, float dt) {
+  // The authority clip is already installed by the action tick; ordinary
+  // locomotion never selects one here.
+  const AnimationId clip_id = state_.installed_action_.clip_id >= 0
+                                 ? state_.installed_action_.clip_id
+                                 : state_.legacy_anim_state_.animationId;
+  const AnimationClip& clip = GetBakedClip(clip_id);
+
+  const ClipTuning& tuning = animation_config_.Get(clip_id);
+  PlayerActionControl control;
+  control.desired_velocity = desired_velocity;
+  control.idle_facing = idle_facing;
+  control.authority = PlayerMotionAuthority::Locomotion;
+  control.base_angle =
+      state_.startAngle + state_.legacy_anim_state_.rotationSmuggleOffset;
+  control.gait.stride_preference = tuning.stride_preference;
+  control.gait.cadence_preference = tuning.cadence_preference;
+  control.gait.stride_response = tuning.stride_response;
+  control.gait.min_stride_scale = kLocomotionMinStrideScale;
+  // Reach-aware ceiling first: the adapter derives the playback rate from the
+  // step it is actually allowed to take.
+  control.gait.max_stride_scale =
+      std::min(tuning.max_stride_scale, kLocomotionMaxStrideScale);
+
+  PlayerPlaybackState playback;
+  const bool same_clip =
+      state_.locomotion_playback_.clip_id == clip_id;
+  playback.frame_time =
+      same_clip ? state_.locomotion_playback_.frame_time
+                : static_cast<float>(state_.last_begun_start_frame_);
+  playback.stride_scale = state_.stride_scale_;
+  playback.entry_frame_time =
+      static_cast<float>(state_.last_begun_start_frame_);
+
+  const AdaptedMotionSample sample = PlayerActionAdapter::Evaluate(
+      clip, current, capability, body, control, playback, dt);
+  state_.adapted_locomotion_ = sample;
+  state_.adapted_locomotion_valid_ = sample.feasible;
+  return sample;
+}
+
+
 void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
                                                  float base_angle, int blend_ticks,
                                                  bool motion_driven) {
@@ -544,75 +608,96 @@ void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
   if (state_.last_playback_tick_ && *state_.last_playback_tick_ == now) return;
   state_.last_playback_tick_ = now;
   if (motion_driven) {
-    // M2: ordinary locomotion is interpolated on the motion the Player actually
-    // achieved. The clip is still authority-owned; only its time, rate and gait
-    // phase come from the motion, so the anim root can change the gait but never
-    // the world trajectory.
+    // M2/RMA-3: ordinary locomotion is interpolated on the motion the Player
+    // actually achieved. The clip is still authority-owned; its time, rate and
+    // gait phase come from the same adapted sample that produced the root.
     const AnimationClip& clip = GetBakedClip(authority_clip);
-    const LocomotionAnimationInput& locomotion = *state_.locomotion_animation_input_;
-    const float achieved_speed = locomotion.next.velocity.GetLength();
-    const float entry_frame_time = static_cast<float>(state_.last_begun_start_frame_);
-    // ACFG: one effective gait speed for this clip, scaled by the body, drives
-    // both the stride target and the playback rate. Using the root track here and
-    // the stance-foot speed there is what made the pairing disagree on authored
-    // clips. Selection uses the same definition.
-    const float reference_speed = LocomotionEffectiveGaitSpeed(
-        clip, port().BodyProfile().height_scale);
-    // The player's own stride/cadence preference, fixed at creation.
-    const ClipTuning& tuning = animation_config_.Get(authority_clip);
-    LocomotionStrideStyle style;
-    style.stride_preference = tuning.stride_preference;
-    style.cadence_preference = tuning.cadence_preference;
-    style.stride_response = tuning.stride_response;
-    // Reach-aware ceiling first: a style may ask for a longer step than this
-    // body can make, and the ceiling has to be applied *before* the pairing, not
-    // after it. Otherwise the derived rate would be computed for a stride that
-    // is then silently shortened, and the foot would slide.
-    const float reach_ceiling =
-        std::min(tuning.max_stride_scale, kLocomotionMaxStrideScale);
-    const float target_stride = std::clamp(
-        LocomotionStrideScaleFor(style, achieved_speed, reference_speed),
-        kLocomotionMinStrideScale, reach_ceiling);
-    // The stride scale stays a slow, per-gait-cycle adaptation: it feeds the
-    // playback rate below, so cadence and step length move together and the
-    // support foot keeps its world anchor.
-    state_.stride_scale_ =
-        SmoothLocomotionStrideScale(state_.stride_scale_, target_stride, 0.01f);
-    state_.stride_scale_ = std::min(state_.stride_scale_, reach_ceiling);
-    state_.locomotion_diagnostics_.reach_limited =
-        target_stride < LocomotionStrideScaleFor(style, achieved_speed, reference_speed) -
-                            1e-6f;
-    const LocomotionPlaybackRequest previous = state_.locomotion_playback_;
-    state_.locomotion_playback_ = AdvanceLocomotionPlayback(
-        previous, authority_clip, clip, achieved_speed, reference_speed,
-        entry_frame_time, 0.01f, state_.stride_scale_);
-    UpdateLocomotionPlayback(authority_clip, state_.locomotion_playback_.frame_time,
-                             base_angle, blend_ticks);
-
-    // STRIDE-0: measured agreement for this tick.
-    const float start_time = previous.clip_id == authority_clip
-                                 ? previous.frame_time
-                                 : entry_frame_time;
-    state_.locomotion_diagnostics_.achieved_distance =
-        (locomotion.next.position - locomotion.current.position)
-            .Get2D()
-            .GetLength();
-    const football::math::Vector3 reference_delta =
-        LocomotionReferenceDelta(clip.root_positions, start_time,
-                                 state_.locomotion_playback_.frame_time)
-            .Get2D();
-    state_.locomotion_reference_delta_ = reference_delta;
-    state_.locomotion_diagnostics_.reference_distance =
-        reference_delta.GetLength();
-    state_.locomotion_diagnostics_.playback_rate =
-        state_.locomotion_playback_.playback_rate;
-    state_.locomotion_diagnostics_.stride_scale =
-        state_.locomotion_playback_.stride_scale;
+    const bool use_adapted =
+        state_.adapted_locomotion_valid_ &&
+        state_.adapted_locomotion_.clip_id == authority_clip;
+    if (use_adapted) {
+      const AdaptedMotionSample& adapted = state_.adapted_locomotion_;
+      state_.stride_scale_ = adapted.stride_scale;
+      state_.locomotion_playback_ = LocomotionPlaybackRequest{};
+      state_.locomotion_playback_.clip_id = authority_clip;
+      state_.locomotion_playback_.frame_time = adapted.clip_time;
+      state_.locomotion_playback_.playback_rate = adapted.playback_rate;
+      state_.locomotion_playback_.gait_phase = adapted.gait_phase;
+      state_.locomotion_playback_.stride_scale = adapted.stride_scale;
+      state_.locomotion_playback_.looped = adapted.looped;
+      UpdateLocomotionPlayback(authority_clip, adapted.clip_time, base_angle,
+                               blend_ticks);
+      state_.locomotion_reference_delta_ =
+          adapted.reference_delta_local.Get2D();
+      state_.locomotion_diagnostics_.achieved_distance =
+          adapted.diagnostics.adapted_delta.Get2D().GetLength();
+      state_.locomotion_diagnostics_.reference_distance =
+          state_.locomotion_reference_delta_.GetLength();
+      state_.locomotion_diagnostics_.playback_rate = adapted.playback_rate;
+      state_.locomotion_diagnostics_.stride_scale = adapted.stride_scale;
+      state_.locomotion_diagnostics_.reach_limited =
+          adapted.diagnostics.reach_limited;
+    } else {
+      // Compatibility fallback: the adapter did not produce a sample for this
+      // tick (reset or a non-motion path). Keep the established derivation so
+      // no tick loses its clip time.
+      const LocomotionAnimationInput& locomotion =
+          *state_.locomotion_animation_input_;
+      const float achieved_speed = locomotion.next.velocity.GetLength();
+      const float entry_frame_time =
+          static_cast<float>(state_.last_begun_start_frame_);
+      const float reference_speed = LocomotionEffectiveGaitSpeed(
+          clip, port().BodyProfile().height_scale);
+      const ClipTuning& tuning = animation_config_.Get(authority_clip);
+      LocomotionStrideStyle style;
+      style.stride_preference = tuning.stride_preference;
+      style.cadence_preference = tuning.cadence_preference;
+      style.stride_response = tuning.stride_response;
+      const float reach_ceiling =
+          std::min(tuning.max_stride_scale, kLocomotionMaxStrideScale);
+      const float target_stride = std::clamp(
+          LocomotionStrideScaleFor(style, achieved_speed, reference_speed),
+          kLocomotionMinStrideScale, reach_ceiling);
+      state_.stride_scale_ =
+          SmoothLocomotionStrideScale(state_.stride_scale_, target_stride, 0.01f);
+      state_.stride_scale_ = std::min(state_.stride_scale_, reach_ceiling);
+      state_.locomotion_diagnostics_.reach_limited =
+          target_stride <
+                  LocomotionStrideScaleFor(style, achieved_speed, reference_speed) -
+              1e-6f;
+      const LocomotionPlaybackRequest previous = state_.locomotion_playback_;
+      state_.locomotion_playback_ = AdvanceLocomotionPlayback(
+          previous, authority_clip, clip, achieved_speed, reference_speed,
+          entry_frame_time, 0.01f, state_.stride_scale_);
+      UpdateLocomotionPlayback(authority_clip,
+                               state_.locomotion_playback_.frame_time, base_angle,
+                               blend_ticks);
+      const float start_time = previous.clip_id == authority_clip
+                                   ? previous.frame_time
+                                   : entry_frame_time;
+      state_.locomotion_diagnostics_.achieved_distance =
+          (locomotion.next.position - locomotion.current.position)
+              .Get2D()
+              .GetLength();
+      const football::math::Vector3 reference_delta =
+          LocomotionReferenceDelta(clip.root_positions, start_time,
+                                   state_.locomotion_playback_.frame_time)
+              .Get2D();
+      state_.locomotion_reference_delta_ = reference_delta;
+      state_.locomotion_diagnostics_.reference_distance =
+          reference_delta.GetLength();
+      state_.locomotion_diagnostics_.playback_rate =
+          state_.locomotion_playback_.playback_rate;
+      state_.locomotion_diagnostics_.stride_scale =
+          state_.locomotion_playback_.stride_scale;
+    }
   } else {
     state_.locomotion_playback_ = LocomotionPlaybackRequest{};
     state_.locomotion_reference_delta_ = football::math::Vector3(0);
     state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
     state_.stride_scale_ = 1.0f;
+    state_.adapted_locomotion_ = AdaptedMotionSample{};
+    state_.adapted_locomotion_valid_ = false;
     UpdatePlayback(authority_clip, authority_frame, base_angle, blend_ticks);
   }
   ComposeFinalPose(GetBakedClip(authority_clip), motion_driven);

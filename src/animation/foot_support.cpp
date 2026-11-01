@@ -254,3 +254,102 @@ FootSupportFrame SampleFootSupport(const AnimationClip& clip, float frame_time) 
   const auto index = static_cast<std::size_t>(std::lround(frame_time));
   return clip.foot_support[std::min(index, clip.foot_support.size() - 1)];
 }
+
+// RMA-1: the clip's own root/support agreement.
+//
+// Deriving the support phases only says *when* a foot carries weight. It does
+// not say whether the clip's root track moves that foot across the ground while
+// it is planted. The IK-free adaptation removes the last world-space correction;
+// it can only do that if the reference itself is already consistent. This
+// measurement is the gate: report the slide, do not invent a fix for it.
+void DeriveMotionQuality(AnimationClip& clip) {
+  ClipMotionQuality quality;
+  const std::size_t frames =
+      std::min({clip.poses.size(), clip.root_positions.size(),
+                clip.foot_support.size()});
+  if (frames < 2) {
+    clip.motion_quality = quality;
+    return;
+  }
+
+  quality.tracked = true;
+  quality.root_speed = LocomotionRootSpeedForSummary(clip);
+  quality.stance_speed = clip.stance_speed;
+
+  std::vector<Vector3> left_ankles;
+  std::vector<Vector3> right_ankles;
+  left_ankles.reserve(frames);
+  right_ankles.reserve(frames);
+  for (std::size_t f = 0; f < frames; ++f) {
+    left_ankles.push_back(AnklePosition(clip.poses[f], BodyPart::left_thigh,
+                                        BodyPart::left_knee,
+                                        BodyPart::left_ankle));
+    right_ankles.push_back(AnklePosition(clip.poses[f], BodyPart::right_thigh,
+                                         BodyPart::right_knee,
+                                         BodyPart::right_ankle));
+  }
+
+  // A planted foot is measured in the clip's own world track: root + joint.
+  // Only intervals whose *both* ends are support count, so the landing/takeoff
+  // transition (where a foot really does move) is not reported as slide.
+  constexpr float kFrameSeconds = 0.01f;
+  float slip_total = 0.0f;
+  int slip_samples = 0;
+  const auto accumulate_slip = [&](const std::vector<Vector3>& ankles,
+                                   bool left) {
+    for (std::size_t f = 0; f + 1 < frames; ++f) {
+      const FootPhase phase =
+          left ? clip.foot_support[f].left : clip.foot_support[f].right;
+      const FootPhase next =
+          left ? clip.foot_support[f + 1].left : clip.foot_support[f + 1].right;
+      if (!FootIsSupporting(phase) || !FootIsSupporting(next)) continue;
+      const Vector3 before =
+          (clip.root_positions[f] + ankles[f]).Get2D();
+      const Vector3 after =
+          (clip.root_positions[f + 1] + ankles[f + 1]).Get2D();
+      const float slip = (after - before).GetLength() / kFrameSeconds;
+      slip_total += slip;
+      ++slip_samples;
+      quality.worst_support_slip_speed =
+          std::max(quality.worst_support_slip_speed, slip);
+    }
+  };
+  accumulate_slip(left_ankles, true);
+  accumulate_slip(right_ankles, false);
+  quality.support_slip_speed =
+      slip_samples > 0 ? slip_total / static_cast<float>(slip_samples) : 0.0f;
+
+  // Loop continuity: the clip's last sample is the same gait instant as the
+  // first for a cyclic movement clip. Compare the seam velocity and the seam
+  // pose so a pop is visible as a property of the clip.
+  const std::size_t last = frames - 1;
+  const Vector3 first_step = clip.root_positions[1] - clip.root_positions[0];
+  const Vector3 seam_step =
+      clip.root_positions[last] - clip.root_positions[last - 1];
+  quality.seam_root_speed_delta =
+      (first_step - seam_step).Get2D().GetLength() / kFrameSeconds;
+  for (std::size_t joint = 0; joint < kBodyPartCount; ++joint) {
+    const float dot =
+        std::clamp(std::fabs(clip.poses[0].orientations[joint].GetDotProduct(
+                       clip.poses[last].orientations[joint])),
+                   0.0f, 1.0f);
+    quality.seam_pose_step =
+        std::max(quality.seam_pose_step, 2.0f * std::acos(dot));
+  }
+
+  quality.support_consistent =
+      quality.worst_support_slip_speed <= kIkFreeMaxSupportSlipSpeed;
+  quality.loop_continuous =
+      quality.seam_pose_step <= kIkFreeMaxSeamPoseStep &&
+      quality.seam_root_speed_delta <= kIkFreeMaxSeamRootSpeedDelta;
+  const bool trusted =
+      FootSupportTrusted(clip.foot_support_summary, !clip.foot_support.empty());
+  // A clip with no forward travel (idle, stance) or that is not an ordinary
+  // movement action has no IK-free locomotion claim to make.
+  const bool movement =
+      clip.metadata.action_type == e_DefString_Movement;
+  quality.ik_free_usable = trusted && movement && quality.support_consistent &&
+                           quality.loop_continuous &&
+                           quality.root_speed > 0.5f;
+  clip.motion_quality = quality;
+}

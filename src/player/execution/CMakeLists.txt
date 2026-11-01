@@ -3,6 +3,8 @@
 add_library(football_player_execution STATIC
   player_motion.cpp
   player_motion_adapter.cpp
+  player_motion_adapter.cpp
+  player_action_adapter.cpp
   player_pose_adapter.cpp
   player_locomotion.cpp
   reachability.cpp
@@ -40,6 +42,8 @@ target_sources(football_player_execution PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_motion.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_motion_profile.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_motion_adapter.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_adapted_motion.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_action_adapter.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_pose_adapter.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_foot_ik.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_body_facing.hpp

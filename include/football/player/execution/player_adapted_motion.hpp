@@ -1,0 +1,83 @@
+#ifndef FOOTBALL_SIM_PLAYER_ADAPTED_MOTION_HPP
+#define FOOTBALL_SIM_PLAYER_ADAPTED_MOTION_HPP
+
+#include <algorithm>
+
+#include "football/animation/clip.hpp"
+#include "football/animation/types.hpp"
+#include "football/foundation/math/vector3.hpp"
+
+// RMA-0/RMA-2: the unified result of adapting one reference clip to one player.
+//
+// Root motion and skeleton pose are *one* decision. A sample carries the
+// displacement the body intends to make, the pose that performs it, the clip
+// time both were evaluated at and the support phase that connects them. No
+// later stage may replace one half without re-evaluating the other.
+//
+// The sample is a value, not an authority: the Player commits it, Runtime
+// collision may still constrain it, and a corrected root re-settles the same
+// pose. `feasible == false` means the adapter could not produce a valid motion
+// (bad clip, unreachable gait) and the caller must fall back or switch action.
+
+struct MotionAdaptationDiagnostics {
+  // Reference displacement the clip asked for (world-aligned).
+  football::math::Vector3 reference_delta = football::math::Vector3(0);
+  // What the capability constraint accepted.
+  football::math::Vector3 adapted_delta = football::math::Vector3(0);
+  // What the caller finally committed (collision stage).
+  football::math::Vector3 final_delta = football::math::Vector3(0);
+
+  float playback_rate = 1.0f;
+  float stride_scale = 1.0f;
+
+  float left_support_slip = 0.0f;
+  float right_support_slip = 0.0f;
+  float max_joint_rotation_step = 0.0f;
+
+  bool capability_limited = false;
+  bool collision_limited = false;
+  bool fallback_used = false;
+  // The style asked for a longer step than the body can make.
+  bool reach_limited = false;
+  // The clip passed RMA-1 and needs no compatibility foot-IK stage.
+  bool ik_free_pose = false;
+};
+
+struct AdaptedMotionSample {
+  AnimationId clip_id = -1;
+  // The active displacement this tick. Player position += root_delta.
+  football::math::Vector3 root_delta = football::math::Vector3(0);
+  // Velocity the displacement implies (root_delta / dt).
+  football::math::Vector3 velocity = football::math::Vector3(0);
+
+  // The reference pose sampled at `clip_time`, in the clip's local frame.
+  // The Player's warp/realize/settle stages remain the final authority; this is
+  // the pose those stages were selected for, not a second skeleton.
+  PoseFrame pose;
+  float base_angle = 0.0f;
+
+  // Continuous animation phase and its derived timing.
+  float clip_time = 0.0f;
+  float gait_phase = 0.0f;
+  float playback_rate = 1.0f;
+  float stride_scale = 1.0f;
+  bool looped = false;
+  // The clip's own local reference displacement over the same interval; the
+  // pose warp compares it (rotated by base yaw) with the achieved motion.
+  football::math::Vector3 reference_delta_local = football::math::Vector3(0);
+  FootSupportFrame support;
+  bool feasible = true;
+  MotionAdaptationDiagnostics diagnostics;
+};
+
+// RMA-2/§7: the support-foot slip the final pose shipped, measured between two
+// samples of the same gait. Only a foot supported on both sides of the interval
+// counts: a foot that is being planted or released really does move.
+inline float MeasureSupportSlip(bool previous_support, bool current_support,
+                                const football::math::Vector3& previous_ankle,
+                                const football::math::Vector3& current_ankle) {
+  if (!previous_support || !current_support) return 0.0f;
+  return (current_ankle - previous_ankle).Get2D().GetLength();
+}
+
+#endif  // FOOTBALL_SIM_PLAYER_ADAPTED_MOTION_HPP

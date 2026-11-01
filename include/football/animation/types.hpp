@@ -94,6 +94,44 @@ inline bool FootSupportTrusted(const FootSupportSummary& summary,
          !summary.stance_too_short && !summary.speed_outlier;
 }
 
+// RMA-1: motion quality of a clip, as an animation-domain fact.
+//
+// The IK-free adaptation only works on a clip whose root track and support
+// foot agree: if the stance foot slides inside the animation itself, no
+// cadence/stride pairing can remove that slide without moving the world root
+// away from the foot. This summary is derived once at load, reports the
+// measured slide and loop continuity, and states whether the clip may drive
+// the IK-free path. A clip that fails it keeps the compatibility path; the
+// flags exist so a bad source GLB is visible instead of silently absorbed.
+struct ClipMotionQuality {
+  // Mean root-track speed over the clip's samples (m/s).
+  float root_speed = 0.0f;
+  // The stance-foot speed the support derivation measured (m/s).
+  float stance_speed = 0.0f;
+  // Horizontal speed of a supporting ankle in the clip's own world track
+  // (root track + joint position). Zero is a perfectly planted foot.
+  float support_slip_speed = 0.0f;
+  float worst_support_slip_speed = 0.0f;
+  // Loop seam: root velocity change (m/s) and the largest joint angle step
+  // (radians) between the last and first sample.
+  float seam_root_speed_delta = 0.0f;
+  float seam_pose_step = 0.0f;
+  // The clip has a derived support track to measure against.
+  bool tracked = false;
+  bool support_consistent = false;
+  bool loop_continuous = false;
+  // The single verdict the Player uses to choose the IK-free path.
+  bool ik_free_usable = false;
+};
+
+// A support foot may not slide faster than this inside the clip for the
+// IK-free path; beyond it the original animation already contains foot slide.
+inline constexpr float kIkFreeMaxSupportSlipSpeed = 0.9f;
+// A loop seam may not change the root speed by more than this, or restart the
+// pose by more than this joint step, without reading as a pop.
+inline constexpr float kIkFreeMaxSeamRootSpeedDelta = 1.5f;
+inline constexpr float kIkFreeMaxSeamPoseStep = 0.6f;
+
 enum e_Velocity {
   e_Velocity_Idle,
   e_Velocity_Dribble,

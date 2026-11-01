@@ -138,6 +138,16 @@ class PlayerExecution final {
   void RecordLocomotionAnimationInput(const LocomotionAnimationInput& input) {
     state_.locomotion_animation_input_ = input;
   }
+  // RMA-2/RMA-3: one pure evaluation of this tick's ordinary locomotion. It
+  // solves the admissible root displacement and the clip phase/stride that
+  // performs it together, stores the sample for the pose stage and returns it.
+  // The Player commits the sample; this call never writes kinematics.
+  AdaptedMotionSample EvaluateAdaptedLocomotion(
+      const PlayerKinematicState& current,
+      const football::math::Vector3& desired_velocity,
+      const football::math::Vector3& idle_facing,
+      const PlayerMotionProfile& capability,
+      const football::player::PlayerBodyProfile& body, float dt);
 
   // --- post-tick pose repair --------------------------------------------
   // A root corrected after the tick (Runtime pair contact, ball arbitration)
@@ -193,6 +203,14 @@ class PlayerExecution final {
   // scale, per-foot slip). Diagnostic; no production branch reads it.
   const LocomotionPoseDiagnostics& LocomotionDiagnostics() const {
     return state_.locomotion_diagnostics_;
+  }
+  // RMA-0/RMA-3: the adapted sample the last ordinary-locomotion tick
+  // committed. Read-only; the root and the pose stage both read it.
+  const AdaptedMotionSample& AdaptedLocomotion() const {
+    return state_.adapted_locomotion_;
+  }
+  bool AdaptedLocomotionValid() const {
+    return state_.adapted_locomotion_valid_;
   }
   bool LocomotionAnimationAdaptation() const {
     return state_.locomotion_animation_adaptation_;

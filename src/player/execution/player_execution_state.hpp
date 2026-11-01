@@ -33,6 +33,7 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/player/player_action.hpp"
 #include "football/player/player_action_request.hpp"
+#include "football/player/execution/player_action_adapter.hpp"
 #include "football/player/execution/player_foot_ik.hpp"
 #include "player/execution/locomotion_intent_scheduler.hpp"
 #include "player/execution/player_action_execution_state.hpp"
@@ -152,6 +153,11 @@ struct PlayerExecutionState {
   float stride_scale_ = 1.0f;
   // STRIDE-0: measured motion/animation agreement for the last locomotion tick.
   LocomotionPoseDiagnostics locomotion_diagnostics_;
+  // RMA-2/RMA-3: the unified adaptation result for this tick's ordinary
+  // locomotion. Motion commit and pose playback both read this one sample, so
+  // the root and the pose cannot be derived from different phases.
+  AdaptedMotionSample adapted_locomotion_;
+  bool adapted_locomotion_valid_ = false;
   bool locomotion_animation_adaptation_ = true;
 
   // ---------------------------------------------------------------------

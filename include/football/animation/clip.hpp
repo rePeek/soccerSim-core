@@ -131,6 +131,10 @@ struct AnimationClip {
   // Per-phase detail and the quality flags; a caller must not trust the track
   // when `FootSupportTrusted()` is false.
   FootSupportSummary foot_support_summary;
+  // RMA-1: measured root/support/loop quality of the clip, derived once at
+  // load. It never changes the clip; it states whether the IK-free adaptation
+  // may use this clip or must fall back to the compatibility path.
+  ClipMotionQuality motion_quality;
 
   // ANIM-2 A12.0: the byte-level bodies live in src/animation/clip.cpp.
   void Serialize(std::ostream& os) const;

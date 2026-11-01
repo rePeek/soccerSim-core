@@ -81,4 +81,11 @@ void DeriveFootSupport(AnimationClip& clip);
 // tells the caller to fall back to its own detection.
 FootSupportFrame SampleFootSupport(const AnimationClip& clip, float frame_time);
 
+// RMA-1: measures whether the clip's own root track and support foot agree
+// enough for the IK-free adaptation. Runs after DeriveFootSupport and fills
+// `clip.motion_quality`; it never modifies the clip's motion or poses. A clip
+// that fails the gate keeps the compatibility path - the flags are a
+// diagnostic of the source animation, not a clamp.
+void DeriveMotionQuality(AnimationClip& clip);
+
 #endif  // FOOTBALL_ANIMATION_FOOT_SUPPORT_HPP

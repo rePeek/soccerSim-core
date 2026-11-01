@@ -493,7 +493,12 @@ bool AnimationLibrary::LoadCatalog(const std::filesystem::path& manifest) {
       MatchMetadata(MetadataJson(clips[i].metadata), MetadataJson(Metadata(e.at("metadata"))));
       ApplyEntry(clips[i], e);
     }
-    for (auto& clip : clips) DeriveFootSupport(clip);
+    for (auto& clip : clips) {
+      DeriveFootSupport(clip);
+      // RMA-1: report whether the source root and support foot agree before
+      // any Player can choose the IK-free adaptation for this clip.
+      DeriveMotionQuality(clip);
+    }
     const auto hash = HashClips(clips);
     clips_ = std::move(clips);
     content_hash_ = hash;

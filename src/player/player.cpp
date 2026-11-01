@@ -150,10 +150,23 @@ PlayerKinematicState Player::CommitLocomotion(
   // touch the profile -- see the declaration for the pinned decision).
   const PlayerMotionProfile profile = EffectiveMotionProfile();
 
-  PlayerKinematicState next =
-      PlayerMotion::StepContinuous(tick_start, profile, input.desiredVelocity,
-                                   input.idleFacing, dt)
-          .state;
+  // RMA-3: ordinary locomotion commits the root the unified adapter produced.
+  // The adapter runs the same capability constraint as PlayerMotion, so this is
+  // behaviour-preserving while making the animation phase and the root one
+  // decision. A rejected sample keeps the established path as the fallback.
+  const AdaptedMotionSample adapted = execution_->EvaluateAdaptedLocomotion(
+      tick_start, input.desiredVelocity, input.idleFacing, profile,
+      body_profile_, dt);
+  PlayerKinematicState next;
+  if (adapted.feasible) {
+    next = tick_start;
+    next.position += adapted.root_delta;
+    next.velocity = adapted.velocity;
+  } else {
+    next = PlayerMotion::StepContinuous(tick_start, profile,
+                                        input.desiredVelocity, input.idleFacing, dt)
+               .state;
+  }
   // Torso model consumes the resulting locomotion facing and writes only
   // bodyFacing; order and parameters are unchanged from the legacy path.
   PlayerBodyFacingInput bodyInput;

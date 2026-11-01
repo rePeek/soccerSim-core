@@ -19,6 +19,7 @@ add_executable(football_player_unit_tests
   player_action_motion_test.cpp
   player_action_cursor_test.cpp
   player_motion_adapter_test.cpp
+  player_action_adapter_test.cpp
   player_pose_adapter_test.cpp
   player_foot_ik_test.cpp
   player_stride_pipeline_test.cpp

@@ -193,13 +193,23 @@ observation, controls and stored physics are all the Stadium Frame.
   installs the state the solver produced, so fields the projection does not
   carry (vertical offset/authority) cannot be dropped by a round trip. A
   position correction is an instantaneous displacement, not new velocity.
-- Ordinary locomotion is motion-driven: the Player solves the motion first
-  (`CommitLocomotion` -> `LocomotionAnimationInput`), and animation samples
-  the pose afterwards at the achieved/reference speed ratio with a
-  continuous, wrapping clip time (`LocomotionPlaybackRequest`). Baked root XY
-  may change the gait, never the world trajectory. One-shot actions keep the
   action clock as their clip-time authority; only locomotion owns clip time,
   and `PlaybackState::frame` is a derived integer, not that authority.
+- `PlayerActionAdapter` is the one pure adaptation entry between a reference
+  clip and one Player. It solves the admissible root displacement (through
+  `PlayerMotionAdapter`) and the clip time/stride/rate that performs it in one
+  call, returning `AdaptedMotionSample`. Ordinary locomotion commits the same
+  sample's root and feeds its clip time/stride to playback, so root and pose
+  cannot be derived from different phases. The sample is a value: it never
+  writes kinematics, reads no world state and publishes no event. A clip it
+  cannot perform (`feasible == false`) falls back to the established path
+  instead of being stretched.
+- RMA-1 clip quality is an Animation fact: `DeriveMotionQuality` fills
+  `AnimationClip::motion_quality` once at load from the clip's own root and
+  support tracks (mean/worst stance slip, loop seam root/pose step).
+  `ClipMotionQuality::ik_free_usable` is the gate for an IK-free pose path;
+  a clip that fails it keeps the compatibility plant. Never widen the gate to
+  make a test pass - the slide is a property of the source GLB.
 - Module boundary: Animation owns the shared clip resource and the pure algorithms
   that turn a clip into data (`SamplePose`, `BlendPose`, `SelectEntryFrame`,
   `PoseDistance`, foot support, touch geometry). *Decisions* about which clip to
