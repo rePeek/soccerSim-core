@@ -23,14 +23,13 @@ inline football::geometry::ColliderId BakedContactRegionId(std::uint32_t slot,Ba
 }
 inline std::array<football::geometry::ColliderShape,kBakedContactRegionCount> BuildBakedContactRegions(
     const PoseFrame& pose,const PlayerKinematicState& state,float base_angle,
-    const football::player::PlayerBodyProfile& profile,
-    const PlayerFootIkTargets* foot_targets = nullptr) {
+    const football::player::PlayerBodyProfile& profile) {
   using namespace football::geometry;
   const float scale = profile.height_scale;
   const float girth = profile.girth_scale;
   if (!std::isfinite(girth) || girth <= 0.0f)
     throw std::invalid_argument("invalid baked contact region girth scale");
-  const auto world=EvaluateBakedBodyPose(pose,state,base_angle,profile,foot_targets);
+  const auto world=EvaluateBakedBodyPose(pose,state,base_angle,profile);
   const auto point=[&](BodyPart joint,football::math::Vector3 local) {
     return world.joints[joint]+world.orientations[joint]*(local*scale);
   };

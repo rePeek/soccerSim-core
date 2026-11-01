@@ -1,28 +1,30 @@
 #ifndef FOOTBALL_SIM_PLAYER_POSE_ADAPTER_HPP
 #define FOOTBALL_SIM_PLAYER_POSE_ADAPTER_HPP
 
+#include <cmath>
 #include <limits>
 
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
 #include "football/foundation/math/vector3.hpp"
-#include "football/player/execution/player_foot_ik.hpp"
 #include "football/player/player_body_profile.hpp"
 #include "football/player/player_kinematics.hpp"
 
 // P3a — pure root/pose warp foundation.
 //
 // The reference pose is sampled by Animation; the committed root is owned by
-// PlayerMotionAdapter. This adapter is the one place allowed to make the final
-// pose agree with the *achieved* root before contact geometry is built:
+// the root-driven or compatibility motion path. This adapter is the one place
+// allowed to make the final pose agree with the *achieved* root before contact
+// geometry is built:
 //
 //   - yaw: rotate the body/base angle by the difference between the reference
 //     displacement direction and the achieved displacement direction;
 //   - vertical bob: scale the pelvis bob by the achieved/reference distance
 //     ratio so a slowed stride does not keep a sprint bob.
 //
-// Foot planting is deliberately NOT claimed here: it needs the solved ankle
-// targets the executor owns (see PlayerStrideAdaptInput / ApplyStride).
+// Foot planting is deliberately NOT claimed here. Runtime foot IK was removed;
+// the support foot is kept consistent by the IK-free source gate and the
+// sampled root/pose contract, not by a plant solve.
 struct PlayerPoseWarpInput {
   PoseFrame reference_pose;
   float reference_base_angle = 0.0f;
@@ -48,63 +50,18 @@ struct PlayerPoseWarpResult {
   float yaw_correction = 0.0f;
   bool yaw_clamped = false;
   bool pose_warped = false;
-  bool foot_lock_applied = false;
 };
 
-// STRIDE-1 — one leg as the *world skeleton* currently has it. The executor
-// supplies these joints because it owns forward kinematics; the adapter stays a
-// pure transform and never reads a clip, a Player or a world position.
-struct PlayerStrideAdaptLeg {
-  bool valid = false;
-  football::math::Vector3 hip = football::math::Vector3(0);
-  football::math::Vector3 ankle = football::math::Vector3(0);
-  // Thigh + shin length in world units. 0 disables the reach clamp (a caller
-  // that has no skeleton); otherwise the adapted fore-aft offset can never ask
-  // for a foot outside this leg's reach.
-  float reach = 0.0f;
-};
-
-struct PlayerStrideAdaptInput {
-  // The gait the animation produced, before any support authority applies.
-  PlayerStrideAdaptLeg left;
-  PlayerStrideAdaptLeg right;
-  // World facing of the body frame the animation was sampled in.
-  football::math::Vector3 facing = football::math::Vector3(0, -1, 0);
-  // 1.0 keeps the clip's own stride length.
-  float stride_scale = 1.0f;
-  // 0..1 within the clip cycle; carried so a caller can reason about stride
-  // diagnostics without re-deriving it.
-  float gait_phase = 0.0f;
-};
-
-struct PlayerStrideAdaptResult {
-  // World-space ankle targets for the settled final pose, one per valid leg.
-  // A support foot is *not* handled here: the plant owns it (see
-  // ApplyFootPlantLocks), so the stride ratio can never stretch or drag it.
-  PlayerFootIkTargets targets;
-  bool left_adapted = false;
-  bool right_adapted = false;
-  // Largest fore-aft change applied to a leg (metres, unsigned).
-  float max_fore_aft_correction = 0.0f;
-  // The stride scale actually applied. Equal to the requested one unless a leg's
-  // reach capped it; the cadence pairing must use this value.
-  float applied_stride_scale = 1.0f;
-  bool reach_limited = false;
-};
-
-// Reach-aware stride ceiling.
+// Reach-aware stride ceiling, used by the per-player animation configuration to
+// bound a pre-baked stride variant. This is not a runtime leg solve.
 //
-// `AdaptStride` may only send the foot where the leg can actually go. The bound
-// is geometric: with the hip-relative ankle offset split into a fore-aft part
-// `f` and the rest `r`, a scaled target sits at `(S*f)^2 + |r|^2 <= reach^2`.
+// The bound is geometric: with the hip-relative ankle offset split into a
+// fore-aft part `f` and the rest `r`, a scaled target sits at
+// `(S*f)^2 + |r|^2 <= reach^2`.
 //
 //   S_max = sqrt(max(0, reach^2 - |r|^2)) / |f|
-//
-// This is the *ceiling*, not a suggestion: the caller must clamp the stride with
-// it before deriving the playback rate, or the pairing breaks and the foot slides.
 inline constexpr float kStrideReachSafety = 0.98f;
 
-// A leg's own ceiling, given where the ankle sits relative to the hip.
 inline float LegStrideReachLimit(const football::math::Vector3& hip,
                                  const football::math::Vector3& ankle,
                                  const football::math::Vector3& facing,
@@ -119,7 +76,8 @@ inline float LegStrideReachLimit(const football::math::Vector3& hip,
   }
   const football::math::Vector3 rest = offset - forward * fore_aft;
   const float safe_reach = reach * kStrideReachSafety;
-  const float budget = safe_reach * safe_reach - rest.GetLength() * rest.GetLength();
+  const float budget =
+      safe_reach * safe_reach - rest.GetLength() * rest.GetLength();
   if (budget <= 0.0f) return 0.0f;
   return std::sqrt(budget) / std::fabs(fore_aft);
 }
@@ -129,9 +87,7 @@ inline float LegStrideReachLimit(const football::math::Vector3& hip,
 // The Animation layer may produce a joint rotation that a real body cannot
 // reach in one tick. This stage rate-limits every joint of the *target* pose
 // against the previous Final Pose, so the skeleton that physics, contact and
-// the renderer receive never snaps. It is deliberately the last animation-side
-// step before the stride/plant solve: limiting first and solving the feet
-// afterwards is what keeps the support foot locked.
+// the renderer receive never snaps.
 //
 // `entry_weight` is the clip-entry damping: 1 on the first frames of a clip
 // (only 30% of the joint budget is available), 0 once the clip is running (the
@@ -155,16 +111,6 @@ class PlayerPoseAdapter final {
  public:
   // Pure and deterministic. Identity inputs return the reference pose exactly.
   static PlayerPoseWarpResult Warp(const PlayerPoseWarpInput& input);
-
-  // STRIDE-1: shorten/lengthen the gait's fore-aft foot excursion about the hip
-  // while both bone lengths stay untouched; the knee is reconstructed by the
-  // two-bone solve downstream.
-  //
-  // The caller pairs `stride_scale` with the playback rate that divides by the
-  // same value (AdvanceLocomotionPlayback), which keeps the stance foot in step
-  // with the root while the stride shortens. Support feet are then released
-  // from the gait by PlayerFootIk's ApplyFootPlantLocks().
-  static PlayerStrideAdaptResult AdaptStride(const PlayerStrideAdaptInput& input);
 
   // M3: the one bounded-realization stage of the Final Pose channel. The base
   // yaw is *not* touched: it is blended by the transition and applied later, so

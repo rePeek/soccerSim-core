@@ -9,7 +9,6 @@
 #include "football/contact/player_body_collider_motion.hpp"
 #include "football/player/player_body_profile.hpp"
 #include "football/animation/skeleton.hpp"
-#include "football/player/execution/player_foot_ik.hpp"
 
 // PoseFrame contains LOCAL keyframe rotations, not 14 world-space joint points.
 // Animation::Apply rotates joints while retaining bind translations from
@@ -21,32 +20,9 @@ struct BakedBodyPose {
   std::array<football::math::Quaternion, kBodyPartCount> orientations;
 };
 
-// Minimal swing that takes one bone direction onto another. This is how a
-// solved joint position becomes a local rotation again.
-inline football::math::Quaternion BakedRotationBetweenDirections(
-    const football::math::Vector3& from, const football::math::Vector3& to) {
-  using football::math::Vector3;
-  football::math::Quaternion rotation;
-  const Vector3 a = from.GetNormalized(Vector3(0, 0, -1));
-  const Vector3 b = to.GetNormalized(a);
-  const float dot = football::math::clamp(a.GetDotProduct(b), -1.0f, 1.0f);
-  if (dot >= 1.0f - 1e-7f) return rotation;
-  if (dot <= -1.0f + 1e-7f) {
-    Vector3 axis = a.GetCrossProduct(Vector3(0, 0, 1));
-    if (axis.GetLength() <= 1e-5f) axis = a.GetCrossProduct(Vector3(0, 1, 0));
-    rotation.SetAngleAxis(football::math::pi,
-                          axis.GetNormalized(Vector3(1, 0, 0)));
-    return rotation;
-  }
-  rotation.SetAngleAxis(std::acos(dot),
-                        a.GetCrossProduct(b).GetNormalized(Vector3(0, 0, 1)));
-  return rotation;
-}
-
 inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
     const PlayerKinematicState& state, float animation_base_angle,
-    const football::player::PlayerBodyProfile& profile,
-    const PlayerFootIkTargets* foot_targets = nullptr) {
+    const football::player::PlayerBodyProfile& profile) {
   const float scale = profile.height_scale;
   if (!std::isfinite(scale) || scale <= 0 || !std::isfinite(animation_base_angle))
     throw std::invalid_argument("invalid baked body pose transform");
@@ -70,94 +46,9 @@ inline BakedBodyPose EvaluateBakedBodyPose(const PoseFrame& pose,
     out.orientations[bind.part] =
         (out.orientations[bind.parent] * local).GetNormalized();
   }
-  if (foot_targets) {
-    if (foot_targets->has_left) {
-      const auto solved = PlayerFootIk::Solve(out.joints[left_thigh],
-                                              out.joints[left_knee],
-                                              out.joints[left_ankle],
-                                              foot_targets->left);
-      out.joints[left_knee] = solved.knee;
-      out.joints[left_ankle] = solved.ankle;
-    }
-    if (foot_targets->has_right) {
-      const auto solved = PlayerFootIk::Solve(out.joints[right_thigh],
-                                              out.joints[right_knee],
-                                              out.joints[right_ankle],
-                                              foot_targets->right);
-      out.joints[right_knee] = solved.knee;
-      out.joints[right_ankle] = solved.ankle;
-    }
-  }
   return out;
 }
 
-// STRIDE-2: turn a solved world ankle target back into LOCAL joint rotations.
-// `EvaluateBakedBodyPose` only moves world joint points; a Final Pose that the
-// renderer, the collider and the touch geometry all share has to carry the same
-// solve in the skeleton itself. Both bone lengths are preserved because the
-// two-bone solve preserves them and this only re-aims the bones.
-struct BakedPoseFootSolve {
-  PoseFrame pose;
-  bool left_applied = false;
-  bool right_applied = false;
-  // Distance between the ankle that was solved and the requested target: 0
-  // unless the target was outside the leg's reach.
-  float left_residual = 0.0f;
-  float right_residual = 0.0f;
-};
-
-inline BakedPoseFootSolve ApplyWorldFootTargetsToPose(
-    const PoseFrame& pose, const PlayerKinematicState& state,
-    float animation_base_angle,
-    const football::player::PlayerBodyProfile& profile,
-    const PlayerFootIkTargets& targets) {
-  using football::math::Quaternion;
-  using football::math::Vector3;
-  BakedPoseFootSolve out;
-  out.pose = pose;
-  const BakedBodyPose world =
-      EvaluateBakedBodyPose(pose, state, animation_base_angle, profile);
-  const float scale = profile.height_scale;
-
-  const auto solve_leg = [&](BodyPart thigh, BodyPart knee, BodyPart ankle,
-                             bool has_target, const Vector3& target,
-                             bool& applied, float& residual) {
-    if (!has_target) return;
-    const PlayerTwoBoneResult solved = PlayerFootIk::Solve(
-        world.joints[thigh], world.joints[knee], world.joints[ankle], target);
-    residual = (solved.ankle - target).GetLength();
-    applied = true;
-
-    // Thigh: aim the upper bone at the solved knee.
-    const Vector3 thigh_bind = PlayerBindOffset(knee) * scale;
-    const Quaternion thigh_swing = BakedRotationBetweenDirections(
-        world.orientations[thigh] * thigh_bind, solved.knee - world.joints[thigh]);
-    const Quaternion thigh_world =
-        (thigh_swing * world.orientations[thigh]).GetNormalized();
-    out.pose.orientations[thigh] =
-        (world.orientations[PlayerBindParent(thigh)].GetInverse() * thigh_world)
-            .GetNormalized();
-    // Shin: aim the lower bone at the solved ankle, from the new upper frame.
-    const Quaternion knee_world_before = thigh_world * pose.orientations[knee];
-    const Vector3 shin_bind = PlayerBindOffset(ankle) * scale;
-    const Quaternion shin_swing = BakedRotationBetweenDirections(
-        knee_world_before * shin_bind, solved.ankle - solved.knee);
-    const Quaternion knee_world =
-        (shin_swing * knee_world_before).GetNormalized();
-    out.pose.orientations[knee] =
-        (thigh_world.GetInverse() * knee_world).GetNormalized();
-    // Foot: keep the boot's world orientation, so the sole stays flat on the
-    // ground instead of inheriting the shin's swing.
-    out.pose.orientations[ankle] =
-        (knee_world.GetInverse() * world.orientations[ankle]).GetNormalized();
-  };
-
-  solve_leg(left_thigh, left_knee, left_ankle, targets.has_left, targets.left,
-            out.left_applied, out.left_residual);
-  solve_leg(right_thigh, right_knee, right_ankle, targets.has_right, targets.right,
-            out.right_applied, out.right_residual);
-  return out;
-}
 
 // Fixed anatomical segments, distinct physical identities even when several
 // segments map to the same rule-facing PlayerBodyPart. Slots are Simulation's
@@ -208,14 +99,13 @@ inline float BakedGirthScale(float girth_scale, float part_influence) {
 }
 inline BakedPlayerBodyCollider BuildBodyCollider(const PoseFrame& pose,
     const PlayerKinematicState& state, float animation_base_angle,
-    const football::player::PlayerBodyProfile& profile,
-    const PlayerFootIkTargets* foot_targets = nullptr) {
+    const football::player::PlayerBodyProfile& profile) {
   using namespace football::geometry;
   const float scale = profile.height_scale;
   const float girth = profile.girth_scale;
   if (!std::isfinite(girth) || girth <= 0.0f)
     throw std::invalid_argument("invalid baked body girth scale");
-  const auto world = EvaluateBakedBodyPose(pose, state, animation_base_angle, profile, foot_targets);
+  const auto world = EvaluateBakedBodyPose(pose, state, animation_base_angle, profile);
   const auto& j = world.joints;
   // Pelvis follows the body node, trunk follows middle separately. A single
   // body-to-neck axis would miss rigid pelvis/trunk meshes when the spine bends.

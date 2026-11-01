@@ -1,17 +1,19 @@
 # Player × Animation: reference motion → adapted root → final pose
 
-Status: P0/P1 audit, P2 adapter, P3a root/pose warp and P4 locomotion
-authority consolidation are implemented. P3b foot IK and P5–P7 are not.
+Status: RM-0..RM-9 and RM-F1..RM-F4 are implemented. Runtime foot IK is
+removed; import-time FootSupport remains for gait repair, quality analysis
+and the IK-free source gate. Historical sections below that mention
+`PlayerFootIk` / `AdaptStride` describe stages that no longer exist.
 
 ## Target chain
 
 ```
 PlayerControl / intent
   → Animation::Match        (standard clip + legal entry frame)
-  → Reference motion        (local root XY/Yaw/Z + events + pose)
-  → PlayerMotionAdapter     (body, capability, physical constraints)
+  → SampleAnimationStep     (clip root delta + pose on one timeline)
+  → PlayerActionAdapter     (body, capability, bounded playback, turn check)
   → Adapted root            (the only committed world motion)
-  → Pose adapter            (stride/orientation warping, foot lock/IK)
+  → Pose adapter            (Warp -> bounded Realize; no foot lock/IK)
   → Final PlayerFrame       (root + pose + contact geometry)
   → Collision / Ball / Runtime
 ```

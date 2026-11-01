@@ -274,8 +274,8 @@ observation, controls and stored physics are all the Stadium Frame.
   snapping to the cap in one tick. A movement clip that fails
   `ik_free_usable` is rejected (`feasible == false`) so the caller falls back
   explicitly. There is no runtime `SettleMovementPose`, plant anchor,
-  `PlayerFootIk::Update`, `ApplyFootPlantLocks` or
-  `ApplyWorldFootTargetsToPose` in the Player execution path. `ik_free_pose` is
+  `PlayerFootIk`, two-bone leg solve or foot-target write-back in the Player
+  execution path; those headers and their tests were removed. `ik_free_pose` is
   the strict source gate; `calibrated_ik_free` states that the stance-speed
   calibration is what makes the IK-free root possible.
 - A clip's native speed is measured over the intervals its samples actually
@@ -312,8 +312,8 @@ observation, controls and stored physics are all the Stadium Frame.
   which playback follows instead of the root track (`LocomotionClipGaitSpeed`).
   That stance speed is what calibrates the IK-free root: the authored root track
   may disagree, but the cadence and the committed displacement then agree with
-  the foot. `PlayerFootIk` remains a pure algorithm header for offline/tests;
-  it is not a runtime correction stage.
+  the foot. Foot support is an import-time/verification fact only; the old
+  runtime IK algorithm is gone.
 - The 14-bone declaration (`kPlayerBindJoints`) lives in
   `football/animation/skeleton.hpp` and is shared by the animation support
   derivation and the Player's forward kinematics and colliders. The
