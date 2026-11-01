@@ -216,7 +216,7 @@ TEST_CASE("prediction reuses the one adaptation step",
 }
 
 TEST_CASE("an action plan is validated without moving its clip time",
-          "[player][adapter][rma5]") {
+          "[player][adapter][rma5][rm6]") {
   const AnimationClip clip = GaitClip(2.0f);
   PlayerActionControl control;
   control.authority = PlayerMotionAuthority::KinematicReference;
@@ -234,6 +234,16 @@ TEST_CASE("an action plan is validated without moving its clip time",
   CHECK(sample.playback_rate == Catch::Approx(1.0f).margin(1e-6f));
   CHECK(sample.diagnostics.final_delta.coords[1] ==
         Catch::Approx(-0.03f).margin(1e-6f));
+  // RM-6: the root and the pose are sampled at the action clock's frame, and
+  // the next action tick continues from the same unwrapped time. A touch
+  // frame can therefore never drift because of adaptation.
+  CHECK(sample.continuous_clip_time == Catch::Approx(5.0f).margin(1e-6f));
+  const PoseFrame expected = SamplePose(clip, 5.0f);
+  for (std::size_t joint = 0; joint < kBodyPartCount; ++joint) {
+    CHECK(sample.pose.orientations[joint].GetDotProduct(
+              expected.orientations[joint]) ==
+          Catch::Approx(1.0f).margin(1e-6f));
+  }
 }
 
 TEST_CASE("a body above the gait range refuses the root, never snaps it",
