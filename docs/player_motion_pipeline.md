@@ -777,3 +777,57 @@ rather than done on its own.
 - Runtime contact still resolves pairs one after another, so a chain of
   corrections in one tick re-settles once per correction instead of being
   coalesced. That is a cost, not an inconsistency.
+
+## RM-0..RM-8 result: the GLB root becomes the ordinary motion authority
+
+The earlier stages left two motion authorities alive: `PlayerMotionAdapter`
+integrated ordinary locomotion while the animation only followed it. RM changes
+the ordinary path so the clip's own root is the displacement source.
+
+- **RM-0** — `AnimationLibrary::QualityCensus` now counts each movement-clip
+  failure reason (untracked, untrusted support, loop discontinuity, stance
+  misalignment, support slip, slow root/stance) alongside the pass counts. The
+  audit test requires every movement clip to be either usable or explained.
+- **RM-1** — the importer repairs straight half-cycle + mirror pairs. It builds
+  the full cycle (pose seam), derives the root from the clip's own stance foot
+  via FK, and retimes the cycle by stance-foot travel to a constant-speed root.
+  The repaired cycle replaces the source only if the repaired cycle itself
+  passes `ik_free_usable`; otherwise the authored track is untouched and the
+  compatibility fallback remains. The positive acceptance now requires at least
+  one real GLB gait, and a negative test still proves a bad clip is rejected.
+- **RM-2** — `SampleAnimationStep(clip, t0, t1)` returns the local root delta
+  and the pose from one interval. Looping clips measure the root on an
+  unwrapped timeline, so crossing the seam advances instead of jumping back.
+- **RM-3** — `PlayerActionAdapter` ordinary locomotion samples that root track,
+  scales it by the body and base yaw, and chooses the playback rate from the
+  profile's next speed bounded by the clip's playable range. Direction, loop
+  phase and foot timing come from the clip; a sample that cannot be performed
+  returns `NeedAnotherClip`/`CapabilityLimited` instead of being stretched.
+- **RM-4** — the production path commits the adapted root and uses the gait's
+  reported `playable_speed` to brake a body that is still above the clip's
+  range. Acceleration/braking stay inside the motion profile; the real-GLB
+  acceptance runs acceleration, steady state, loop seam and braking.
+- **RM-5** — action selection moved to the end of the tick. The tick that ran
+  keeps one clip for motion, pose and contacts; a newly accepted action starts
+  contributing root and pose on the next tick.
+- **RM-6** — a discrete action's root, pose and action clock are pinned to the
+  same sample, so adaptation cannot move a touch frame.
+- **RM-7** — an external root correction is recorded as
+  `MotionAdaptationDiagnostics::passive_correction`; the final pose is
+  re-derived from the same reference sample, and `active + passive == final`
+  is asserted where the final delta is measured.
+- **RM-8** — the 14-bone contract moved to `animation/skeleton.hpp`. The
+  foot-support track/quality report remains for verification, selection and the
+  compatibility cadence; it is not a runtime pose authority, and the old foot-IK
+  helpers are no longer in the production pose path.
+
+Known limits of this first root-driven version:
+
+- The repaired cycle is a constant-cadence gait. A clip whose authored step
+  length does not match the control speed is normalised by the playback rate;
+  the spatial direction, phase and foot placement are the clip's.
+- A direction the selected clip cannot express (for example a sharp turn while
+  the old movement clip is still installed) returns `NeedAnotherClip` and the
+  compatibility path carries the transition until a suitable clip is selected.
+- Foot support is still derived from ankle height; foot roll and toe contact
+  remain an offline verification concern, not a runtime IK correction.

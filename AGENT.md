@@ -179,7 +179,10 @@ observation, controls and stored physics are all the Stadium Frame.
   projections, never a second authority.
 - The tick tail order is a contract: motion commit -> action resolve ->
   `ApplyMovementOffsets` (the last in-tick root mutations) -> `ComposePose` ->
-  `PrepareActionContacts`. Contacts are last so the touch geometry, the pose and
+  `PrepareActionContacts` -> `SelectActionForFrame`. Selection is last so an
+  action accepted during this tick contributes its root and pose from the next
+  tick; the tick that just ran keeps one clip for motion, pose and contact.
+  Contacts are last of the execution half so the touch geometry, the pose and
   the root belong to the same tick, and the pose is classified with the retainer
   state the motion was committed with. A touch only proposes; it never moves the
   root. A root corrected after the tick (`Player::OffsetPosition`) marks the
@@ -188,38 +191,46 @@ observation, controls and stored physics are all the Stadium Frame.
   consumed, `final_delta` measured from the real start/end. With no runtime
   foot solve, an external push may slide a support foot: that is the explicit
   passive-displacement model, not a hidden IK correction.
-- Motion and animation authority are separate facts. `PlayerMotionAdapter`
-  returns the one admissible displacement; `achieved_delta` and the committed
-  velocity must describe that same motion (a speed ceiling publishes the
-  capped velocity, never the reference one). A compatibility projection is
-  never re-read into a fresh kinematic state: `CommitActionMotionState`
-  installs the state the solver produced, so fields the projection does not
-  carry (vertical offset/authority) cannot be dropped by a round trip. A
-  position correction is an instantaneous displacement, not new velocity.
+- Root motion is the ordinary locomotion authority when the source clip passes
+  the strict IK-free gate. `PlayerActionAdapter::Evaluate` samples the clip's
+  root delta and its pose on the same interval (`SampleAnimationStep`), so the
+  committed displacement and the skeleton are one decision. The control target
+  and `PlayerMotionProfile` select a bounded playback rate; they accept or
+  reject a candidate, they do not integrate a second displacement. A sample
+  that cannot be performed (`feasible == false`, `Status::NeedAnotherClip` or
+  `CapabilityLimited`) is never stretched or silently re-rooted. The
+  compatibility path (`PlayerMotion` plus legacy playback) remains only for a
+  clip outside the gate, and it brakes toward the clip's reported
+  `playable_speed` instead of chasing an unreachable control speed.
+  `CommitActionMotionState` still installs the whole state the solver
+  produced, so fields the compatibility projection does not carry cannot be
+  dropped by a round trip. A position correction is an instantaneous passive
+  displacement, not new velocity; `AdaptedMotionSample` diagnostics decompose
+  `final_delta` into active root plus `passive_correction`.
 - `PlayerActionAdapter` is the one pure adaptation entry between a reference
-  clip and one Player. It solves the admissible root displacement (through
-  derived from different phases. One-shot actions pass their plan's trajectory
-  as `PlayerActionControl::reference_delta` with
+  clip and one Player. For ordinary locomotion it derives root and pose from
+  the clip's own track at a profile-bounded playback rate; for one-shot
+  actions it validates the plan's trajectory. One-shot actions pass their
+  plan's trajectory as `PlayerActionControl::reference_delta` with
   `has_reference_delta = true`; a supplied zero is a real zero (a planted
   touch or a stop) and is never replaced by the clip's first-frame root. The
   adapter validates the value but never advances the action clock, so a touch
   frame cannot move. The sample is a value: it never writes kinematics, reads
-  no world state and publishes no event. A clip it cannot perform
-  (`feasible == false`) falls back instead of being stretched. `Predict` is the
-  same loop for a constant control horizon, so short-horizon forecasts reuse
-  execution's own phase evolution.
-  `AnimationClip::motion_quality` once at load from the clip's own root and
-  support tracks (mean/worst stance slip, stance/root direction alignment, loop
-  seam root/pose step). `stance_calibrated` means the support track is readable,
-  loops, has a usable stance speed and that foot travels opposite the clip's
-  root direction, so the Player may drive the root from the stance-foot speed
-  instead of the authored root track (the in-memory calibrated reference).
-  `ik_free_usable` is the stricter source gate (root track already agrees).
-  Runtime execution is gated on `ik_free_usable`; `stance_calibrated` is the
-  diagnostic that the asset could be calibrated. The acceptance test states that
-  no shipped catalog clip currently passes the strict gate, so ordinary
-  locomotion falls back explicitly. Never widen either gate to make a test pass
-  - the slide is a property of the source GLB.
+  no world state and publishes no event. `Predict` is the same loop for a
+  constant control horizon, so short-horizon forecasts reuse execution's own
+  phase evolution.
+  `AnimationClip::motion_quality` is derived once at load from the clip's own
+  root and support tracks (mean/worst stance slip, stance/root direction
+  alignment, loop seam root/pose step). `stance_calibrated` means the support
+  track is readable, loops, has a usable stance speed and that foot travels
+  opposite the clip's root direction. `ik_free_usable` is the strict source
+  gate (the root track agrees with the foot). Runtime root-driven execution
+  is gated on `ik_free_usable` plus `looping`. A straight half-cycle and its
+  catalog mirror are repaired at import time (concatenated into a full cycle,
+  root derived from the stance foot, retimed to constant stance travel); the
+  repaired clip replaces the source only if the repaired cycle itself passes
+  the strict gate. Never widen the gate to make a test pass - a rejected
+  repair leaves the authored root track and the compatibility fallback.
 - Module boundary: Animation owns the shared clip resource and the pure algorithms
   that turn a clip into data (`SamplePose`, `BlendPose`, `SelectEntryFrame`,
   `PoseDistance`, foot support, touch geometry). *Decisions* about which clip to
@@ -244,18 +255,19 @@ observation, controls and stored physics are all the Stadium Frame.
   Never derive it twice; a scale mismatch biases the cadence for every player
   who is not the reference build. `ClipTuning::max_stride_scale` bounds any
   pre-baked stride variant, not a runtime IK correction.
-- Ordinary locomotion is cadence-only and IK-free. The clip keeps its authored
-  stride; playback follows the achieved/reference ratio. The gait's playable
-  speed (`reference_speed * kLocomotionMaxPlaybackRate`) is a *desired* bound
-  fed into the motion constraint, never a post-integration scale: a body already
-  faster brakes at the profile's rate instead of snapping to the cap in one
-  tick. A movement clip with a support track that fails `ik_free_usable` is
-  rejected (`feasible == false`) so the caller falls back explicitly. There is
-  no runtime `SettleMovementPose`, plant anchor, `PlayerFootIk::Update`,
-  `ApplyFootPlantLocks` or `ApplyWorldFootTargetsToPose` in the Player
-  execution path. `ik_free_pose` is the strict source gate;
-  `calibrated_ik_free` states that the stance-speed calibration is what makes
-  the IK-free root possible.
+- Ordinary locomotion is IK-free. On a clip that passes `ik_free_usable` the
+  root track supplies the world displacement and its pose is sampled at the
+  same interval; the only runtime scaling is a bounded playback rate derived
+  from the profile's next speed. The gait's playable speed
+  (`root_speed * kLocomotionMaxPlaybackRate`) bounds that rate: a body already
+  faster brakes in the compatibility path at the profile's rate instead of
+  snapping to the cap in one tick. A movement clip that fails
+  `ik_free_usable` is rejected (`feasible == false`) so the caller falls back
+  explicitly. There is no runtime `SettleMovementPose`, plant anchor,
+  `PlayerFootIk::Update`, `ApplyFootPlantLocks` or
+  `ApplyWorldFootTargetsToPose` in the Player execution path. `ik_free_pose` is
+  the strict source gate; `calibrated_ik_free` states that the stance-speed
+  calibration is what makes the IK-free root possible.
 - A clip's native speed is measured over the intervals its samples actually
   span (`N` root samples = `N-1` ticks). `frame_count` is not that span, and
   using it biases every playback rate by `N/(N-1)`.
@@ -288,8 +300,9 @@ observation, controls and stored physics are all the Stadium Frame.
   the foot. `PlayerFootIk` remains a pure algorithm header for offline/tests;
   it is not a runtime correction stage.
 - The 14-bone declaration (`kPlayerBindJoints`) lives in
-  `football/animation/foot_support.hpp` and is shared by the animation support
-  derivation and the Player's forward kinematics and colliders.
+  `football/animation/skeleton.hpp` and is shared by the animation support
+  derivation and the Player's forward kinematics and colliders. The
+  foot-support policy header is verification/compatibility only.
 - `PlayerExecutionState::final_pose_` is the one Final Pose channel:
   `ComposeFinalPose` produces it once per tick as blend -> Warp -> Realize, and
   `Pose()`, `BakedPoseSample()`, `Geometry()`, `ContactRegions()` and the runtime
