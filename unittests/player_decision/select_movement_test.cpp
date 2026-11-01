@@ -1,10 +1,13 @@
-// ANIM-1 A6.3b.1 — final Movement pick rule tests.
+// ANIM-1 A6.3b.1 / ACFG-3 — the final Movement pick rule, now owned by the
+// Player's action resolver.
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <vector>
 
-#include "football/animation/select_movement.hpp"
+#include "player/execution/player_action_resolver.hpp"
+
+using namespace football::player;
 
 TEST_CASE("a preferred clip that is a legal candidate is picked") {
   const std::vector<int> candidates{7, 3, 9};

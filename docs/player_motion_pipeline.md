@@ -576,7 +576,48 @@ Reserved: `torso_sway_scale` / `arm_swing_scale` are carried by the configuratio
 but not applied yet; a blanket joint-rotation scale would distort the gait, so
 they need a per-joint, pose-relative implementation (and visual acceptance).
 
+### ACFG-3/4 result: decisions moved to the Player, Animation slimmed
+
+The action *decision* is Player code now; Animation is the shared clip resource
+plus the pure algorithms that turn a clip into data.
+
+| moved (git mv, code unchanged) | from | to |
+|---|---|---|
+| `Match`, `MatchQuery`, `MatchResult`, `MatchBranch` | `animation/match.*` | `player/execution/player_action_resolver.*` |
+| candidate refinement, body/velocity direction snap, idle/retain picks | `animation/movement_selection.*` | `player/execution/player_action_candidates.*` |
+| `ResolveMovementPick` | `animation/select_movement.hpp` | folded into `player_action_resolver.hpp` |
+| `MatchTouch`, `TouchMatchContext/Queries/Result`, traces | `animation/touch_match.*` | `player/execution/player_touch_action_resolver.*` |
+| smuggle/body-ball scoring | `animation/touch_scoring.*` | `player/execution/player_touch_action_scoring.*` |
+| `SelectTripMatch` | `animation/trip_match.*` | `player/execution/player_reaction_resolver.*` |
+
+The moved code sits in `namespace football::player` and keeps using Animation's
+pure helpers explicitly (`using namespace football::animation;`), so the
+algorithms are untouched: this is a relocation, not a rewrite.
+
+Stays in Animation (by design): `SamplePose`, `BlendPose`, `SelectEntryFrame`,
+`PoseDistance`, `AnimationTransitionState`, `PlaybackState`, the foot-support
+derivation, touch geometry, and `BakedAnimationSelector` (the offline baker and
+the crude candidate filter both read it).
+
+Build targets: `football_animation` lost the six decision translation units;
+`football_player_execution` gained them. `football_animation_base` still holds the
+format, clip, library, foot support and selector, so the offline baker keeps
+linking only that archive.
+
+Tests: the six decision suites moved to a new `player_decision` target (links
+Player Execution and needs the baked cache), because they now test Player-owned
+code. They are unchanged apart from the include/namespace. `unittests/animation`
+keeps only the resource and pure-algorithm suites.
+
+Known leftovers for a later pass: `select_clip.hpp` has no production consumer
+(only its own test), and `BakedAnimationSelector`'s legacy interface is still used
+by the crude filter. Both are candidates for the next slimming, not for this one.
+
 ### What is still open
+
+- `select_clip.hpp` has no production consumer; `BakedAnimationSelector` still
+  exposes its legacy interface to the crude filter. Slim only after the remaining
+  callers move.
 
 - ACFG-3: move the action *decision* (`Match`, `MatchTouch`, `SelectTripMatch`)
   into the Player. Animation keeps `SamplePose`, `BlendPose`, `SelectEntryFrame`

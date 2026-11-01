@@ -1,4 +1,4 @@
-# Player body model unit tests: pure PlayerBodyProfile derivation, static
+# Player unit tests: pure PlayerBodyProfile derivation, static
 # bind-pose geometry (nine height/build profiles) and the headless pitch
 # placement validation (BODY-1.8) that places standing-pose players on a real
 # Pitch. Links football::collision/animation/pitch for geometry + foundation

@@ -2,13 +2,15 @@
 // scoring, moved verbatim out of touch_scoring.hpp. Same clamping, same
 // operation order and same floating-point expressions.
 
-#include "football/animation/touch_scoring.hpp"
+#include "player/execution/player_touch_action_scoring.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
 
-namespace football::animation {
+namespace football::player {
+
+using namespace football::animation;
 
 Vector3 ResolveActionSmuggle(const ResolveActionSmuggleRequest& request) {
   Vector3 action_smuggle = request.raw_smuggle;
@@ -169,4 +171,4 @@ float EvaluateBodyBallDistanceAdvantage(
   return result;
 }
 
-}  // namespace football::animation
+}  // namespace football::player

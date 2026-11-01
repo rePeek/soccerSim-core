@@ -1,11 +1,13 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include "football/animation/touch_scoring.hpp"
+#include "player/execution/player_touch_action_scoring.hpp"
+
+using namespace football::player;
 
 using Catch::Approx;
-using football::animation::ResolveActionSmuggle;
-using football::animation::ResolveActionSmuggleRequest;
+using football::player::ResolveActionSmuggle;
+using football::player::ResolveActionSmuggleRequest;
 
 namespace {
 

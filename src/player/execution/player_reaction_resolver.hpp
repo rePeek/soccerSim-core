@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_ANIMATION_TRIP_MATCH_HPP
-#define FOOTBALL_ANIMATION_TRIP_MATCH_HPP
+#ifndef PLAYER_REACTION_RESOLVER_HPP
+#define PLAYER_REACTION_RESOLVER_HPP
 
 #include <span>
 
@@ -18,7 +18,9 @@
 //
 // ANIM-2 A14.0: the body lives in src/animation/trip_match.cpp.
 
-namespace football::animation {
+namespace football::player {
+
+using namespace football::animation;
 
 struct TripMatchRequest {
   // Contact direction in the actor's RUNTIME frame.
@@ -51,6 +53,6 @@ TripMatchResult SelectTripMatch(const AnimationLibrary& library,
                                 std::span<const int> candidates,
                                 const TripMatchRequest& request);
 
-}  // namespace football::animation
+}  // namespace football::player
 
-#endif  // FOOTBALL_ANIMATION_TRIP_MATCH_HPP
+#endif  // PLAYER_REACTION_RESOLVER_HPP

@@ -64,8 +64,8 @@ thing, and its cost is paid only when relevant.
   a public interface or cross-module boundary changes.
 
 Current test scope is `ball`, `pitch`, `player`, `team` and `animation` only:
-`animation`, `pitch`, `ball`, `team`, `team_link`, `player`, `player_link`,
-`player_animation`, `locomotion`, `loco_animation`. The foundation, model, ai,
+`animation`, `pitch`, `ball`, `team`, `team_link`, `player`, `player_decision`,
+`player_link`, `player_animation`, `locomotion`, `loco_animation`. The foundation, model, ai,
 collision, contact, event, referee and public-header suites and the bounded
 runtime harness were removed with their modules parked; restore them from
 history when one of those modules is back under active work. Nothing in the
@@ -202,6 +202,13 @@ observation, controls and stored physics are all the Stadium Frame.
   may change the gait, never the world trajectory. One-shot actions keep the
   action clock as their clip-time authority; only locomotion owns clip time,
   and `PlaybackState::frame` is a derived integer, not that authority.
+- Module boundary: Animation owns the shared clip resource and the pure algorithms
+  that turn a clip into data (`SamplePose`, `BlendPose`, `SelectEntryFrame`,
+  `PoseDistance`, foot support, touch geometry, the baked selector). *Decisions*
+  about which clip to perform belong to the Player: candidate refinement, the
+  movement pick, `Match`, `MatchTouch` and the trip/reaction match live under
+  `src/player/execution/player_*_resolver|_candidates`. Animation must never
+  regain a decision path, and the Player must not re-implement pose sampling.
 - Animation is a shared immutable resource: one `AnimationLibrary` per process,
   its clips read-only (including the derived foot-support track). Per-player
   animation behaviour lives in `PlayerAnimationConfig`, built once in the Player
@@ -401,7 +408,7 @@ Rules:
 include/football/    public headers, one directory per module
 ├── foundation/      math/ (Vector3, quaternion, scalar), time/ (Tick),
 │                    geometry/ (shapes, collider), collision/ (sweep, hits)
-├── animation/       baked schema/library/selector, playback, touch and pose
+├── animation/       baked schema/library/selector, playback, pose, foot support
 ├── ball/            Ball, BallModel, BallState, contact/impulse integration
 ├── pitch/           Pitch description and the static ground/post/crossbar scene
 ├── contact/         value-only contact models, colliders, impulses and evidence

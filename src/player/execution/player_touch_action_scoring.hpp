@@ -1,6 +1,7 @@
 #ifndef FOOTBALL_ANIMATION_TOUCH_SCORING_HPP
 #define FOOTBALL_ANIMATION_TOUCH_SCORING_HPP
 
+#include "football/animation/entry_frame.hpp"
 #include "football/animation/types.hpp"
 #include "football/animation/clip.hpp"
 
@@ -15,7 +16,9 @@
 // order, same floating-point expressions. The bodies live in
 // src/animation/touch_scoring.cpp.
 
-namespace football::animation {
+namespace football::player {
+
+using namespace football::animation;
 
 // The tail of `GetBestCheatableAnimID` that turns the raw ball-contact smuggle
 // vector into the value actually applied to the player. `raw_smuggle` is the
@@ -57,6 +60,6 @@ float EvaluateBodyBallDistanceAdvantage(
     float radiusCheatDistance, float cheat_factor,
     float cheat_distance_bonus);
 
-}  // namespace football::animation
+}  // namespace football::player
 
 #endif  // FOOTBALL_ANIMATION_TOUCH_SCORING_HPP

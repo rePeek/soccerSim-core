@@ -4,13 +4,14 @@
 // independent archive and never links sim/player, sim/runtime, football/ball or
 // sim/observation. The format and selection headers stay header-only and are
 // still shared with the offline baker.
-#include "football/animation/match.hpp"
+#include "player/execution/player_action_resolver.hpp"
 
 #include <algorithm>
 
-#include "football/animation/select_movement.hpp"
 
-namespace football::animation {
+namespace football::player {
+
+using namespace football::animation;
 
 std::optional<MatchResult> Match(const AnimationLibrary& library,
                                  const MatchQuery& query) {
@@ -102,4 +103,4 @@ std::optional<MatchResult> Match(const AnimationLibrary& library,
   return result;
 }
 
-}  // namespace football::animation
+}  // namespace football::player

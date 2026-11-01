@@ -21,7 +21,7 @@
 #include "football/animation/library.hpp"
 #include "football/animation/movement_math.hpp"
 #include "football/animation/touch_geometry.hpp"
-#include "football/animation/touch_scoring.hpp"
+#include "player/execution/player_touch_action_scoring.hpp"
 #include "player/execution/player_touch_event.hpp"
 #include "player/execution/player_touch_query.hpp"
 #include "player/execution/kick_targeting.hpp"
@@ -32,6 +32,8 @@
 #include "player/execution/player_retain_anchor.hpp"
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_touch_math.hpp"
+
+using namespace football::player;
 
 using namespace football::math;
 

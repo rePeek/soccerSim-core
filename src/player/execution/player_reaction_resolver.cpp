@@ -1,12 +1,14 @@
 // ANIM-2 A14.0 — Trip clip + entry-frame matching.
 
-#include "football/animation/trip_match.hpp"
+#include "player/execution/player_reaction_resolver.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace football::animation {
+namespace football::player {
+
+using namespace football::animation;
 
 namespace {
 
@@ -85,4 +87,4 @@ TripMatchResult SelectTripMatch(const AnimationLibrary& library,
   return best;
 }
 
-}  // namespace football::animation
+}  // namespace football::player

@@ -11,8 +11,8 @@
 #include "football/animation/movement_math.hpp"
 #include "football/animation/selector.hpp"
 #include "football/animation/touch_geometry.hpp"
-#include "football/animation/touch_scoring.hpp"
-#include "football/animation/touch_match.hpp"
+#include "player/execution/player_touch_action_scoring.hpp"
+#include "player/execution/player_touch_action_resolver.hpp"
 #include "football/ball/ball.hpp"
 #include "player/execution/player_motion_constants.hpp"
 
@@ -20,6 +20,8 @@
 #include <cassert>
 #include <functional>
 #include <cmath>
+
+using namespace football::player;
 
 using namespace football::math;
 using football::animation::CalculateMovementAtFrame;
@@ -40,17 +42,17 @@ constexpr bool kDiscardSidewaysSmuggle = false;
 // ANIM-2 A10.4d: a callback-backed TouchMatchQueries. The Player builds the
 // callbacks inside SelectBestTouchAnim, so the shadow reads the same facts in
 // the same order without Animation knowing about Player/Ball.
-struct FunctionQueries final : football::animation::TouchMatchQueries {
+struct FunctionQueries final : football::player::TouchMatchQueries {
   std::function<Vector3(int)> ball_prediction_ms;
   std::function<Vector3(int)> ball_predict_ticks;
   std::function<float(int)> last_touch_bias;
-  std::function<bool(AnimationId, football::animation::MotionPlanView&)> motion_plan;
+  std::function<bool(AnimationId, football::player::MotionPlanView&)> motion_plan;
   std::vector<Vector3> plan_positions;
 
   Vector3 BallPredictionAtMs(int ms) override { return ball_prediction_ms(ms); }
   Vector3 BallPredictAtTicks(int ticks) override { return ball_predict_ticks(ticks); }
   float LastTouchBiasAtTick(int ticks) override { return last_touch_bias(ticks); }
-  bool MotionPlanFor(AnimationId clip, football::animation::MotionPlanView& out) override {
+  bool MotionPlanFor(AnimationId clip, football::player::MotionPlanView& out) override {
     return motion_plan(clip, out);
   }
 };
@@ -93,7 +95,7 @@ int PlayerExecution::SelectBestTouchAnim(
         600, now + football::sim::TickSpan{static_cast<std::uint64_t>(ticks)});
   };
   queries.motion_plan = [&](AnimationId clip,
-                            football::animation::MotionPlanView& out) -> bool {
+                            football::player::MotionPlanView& out) -> bool {
     radian rotation_offset_ret = 0;
     Vector3 physicsVector = CalculatePhysicsVector(
         now, static_cast<int>(clip), useDesiredMovement, desiredMovement,
@@ -105,7 +107,7 @@ int PlayerExecution::SelectBestTouchAnim(
     return true;
   };
 
-  football::animation::TouchMatchContext context;
+  football::player::TouchMatchContext context;
   context.candidates = sortedDataSet;
   context.spatial_angle = state_.legacy_spatial_state_.angle;
   context.spatial_position = state_.legacy_spatial_state_.position;
@@ -138,8 +140,8 @@ int PlayerExecution::SelectBestTouchAnim(
 
   // ANIM-2 A11.6: production reads only the result, so the per-candidate trace
   // is not requested and no diagnostic vector is allocated.
-  const football::animation::TouchMatchResult match =
-      football::animation::MatchTouch(animations_, context, queries);
+  const football::player::TouchMatchResult match =
+      football::player::MatchTouch(animations_, context, queries);
 
   choice.touch_frame = match.touch_frame;
   choice.start_frame = match.start_frame;

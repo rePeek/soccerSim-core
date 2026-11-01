@@ -15,7 +15,7 @@
 // movement_selection.hpp. The stable-sort order and every floating-point
 // expression are unchanged, so the candidate list and its order are identical.
 
-#include "football/animation/movement_selection.hpp"
+#include "player/execution/player_action_candidates.hpp"
 
 #include <algorithm>
 #include <cassert>

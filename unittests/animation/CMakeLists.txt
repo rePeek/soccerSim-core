@@ -1,6 +1,7 @@
-# animation — pure clip selection, pose sampling and blending. Header-only,
-# links only football::animation. The real baked asset is used only to check
-# that the pure algorithms match the shipped library.
+# animation — the shared, immutable clip resource and its pure algorithms: clip
+# selection, pose sampling/blending, entry frames, transitions, foot support and
+# touch geometry. Action *decisions* (Match/MatchTouch/Trip) belong to the Player
+# and are tested in unittests/player.
 
 add_executable(football_animation_unit_tests
   motion_clip_test.cpp
@@ -8,14 +9,7 @@ add_executable(football_animation_unit_tests
   pose_blend_test.cpp
   selector_test.cpp
   select_clip_test.cpp
-  select_movement_test.cpp
-  movement_selection_test.cpp
-  match_test.cpp
-  entry_frame_test.cpp
-  trip_match_test.cpp
   entry_frame_continuity_test.cpp
-  touch_match_test.cpp
-  touch_scoring_test.cpp
   touch_geometry_test.cpp
   foot_support_test.cpp)
 football_require_animation_cache(football_animation_unit_tests)

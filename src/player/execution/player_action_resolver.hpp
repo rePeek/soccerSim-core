@@ -1,16 +1,18 @@
-#ifndef FOOTBALL_ANIMATION_MATCH_HPP
-#define FOOTBALL_ANIMATION_MATCH_HPP
+#ifndef PLAYER_ACTION_RESOLVER_HPP
+#define PLAYER_ACTION_RESOLVER_HPP
 
 #include <optional>
 #include <span>
 #include <string>
 #include <vector>
 
+#include <span>
+
 #include "football/animation/entry_frame.hpp"
 #include "football/animation/library.hpp"
-#include "football/animation/movement_selection.hpp"
+#include "player/execution/player_action_candidates.hpp"
 #include "football/animation/selector.hpp"
-#include "football/animation/trip_match.hpp"
+#include "player/execution/player_reaction_resolver.hpp"
 
 // ANIM-2 A10.2 — the Animation-side match contract.
 //
@@ -28,11 +30,25 @@
 // owns. The touch-matching loop (A10.4) and the Player wiring (A10.5) extend the
 // same query/result rather than introducing a second selection path.
 
-namespace football::animation {
+namespace football::player {
+
+using namespace football::animation;
 
 // A read-only view of one candidate's adapted reference motion, in the shape
 // Animation's touch/pose matching understands. It borrows storage owned by the
 // evaluator for the duration of the Match call.
+// The final Movement pick: a preferred (motion-driven) clip is honoured only
+// when it is already a legal candidate, otherwise the legacy first candidate
+// plays. This mirrors the shipped rule exactly, with no ordering change.
+inline AnimationId ResolveMovementPick(
+    std::span<const int> legacy_ordered_candidates, AnimationId preferred) {
+  if (legacy_ordered_candidates.empty()) return preferred;
+  for (const int id : legacy_ordered_candidates) {
+    if (id == static_cast<int>(preferred)) return preferred;
+  }
+  return static_cast<AnimationId>(legacy_ordered_candidates.front());
+}
+
 struct MotionPlanView {
   std::span<const Vector3> positions;
   Vector3 outgoing_velocity;
@@ -134,6 +150,6 @@ struct MatchQuery {
 std::optional<MatchResult> Match(const AnimationLibrary& library,
                                 const MatchQuery& query);
 
-}  // namespace football::animation
+}  // namespace football::player
 
-#endif  // FOOTBALL_ANIMATION_MATCH_HPP
+#endif  // PLAYER_ACTION_RESOLVER_HPP

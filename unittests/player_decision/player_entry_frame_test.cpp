@@ -6,7 +6,9 @@
 
 #include "animation_test_support.hpp"
 #include "football/animation/entry_frame.hpp"
-#include "football/animation/match.hpp"
+#include "player/execution/player_action_resolver.hpp"
+
+using namespace football::player;
 
 using namespace football::animation;
 using football::math::Vector3;

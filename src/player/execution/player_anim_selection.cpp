@@ -33,7 +33,9 @@
 #include <iterator>
 #include <vector>
 
-#include "football/animation/match.hpp"
+#include "player/execution/player_action_resolver.hpp"
+
+using namespace football::player;
 
 using namespace football::math;
 using std::placeholders::_1;
@@ -469,7 +471,7 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
 
   // ANIM-2 A10.5: the Player calls the single Animation::Match entry for the
   // candidate refinement; it no longer calls the refinement functions directly.
-  football::animation::MatchQuery match_query;
+  football::player::MatchQuery match_query;
   match_query.function_type = command.desiredFunctionType;
   match_query.constraints.strict = nm_strict;
   match_query.constraints.allowed_angle = nm_allowed_angle;
@@ -480,7 +482,7 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
   match_query.foot_counterfactual = foot_counterfactual;
   if (trip_branch) {
     // ANIM-2 A14: the Trip match owns clip + entry-frame selection.
-    match_query.branch = football::animation::MatchBranch::Trip;
+    match_query.branch = football::player::MatchBranch::Trip;
     match_query.crude_candidates = dataSet;
     match_query.trip.impact_direction = command.desiredTripDirection;
     match_query.trip.current_velocity = spatialState.movement;
@@ -490,14 +492,14 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
     match_query.trip.trip_type = command.tripType;
     match_query.trip.min_remaining_frames = 1;
   } else if (!pure_movement && !pure_non_movement) {
-    match_query.branch = football::animation::MatchBranch::Legacy;
+    match_query.branch = football::player::MatchBranch::Legacy;
     match_query.crude_candidates = dataSet;
     refine_request.idle_level = desiredIdleLevel;
   } else if (pure_non_movement) {
-    match_query.branch = football::animation::MatchBranch::NonMovement;
+    match_query.branch = football::player::MatchBranch::NonMovement;
     match_query.crude_candidates = crude_movement_snapshot;
   } else {
-    match_query.branch = football::animation::MatchBranch::Movement;
+    match_query.branch = football::player::MatchBranch::Movement;
     match_query.crude_candidates = crude_movement_snapshot;
     refine_request.idle_level = desiredIdleLevel;
   }
@@ -515,7 +517,7 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
   }
 
   const auto match =
-      football::animation::Match(animations_, match_query);
+      football::player::Match(animations_, match_query);
   DataSet withoutFootSort;
   if (match) {
     dataSet.assign(match->candidates.begin(), match->candidates.end());

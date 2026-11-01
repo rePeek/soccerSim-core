@@ -5,7 +5,9 @@
 #include <cstdint>
 #include <vector>
 
-#include "football/animation/trip_match.hpp"
+#include "player/execution/player_reaction_resolver.hpp"
+
+using namespace football::player;
 
 using namespace football::animation;
 using football::math::Vector3;

@@ -15,8 +15,8 @@
 // use are declared here. The internal sorts, filters and rating scratch live in
 // src/animation/movement_selection.cpp.
 
-#ifndef FOOTBALL_ANIMATION_MOVEMENT_SELECTION_HPP
-#define FOOTBALL_ANIMATION_MOVEMENT_SELECTION_HPP
+#ifndef PLAYER_ACTION_CANDIDATES_HPP
+#define PLAYER_ACTION_CANDIDATES_HPP
 
 #include <span>
 #include <vector>
@@ -92,4 +92,4 @@ AnimationId SelectRetainAnimClip(const AnimationLibrary& library,
                                  e_Velocity desired_velocity,
                                  float cornering_bias);
 
-#endif  // FOOTBALL_ANIMATION_MOVEMENT_SELECTION_HPP
+#endif  // PLAYER_ACTION_CANDIDATES_HPP

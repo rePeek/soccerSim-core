@@ -9,17 +9,19 @@
 #include <span>
 #include <vector>
 
-#include "football/animation/match.hpp"
+#include "player/execution/player_action_resolver.hpp"
 #include "football/animation/selector.hpp"
-#include "football/animation/touch_match.hpp"
+#include "player/execution/player_touch_action_resolver.hpp"
+
+using namespace football::player;
 
 using namespace football::math;
-using football::animation::MatchTouch;
-using football::animation::MotionPlanView;
-using football::animation::TouchMatchContext;
-using football::animation::TouchMatchQueries;
-using football::animation::TouchMatchTrace;
-using football::animation::TouchRejectReason;
+using football::player::MatchTouch;
+using football::player::MotionPlanView;
+using football::player::TouchMatchContext;
+using football::player::TouchMatchQueries;
+using football::player::TouchMatchTrace;
+using football::player::TouchRejectReason;
 
 namespace {
 

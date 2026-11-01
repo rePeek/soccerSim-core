@@ -6,6 +6,8 @@
 #include "football/animation/types.hpp"
 #include "football/foundation/math/vector3.hpp"
 
+using namespace football::player;
+
 // ANIM-1 A6.4 step 2c - the result of touch-animation selection, as one value.
 //
 // `Humanoid::GetBestCheatableAnimID` used to publish its answer through eight

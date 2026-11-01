@@ -5,18 +5,20 @@
 #include <cstddef>
 #include <vector>
 
-#include "football/animation/match.hpp"
+#include "player/execution/player_action_resolver.hpp"
+
+using namespace football::player;
 
 using namespace football::math;
-using football::animation::Match;
-using football::animation::MatchQuery;
+using football::player::Match;
+using football::player::MatchQuery;
 
 namespace {
 
 MatchQuery MovementQuery() {
   MatchQuery query;
   query.function_type = e_FunctionType_Movement;
-  query.branch = football::animation::MatchBranch::Movement;
+  query.branch = football::player::MatchBranch::Movement;
   query.constraints.crude.byFunctionType = true;
   query.constraints.crude.functionType = e_FunctionType_Movement;
   query.constraints.crude.byIncomingVelocity = true;

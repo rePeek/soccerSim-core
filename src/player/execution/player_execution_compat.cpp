@@ -16,7 +16,7 @@
 #include "football/ball/ball.hpp"
 #include "football/animation/library.hpp"
 #include "football/animation/movement_math.hpp"
-#include "football/animation/movement_selection.hpp"
+#include "player/execution/player_action_candidates.hpp"
 #include "football/animation/selection_math.hpp"
 #include "football/animation/selector.hpp"
 #include "football/player/execution/player_motion.hpp"
@@ -27,6 +27,8 @@
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_touch_math.hpp"
 #include "player/player.hpp"
+
+using namespace football::player;
 
 using namespace football::math;
 using football::ball::Ball;

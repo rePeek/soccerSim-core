@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "football/animation/library.hpp"
-#include "football/animation/match.hpp"
+#include "player/execution/player_action_resolver.hpp"
 
 // ANIM-2 A10.4a — the touch-match context and query ports.
 //
@@ -22,7 +22,9 @@
 //   GetLastTouchBias(600, now + animTouchFrame)
 // They are intentionally not normalised in this step.
 
-namespace football::animation {
+namespace football::player {
+
+using namespace football::animation;
 
 // Candidate-independent inputs for one touch match.
 struct TouchMatchContext {
@@ -136,6 +138,6 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
                             TouchMatchQueries& queries,
                             TouchMatchTrace* trace = nullptr);
 
-}  // namespace football::animation
+}  // namespace football::player
 
 #endif  // FOOTBALL_ANIMATION_TOUCH_MATCH_HPP

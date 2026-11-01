@@ -4,7 +4,7 @@
 // Ball, Pitch and MentalImage reads are replaced by the value context and the
 // TouchMatchQueries port, in the exact legacy order and with the legacy time
 // units. No RNG is drawn, no action is installed and no smuggle is applied.
-#include "football/animation/touch_match.hpp"
+#include "player/execution/player_touch_action_resolver.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -13,11 +13,13 @@
 #include "football/animation/entry_frame.hpp"
 #include "football/animation/movement_math.hpp"
 #include "football/animation/touch_geometry.hpp"
-#include "football/animation/touch_scoring.hpp"
+#include "player/execution/player_touch_action_scoring.hpp"
 
 using namespace football::math;
 
-namespace football::animation {
+namespace football::player {
+
+using namespace football::animation;
 
 namespace {
 
@@ -289,4 +291,4 @@ TouchMatchResult MatchTouch(const AnimationLibrary& library,
   return result;
 }
 
-}  // namespace football::animation
+}  // namespace football::player

@@ -36,18 +36,13 @@ target_link_libraries(football_animation_base PUBLIC football::foundation)
 football_configure_target(football_animation_base)
 
 add_library(football_animation STATIC
-  match.cpp
-  touch_match.cpp
-  movement_selection.cpp
   touch_geometry.cpp
-  touch_scoring.cpp
   motion_clip.cpp
   pose_sampling.cpp
   pose_blend.cpp
   playback.cpp
   transition.cpp
-  entry_frame.cpp
-  trip_match.cpp)
+  entry_frame.cpp)
 add_library(football::animation ALIAS football_animation)
 target_sources(football_animation PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
@@ -56,15 +51,9 @@ target_sources(football_animation PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/pose_blend.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/pose_sampling.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/select_clip.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/select_movement.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/movement_selection.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/movement_math.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/match.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/touch_match.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/touch_geometry.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/touch_scoring.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/transition.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/trip_match.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/playback.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/entry_frame.hpp)
 target_compile_features(football_animation PUBLIC cxx_std_23)

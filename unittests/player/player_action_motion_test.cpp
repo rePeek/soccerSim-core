@@ -5,7 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "football/animation/movement_math.hpp"
-#include "football/animation/movement_selection.hpp"
+#include "player/execution/player_action_candidates.hpp"
 #include "football/player/execution/player_motion.hpp"
 #include "player/execution/player_action_motion.hpp"
 

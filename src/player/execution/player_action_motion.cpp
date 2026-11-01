@@ -5,12 +5,14 @@
 
 #include "football/animation/movement_math.hpp"
 #include "football/animation/selection_math.hpp"
-#include "football/animation/movement_selection.hpp"
+#include "player/execution/player_action_candidates.hpp"
 #include "player/execution/player_motion_constants.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+
+using namespace football::player;
 
 using football::animation::CalculateMovementAtFrame;
 using football::animation::StretchSprintTo;
