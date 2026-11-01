@@ -104,17 +104,14 @@ struct AnimationClip {
   // Full touch list (frame + position).
   std::vector<BakedTouch> touches;
 
-  // Derived at load time from the clip's own leg poses (see foot_support.hpp).
-  // One entry per frame; empty means "not derived".
+  // RM-8: the support track and quality report are verification/selection data.
+  // They are not a runtime pose authority: no production path plants a foot or
+  // solves a leg from them. The root-driven path reads only `motion_quality`
+  // as a source gate; the compatibility path reads the stance cadence. A later
+  // step can move these fields to a verification artifact without changing the
+  // sampled root or pose. Derived at load from the clip's own leg poses.
   std::vector<FootSupportFrame> foot_support;
-  // How fast a stance foot travels backwards inside this clip, in metres per
-  // second (stance-phase mean). 0 when the clip has no stance phase or no track.
   float stance_speed = 0.0f;
-  // Per-phase detail and the quality flags; a caller must not trust the track
-  // when `FootSupportTrusted()` is false.
   FootSupportSummary foot_support_summary;
-  // RMA-1: measured root/support/loop quality of the clip, derived once at
-  // load. It never changes the clip; it states whether the IK-free adaptation
-  // may use this clip or must fall back to the compatibility path.
   ClipMotionQuality motion_quality;
 };

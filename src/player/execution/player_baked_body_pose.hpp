@@ -8,7 +8,7 @@
 #include "football/player/player_kinematics.hpp"
 #include "football/contact/player_body_collider_motion.hpp"
 #include "football/player/player_body_profile.hpp"
-#include "football/animation/foot_support.hpp"
+#include "football/animation/skeleton.hpp"
 #include "football/player/execution/player_foot_ik.hpp"
 
 // PoseFrame contains LOCAL keyframe rotations, not 14 world-space joint points.

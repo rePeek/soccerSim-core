@@ -21,45 +21,7 @@
 // Python/C++ duplication, and a bake-time track can replace it later without
 // changing a single caller.
 
-// The declared 14-bone model: the hierarchy and its bind offsets. Shared by the
-// animation support derivation and the Player's forward kinematics, colliders
-// and foot solve, so a bind change cannot land in only one of them.
-struct SkeletonBindJoint {
-  BodyPart part;
-  BodyPart parent;
-  football::math::Vector3 offset;
-};
-
-inline const std::array<SkeletonBindJoint, 13> kPlayerBindJoints{{
-    {body, player, {0, 0, .96f}},
-    {middle, body, {0, 0, .15f}},
-    {neck, middle, {0, -.03f, .5f}},
-    {left_thigh, body, {.087f, 0, -.01f}},
-    {right_thigh, body, {-.087f, 0, -.01f}},
-    {left_knee, left_thigh, {0, 0, -.42f}},
-    {right_knee, right_thigh, {0, 0, -.42f}},
-    {left_ankle, left_knee, {0, -.04f, -.44f}},
-    {right_ankle, right_knee, {0, -.04f, -.44f}},
-    {left_shoulder, middle, {.16f, -.01f, .48f}},
-    {right_shoulder, middle, {-.16f, -.01f, .48f}},
-    {left_elbow, left_shoulder, {-.01f, 0, -.33f}},
-    {right_elbow, right_shoulder, {.01f, 0, -.33f}},
-}};
-
-inline const football::math::Vector3& PlayerBindOffset(BodyPart part) {
-  for (const auto& bind : kPlayerBindJoints) {
-    if (bind.part == part) return bind.offset;
-  }
-  throw std::out_of_range("no bind offset for this body part");
-}
-
-inline BodyPart PlayerBindParent(BodyPart part) {
-  for (const auto& bind : kPlayerBindJoints) {
-    if (bind.part == part) return bind.parent;
-  }
-  // The root has no parent bind; it anchors the hierarchy.
-  return part;
-}
+#include "football/animation/skeleton.hpp"
 
 // Metres above the clip's lowest ankle at which a foot still counts as down,
 // and the level at which it is considered lifted again (hysteresis).

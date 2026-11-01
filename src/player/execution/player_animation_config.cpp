@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "football/animation/foot_support.hpp"
+#include "football/animation/skeleton.hpp"
 #include "football/player/execution/player_pose_adapter.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
 
