@@ -50,6 +50,10 @@ struct PlayerActionControl {
   PlayerMotionAuthority authority = PlayerMotionAuthority::Locomotion;
   // World yaw of the clip's forward (-Y) axis.
   float base_angle = 0.0f;
+  // RMA-5: an explicit world-aligned reference displacement. One-shot actions
+  // pass the trajectory their plan produced (including smuggle corrections);
+  // locomotion ignores it and derives the root from the control target.
+  football::math::Vector3 reference_delta = football::math::Vector3(0);
   PlayerGaitRequest gait;
 };
 

@@ -22,6 +22,7 @@
 #include "player/execution/locomotion_animation_strategy.hpp"
 #include "player/execution/player_motion_constants.hpp"
 #include "football/player/execution/player_motion_adapter.hpp"
+#include "football/player/execution/player_action_adapter.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -807,25 +808,31 @@ void PlayerExecution::ComputeAndCommitActionMotion() {
   const ActionMotionVectorResult motion =
       PlayerActionMotion::ActionMotionVector(motion_input);
 
-  // P6: the baked action reference is now committed through the one motion
-  // constraint core. KinematicReference preserves the reference displacement
-  // and only clamps the speed ceiling; no second world-position authority.
-  PlayerMotionConstraintInput motion_constraint;
-  motion_constraint.current = port().GetKinematicState();
-  motion_constraint.reference_delta = motion.position - motion_constraint.current.position;
-  motion_constraint.reference_delta.coords[2] = 0.0f;
-  motion_constraint.body = port().BodyProfile();
-  motion_constraint.capability = PlayerMotionProfile{};
-  motion_constraint.capability.max_speed = port().GetMaxVelocity();
-  motion_constraint.authority = PlayerMotionAuthority::KinematicReference;
-  const PlayerMotionConstraintResult constrained =
-      PlayerMotionAdapter::Step(motion_constraint);
-  const Vector3 position = motion_constraint.current.position +
-                           constrained.achieved_delta;
+  // RMA-5: the plan's trajectory (including the smuggle corrections) is the
+  // candidate. The one adapter validates it and samples the pose at the action
+  // clock's phase, so no second displacement source can bypass it and no touch
+  // frame is moved by an adaptation rate.
+  PlayerMotionProfile action_capability;
+  action_capability.max_speed = port().GetMaxVelocity();
+  PlayerActionControl action_control;
+  action_control.authority = PlayerMotionAuthority::KinematicReference;
+  action_control.reference_delta =
+      motion.position - port().GetKinematicState().position;
+  action_control.reference_delta.coords[2] = 0.0f;
+  action_control.base_angle = state_.startAngle;
+  PlayerPlaybackState action_playback;
+  action_playback.frame_time = static_cast<float>(currentAnim.frameNum);
+  const AdaptedMotionSample adapted = PlayerActionAdapter::Evaluate(
+      clip, port().GetKinematicState(), action_capability,
+      port().BodyProfile(), action_control, action_playback, 0.01f);
+  state_.adapted_action_ = adapted;
+  state_.adapted_action_valid_ = adapted.feasible;
+  const Vector3 position =
+      port().GetKinematicState().position + adapted.root_delta;
   // M1: the constrained result is the authority. Its velocity is the one that
   // produced `achieved_delta`; publishing the unconstrained reference velocity
   // here published a motion the Player never performed.
-  const Vector3 achieved_velocity = constrained.state.velocity;
+  const Vector3 achieved_velocity = adapted.velocity;
 
   if (currentAnim.frameNum > 12) {
     spatialState.foot = static_cast<e_Foot>(clip.metadata.outgoing_foot);
@@ -863,7 +870,7 @@ void PlayerExecution::ComputeAndCommitActionMotion() {
   // M1: commit the state the solver produced, whole. The projection above is
   // the same motion in legacy fields; rebuilding the state from it used to
   // drop every field the projection does not carry.
-  PlayerKinematicState next = constrained.state;
+  PlayerKinematicState next = port().GetKinematicState();
   next.position = spatialState.position;
   next.velocity = spatialState.movement;
   next.bodyFacing = spatialState.bodyDirectionVec;

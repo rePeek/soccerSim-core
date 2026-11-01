@@ -158,6 +158,11 @@ struct PlayerExecutionState {
   // the root and the pose cannot be derived from different phases.
   AdaptedMotionSample adapted_locomotion_;
   bool adapted_locomotion_valid_ = false;
+  // RMA-5: the same adapted sample for a one-shot action. Its clip time comes
+  // from the action clock; only the displacement passes through the constraint
+  // core, so a touch frame can never be shifted by cadence adaptation.
+  AdaptedMotionSample adapted_action_;
+  bool adapted_action_valid_ = false;
   bool locomotion_animation_adaptation_ = true;
 
   // ---------------------------------------------------------------------

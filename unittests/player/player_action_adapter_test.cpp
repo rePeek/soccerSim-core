@@ -208,3 +208,23 @@ TEST_CASE("prediction reuses the one adaptation step",
   CHECK(predicted.state.position.coords[1] ==
         Catch::Approx(stepped.position.coords[1]).margin(1e-6f));
 }
+
+TEST_CASE("an action plan is validated without moving its clip time",
+          "[player][adapter][rma5]") {
+  const AnimationClip clip = GaitClip(2.0f);
+  PlayerActionControl control;
+  control.authority = PlayerMotionAuthority::KinematicReference;
+  control.reference_delta = Vector3(0, -0.03f, 0);
+  const PlayerKinematicState current = Moving(1.0f);
+  const PlayerPlaybackState playback{5.0f, 1.0f, 0.0f};
+  const auto sample = PlayerActionAdapter::Evaluate(
+      clip, current, Profile(), Body(), control, playback, 0.01f);
+  // The plan's displacement is the candidate; the ceiling only bounds it.
+  CHECK(sample.root_delta.coords[1] == Catch::Approx(-0.03f).margin(1e-6f));
+  CHECK(sample.velocity.coords[1] == Catch::Approx(-3.0f).margin(1e-4f));
+  // The action clock owns clip time: adaptation must not consume a frame.
+  CHECK(sample.clip_time == Catch::Approx(5.0f).margin(1e-6f));
+  CHECK(sample.playback_rate == Catch::Approx(1.0f).margin(1e-6f));
+  CHECK(sample.diagnostics.final_delta.coords[1] ==
+        Catch::Approx(-0.03f).margin(1e-6f));
+}

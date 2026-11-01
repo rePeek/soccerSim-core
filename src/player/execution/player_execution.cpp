@@ -122,6 +122,8 @@ void PlayerExecution::ResetPoseChannel() {
   state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
   state_.adapted_locomotion_ = AdaptedMotionSample{};
   state_.adapted_locomotion_valid_ = false;
+  state_.adapted_action_ = AdaptedMotionSample{};
+  state_.adapted_action_valid_ = false;
   state_.foot_plant_ = PlayerFootPlantState{};
   state_.previous_fore_aft_[0] = 0.0f;
   state_.previous_fore_aft_[1] = 0.0f;
