@@ -1033,7 +1033,7 @@ void Simulation::ReleaseProductionPhysics() {
 }
 void Simulation::EnsureAnimationLibrary() {
   if (animations_) return;
-  // The prepared clip library is immutable once loaded (LoadCatalog validates
+  // The prepared clip library is immutable once loaded (Load validates
   // every source and nothing mutates it afterwards), so it is parsed once per
   // process and shared by every Simulation. A match re-creates its Simulation freely - a
   // re-Init, a restored replay or a test harness - without parsing and preparing
@@ -1042,7 +1042,7 @@ void Simulation::EnsureAnimationLibrary() {
     // Never put resource loading inside assert(): Release must load and reject
     // invalid resources too. Publish only a successfully loaded library.
     auto animations = std::make_shared<AnimationLibrary>();
-    if (!animations->LoadCatalog(GFOOTBALL_ANIMATION_CATALOG_PATH)) {
+    if (!animations->Load(GFOOTBALL_ANIMATION_CATALOG_PATH)) {
       throw std::runtime_error("Simulation: cannot load animation catalog: " +
                                std::string(GFOOTBALL_ANIMATION_CATALOG_PATH));
     }

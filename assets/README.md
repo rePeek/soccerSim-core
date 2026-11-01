@@ -56,7 +56,7 @@ C++ 通过 CPM 引入的 cgltf 直接解析规范化 GLB：
 ```text
 assets/animations/*.glb + manifest.json + skeletons/player.json
 assets/motion_templates/*.glb + manifest.json + generation_keys.json
-                  ↓ AnimationLibrary::LoadCatalog
+                  ↓ AnimationLibrary::Load
              内存中的完整 AnimationClip 动作库
                   ↓
              C++ 动作选择 / 骨骼计算
@@ -74,7 +74,7 @@ assets/motion_templates/*.glb + manifest.json + generation_keys.json
 以保留原生成器的采样节奏。修改模板时应同步检查控制帧、动作选择和触球元数据。
 
 运行时资源路径仍由 CMake 编译为 `assets/animations/manifest.json` 的绝对路径；
-部署时需要保留资源路径或由调用者向 `LoadCatalog` 提供正确路径，并提供完整资产树。
+部署时需要保留资源路径或由调用者向 `Load` 提供正确路径，并提供完整资产树。
 编辑 GLB 后下次资源加载即生效，无需重建缓存；Simulation 在进程内共享动作库，
 不会对运行中的匹配自动热重载。失败加载不发布半成品，保留先前成功加载的库。
 

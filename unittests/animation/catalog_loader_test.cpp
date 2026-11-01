@@ -23,7 +23,7 @@ void SaveJson(const fs::path& path, const Json& value) { std::ofstream(path) << 
 const AnimationLibrary& Catalog() {
   static const auto library = [] {
     AnimationLibrary result;
-    REQUIRE(result.LoadCatalog(GFOOTBALL_ANIMATION_CATALOG_PATH));
+    REQUIRE(result.Load(GFOOTBALL_ANIMATION_CATALOG_PATH));
     return result;
   }();
   return library;
@@ -188,7 +188,7 @@ TEST_CASE("GLB-generated transitions stay close to pre-migration reference poses
 TEST_CASE("GLB edits change runtime poses immediately", "[animation][glb]") {
   Fixture f;
   AnimationLibrary library;
-  REQUIRE(library.LoadCatalog(f.manifest));
+  REQUIRE(library.Load(f.manifest));
   const auto before = library.Get(0).poses.front().orientations[body];
   f.Alter([](Json& doc, auto& binary) {
     for (const auto& channel : doc["animations"][0]["channels"]) {
@@ -201,7 +201,7 @@ TEST_CASE("GLB edits change runtime poses immediately", "[animation][glb]") {
       for (int i = 0; i < 4; ++i) PutU32(binary, offset+4*i, std::bit_cast<std::uint32_t>(q[i]));
     }
   });
-  REQUIRE(library.LoadCatalog(f.manifest));
+  REQUIRE(library.Load(f.manifest));
   REQUIRE(QuaternionError(library.Get(0).poses.front().orientations[body], before) > .1f);
   REQUIRE(library.Get(0).poses.front().orientations[body].elements[2] == Catch::Approx(std::sin(.2f)));
   REQUIRE(library.Get(0).metadata.touch_frame == f.doc["clips"][0]["metadata"]["touch_frame"]);
@@ -210,7 +210,7 @@ TEST_CASE("GLB edits change runtime poses immediately", "[animation][glb]") {
 TEST_CASE("Bad source catalogs fail atomically without a cache fallback", "[animation][glb]") {
   Fixture f;
   AnimationLibrary library;
-  REQUIRE(library.LoadCatalog(f.manifest));
+  REQUIRE(library.Load(f.manifest));
   const auto before = library.Get(0);
   SECTION("missing GLB") { fs::remove(f.glb); }
   SECTION("bad ID") { f.doc["clips"][0]["id"] = 7; f.Save(); }
@@ -259,14 +259,14 @@ TEST_CASE("Bad source catalogs fail atomically without a cache fallback", "[anim
   SECTION("invalid touch frame") {
     f.doc["clips"][0]["metadata"]["touch_frame"] = 100000; f.Save();
   }
-  REQUIRE_FALSE(library.LoadCatalog(f.manifest));
+  REQUIRE_FALSE(library.Load(f.manifest));
   REQUIRE(library.Size() == 1);
   RequireSameClip(library.Get(0), before);
 }
 
 TEST_CASE("Catalog import is deterministic across independent libraries", "[animation][glb]") {
   AnimationLibrary library;
-  REQUIRE(library.LoadCatalog(GFOOTBALL_ANIMATION_CATALOG_PATH));
+  REQUIRE(library.Load(GFOOTBALL_ANIMATION_CATALOG_PATH));
   REQUIRE(library.Size() == Catalog().Size());
   for (std::size_t i = 0; i < library.Size(); ++i)
     RequireSameClip(library.Get(i), Catalog().Get(i));
@@ -287,7 +287,6 @@ TEST_CASE("Library Load accepts only catalogs and rejects legacy binary artifact
     out.write(reinterpret_cast<const char*>(header.data()), header.size());
   }
   REQUIRE_FALSE(library.Load(old_artifact));
-  REQUIRE_FALSE(library.LoadCatalog(old_artifact));
   REQUIRE(library.Size() == 1);
   RequireSameClip(library.Get(0), before);
 }
@@ -308,7 +307,7 @@ TEST_CASE("Procedural variants read actual GLB templates, not legacy assets", "[
   f.doc["generation_keys"] = "templates/generation_keys.json";
   f.Save();
   AnimationLibrary library;
-  REQUIRE(library.LoadCatalog(f.manifest));
+  REQUIRE(library.Load(f.manifest));
   const auto before = library.Get(0).poses.front().orientations[body];
   f.glb = f.directory / "templates/06_sprintD000.glb";
   f.Alter([](Json& doc, auto& binary) {
@@ -321,10 +320,10 @@ TEST_CASE("Procedural variants read actual GLB templates, not legacy assets", "[
       for (int i = 0; i < 4; ++i) PutU32(binary, offset+4*i, std::bit_cast<std::uint32_t>(q[i]));
     }
   });
-  REQUIRE(library.LoadCatalog(f.manifest));
+  REQUIRE(library.Load(f.manifest));
   REQUIRE(QuaternionError(library.Get(0).poses.front().orientations[body], before) > .1f);
   const auto modified = library.Get(0);
   fs::remove(f.glb);
-  REQUIRE_FALSE(library.LoadCatalog(f.manifest));
+  REQUIRE_FALSE(library.Load(f.manifest));
   RequireSameClip(library.Get(0), modified);
 }

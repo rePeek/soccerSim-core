@@ -10,11 +10,9 @@
 // Binary .simanim artifacts are not accepted.
 class AnimationLibrary {
  public:
-  // Alias for LoadCatalog; the input is always a catalog manifest.
+  // Loads a catalog manifest: parses GLBs, generates movement variants/mirrors,
+  // and derives support/quality data. Failure preserves the previous library.
   bool Load(const std::filesystem::path& manifest);
-  // Parses GLBs, generates movement variants/mirrors, derives support data.
-  // Failure returns false and preserves the previously loaded resource.
-  bool LoadCatalog(const std::filesystem::path& manifest);
 
   const AnimationClip& Get(uint32_t id) const { return clips_.at(id); }
 

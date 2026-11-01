@@ -118,7 +118,7 @@ TEST_CASE("motion quality reports a loop seam pose pop",
 TEST_CASE("the shipped catalog reports a consistent quality census",
           "[animation][motionquality][catalog]") {
   AnimationLibrary library;
-  REQUIRE(library.LoadCatalog(GFOOTBALL_ANIMATION_CATALOG_PATH));
+  REQUIRE(library.Load(GFOOTBALL_ANIMATION_CATALOG_PATH));
   const AnimationLibrary::MotionQualityCensus census = library.QualityCensus();
   REQUIRE(census.total > 0);
   REQUIRE(census.tracked > 0);

@@ -156,7 +156,7 @@ A1 and later are **not** implemented in this commit.
 - A2: `assets/animations/` contains 283 authored GLBs + manifest. 443
   entries are `procedural`, 726 are `mirror_of`.
 - Superseded: the generator now reads `assets/motion_templates/*.glb` in C++
-  and runs at catalog load time (`src/animation/catalog_loader.cpp`).
+  and runs at catalog load time (`src/animation/library.cpp`).
   `tools/animBaker` and the legacy `.anim`/`player.object` inputs are gone.
 
 ## P3b result (heuristic support-foot lock)

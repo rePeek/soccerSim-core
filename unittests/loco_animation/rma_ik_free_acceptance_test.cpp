@@ -83,7 +83,7 @@ bool OrdinaryStraightGait(const AnimationClip& clip) {
 TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
           "[loco][ikfree][catalog][adapter]") {
   AnimationLibrary library;
-  REQUIRE(library.LoadCatalog(GFOOTBALL_ANIMATION_CATALOG_PATH));
+  REQUIRE(library.Load(GFOOTBALL_ANIMATION_CATALOG_PATH));
 
   const PlayerBodyProfile body = Body();
   int tested = 0;

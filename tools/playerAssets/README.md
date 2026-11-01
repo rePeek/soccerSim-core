@@ -409,7 +409,7 @@ GLB 不能跨文件引用骨骼。外观和动作文件各带同一份参考骨�
   处理，不能再应用到顶点位置。
 - 历史导入实现 `tools/animBaker/animation/animation.cpp`（已移除，见 git 历史）：
   root translation、关节旋转替换、位置线性插值/旋转 SLERP、每帧 10 ms。
-  当前生成与采样逻辑在 `src/animation/catalog_loader.cpp`。
+  当前生成与加载逻辑在 `src/animation/library.cpp`。
 
 Blender 骨骼的显示方向与逻辑关节坐标轴不同，导入器显式做基变换。
 Blender 内使用 Z-up，glTF 导出器统一转换到 Y-up。

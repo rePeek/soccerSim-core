@@ -13,7 +13,6 @@
 
 add_library(football_animation_base STATIC
   library.cpp
-  catalog_loader.cpp
   foot_support.cpp
 )
 add_library(football::animation_base ALIAS football_animation_base)

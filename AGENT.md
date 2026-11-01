@@ -40,7 +40,7 @@ v3.7.1 is fetched only with `BUILD_TESTING=ON`. All use `.cache/CPM`.
 The C++ runtime loads the canonical GLB catalog directly through `cgltf`:
 `assets/animations/{manifest.json,*.glb}`, `assets/motion_templates/` and
 `assets/skeletons/player.json` are the only animation source authority.
-`AnimationLibrary::LoadCatalog` imports authored clips, derives mirrors and
+`AnimationLibrary::Load` imports authored clips, derives mirrors and
 generates movement variants in memory; there is no build-time cache and no
 legacy `.anim` baker. Normal builds need neither Blender nor Python. GLBs use
 Y-up logical joint axes; physics metadata stays Z-up. Do not copy Blender
