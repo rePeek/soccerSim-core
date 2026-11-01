@@ -36,20 +36,26 @@ blender -b --factory-startup --python-exit-code 1 \
 
 正式动作、外观和骨架已经分到 `assets/animations/`、`assets/characters/`、
 `assets/skeletons/`。完整目录和 GLB 源输入契约见 [assets/README.md](../../assets/README.md)。
-`animation_assets.py` 是不依赖 Blender 的正式资产编译器；下面各 Blender 工具
-输出的是 `build/` 下的建模/动画预览，不是另一套正式动作来源。
+C++ 运行时已经直接读取 GLB，不再通过这些 Python 工具编译缓存。
+下面各 Blender 工具输出 `build/` 下的建模/动画预览，不是另一套正式动作来源。
+
+`animation_assets.py bake` 和 `simanim.load()` 保留用于历史恢复/离线预览。
+完整 catalog 的 Python procedural 分支仍需要旧 baker 显式生成的 `autogen.simanim`；
+它不是 C++ 构建或运行的依赖。恢复缓存可使用：
 
 ```sh
+cmake --build build/debug --target football_anim_baker
+./build/debug/football_anim_baker \
+  --autogen-out build/debug/assets/runtime/autogen.simanim \
+  --template-dir data/media/animations/templates \
+  --player-object data/media/objects/players/player.object
 python3 tools/playerAssets/animation_assets.py bake \
   --manifest assets/animations/manifest.json \
+  --autogen build/debug/assets/runtime/autogen.simanim \
   --output build/asset-cache/animations.simanim
 ```
 
-正常 CMake 构建会自动执行缓存编译。所有动作预览默认读取正式 GLB catalog；
-`simanim.load()` 同时支持 catalog JSON 与生成的 v7 缓存，不能依赖已移除的
-`assets/runtime/animations.simanim`。旧 ASE/XML/.anim 工具只用于离线外观参考和历史恢复。
-
-A0 镜像虚拟化后，`manifest.json` 只有 726 个 authored GLB；另外 726 个镜像
+历史 A0 镜像虚拟化时，`manifest.json` 有 726 个 authored GLB；另外 726 个镜像
 条目使用 `mirror_of`，编译时交换左右骨骼、反射根运动/方向、交换脚别并映射
 quadrant。`animation_assets.py virtualize-mirrors` 用于一次性迁移：默认只检查，
 `--write` 改写 manifest，`--delete-files` 才删除已迁移的镜像 GLB。
@@ -69,8 +75,8 @@ python3 tools/playerAssets/animation_assets.py proceduralize-autogen \
   --autogen build/debug/assets/runtime/autogen.simanim --write
 ```
 
-CMake 会自动执行上述生成，并把 `--autogen` 传给缓存编译器。A2 后
-`assets/animations/` 只保留 283 个 authored GLB；镜像和 Autogen 虚拟化。
+以上为历史迁移/恢复命令，CMake 不再自动执行。当前 C++ 加载时直接从 GLB
+模板生成 Autogen，并派生镜像；`assets/animations/` 只保留 283 个 authored GLB。
 
 正式外观包（皮肤、球衣、球鞋、发型）由 `export_character_parts.py` 生成，
 需要下方 `default_14_smooth.blend` 预览模板：

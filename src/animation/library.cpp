@@ -25,6 +25,7 @@
 #include "football/animation/format.hpp"
 
 bool AnimationLibrary::Load(const std::filesystem::path& path) {
+  if (path.extension() == ".json") return LoadCatalog(path);
   std::ifstream is(path, std::ios::binary);
   if (!is) {
     std::cerr << "AnimationLibrary: cannot open " << path << "\n";

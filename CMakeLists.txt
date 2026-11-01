@@ -30,6 +30,7 @@ set(CPM_SOURCE_CACHE "${PROJECT_SOURCE_DIR}/.cache/CPM"
 include(cmake/CPM.cmake)
 include(cmake/bqlog.cmake)
 include(cmake/nlohmann_json.cmake)
+include(cmake/cgltf.cmake)
 include(cmake/animation_assets.cmake)
 
 add_subdirectory(src/foundation)

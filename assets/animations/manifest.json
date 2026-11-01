@@ -3,6 +3,8 @@
   "rig_version": "football_player_v1",
   "fps": 100,
   "skeleton": "../skeletons/player.json",
+  "motion_templates": "../motion_templates/manifest.json",
+  "generation_keys": "../motion_templates/generation_keys.json",
   "clips": [
     {
       "id": 0,

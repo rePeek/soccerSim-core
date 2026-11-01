@@ -6,8 +6,9 @@ assets/
 │   ├── manifest.json       1452 个逻辑动作的稳定 ID
 │   └── *.glb               283 个 authored 源动作
 ├── motion_templates/
-│   ├── manifest.json       10 个 legacy 运动模板的 canonical 描述
-│   └── *.glb               供后续程序化 Autogen 生成器使用的 14 骨骼模板
+│   ├── manifest.json       10 个 canonical 运动模板
+│   ├── generation_keys.json 非线性过渡生成所用的控制采样帧号
+│   └── *.glb               14 骨骼模板，C++ 直接读取
 ├── characters/
 │   ├── manifest.json       可替换外观包及各插槽 (skin/kit/shoes/hair)
 │   ├── default/body.glb    完整默认外观（平滑人物 + 黑色短发）
@@ -50,42 +51,36 @@ goalkeeper/referee；发色可选黑/棕/金/深金/红。
 
 ## 构建与 C++ 运行时
 
-CMake 的 `football_animation_assets` 目标用 Python 3.10+ 标准库生成：
+C++ 通过 CPM 引入的 cgltf 直接解析规范化 GLB：
 
 ```text
 assets/animations/*.glb + manifest.json + skeletons/player.json
-                  ↓ animation_assets.py bake
-<cmake-build-dir>/assets/runtime/animations.simanim
-                  ↓ AnimationLibrary::Load
+assets/motion_templates/*.glb + manifest.json + generation_keys.json
+                  ↓ AnimationLibrary::LoadCatalog
+             内存中的完整 AnimationClip 动作库
+                  ↓
              C++ 动作选择 / 骨骼计算
                   ↓
              Godot 外观蒙皮 / 渲染
 ```
 
-普通构建不需要 Blender，不调用旧 `.anim` baker，也不读取 `data/media/animations`。
-CMake 跟踪全部 GLB、元数据、骨架与编译器的依赖；修改来源后重新构建就会更新缓存。
-运行时及资产相关测试由 CMake 指向各自构建目录中的缓存，不能再指向源码树旧路径。
-当前资源路径仍由 CMake 编译进运行时。部署到别处时需要一起提供缓存并解决
-该路径的定位（例如保留对应路径）；本次没有新增可重定位的资源加载接口。
+普通构建和 C++ 运行时不需要 Python、Blender、旧 `.anim`、`player.object`
+或 animBaker；也不生成或读取 `animations.simanim` / `autogen.simanim`。
+283 个 authored 动作直接导入，443 个程序动作从 GLB 模板生成，再派生 726 个镜像。
+所有资源在初始化时准备，多个 Player 共享动作库，不在每帧或每个球员上重新导入。
 
-手工生成缓存：
+`generation_keys.json` 保存各骨骼的控制采样帧号，而不是另一份姿态数据。
+生成器按这些帧从 GLB 取值，进行非线性混合、转向、倾斜和根轨迹生成，
+以保留原生成器的采样节奏。修改模板时应同步检查控制帧、动作选择和触球元数据。
 
-```sh
-python3 tools/playerAssets/animation_assets.py bake \
-  --manifest assets/animations/manifest.json \
-  --output build/asset-cache/animations.simanim
-```
+运行时资源路径仍由 CMake 编译为 `assets/animations/manifest.json` 的绝对路径；
+部署时需要保留资源路径或由调用者向 `LoadCatalog` 提供正确路径，并提供完整资产树。
+编辑 GLB 后下次资源加载即生效，无需重建缓存；Simulation 在进程内共享动作库，
+不会对运行中的匹配自动热重载。失败加载不发布半成品，保留先前成功加载的库。
 
-缓存采用原 v7 字节布局以保持现有 C++ 算法不变，不是另一份手工维护的动作来源。
-A0 之后，726 个镜像动作不再各自保存 GLB：manifest 用 `mirror_of` 指向源动作，
-编译器在采样时交换左右骨骼、反射根运动/方向、交换脚别并映射 quadrant。
-A1b/A2 之后，443 个 Autogen 也不再保存 GLB：构建时由 `football_anim_baker`
-从 10 个模板重新生成，manifest 用 `procedural` 标记，Python 编译器把它们合并
-进缓存。最后只剩 283 个 authored 源动作 GLB。
-
-生成器仍使用 `data/media/animations/templates/` 的 10 个 legacy `.anim` 和
-`player.object`；这是 A1b 的暂定输入。A1a 已提供对应的 canonical GLB 模板，
-后续可以把生成器切到纯 canonical 输入，最终移除 legacy 依赖。
+支撑脚轨道继续由 `DeriveFootSupport` 从姿态派生；本次没有新增 GLB FootIK extras。
+内容哈希基于最终解码动作数据；GLB 模板采样存在浮点差异，不能假定与旧缓存
+位级一致，也不能沿用旧动作资源哈希。旧 `.simanim` 读取器只保留用于恢复/对照。
 
 ## 足球元数据
 
@@ -93,11 +88,11 @@ manifest 中 `id` 连续且按现有运行时顺序排列，不得随意重排�
 标识（部分含历史机器路径），它是字符串标识而非文件查找路径。条目有三类：
 
 - authored：`file` 指向 283 个 GLB；
-- procedural：`procedural: true`，由 `autogen.simanim` 生成器缓存提供；
+- procedural：`procedural: true`，在加载时从 GLB 运动模板直接生成；
 - mirror：`mirror_of`，没有 `file`/`procedural`，由源动作反射得到。
 
-选择参数、进出速度/方向、脚别、保留状态、触球帧与触球点都在 manifest。生成/镜像
-条目保留逻辑字段，编译器会校验它们与派生结果一致，避免旧快照漂移。
+选择参数、进出速度/方向、脚别、保留状态、触球帧与触球点都在 manifest。
+这些字段仍是足球语义的权威来源；镜像元数据会与反射结果校验，姿态由源动作派生。
 这些值使用 **C++ Z-up Stadium Frame / 米 / 弧度 / 100 Hz 帧号**，没有随 GLB
 转换为 Y-up。不要仅改动画而忘记同步受影响的动作选择/触球数据。
 
@@ -126,11 +121,11 @@ Blender 默认导出（显示骨骼基、轨道优化等）**不保证可直接�
 `data/` 中旧 `.anim`、ASE、XML、BMP 保留为来源/建模参考；不再是正常构建时的
 动作权威来源。`tools/animBaker` 是显式选择才构建的历史恢复工具。
 `animation_assets.py migrate-legacy` 是一次性迁移/恢复命令，不参与正常构建。
-`import_templates.py` 把 `data/media/animations/templates/` 的 10 个 `.anim` 模板
-转换为 `assets/motion_templates/` 的 canonical GLB；这是 A1 程序化 Autogen 的
-输入，尚未替换现有 443 个 Autogen GLB。
+`import_templates.py` 是一次性迁移/恢复工具，把旧模板转换为 canonical GLB、
+模板 manifest 及控制采样帧配置；正常构建不调用它。
 
-`tools/playerAssets/` 中预览工具默认读取新 GLB catalog，保留读取生成缓存的能力。
+旧 Python 预览/缓存编译工具仍可用于恢复，但完整 catalog 的 procedural 分支
+仍需显式提供旧生成器缓存；它们不参与当前 C++ 加载流程。
 它们的 `.blend`、实验骨架和截图仍输出到 Git 忽略的 `build/`。重新制作外观后，
 可以用 `animation_assets.py character --source ... --output ... --skeleton ...`
 把静态 Blender 导出包的显示骨骼基转换为共享逻辑骨骼基，再发布到 characters。
@@ -139,10 +134,9 @@ Blender 默认导出（显示骨骼基、轨道优化等）**不保证可直接�
 ## 验证
 
 ```sh
-python3 -m unittest discover -s tools/playerAssets -v
 nix develop --command bash -c 'cmake --preset debug && cmake --build --preset debug -j 4 && ctest --test-dir build/debug -L animation --output-on-failure'
 ```
 
-测试覆盖完整 catalog/cache 往返、实际 GLB 编辑改变缓存、缺失元数据、ID/path、
-坏时间轴、错误参考基、非有限数、越界 accessor、失败缓存保留、人物共享骨架，
-以及既有动画选择、姿态、触球与 locomotion 单元测试。不需要跑整场比赛。
+C++ 测试覆盖完整 catalog 导入、镜像、程序动作参考姿态、源 GLB 编辑即时生效、
+内容哈希、坏时间轴/参考基/访问越界/非有限数拒绝，以及失败后旧动作库保留。
+同时运行既有动作选择、姿态、触球与 locomotion 测试；不需要跑整场比赛。

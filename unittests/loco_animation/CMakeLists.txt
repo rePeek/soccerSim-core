@@ -1,5 +1,5 @@
 # LOCO-2.4/2.5/2.7 — headless off-ball animation acceptance.
-# Loads the baked asset, drives the strategy over the real Motion library for
+# Loads the canonical GLB catalog, drives the strategy over the real Motion library for
 # the LOCO scenarios, and verifies that body profile changes geometry without
 # changing animation selection (shared library, independent capabilities).
 # The motion/pose acceptance also drives the production pose chain (warp,
@@ -28,4 +28,4 @@ football_configure_target(football_loco_animation_tests)
 add_test(NAME loco_animation COMMAND football_loco_animation_tests)
 set_tests_properties(loco_animation PROPERTIES
   LABELS "unit;locomotion;animation"
-  TIMEOUT 10)
+  TIMEOUT 60)

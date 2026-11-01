@@ -100,8 +100,8 @@ struct BakedTouch {
   static BakedTouch Deserialize(std::istream& is);
 };
 
-// Immutable runtime animation data. Baked ahead of time by anim_baker; the
-// simulation never parses source assets.
+// Immutable runtime animation data, prepared once from the canonical GLB
+// catalog and shared by all players. Legacy serialization is recovery IO only.
 struct AnimationClip {
   uint32_t id = 0;
   std::string name;

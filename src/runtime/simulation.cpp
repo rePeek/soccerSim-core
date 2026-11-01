@@ -1034,18 +1034,18 @@ void Simulation::ReleaseProductionPhysics() {
 }
 void Simulation::EnsureAnimationLibrary() {
   if (animations_) return;
-  // The baked artifact is immutable once loaded (Load validates it and nothing
-  // mutates the library afterwards), so it is parsed once per process and
-  // shared by every Simulation. A match re-creates its Simulation freely - a
-  // re-Init, a restored replay or a test harness - without paying for a 20 MB
-  // deserialization each time; the content hash is identical by construction.
+  // The prepared clip library is immutable once loaded (LoadCatalog validates
+  // every source and nothing mutates it afterwards), so it is parsed once per
+  // process and shared by every Simulation. A match re-creates its Simulation freely - a
+  // re-Init, a restored replay or a test harness - without parsing and preparing
+  // the GLB catalog each time.
   static const std::shared_ptr<const AnimationLibrary> shared_library = [] {
     // Never put resource loading inside assert(): Release must load and reject
     // invalid resources too. Publish only a successfully loaded library.
     auto animations = std::make_shared<AnimationLibrary>();
-    if (!animations->Load(GFOOTBALL_BAKED_ANIM_PATH)) {
-      throw std::runtime_error("Simulation: cannot load baked animations: " +
-                               std::string(GFOOTBALL_BAKED_ANIM_PATH));
+    if (!animations->LoadCatalog(GFOOTBALL_ANIMATION_CATALOG_PATH)) {
+      throw std::runtime_error("Simulation: cannot load animation catalog: " +
+                               std::string(GFOOTBALL_ANIMATION_CATALOG_PATH));
     }
     return std::shared_ptr<const AnimationLibrary>(std::move(animations));
   }();

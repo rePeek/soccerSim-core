@@ -116,10 +116,12 @@ base/kit/shoes/hair slots) live in `assets/characters/`, with one shared skeleto
 in `assets/skeletons/player.json`.
 See [assets/README.md](assets/README.md) for the authoring contract.
 
-CMake uses Python 3.10+ (included in the Nix shell) to compile the GLB catalog
-into `<build-dir>/assets/runtime/animations.simanim`. This is a generated cache,
-not a checked-in asset. Normal builds need neither Blender nor the old `.anim`
-baker. Blender preview tools are documented in
+C++ loads the canonical GLB catalog directly using cgltf (pinned via CPM),
+including mirrors and movement variants generated from GLB motion templates.
+There is no build-time `.simanim` intermediate and no runtime dependency on
+Python, Blender, legacy `.anim` templates or the old baker. Resource paths are
+currently compiled in; deploy the complete `assets/` tree with the application.
+Legacy Python preview/recovery tools are documented in
 [tools/playerAssets/README.md](tools/playerAssets/README.md).
 
 ## Build and tests
@@ -133,8 +135,8 @@ Each module CMakeLists owns explicit sources, public FILE_SET HEADERS,
 dependencies and `football::` aliases. `football::simcore` compiles
 `src/env.cpp` and publishes `include/football/env.hpp` as the public facade.
 
-BqLog and nlohmann/json are fetched via CPM in every build mode; Catch2 is
-fetched only with `BUILD_TESTING=ON`. All are cached in `.cache/CPM`.
+BqLog, nlohmann/json and cgltf are fetched via CPM in every build mode; Catch2
+is fetched only with `BUILD_TESTING=ON`. All are cached in `.cache/CPM`.
 
 Unit tests live under `unittests/` and link only the module under test. The
 current scope is `pitch`, `ball`, `player` and `team`, plus the `animation`

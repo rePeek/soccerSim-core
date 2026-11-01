@@ -20,16 +20,15 @@
 
 #include "football/animation/clip.hpp"
 
-// Read-only view over a baked animations.simanim artifact.
-//
-// ANIM-2 A12.0: Load() is compiled into football::animation_base (library.cpp),
-// so this header no longer pulls <fstream>/<iostream> into every caller. The
-// offline baker and the runtime share the same reader.
+// Shared immutable animation resource. Runtime loads canonical GLBs via a
+// catalog; legacy binary cache loading remains available to recovery tools.
 class AnimationLibrary {
  public:
-  // Reads the whole file, hashes it for provenance and deserializes every clip.
-  // Returns false on open/parse failure and leaves the previous contents cleared.
+  // Dispatches .json to LoadCatalog; other paths use the legacy cache reader.
   bool Load(const std::filesystem::path& path);
+  // Parses GLBs, generates movement variants/mirrors, derives support data.
+  // Failure returns false and preserves the previously loaded resource.
+  bool LoadCatalog(const std::filesystem::path& manifest);
 
   const AnimationClip& Get(uint32_t id) const { return clips_.at(id); }
 

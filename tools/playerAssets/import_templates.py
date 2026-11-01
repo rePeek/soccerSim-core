@@ -125,6 +125,10 @@ def import_templates(source, output):
     output.mkdir(parents=True, exist_ok=True)
     manifest = {"schema": assets.SCHEMA, "rig_version": assets.RIG, "fps": 100,
                 "skeleton": "../skeletons/player.json", "clips": []}
+    controls = {"schema": "football_motion_generation_keys_v1",
+                "description": "Control sample indices for nonlinear transition generation, in 100 Hz "
+                               "GLB frames. Not pose data; values are always read from the template GLBs.",
+                "templates": {}}
     for template_id, path in enumerate(files):
         clip = build_clip(path, template_id)
         filename = f"{template_id:02d}_{path.stem}.glb"
@@ -137,7 +141,12 @@ def import_templates(source, output):
                 if any(abs(x - y) > 2e-5 for x, y in zip(a, b)):
                     raise ValueError(f"Template roundtrip mismatch: {path.name}")
         manifest["clips"].append(entry)
+        tracks, _ = legacy.load_animation(path)
+        controls["templates"][clip.name] = {
+            name: [frame for frame, _ in tracks[name]] for name in simanim.BODY_PARTS
+        }
     assets.json_write(output / "manifest.json", manifest)
+    assets.json_write(output / "generation_keys.json", controls)
     return len(files)
 
 
