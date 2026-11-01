@@ -15,16 +15,12 @@
 #define _HPP_SIMANIM_FORMAT
 
 #include <cstdint>
-#include <istream>
 #include <ostream>
 #include <string>
 
-// Baked animation artifact (.simanim) schema, shared between the offline
-// baker (writer) and the runtime library (reader). Keep this dependency-free:
-// it only knows byte layout and primitive (de)serialization.
-//
-// ANIM-2 A12.0: the primitive bodies live in src/animation/format.cpp so this
-// header only carries the schema constants and declarations.
+// Write-only byte encoding used by the catalog content hash. The historical
+// SIMANIM v7 prefix and field layout remain solely to keep hashes stable;
+// there is no binary asset reader or runtime cache format API.
 
 constexpr char kSimAnimMagic[8] = {'S', 'I', 'M', 'A', 'N', 'I', 'M', '1'};
 constexpr uint32_t kSimAnimVersion = 7;
@@ -34,12 +30,6 @@ void SimAnimWriteI32(std::ostream& os, int32_t v);
 void SimAnimWriteF32(std::ostream& os, float v);
 void SimAnimWriteString(std::ostream& os, const std::string& s);
 
-uint32_t SimAnimReadU32(std::istream& is);
-int32_t SimAnimReadI32(std::istream& is);
-float SimAnimReadF32(std::istream& is);
-std::string SimAnimReadString(std::istream& is);
-
 void SimAnimWriteHeader(std::ostream& os, uint32_t clip_count);
-bool SimAnimReadHeader(std::istream& is, uint32_t& clip_count);
 
 #endif

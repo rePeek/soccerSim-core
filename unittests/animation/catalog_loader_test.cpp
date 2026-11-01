@@ -242,6 +242,26 @@ TEST_CASE("Catalog import is deterministic across independent libraries", "[anim
   REQUIRE(library.ContentHash() == Catalog().ContentHash());
 }
 
+TEST_CASE("Library Load accepts only catalogs and rejects legacy binary artifacts", "[animation][glb]") {
+  Fixture f;
+  AnimationLibrary library;
+  REQUIRE(library.Load(f.manifest));
+  const auto hash = library.ContentHash();
+  const auto old_artifact = f.directory / "legacy.simanim";
+  // A valid empty v7 artifact used to load successfully. Construct its header
+  // explicitly so this test never depends on the removed binary writer/reader.
+  const std::array<unsigned char, 16> header{
+      'S', 'I', 'M', 'A', 'N', 'I', 'M', '1', 7, 0, 0, 0, 0, 0, 0, 0};
+  {
+    std::ofstream out(old_artifact, std::ios::binary);
+    out.write(reinterpret_cast<const char*>(header.data()), header.size());
+  }
+  REQUIRE_FALSE(library.Load(old_artifact));
+  REQUIRE_FALSE(library.LoadCatalog(old_artifact));
+  REQUIRE(library.Size() == 1);
+  REQUIRE(library.ContentHash() == hash);
+}
+
 TEST_CASE("Procedural variants read actual GLB templates, not legacy assets", "[animation][glb]") {
   Fixture f;
   const fs::path source(GFOOTBALL_ANIMATION_CATALOG_PATH);

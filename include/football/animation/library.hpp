@@ -20,12 +20,12 @@
 
 #include "football/animation/clip.hpp"
 
-// Shared immutable animation resource. Runtime loads canonical GLBs via a
-// catalog; legacy binary cache loading remains available to recovery tools.
+// Shared immutable animation resource, loaded from a canonical GLB catalog.
+// Binary .simanim artifacts are not accepted.
 class AnimationLibrary {
  public:
-  // Dispatches .json to LoadCatalog; other paths use the legacy cache reader.
-  bool Load(const std::filesystem::path& path);
+  // Alias for LoadCatalog; the input is always a catalog manifest.
+  bool Load(const std::filesystem::path& manifest);
   // Parses GLBs, generates movement variants/mirrors, derives support data.
   // Failure returns false and preserves the previously loaded resource.
   bool LoadCatalog(const std::filesystem::path& manifest);

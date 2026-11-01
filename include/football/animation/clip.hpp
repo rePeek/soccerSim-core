@@ -85,9 +85,8 @@ struct FootballAnimationMetadata {
   Vector3 translation;
   int32_t outgoing_foot = 0;
 
-  // ANIM-2 A12.0: the byte-level bodies live in src/animation/clip.cpp.
+  // Stable write-only encoding for catalog content hashing (clip.cpp).
   void Serialize(std::ostream& os) const;
-  static FootballAnimationMetadata Deserialize(std::istream& is);
 };
 
 // One contact touch (frame + ball position), mirroring
@@ -97,11 +96,10 @@ struct BakedTouch {
   Vector3 position;
 
   void Serialize(std::ostream& os) const;
-  static BakedTouch Deserialize(std::istream& is);
 };
 
 // Immutable runtime animation data, prepared once from the canonical GLB
-// catalog and shared by all players. Legacy serialization is recovery IO only.
+// catalog and shared by all players. Serialization is used for content hashing.
 struct AnimationClip {
   uint32_t id = 0;
   std::string name;
@@ -122,8 +120,8 @@ struct AnimationClip {
   // Full touch list (frame + position).
   std::vector<BakedTouch> touches;
 
-  // Derived at load time from the clip's own leg poses (see foot_support.hpp),
-  // not stored in the artifact. One entry per frame; empty means "not derived".
+  // Derived at load time from the clip's own leg poses (see foot_support.hpp).
+  // One entry per frame; empty means "not derived".
   std::vector<FootSupportFrame> foot_support;
   // How fast a stance foot travels backwards inside this clip, in metres per
   // second (stance-phase mean). 0 when the clip has no stance phase or no track.
@@ -136,9 +134,8 @@ struct AnimationClip {
   // may use this clip or must fall back to the compatibility path.
   ClipMotionQuality motion_quality;
 
-  // ANIM-2 A12.0: the byte-level bodies live in src/animation/clip.cpp.
+  // Stable write-only encoding for catalog content hashing (clip.cpp).
   void Serialize(std::ostream& os) const;
-  static AnimationClip Deserialize(std::istream& is, uint32_t id);
 };
 
 #endif

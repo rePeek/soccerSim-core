@@ -1,7 +1,7 @@
 # ANIM-2 A12: the Animation module owns two archives.
 #
 # football::animation_base — immutable clips, canonical GLB/catalog import,
-# derived foot support, and legacy cache IO for recovery/comparison tools.
+# derived foot support, and write-only content-hash encoding.
 # Candidate selection remains in Player.
 #
 # football::animation — the runtime algorithms on top of the base: full match

@@ -11,13 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ANIM-2 A12.0: the primitive .simanim read/write bodies, moved verbatim out of
-// format.hpp. Byte layout is unchanged; the offline baker and the runtime reader
-// share only these declarations.
+// Write-only byte primitives for stable catalog content hashing.
+// Preserve the historical encoding; no binary resource reads remain.
 
 #include "football/animation/format.hpp"
-
-#include <cstring>
 
 void SimAnimWriteU32(std::ostream& os, uint32_t v) {
   os.write(reinterpret_cast<const char*>(&v), sizeof(v));
@@ -33,40 +30,8 @@ void SimAnimWriteString(std::ostream& os, const std::string& s) {
   os.write(s.data(), static_cast<std::streamsize>(s.size()));
 }
 
-uint32_t SimAnimReadU32(std::istream& is) {
-  uint32_t v = 0;
-  is.read(reinterpret_cast<char*>(&v), sizeof(v));
-  return v;
-}
-int32_t SimAnimReadI32(std::istream& is) {
-  int32_t v = 0;
-  is.read(reinterpret_cast<char*>(&v), sizeof(v));
-  return v;
-}
-float SimAnimReadF32(std::istream& is) {
-  float v = 0.0f;
-  is.read(reinterpret_cast<char*>(&v), sizeof(v));
-  return v;
-}
-std::string SimAnimReadString(std::istream& is) {
-  const uint32_t len = SimAnimReadU32(is);
-  std::string s(len, '\0');
-  if (len > 0) is.read(s.data(), static_cast<std::streamsize>(len));
-  return s;
-}
-
 void SimAnimWriteHeader(std::ostream& os, uint32_t clip_count) {
   os.write(kSimAnimMagic, sizeof(kSimAnimMagic));
   SimAnimWriteU32(os, kSimAnimVersion);
   SimAnimWriteU32(os, clip_count);
-}
-
-bool SimAnimReadHeader(std::istream& is, uint32_t& clip_count) {
-  char magic[8] = {};
-  is.read(magic, sizeof(magic));
-  if (std::memcmp(magic, kSimAnimMagic, sizeof(magic)) != 0) return false;
-  const uint32_t version = SimAnimReadU32(is);
-  if (version != kSimAnimVersion) return false;
-  clip_count = SimAnimReadU32(is);
-  return true;
 }

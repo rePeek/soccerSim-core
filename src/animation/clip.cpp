@@ -11,13 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ANIM-2 A12.0: the .simanim clip (de)serialization bodies, moved verbatim out
-// of clip.hpp. Field order and byte width are unchanged, so a baked artifact is
-// byte-identical.
+// Stable clip encoding used to hash decoded catalog content. Keep field order
+// and byte widths unchanged so resource provenance survives IO cleanup.
+// This is write-only in-memory encoding, not a resource loading format.
 
 #include "football/animation/clip.hpp"
 
-#include <istream>
 #include <ostream>
 
 #include "football/animation/format.hpp"
@@ -28,14 +27,6 @@ void WriteVec3(std::ostream& os, const Vector3& v) {
   SimAnimWriteF32(os, v.coords[0]);
   SimAnimWriteF32(os, v.coords[1]);
   SimAnimWriteF32(os, v.coords[2]);
-}
-
-Vector3 ReadVec3(std::istream& is) {
-  Vector3 v;
-  v.coords[0] = SimAnimReadF32(is);
-  v.coords[1] = SimAnimReadF32(is);
-  v.coords[2] = SimAnimReadF32(is);
-  return v;
 }
 
 }  // namespace
@@ -80,58 +71,9 @@ void FootballAnimationMetadata::Serialize(std::ostream& os) const {
   SimAnimWriteI32(os, outgoing_foot);
 }
 
-FootballAnimationMetadata FootballAnimationMetadata::Deserialize(std::istream& is) {
-  FootballAnimationMetadata m;
-  m.action_type = SimAnimReadI32(is);
-  m.incoming_velocity = SimAnimReadF32(is);
-  m.outgoing_velocity = SimAnimReadF32(is);
-  m.incoming_body_angle = SimAnimReadF32(is);
-  m.outgoing_body_angle = SimAnimReadF32(is);
-  m.outgoing_angle = SimAnimReadF32(is);
-  m.difficulty = SimAnimReadF32(is);
-  m.touch_frame = SimAnimReadI32(is);
-  m.quadrant = SimAnimReadI32(is);
-  m.last_ditch = SimAnimReadU32(is) != 0;
-  m.base_animation = SimAnimReadU32(is) != 0;
-  m.idle_level = SimAnimReadF32(is);
-  m.special_var1 = SimAnimReadF32(is);
-  m.special_var2 = SimAnimReadF32(is);
-  m.incoming_body_direction = ReadVec3(is);
-  m.outgoing_direction = ReadVec3(is);
-  m.incoming_ball_direction = ReadVec3(is);
-  m.outgoing_ball_direction = ReadVec3(is);
-  m.incoming_ball_direction_max_deviation = SimAnimReadF32(is);
-  m.outgoing_ball_direction_max_deviation = SimAnimReadF32(is);
-  m.trip_type = SimAnimReadI32(is);
-  m.current_foot = SimAnimReadI32(is);
-  m.incoming_retain_state = SimAnimReadString(is);
-  m.outgoing_retain_state = SimAnimReadString(is);
-  m.incoming_special_state = SimAnimReadString(is);
-  m.forced_foot = SimAnimReadString(is);
-  m.touch_foot = SimAnimReadString(is);
-  m.outgoing_special_state = SimAnimReadString(is);
-  m.touch_bodypart = SimAnimReadString(is);
-  m.touch_max_power_factor = SimAnimReadF32(is);
-  m.touch_difficulty_factor = SimAnimReadF32(is);
-  m.priority = SimAnimReadF32(is);
-  m.bump_direction = ReadVec3(is);
-  m.incoming_movement = ReadVec3(is);
-  m.outgoing_movement = ReadVec3(is);
-  m.translation = ReadVec3(is);
-  m.outgoing_foot = SimAnimReadI32(is);
-  return m;
-}
-
 void BakedTouch::Serialize(std::ostream& os) const {
   SimAnimWriteI32(os, frame);
   WriteVec3(os, position);
-}
-
-BakedTouch BakedTouch::Deserialize(std::istream& is) {
-  BakedTouch t;
-  t.frame = SimAnimReadI32(is);
-  t.position = ReadVec3(is);
-  return t;
 }
 
 void AnimationClip::Serialize(std::ostream& os) const {
@@ -161,45 +103,4 @@ void AnimationClip::Serialize(std::ostream& os) const {
   }
   SimAnimWriteU32(os, static_cast<uint32_t>(touches.size()));
   for (const BakedTouch& t : touches) t.Serialize(os);
-}
-
-AnimationClip AnimationClip::Deserialize(std::istream& is, uint32_t id) {
-  AnimationClip clip;
-  clip.id = id;
-  clip.name = SimAnimReadString(is);
-  clip.frame_count = SimAnimReadU32(is);
-  clip.root_positions.reserve(clip.frame_count);
-  for (uint32_t f = 0; f < clip.frame_count; ++f) {
-    Vector3 p;
-    p.coords[0] = SimAnimReadF32(is);
-    p.coords[1] = SimAnimReadF32(is);
-    p.coords[2] = SimAnimReadF32(is);
-    clip.root_positions.push_back(p);
-  }
-  clip.poses.reserve(clip.frame_count);
-  for (uint32_t f = 0; f < clip.frame_count; ++f) {
-    PoseFrame pose;
-    for (size_t b = 0; b < kBodyPartCount; ++b) {
-      for (int e = 0; e < 4; ++e) {
-        pose.orientations[b].elements[e] = SimAnimReadF32(is);
-      }
-      pose.positions[b].coords[0] = SimAnimReadF32(is);
-      pose.positions[b].coords[1] = SimAnimReadF32(is);
-      pose.positions[b].coords[2] = SimAnimReadF32(is);
-    }
-    clip.poses.push_back(std::move(pose));
-  }
-  clip.metadata = FootballAnimationMetadata::Deserialize(is);
-  clip.has_contact = SimAnimReadU32(is) != 0;
-  if (clip.has_contact) {
-    clip.contact_position.coords[0] = SimAnimReadF32(is);
-    clip.contact_position.coords[1] = SimAnimReadF32(is);
-    clip.contact_position.coords[2] = SimAnimReadF32(is);
-  }
-  const uint32_t touch_count = SimAnimReadU32(is);
-  clip.touches.reserve(touch_count);
-  for (uint32_t t = 0; t < touch_count; ++t) {
-    clip.touches.push_back(BakedTouch::Deserialize(is));
-  }
-  return clip;
 }

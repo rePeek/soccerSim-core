@@ -11,54 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ANIM-2 A12.0: the artifact reader, moved verbatim out of library.hpp. The
-// FNV-1a content hash, header validation and clip deserialization order are
-// unchanged, so an artifact loads bit-identically.
-
 #include "football/animation/library.hpp"
 
-#include <array>
-#include <fstream>
-#include <iostream>
-
-#include "football/animation/foot_support.hpp"
-#include "football/animation/format.hpp"
-
-bool AnimationLibrary::Load(const std::filesystem::path& path) {
-  if (path.extension() == ".json") return LoadCatalog(path);
-  std::ifstream is(path, std::ios::binary);
-  if (!is) {
-    std::cerr << "AnimationLibrary: cannot open " << path << "\n";
-    return false;
-  }
-
-  std::uint64_t hash = UINT64_C(14695981039346656037);
-  std::array<char, 16384> bytes;
-  while (is.read(bytes.data(), bytes.size()) || is.gcount() != 0) {
-    for (std::streamsize i = 0; i < is.gcount(); ++i) {
-      hash ^= static_cast<unsigned char>(bytes[static_cast<std::size_t>(i)]);
-      hash *= UINT64_C(1099511628211);
-    }
-  }
-  if (!is.eof()) return false;
-  is.clear();
-  is.seekg(0);
-
-  uint32_t clip_count = 0;
-  if (!SimAnimReadHeader(is, clip_count)) {
-    std::cerr << "AnimationLibrary: bad or unsupported header in " << path << "\n";
-    return false;
-  }
-
-  clips_.clear();
-  clips_.reserve(clip_count);
-  for (uint32_t i = 0; i < clip_count; ++i) {
-    clips_.push_back(AnimationClip::Deserialize(is, i));
-  }
-  // The support track is derived once, here, from the clip's own poses: the
-  // Player needs a per-frame answer to "which foot carries weight" and the
-  // artifact does not carry one.
-  for (AnimationClip& clip : clips_) DeriveFootSupport(clip);
-  content_hash_ = hash;
-  return true;
+bool AnimationLibrary::Load(const std::filesystem::path& manifest) {
+  return LoadCatalog(manifest);
 }

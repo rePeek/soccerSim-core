@@ -80,7 +80,8 @@ assets/motion_templates/*.glb + manifest.json + generation_keys.json
 
 支撑脚轨道继续由 `DeriveFootSupport` 从姿态派生；本次没有新增 GLB FootIK extras。
 内容哈希基于最终解码动作数据；GLB 模板采样存在浮点差异，不能假定与旧缓存
-位级一致，也不能沿用旧动作资源哈希。旧 `.simanim` 读取器只保留用于恢复/对照。
+位级一致，也不能沿用旧动作资源哈希。C++ 已移除 `.simanim` 读取器，仅保留
+用于稳定内容哈希的内存字节编码，不写出中间文件。
 
 ## 足球元数据
 
