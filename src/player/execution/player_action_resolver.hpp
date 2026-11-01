@@ -6,7 +6,6 @@
 #include <string>
 #include <vector>
 
-#include <span>
 
 #include "football/animation/entry_frame.hpp"
 #include "football/animation/library.hpp"
@@ -14,21 +13,18 @@
 #include "football/animation/selector.hpp"
 #include "player/execution/player_reaction_resolver.hpp"
 
-// ANIM-2 A10.2 — the Animation-side match contract.
+// The Player's action resolver: which clip performs this action, and from which
+// frame.
 //
-// This is the value/data boundary between the Player and the Animation module.
+// ACFG-3 moved this decision out of the Animation module. Animation is now the
+// shared clip resource plus pure pose/clip algorithms; deciding what to perform
+// is Player business, and the resolver is where that lives.
+//
 // The Player resolves its own state (command, spatial facts, precomputed ball
-// sampling) into a `MatchQuery`; Animation returns the chosen clip and cursor
-// as a `MatchResult`. Animation never includes sim/player, sim/runtime,
-// football/ball or sim/observation: anything it needs arrives as a value.
-//
-// Motion adaptation is a synchronous, side-effect-free port. Animation asks
-// `MotionEvaluator` for a candidate's adapted reference trajectory; the Player
-// implements it over PlayerMotion. Animation never sees Player or PlayerMotion.
-//
-// A10.2 defines the contract and the stateless candidate refinement it already
-// owns. The touch-matching loop (A10.4) and the Player wiring (A10.5) extend the
-// same query/result rather than introducing a second selection path.
+// sampling) into a `MatchQuery` and receives the chosen clip and cursor as a
+// `MatchResult`. Motion adaptation is a synchronous, side-effect-free port: the
+// Player implements it over PlayerMotion, so this resolver never reaches into
+// the entity.
 
 namespace football::player {
 

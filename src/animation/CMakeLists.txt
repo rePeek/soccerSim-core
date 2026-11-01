@@ -50,7 +50,6 @@ target_sources(football_animation PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/motion_clip.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/pose_blend.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/pose_sampling.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/select_clip.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/movement_math.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/touch_geometry.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/transition.hpp

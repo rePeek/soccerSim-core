@@ -489,6 +489,9 @@ TEST_CASE("the derived support track matches the clip's own gait") {
   REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
   const AnimationClip& clip = CruiseClip(library, 5.0f);
   REQUIRE(clip.foot_support.size() == clip.frame_count);
+  // The clips the locomotion pipeline actually selects must clear the quality
+  // gate, otherwise the Player would silently fall back for the main gait.
+  REQUIRE(FootSupportTrusted(clip.foot_support_summary, true));
   int left_support = 0;
   int right_support = 0;
   int double_support = 0;

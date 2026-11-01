@@ -126,8 +126,11 @@ struct AnimationClip {
   // not stored in the artifact. One entry per frame; empty means "not derived".
   std::vector<FootSupportFrame> foot_support;
   // How fast a stance foot travels backwards inside this clip, in metres per
-  // second. 0 when the clip has no stance phase or no track.
+  // second (stance-phase mean). 0 when the clip has no stance phase or no track.
   float stance_speed = 0.0f;
+  // Per-phase detail and the quality flags; a caller must not trust the track
+  // when `FootSupportTrusted()` is false.
+  FootSupportSummary foot_support_summary;
 
   // ANIM-2 A12.0: the byte-level bodies live in src/animation/clip.cpp.
   void Serialize(std::ostream& os) const;

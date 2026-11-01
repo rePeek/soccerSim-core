@@ -5,16 +5,15 @@
 #include "football/animation/types.hpp"
 #include "football/animation/clip.hpp"
 
-// ANIM-1 A6.4 step 2a / ANIM-2 A12.3 - stateless touch/action-smuggle scoring.
+// Stateless touch/action-smuggle scoring (ACFG-3 moved it out of Animation).
 //
-// These are line-for-line relocations of pure arithmetic inside
-// `Humanoid::GetBestCheatableAnimID`. They read no Player / Humanoid /
-// Simulation state: everything they need travels in the request struct, so the
-// Animation side owns the formula and the Player side owns the inputs.
+// Line-for-line relocations of pure arithmetic from the legacy
+// `Humanoid::GetBestCheatableAnimID`. They read no Player/Simulation state:
+// everything they need travels in the request struct.
 //
-// Behaviour is intended to be bit-identical: same clamping, same operation
-// order, same floating-point expressions. The bodies live in
-// src/animation/touch_scoring.cpp.
+// Behaviour is bit-identical: same clamping, same operation order, same
+// floating-point expressions. The bodies live in
+// player_touch_action_scoring.cpp.
 
 namespace football::player {
 

@@ -63,6 +63,37 @@ inline bool FootIsSupporting(FootPhase phase) {
          phase == FootPhase::Takeoff;
 }
 
+// What the derivation concluded about a whole clip, and whether it may be
+// trusted. A gait clip that never carries weight, carries weight the whole time,
+// or whose stance foot disagrees wildly with its own root track is a clip the
+// derivation could not read - the Player must fall back instead of locking feet
+// on a guess.
+struct FootSupportSummary {
+  // Mean backward speed of the support foot *inside* the clip, per phase. The
+  // stance value is the cadence reference playback follows.
+  float landing_speed = 0.0f;
+  float stance_speed = 0.0f;
+  float takeoff_speed = 0.0f;
+  // Duty cycles over the cycle, 0..1.
+  float support_duty = 0.0f;
+  float double_support_duty = 0.0f;
+  float flight_duty = 0.0f;
+  // A support run shorter than this many frames cannot be a real step.
+  int shortest_support_run = 0;
+  bool no_support = false;
+  bool all_support = false;
+  bool stance_too_short = false;
+  bool speed_outlier = false;
+};
+
+// Trustworthy = there is a track, it has real contact, and it agrees with the
+// clip's own travel. Callers use the velocity bridge when this is false.
+inline bool FootSupportTrusted(const FootSupportSummary& summary,
+                               bool has_track) {
+  return has_track && !summary.no_support && !summary.all_support &&
+         !summary.stance_too_short && !summary.speed_outlier;
+}
+
 enum e_Velocity {
   e_Velocity_Idle,
   e_Velocity_Dribble,

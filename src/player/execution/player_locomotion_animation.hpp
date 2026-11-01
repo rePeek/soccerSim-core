@@ -143,7 +143,12 @@ inline float LocomotionClipReferenceSpeed(const AnimationClip& clip) {
 // data (idle clips, actions, or a derivation that found nothing).
 inline float LocomotionClipGaitSpeed(const AnimationClip& clip) {
   const float root_speed = LocomotionClipReferenceSpeed(clip);
-  const float stance_speed = clip.stance_speed;
+  // An untrusted derivation must not drive cadence: a clip whose support phases
+  // could not be read keeps the root-track definition.
+  const float stance_speed =
+      FootSupportTrusted(clip.foot_support_summary, !clip.foot_support.empty())
+          ? clip.stance_speed
+          : 0.0f;
   if (stance_speed <= 0.5f) return root_speed;
   // A stance foot cannot travel much faster than the body it carries; anything
   // beyond that is derivation noise, not a cadence reference.

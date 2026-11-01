@@ -8,7 +8,6 @@ add_executable(football_animation_unit_tests
   pose_sampling_test.cpp
   pose_blend_test.cpp
   selector_test.cpp
-  select_clip_test.cpp
   entry_frame_continuity_test.cpp
   touch_geometry_test.cpp
   foot_support_test.cpp)

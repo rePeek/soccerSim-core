@@ -133,3 +133,93 @@ TEST_CASE("the shipped catalog derives a usable support track", "[animation][foo
   // Most locomotion clips have a measurable stance phase; idle clips do not.
   CHECK(clips_with_stance > movement_clips / 2);
 }
+
+// ---------------------------------------------------------------------------
+// P2: the derived contract and its quality gate.
+// ---------------------------------------------------------------------------
+TEST_CASE("the derived contract reports phases, duty cycles and a verdict",
+          "[animation][footsupport]") {
+  AnimationClip clip = AlternatingClip();
+  clip.metadata.action_type = e_DefString_Movement;
+  DeriveFootSupport(clip);
+  const FootSupportSummary& summary = clip.foot_support_summary;
+
+  // Every frame has exactly one supporting foot in this pattern.
+  CHECK(summary.support_duty == Catch::Approx(1.0f));
+  CHECK(summary.double_support_duty == Catch::Approx(0.0f));
+  CHECK(summary.flight_duty == Catch::Approx(0.0f));
+  CHECK(summary.shortest_support_run == 10);
+  CHECK_FALSE(summary.no_support);
+  CHECK_FALSE(summary.all_support);
+  CHECK_FALSE(summary.stance_too_short);
+
+  // This synthetic clip has a moving root with *static* legs, so its support
+  // foot does not travel backwards at all: the quality gate must refuse to trust
+  // it rather than letting a made-up cadence reference through.
+  CHECK(summary.landing_speed == Catch::Approx(0.0f));
+  CHECK(summary.stance_speed == Catch::Approx(0.0f));
+  CHECK(summary.speed_outlier);
+  CHECK_FALSE(FootSupportTrusted(summary, !clip.foot_support.empty()));
+
+  // Per-phase detail is preserved, not averaged away.
+  CHECK(summary.takeoff_speed >= 0.0f);
+}
+
+TEST_CASE("a clip whose contact cannot be read is not trusted",
+          "[animation][footsupport]") {
+  AnimationClip clip = AlternatingClip();
+  clip.metadata.action_type = e_DefString_Movement;
+  DeriveFootSupport(clip);
+  // No track at all: nothing to trust.
+  CHECK_FALSE(FootSupportTrusted(FootSupportSummary{}, false));
+
+  // A frozen pose rests on both feet the whole cycle: fine for a stance clip,
+  // but it is not a gait.
+  AnimationClip frozen;
+  frozen.id = 2;
+  frozen.frame_count = 6;
+  frozen.root_positions.assign(6, Vector3(0, 0, 0));
+  frozen.poses.assign(6, PoseFrame{});
+  frozen.metadata.action_type = e_DefString_Movement;
+  DeriveFootSupport(frozen);
+  CHECK(frozen.foot_support_summary.all_support);
+  CHECK_FALSE(FootSupportTrusted(frozen.foot_support_summary, true));
+}
+
+TEST_CASE("the quality gate accepts the shipped locomotion catalog", "[animation][footsupport]") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
+  int movement_clips = 0;
+  int trusted = 0;
+  int no_support = 0;
+  int all_support = 0;
+  int too_short = 0;
+  int outlier = 0;
+  for (const auto& clip : library.Clips()) {
+    if (clip.metadata.action_type != e_DefString_Movement) continue;
+    if (clip.frame_count < 4) continue;
+    ++movement_clips;
+    const FootSupportSummary& summary = clip.foot_support_summary;
+    if (FootSupportTrusted(summary, !clip.foot_support.empty())) ++trusted;
+    if (summary.no_support) ++no_support;
+    if (summary.all_support) ++all_support;
+    if (summary.stance_too_short) ++too_short;
+    if (summary.speed_outlier) ++outlier;
+    // Duty cycles are shares, always well defined.
+    CHECK(summary.support_duty >= 0.0f);
+    CHECK(summary.support_duty <= 1.0f);
+    CHECK(summary.double_support_duty <= summary.support_duty);
+    CHECK(summary.flight_duty <= 1.0f);
+  }
+  std::fprintf(stderr,
+               "support quality: %d movement clips, %d trusted, no_support=%d "
+               "all_support=%d too_short=%d outlier=%d\n",
+               movement_clips, trusted, no_support, all_support, too_short,
+               outlier);
+  REQUIRE(movement_clips > 100);
+  // The gate is a gate, not a formality: the shipped catalog is mostly
+  // readable, and the remainder are clips that genuinely have no gait to lock
+  // (both feet down for the whole cycle = a stance) or whose stance foot
+  // disagrees with their own root track. Those fall back to the velocity bridge.
+  CHECK(trusted * 100 >= movement_clips * 80);
+}

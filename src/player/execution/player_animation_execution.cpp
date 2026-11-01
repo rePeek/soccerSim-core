@@ -298,7 +298,7 @@ PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
   // fallback for clips without one (and keeps the history warm for them).
   const FootSupportFrame track = SampleFootSupport(clip, clip_frame_time);
   PlayerFootSupportResult support;
-  if (!clip.foot_support.empty()) {
+  if (FootSupportTrusted(clip.foot_support_summary, !clip.foot_support.empty())) {
     support.left_support = FootIsSupporting(track.left);
     support.right_support = FootIsSupporting(track.right);
     // The baked phases assume the clip is played along its own direction. When

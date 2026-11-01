@@ -666,7 +666,48 @@ Every variant covers the same 1.60 m of ground: height and style change the gait
 never the trajectory. Taller players have smaller residuals because their legs
 reach the drifted anchor for longer.
 
+### P2 result: the support contract and its quality gate
+
+The derivation is now a contract, not just a per-frame flag:
+
+| what | where | meaning |
+|---|---|---|
+| `FootSupportFrame { FootPhase left, right }` | per frame | Swing / Landing / Stance / Takeoff |
+| `FootSupportSummary` | per clip | per-phase stance speed, support/double/flight duty, shortest contact run, quality flags |
+| `clip.stance_speed` | per clip | the stance-phase mean, the cadence reference playback follows |
+| `SampleFootSupport(clip, frame_time)` | query | nearest baked frame, clamped, wrap-aware |
+| `FootSupportTrusted(summary, has_track)` | verdict | may the Player lock feet from this track? |
+
+Quality flags: `no_support` (never carries weight), `all_support` (both feet down
+for the whole cycle - a stance, not a gait), `stance_too_short` (a contact run
+shorter than two frames is not a step), `speed_outlier` (the stance foot disagrees
+with the clip's own root track by more than 1.6x + 1 m/s). An untrusted clip does
+not drive cadence and does not lock feet: the Player falls back to the
+velocity-based `SelectFootSupport` and to the root-track speed. That is the whole
+point of deriving per phase instead of averaging: a wrong reading must be
+detectable.
+
+Measured on the shipped catalog (1016 Movement clips): 876 trusted (86%),
+66 `all_support`, 72 `speed_outlier`, 2 `stance_too_short`, 0 `no_support`. The
+gate is accepted at >= 80% and the clips the locomotion pipeline actually selects
+are asserted individually to be trusted.
+
+**Why the artifact stays v7.** Writing the track into `.simanim` would put the
+derivation in two places: Python builds the 283 authored clips, the C++ baker the
+443 Autogen ones, and only the C++ side shares `DeriveFootSupport`. Serializing
+today's vector would bake a guess, not a contract, and the user's own criterion is
+that the format change must buy correctness. A bake-time contract that is worth a
+version bump needs (a) one implementation reachable from both paths - e.g. a C++
+"support pass" that rewrites the finished artifact - and (b) foot contact points,
+which are a *model* fact (boot geometry) that Animation does not own today. Until
+both exist, load-time derivation keeps one implementation and zero duplication.
+
 ### What is still open
+
+- Support phases are derived at load time. A bake-time contract needs one shared
+  implementation for both bake paths plus boot contact geometry; until then a
+  format bump would only move the same guess earlier.
+- `torso_sway_scale` / `arm_swing_scale` are carried but unapplied.
 
 - The remaining plant-side residual is the clip's baked stance-foot disparity
   plus the anchor drift it causes. Removing it needs the baked support **and

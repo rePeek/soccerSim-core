@@ -241,6 +241,13 @@ observation, controls and stored physics are all the Stadium Frame.
   that write-back. Never re-solve a second pose for geometry: the committed
   sample carries no foot targets, so `Geometry()`/`ContactRegions()` are a pure
   forward-kinematics pass over the Final Pose. A raw preview clears them too.
+- The support derivation is a contract with a verdict, not a guess:
+  `FootSupportSummary` (per-phase stance speed, duty cycles, shortest contact run)
+  plus `FootSupportTrusted()`. A clip whose phases cannot be read (no contact,
+  both feet down all cycle, contact too short, stance foot disagreeing with the
+  root track) must not drive cadence or lock feet - the Player falls back to the
+  velocity bridge and the root-track speed. Never widen the gate to make a test
+  pass; the flags exist so a wrong reading is visible.
 - Support feet come from the clip: `FootPhase { Swing, Landing, Stance, Takeoff }`
   per foot per frame, derived once per clip at load (`DeriveFootSupport`,
   `SampleFootSupport`). Height alone mislabels authored clips. The derivation also

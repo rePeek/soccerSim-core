@@ -1,5 +1,4 @@
-// ANIM-1 A6.3b.2 / ANIM-2 A12.2 — the legacy Movement candidate refinement, as a
-// stateless Animation function.
+// The Player's action candidate refinement (ACFG-3 moved it out of Animation).
 //
 // This is a line-for-line relocation of the Movement path of
 // `HumanoidBase::_KeepBestDirectionAnims` / `_KeepBestBodyDirectionAnims` and
@@ -8,12 +7,13 @@
 // intended to be bit-identical: same sorting order, same floating-point
 // comparisons, same candidate-set order, same erase semantics.
 //
-// It depends only on the AnimationLibrary metadata and the explicit request.
-// No Player / Humanoid / Simulation / Ball / RNG.
+// It depends only on the AnimationLibrary metadata and the explicit request: no
+// Player entity, Simulation, Ball or RNG. The Player owns the decision; the
+// clip library is the shared resource it reads.
 //
-// ANIM-2 A12.2: only the request structure and the functions callers actually
-// use are declared here. The internal sorts, filters and rating scratch live in
-// src/animation/movement_selection.cpp.
+// Only the request structure and the functions callers actually use are declared
+// here; the internal sorts, filters and rating scratch live in
+// player_action_candidates.cpp.
 
 #ifndef PLAYER_ACTION_CANDIDATES_HPP
 #define PLAYER_ACTION_CANDIDATES_HPP

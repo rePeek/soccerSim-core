@@ -62,7 +62,13 @@ struct PlayerExecution::ActionTickFrame {
 
 PlayerExecution::PlayerExecution(const AnimationLibrary& animations,
                                  PlayerAnimationConfig animation_config)
-    : animations_(animations), animation_config_(std::move(animation_config)) {}
+    : animations_(animations), animation_config_(std::move(animation_config)) {
+  // The per-player tuning is built from one library and consumed with another
+  // only if a caller mixes them up. `Get()` hides that by returning neutral
+  // tuning for an unknown id, so the mismatch has to be caught here.
+  assert(animation_config_.Matches(animations_) &&
+         "player animation configuration does not match the animation library");
+}
 
 PlayerExecution::~PlayerExecution() = default;
 
