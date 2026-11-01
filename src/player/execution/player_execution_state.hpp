@@ -144,6 +144,14 @@ struct PlayerExecutionState {
   // the root and the pose cannot be derived from different phases.
   AdaptedMotionSample adapted_locomotion_;
   bool adapted_locomotion_valid_ = false;
+  // RM-F3: a root sample was rejected this tick, so the action selector must
+  // get one chance to replace the clip. It is a request, not a second motion
+  // authority: the compatibility fallback still owns this tick's position.
+  bool locomotion_clip_request_ = false;
+  // RM-F3: do not ask the selector every tick while a body is still outside
+  // the gait's range or a turn remains illegal. Ten ticks is one decision
+  // cadence, not a per-tick candidate loop.
+  int locomotion_clip_request_cooldown_ = 0;
   // RMA-5: the same adapted sample for a one-shot action. Its clip time comes
   // from the action clock; only the displacement passes through the constraint
   // core, so a touch frame can never be shifted by cadence adaptation.
@@ -220,6 +228,8 @@ struct PlayerExecutionAuditState {
   int touch_selection_successes_ = 0;
   // M4: how often a root corrected after the tick forced a bounded re-settle.
   int pose_resolves_ = 0;
+  // RM-F3: a root rejection asked the selector for a replacement clip.
+  int locomotion_clip_requests_ = 0;
   // P1: how often an unreachable support anchor was released.
   int plant_releases_ = 0;
 };

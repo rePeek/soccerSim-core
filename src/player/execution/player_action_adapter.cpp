@@ -132,6 +132,29 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
         RotateLocalDelta(local_scaled, control.base_angle);
     const football::math::Vector3 velocity = proposed / dt;
     const float speed = velocity.GetLength();
+    // RM-F3: a speed-vector check alone is not a turn-rate check. The root's
+    // heading must also be reachable inside one tick; otherwise the sample
+    // would rotate the whole body (and its feet) faster than the player can.
+    if (current_speed > kLocomotionStopSpeed &&
+        speed > kLocomotionStopSpeed) {
+      const football::math::Vector3 current_direction =
+          current.velocity.Get2D().GetNormalized(current.GetFacing());
+      const football::math::Vector3 proposed_direction =
+          velocity.GetNormalized(current_direction);
+      const float speed_ratio =
+          std::clamp(current_speed / capability.max_speed, 0.0f, 1.0f);
+      const float turn_authority =
+          capability.turn_rate * (1.0f - 0.75f * speed_ratio);
+      const float heading_delta = std::fabs(
+          current_direction.GetAngle2D(proposed_direction));
+      if (heading_delta > turn_authority * dt + 1e-3f) {
+        sample.status = AdaptedMotionSample::Status::NeedAnotherClip;
+        sample.feasible = false;
+        sample.diagnostics.fallback_used = true;
+        sample.diagnostics.turn_limited = true;
+        return sample;
+      }
+    }
     if (desired_speed > kLocomotionStopSpeed && speed > kLocomotionStopSpeed) {
       const football::math::Vector3 desired_dir =
           desired.GetNormalized(control.idle_facing);

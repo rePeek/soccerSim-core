@@ -55,6 +55,9 @@ struct MotionAdaptationDiagnostics {
   // Player can calibrate the root in memory even though the authored root
   // track itself is not strict enough for `ik_free_pose`.
   bool calibrated_ik_free = false;
+  // RM-F3: the root sample was rejected because the required heading change
+  // exceeds the player's turn authority for one tick.
+  bool turn_limited = false;
 };
 
 struct AdaptedMotionSample {

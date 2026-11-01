@@ -77,6 +77,8 @@ struct PlayerExecutionDiagnostics {
   int pose_resolves = 0;
   // P1: support anchors released because the leg could not reach them.
   int plant_releases = 0;
+  // RM-F3: root samples rejected with a request for a replacement clip.
+  int locomotion_clip_requests = 0;
 };
 
 // PEX-4: the Player is the player entity - identity, capability, match state,

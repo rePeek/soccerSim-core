@@ -401,3 +401,55 @@ TEST_CASE("RM-4: only a root-driven gait reports a playable-speed cap",
       PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
   CHECK(sample.diagnostics.playable_speed == Catch::Approx(0.0f));
 }
+
+// RM-F3: a root sample may not change heading faster than the player can turn.
+// The speed-vector check alone would accept a low-speed reversal because the
+// velocity magnitude barely changes; the heading constraint is separate.
+namespace {
+
+PlayerActionControl TurningControl(float base_angle, const Vector3& desired) {
+  PlayerActionControl control;
+  control.desired_velocity = desired;
+  control.idle_facing = Vector3(0, -1, 0);
+  control.authority = PlayerMotionAuthority::Locomotion;
+  control.base_angle = base_angle;
+  return control;
+}
+
+}  // namespace
+
+TEST_CASE("RM-F3: a high-speed 90-degree root turn is refused",
+          "[player][adapter][rmf3]") {
+  const AnimationClip clip = RootGait(3.0f, Vector3(0, -1, 0));
+  // The clip's local forward is -Y; base +90 degrees points it at +X.
+  const auto sample = PlayerActionAdapter::Evaluate(
+      clip, Moving(5.0f), Profile(), Body(),
+      TurningControl(football::math::pi * 0.5f, Vector3(0, -5.0f, 0)),
+      PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
+  CHECK_FALSE(sample.feasible);
+  CHECK(sample.status == AdaptedMotionSample::Status::NeedAnotherClip);
+  CHECK(sample.diagnostics.turn_limited);
+}
+
+TEST_CASE("RM-F3: a low-speed 180-degree root turn is still rate-limited",
+          "[player][adapter][rmf3]") {
+  const AnimationClip clip = RootGait(1.0f, Vector3(0, -1, 0));
+  // The control and the clip agree on +Y; only the heading change is illegal.
+  const auto sample = PlayerActionAdapter::Evaluate(
+      clip, Moving(0.2f), Profile(), Body(),
+      TurningControl(football::math::pi, Vector3(0, 1.0f, 0)),
+      PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
+  CHECK_FALSE(sample.feasible);
+  CHECK(sample.diagnostics.turn_limited);
+}
+
+TEST_CASE("RM-F3: a small heading correction stays accepted",
+          "[player][adapter][rmf3]") {
+  const AnimationClip clip = RootGait(3.0f, Vector3(0, -1, 0));
+  const auto sample = PlayerActionAdapter::Evaluate(
+      clip, Moving(0.2f), Profile(), Body(),
+      TurningControl(0.01f, Vector3(0, -1.0f, 0)),
+      PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
+  CHECK(sample.feasible);
+  CHECK_FALSE(sample.diagnostics.turn_limited);
+}

@@ -123,6 +123,8 @@ void PlayerExecution::ResetPoseChannel() {
   state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
   state_.adapted_locomotion_ = AdaptedMotionSample{};
   state_.adapted_locomotion_valid_ = false;
+  state_.locomotion_clip_request_ = false;
+  state_.locomotion_clip_request_cooldown_ = 0;
   state_.adapted_action_ = AdaptedMotionSample{};
   state_.adapted_action_valid_ = false;
   state_.final_pose_ = PoseFrame{};
@@ -182,6 +184,22 @@ void PlayerExecution::ClearControl(PlayerExecutionPort& owner) {
   PortScope scope(*this, owner);
   state_.control_.reset();
 }
+
+void PlayerExecution::RequestLocomotionRequeue() {
+  // A rejected root sample is not a second motion authority: the fallback
+  // still integrates this tick. It only asks the selector for one replacement,
+  // which the RM-5 tick boundary installs for the next tick. The cooldown keeps
+  // a long turn or a body outside the gait range from re-running candidates
+  // every single tick.
+  if (state_.locomotion_clip_request_cooldown_ > 0) return;
+  state_.locomotion_clip_request_cooldown_ = 10;
+  state_.locomotion_clip_request_ = true;
+  ++audit_.locomotion_clip_requests_;
+  if (state_.interruptAnim == e_InterruptAnim_None) {
+    state_.interruptAnim = e_InterruptAnim_ReQueue;
+  }
+}
+
 
 float PlayerExecution::ControlSpeed() const {
   if (state_.control_) return state_.control_->desired_speed;
@@ -276,8 +294,8 @@ void PlayerExecution::RunActionTick(PlayerExecutionPort& owner, football::sim::T
   frame.observation = &observation;
   frame.touch_sink = &touch_sink;
   frame.runtime_sink = &runtime_sink;
-  frame.ball_retainer = tick.ball_retainer;
-
+  state_.locomotion_clip_request_cooldown_ =
+      std::max(state_.locomotion_clip_request_cooldown_ - 1, 0);
   ConsumeActionInputs(frame);
   BeginActionTick(frame);
   RefreshDecisionQueue(frame);
@@ -290,8 +308,10 @@ void PlayerExecution::RunActionTick(PlayerExecutionPort& owner, football::sim::T
   ApplyPostActionTick(frame);
   SelectActionForFrame(frame);
   PublishCadenceLocomotion(frame);
-  // The requeue interrupt is consumed by the selection above.
+  // The requeue interrupt and its optional replacement request are consumed
+  // by the selection above.
   state_.interruptAnim = e_InterruptAnim_None;
+  state_.locomotion_clip_request_ = false;
 }
 
 

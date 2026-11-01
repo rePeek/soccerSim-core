@@ -157,6 +157,12 @@ PlayerKinematicState Player::CommitLocomotion(
   const AdaptedMotionSample adapted = execution_->EvaluateAdaptedLocomotion(
       tick_start, input.desiredVelocity, input.idleFacing, profile,
       body_profile_, dt);
+  // RM-F3: a root-driven sample that cannot be performed this tick asks the
+  // selector for one replacement. The fallback below still owns this tick's
+  // legal displacement; selection installs for the next tick (RM-5).
+  if (!adapted.feasible && adapted.diagnostics.ik_free_pose) {
+    execution_->RequestLocomotionRequeue();
+  }
   PlayerKinematicState next;
   if (adapted.feasible) {
     next = tick_start;
@@ -496,7 +502,8 @@ PlayerExecutionDiagnostics Player::Diagnostics() const {
       execution_->InstallCursorMismatches(),
       execution_->TouchSelectionSuccesses(),
       execution_->PoseResolves(),
-      execution_->PlantReleases()};
+      execution_->PlantReleases(),
+      execution_->LocomotionClipRequests()};
 }
 
 void Player::CheckSimulationActionOracle() const {

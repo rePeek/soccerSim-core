@@ -115,6 +115,10 @@ class PlayerExecution final {
   void SelectRetainAnim(PlayerExecutionPort& owner);
   // Retain-clip re-selection without a new borrow (the caller already holds one).
   void SelectRetainAnim();
+  // RM-F3: the locomotion adapter refused this tick's root sample. Ask the
+  // action selector for one replacement on the next selection pass; the
+  // compatibility fallback still supplies this tick's legal displacement.
+  void RequestLocomotionRequeue();
 
   // Pure decision: is an extreme (last-ditch) animation justified? The team
   // possession weight is an input, not cached state; the time-to-ball values
@@ -240,6 +244,9 @@ class PlayerExecution final {
   int TouchSelectionSuccesses() const { return audit_.touch_selection_successes_; }
   int PoseResolves() const { return audit_.pose_resolves_; }
   int PlantReleases() const { return audit_.plant_releases_; }
+  int LocomotionClipRequests() const {
+    return audit_.locomotion_clip_requests_;
+  }
 
   // The compatibility projection, as the values the Player's kinematic oracle
   // compares against the committed state.
