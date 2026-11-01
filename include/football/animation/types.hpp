@@ -120,7 +120,13 @@ struct ClipMotionQuality {
   bool tracked = false;
   bool support_consistent = false;
   bool loop_continuous = false;
-  // The single verdict the Player uses to choose the IK-free path.
+  // The support track is trustworthy and loops, so the Player may drive the
+  // root from the stance-foot speed instead of the clip's own root track. This
+  // is the in-memory calibrated reference: it removes the authored root/foot
+  // disagreement without editing the GLB.
+  bool stance_calibrated = false;
+  // The strict source gate: the clip's own root track already agrees with its
+  // stance foot, so it needs no calibration at all.
   bool ik_free_usable = false;
 };
 

@@ -100,8 +100,6 @@ void PlayerExecution::ResetLegacyPosition(const Vector3 &newPos,
 
   state_.decayingPositionOffset = Vector3(0);
   state_.decayingDifficultyFactor = 0.0f;
-  state_.foot_plant_ = PlayerFootPlantState{};
-
   state_.reQueueDelayFrames = 0;
   state_.tripDirection = Vector3(0);
 }

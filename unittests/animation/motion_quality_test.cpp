@@ -52,6 +52,9 @@ TEST_CASE("motion quality reports a stance foot dragged by the root track",
         Catch::Approx(2.0f).margin(1e-4f));
   CHECK_FALSE(clip.motion_quality.support_consistent);
   CHECK_FALSE(clip.motion_quality.ik_free_usable);
+  // The support track is still readable, so the Player can calibrate the root
+  // from the stance speed instead of the authored root track.
+  CHECK(clip.motion_quality.stance_calibrated);
 }
 
 TEST_CASE("a stationary root with a planted foot has no slide",
@@ -87,6 +90,8 @@ TEST_CASE("the shipped catalog reports a consistent quality census",
   REQUIRE(census.total > 0);
   REQUIRE(census.tracked > 0);
   CHECK(census.ik_free_usable <= census.tracked);
+  CHECK(census.stance_calibrated <= census.tracked);
+  CHECK(census.ik_free_usable <= census.stance_calibrated);
   CHECK(census.support_slip <= census.tracked);
   CHECK(census.loop_discontinuous <= census.tracked);
   for (const AnimationClip& clip : library.Clips()) {

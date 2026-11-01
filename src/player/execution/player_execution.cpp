@@ -124,20 +124,10 @@ void PlayerExecution::ResetPoseChannel() {
   state_.adapted_locomotion_valid_ = false;
   state_.adapted_action_ = AdaptedMotionSample{};
   state_.adapted_action_valid_ = false;
-  state_.foot_plant_ = PlayerFootPlantState{};
-  state_.previous_fore_aft_[0] = 0.0f;
-  state_.previous_fore_aft_[1] = 0.0f;
-  state_.have_previous_fore_aft_ = false;
-  state_.previous_world_ankle_[0] = Vector3(0);
-  state_.previous_world_ankle_[1] = Vector3(0);
-  state_.support_left_ = false;
-  state_.have_support_ = false;
   state_.final_pose_ = PoseFrame{};
   state_.final_pose_base_angle_ = 0.0f;
   state_.final_pose_valid_ = false;
-  state_.settle_clip_frame_time_ = 0.0f;
-  state_.settle_source_pose_ = PoseFrame{};
-  state_.settle_source_valid_ = false;
+  state_.adapted_locomotion_start_position_ = Vector3(0);
 }
 
 void PlayerExecution::ResetPosition(PlayerExecutionPort& owner, const Vector3& new_position,

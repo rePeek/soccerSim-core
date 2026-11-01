@@ -310,16 +310,10 @@ class PlayerExecution final {
                                 int blend_ticks);
   void UpdatePlaybackFromAuthority(football::sim::Tick now, float base_angle, int blend_ticks,
                                    bool motion_driven);
-  // STRIDE-0..2: the one stage that settles a movement pose against the achieved
-  // motion. It reads the sampled gait, applies the stride scale, derives the
-  // support foot from the gait heights, locks planted feet to their anchors and
-  // writes the result back into the skeleton's local rotations. Movement clips
-  // only; every other action keeps its sampled pose.
-  PoseFrame SettleMovementPose(const PoseFrame& pose, float base_angle,
-                               const AnimationClip& clip, float clip_frame_time);
-  // M3: the one place the Final Pose is produced, once per real playback tick:
-  // warp -> bounded realization -> stride/plant settle. Every consumer reads the
-  // result, so the rendered skeleton and the colliding skeleton cannot diverge.
+  // M3/RMA-7: the one place the Final Pose is produced, once per real playback
+  // tick: warp -> bounded realization. There is no runtime foot-IK stage;
+  // support correctness is a clip-quality/cadence property, not a correction.
+  // Every consumer reads this one value.
   void ComposeFinalPose(const AnimationClip& clip, bool motion_driven);
   void BeginSimulationAction();
   void InstallSelectedAction(const football::sim::SelectedAction& selection);

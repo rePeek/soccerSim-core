@@ -344,12 +344,12 @@ void DeriveMotionQuality(AnimationClip& clip) {
       quality.seam_root_speed_delta <= kIkFreeMaxSeamRootSpeedDelta;
   const bool trusted =
       FootSupportTrusted(clip.foot_support_summary, !clip.foot_support.empty());
-  // A clip with no forward travel (idle, stance) or that is not an ordinary
-  // movement action has no IK-free locomotion claim to make.
-  const bool movement =
-      clip.metadata.action_type == e_DefString_Movement;
-  quality.ik_free_usable = trusted && movement && quality.support_consistent &&
-                           quality.loop_continuous &&
-                           quality.root_speed > 0.5f;
+  // Only an ordinary movement action makes a locomotion claim.
+  const bool movement = clip.metadata.action_type == e_DefString_Movement;
+  quality.stance_calibrated = trusted && movement && quality.loop_continuous &&
+                              quality.root_speed > 0.5f;
+  // The strict gate additionally requires the source root track to agree.
+  quality.ik_free_usable =
+      quality.stance_calibrated && quality.support_consistent;
   clip.motion_quality = quality;
 }

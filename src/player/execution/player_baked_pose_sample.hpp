@@ -10,11 +10,9 @@
 // not another Humanoid execution. The requested frame is retained so a caller
 // cannot silently mistake end-of-clip clamping for animation continuity.
 //
-// `pose` is the Player's Final Pose: it already contains the stride/plant solve
-// in its local joint rotations. `Geometry()`/`ContactRegions()` therefore run
-// forward kinematics only. `foot_targets` exists for a caller that deliberately
-// previews an un-solved pose (a forecast); the committed sample leaves it empty
-// so no second constraint solve can appear.
+// `pose` is the one Final Pose: warp -> bounded realization, with no runtime
+// foot-IK stage. `Geometry()`/`ContactRegions()` therefore run pure forward
+// kinematics on the committed skeleton.
 struct PlayerBakedPoseSample {
   PoseFrame pose;
   PlayerKinematicState state;
@@ -30,12 +28,11 @@ struct PlayerBakedPoseSample {
   // not have to index the library itself.
   bool outgoing_special_state = false;
   bool frame_clamped = false;
-  PlayerFootIkTargets foot_targets;
   BakedPlayerBodyCollider Geometry() const {
-    return BuildBodyCollider(pose, state, base_angle, body_profile, &foot_targets);
+    return BuildBodyCollider(pose, state, base_angle, body_profile);
   }
   auto ContactRegions() const {
-    return BuildBakedContactRegions(pose, state, base_angle, body_profile, &foot_targets);
+    return BuildBakedContactRegions(pose, state, base_angle, body_profile);
   }
 };
 #endif

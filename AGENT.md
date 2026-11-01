@@ -182,9 +182,10 @@ observation, controls and stored physics are all the Stadium Frame.
   `PrepareActionContacts`. Contacts are last so the touch geometry, the pose and
   the root belong to the same tick, and the pose is classified with the retainer
   state the motion was committed with. A touch only proposes; it never moves the
-  root. A root corrected after the tick (`Player::OffsetPosition`) re-settles the
-  same pose through `PlayerExecution::ResettleFinalPose` - bounded, no clip time
-  consumed, residual visible instead of a stretched skeleton.
+  root. A root corrected after the tick (`Player::OffsetPosition`) records the
+  collision-limited delta and re-derives the pose from the adapted reference
+  sample through `PlayerExecution::ResettleFinalPose` - bounded, no clip time
+  consumed, never a pose left on a stale root.
 - Motion and animation authority are separate facts. `PlayerMotionAdapter`
   returns the one admissible displacement; `achieved_delta` and the committed
   velocity must describe that same motion (a speed ceiling publishes the
@@ -193,23 +194,26 @@ observation, controls and stored physics are all the Stadium Frame.
   installs the state the solver produced, so fields the projection does not
   carry (vertical offset/authority) cannot be dropped by a round trip. A
   position correction is an instantaneous displacement, not new velocity.
-  action clock as their clip-time authority; only locomotion owns clip time,
-  and `PlaybackState::frame` is a derived integer, not that authority.
 - `PlayerActionAdapter` is the one pure adaptation entry between a reference
   clip and one Player. It solves the admissible root displacement (through
-  `PlayerMotionAdapter`) and the clip time/stride/rate that performs it in one
-  call, returning `AdaptedMotionSample`. Ordinary locomotion commits the same
-  sample's root and feeds its clip time/stride to playback, so root and pose
-  cannot be derived from different phases. The sample is a value: it never
-  writes kinematics, reads no world state and publishes no event. A clip it
-  cannot perform (`feasible == false`) falls back to the established path
-  instead of being stretched.
+  `PlayerMotionAdapter`) and the clip time/rate that performs it in one call,
+  returning `AdaptedMotionSample`. Ordinary locomotion commits the same
+  sample's root and feeds its clip time to playback, so root and pose cannot be
+  derived from different phases. One-shot actions pass their plan's trajectory
+  as `PlayerActionControl::reference_delta`; the adapter validates it but never
+  advances the action clock, so a touch frame cannot move. The sample is a
+  value: it never writes kinematics, reads no world state and publishes no
+  event. A clip it cannot perform (`feasible == false`) falls back instead of
+  being stretched. `Predict` is the same loop for a constant control horizon,
+  so short-horizon forecasts reuse execution's own phase evolution.
 - RMA-1 clip quality is an Animation fact: `DeriveMotionQuality` fills
   `AnimationClip::motion_quality` once at load from the clip's own root and
   support tracks (mean/worst stance slip, loop seam root/pose step).
-  `ClipMotionQuality::ik_free_usable` is the gate for an IK-free pose path;
-  a clip that fails it keeps the compatibility plant. Never widen the gate to
-  make a test pass - the slide is a property of the source GLB.
+  `ClipMotionQuality::stance_calibrated` means the support track is readable and
+  loops, so the Player may drive the root from the stance-foot speed instead of
+  the authored root track (the in-memory calibrated reference). `ik_free_usable`
+  is the stricter source gate (root track already agrees). Never widen either
+  gate to make a test pass - the slide is a property of the source GLB.
 - Module boundary: Animation owns the shared clip resource and the pure algorithms
   that turn a clip into data (`SamplePose`, `BlendPose`, `SelectEntryFrame`,
   `PoseDistance`, foot support, touch geometry). *Decisions* about which clip to
@@ -224,63 +228,57 @@ observation, controls and stored physics are all the Stadium Frame.
   animation behaviour lives in `PlayerAnimationConfig`, built once in the Player
   constructor from `PlayerDefinition::animation_style` and held `const` by the
   execution, so no tick, reset, action switch or fall can change or lose it.
-  A style is a style, not an ability: stride/cadence preferences can never change
-  the world displacement, a bone length, a touch frame or a contact impulse, and
-  a neutral style must reproduce the shipped gait exactly.
+  A style is a style, not an ability: cadence preference can never change the
+  world displacement, a bone length, a touch frame or a contact impulse, and a
+  neutral style must reproduce the shipped gait exactly. Stride preference is a
+  pre-baked variant/asset concern; the IK-free runtime path does not shorten a
+  stride by solving the leg.
 - The gait speed a player sees is `LocomotionEffectiveGaitSpeed(clip, height_scale)`
-  and it is computed once and passed to both the stride target and the playback
-  rate. Never derive it twice; a scale mismatch biases the pairing for every
-  player who is not the reference build. A style's stride is clamped by
-  `ClipTuning::max_stride_scale` (reach-aware, built once from the clip's poses
-  and the player's leg length) *before* the rate is derived - clamping after the
-  pairing breaks it.
-- Cadence and stride length are one pair, never independent knobs. A movement
-  pose is settled by `PlayerExecution::SettleMovementPose`: stride target ->
-  support from the *gait* ankle heights -> plant lock -> local-rotation
-  write-back. `stride_scale` shortens the hip-relative fore-aft excursion and
-  the playback rate divides by the same scale, so a stance foot still moves at
-  the achieved speed in clip space. Applying one without the other is foot
-  slide, and support may never be read from a settled pose (a locked foot
-  keeps its height, so it could never be released).
+  and it is computed once and passed to both the adapter and the playback rate.
+  Never derive it twice; a scale mismatch biases the cadence for every player
+  who is not the reference build. `ClipTuning::max_stride_scale` bounds any
+  pre-baked stride variant, not a runtime IK correction.
+- Ordinary locomotion is cadence-only and IK-free. The clip keeps its authored
+  stride; playback follows the achieved/reference ratio, and the root is capped
+  to `reference_speed * kLocomotionMaxPlaybackRate` so the support foot is not
+  asked to travel faster than the gait can play. There is no runtime
+  `SettleMovementPose`, plant anchor, `PlayerFootIk::Update`, `ApplyFootPlantLocks`
+  or `ApplyWorldFootTargetsToPose` in the Player execution path.
 - A clip's native speed is measured over the intervals its samples actually
   span (`N` root samples = `N-1` ticks). `frame_count` is not that span, and
   using it biases every playback rate by `N/(N-1)`.
-- A Final Pose is the skeleton the colliders read: foot IK writes local joint
-  rotations (`ApplyWorldFootTargetsToPose`), not only world joint points, and
-  the FK bind table (`kBakedBindJoints`) is shared by forward kinematics and
-  that write-back. Never re-solve a second pose for geometry: the committed
-  sample carries no foot targets, so `Geometry()`/`ContactRegions()` are a pure
-  forward-kinematics pass over the Final Pose. A raw preview clears them too.
+- A Final Pose is the skeleton the colliders read. `ComposeFinalPose` produces
+  it as blend -> Warp -> bounded Realize, and `Pose()`, `BakedPoseSample()`,
+  `Geometry()`, `ContactRegions()` and the runtime body tape read it without
+  re-solving. Never re-solve a second pose for geometry: `Geometry()` /
+  `ContactRegions()` are a pure forward-kinematics pass over the Final Pose.
+  The bounded rotation-rate realization belongs to the Player; Runtime may only
+  fold the base yaw for its physics tape, never rate-limit a committed pose.
+  A clip switch blends from the published Final Pose
+  (`PlaybackState::SetBlendSource`), not from the raw animation sample.
 - The support derivation is a contract with a verdict, not a guess:
   `FootSupportSummary` (per-phase stance speed, duty cycles, shortest contact run)
   plus `FootSupportTrusted()`. A clip whose phases cannot be read (no contact,
   both feet down all cycle, contact too short, stance foot disagreeing with the
-  root track) must not drive cadence or lock feet - the Player falls back to the
-  velocity bridge and the root-track speed. Never widen the gate to make a test
-  pass; the flags exist so a wrong reading is visible.
+  root track) must not drive cadence - the Player falls back to the velocity
+  bridge and the root-track speed. Never widen the gate to make a test pass;
+  the flags exist so a wrong reading is visible.
 - Support feet come from the clip: `FootPhase { Swing, Landing, Stance, Takeoff }`
   per foot per frame, derived once per clip at load (`DeriveFootSupport`,
   `SampleFootSupport`). Height alone mislabels authored clips. The derivation also
   reports `clip.stance_speed`, the speed a stance foot travels inside the clip,
-  which playback follows instead of the root track (`LocomotionClipGaitSpeed`):
-  authored clips carry foot slide that the plant would otherwise absorb. A foot
-  the clip calls stance is still not locked when it moves faster than
-  `kStanceMaxWorldSpeed` in the world - a turning body pivots its foot. Clips
-  without a track fall back to `SelectFootSupport`. An anchor the leg cannot
-  reach relaxes (bounded slide toward the foot) or, past a hard threshold,
-  releases - never pinned at maximum extension.
+  which playback follows instead of the root track (`LocomotionClipGaitSpeed`).
+  That stance speed is what calibrates the IK-free root: the authored root track
+  may disagree, but the cadence and the committed displacement then agree with
+  the foot. `PlayerFootIk` remains a pure algorithm header for offline/tests;
+  it is not a runtime correction stage.
 - The 14-bone declaration (`kPlayerBindJoints`) lives in
   `football/animation/foot_support.hpp` and is shared by the animation support
-  derivation and the Player's forward kinematics, colliders and foot solve.
+  derivation and the Player's forward kinematics and colliders.
 - `PlayerExecutionState::final_pose_` is the one Final Pose channel:
-  `ComposeFinalPose` produces it once per tick as blend -> Warp -> Realize ->
-  stride/plant settle, and `Pose()`, `BakedPoseSample()`, `Geometry()`,
-  `ContactRegions()` and the runtime body tape read it without re-solving. The
-  bounded rotation-rate realization belongs to the Player; Runtime may only fold
-  the base yaw for its physics tape, never rate-limit a committed pose again.
-  The realization runs before the foot solve so a rate limit cannot unlock a
-  planted foot. A clip switch blends from the published Final Pose
-  (`PlaybackState::SetBlendSource`), not from the raw animation sample.
+  `ComposeFinalPose` produces it once per tick as blend -> Warp -> Realize, and
+  `Pose()`, `BakedPoseSample()`, `Geometry()`, `ContactRegions()` and the runtime
+  body tape read it without re-solving.
 
 ## Player and Contact libraries
 

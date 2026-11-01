@@ -69,36 +69,40 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
   sample.velocity = constrained.state.velocity;
 
   const float desired_speed = control.desired_velocity.GetLength();
-  const float achieved_speed = constrained.state.velocity.GetLength();
+  float achieved_speed = constrained.state.velocity.GetLength();
   sample.diagnostics.capability_limited =
       desired_speed > capability.max_speed + 1e-4f ||
       (control.authority != PlayerMotionAuthority::Locomotion &&
        constrained.constrained);
 
+  const float reference_speed =
+      locomotion ? LocomotionEffectiveGaitSpeed(clip, body.height_scale)
+                 : 0.0f;
+  // RMA-7: there is no runtime foot-IK stage. The gait keeps its authored
+  // stride; the root is capped to the speed the clip can actually play, so a
+  // support foot does not have to be dragged back. A stance-calibrated clip
+  // replaces its authored root track with the stance-foot speed cadence follows.
+  if (locomotion && clip.motion_quality.stance_calibrated &&
+      reference_speed > 1e-3f) {
+    const float max_gait_speed =
+        reference_speed * kLocomotionMaxPlaybackRate;
+    if (achieved_speed > max_gait_speed) {
+      const float scale = max_gait_speed / achieved_speed;
+      sample.root_delta = constrained.achieved_delta * scale;
+      sample.velocity = constrained.state.velocity * scale;
+      achieved_speed = max_gait_speed;
+      sample.diagnostics.capability_limited = true;
+    }
+  }
+
   float raw_target = 1.0f;
   float target_stride = 1.0f;
   football::math::Vector3 reference_local = football::math::Vector3(0);
   if (locomotion) {
-    // Cadence and stride are one pair. The style picks the step length the gait
-    // should take for the speed this body actually achieved; the playback rate
-    // is then derived from the same step length, never chosen independently.
-    LocomotionStrideStyle style;
-    style.stride_preference = control.gait.stride_preference;
-    style.cadence_preference = control.gait.cadence_preference;
-    style.stride_response = control.gait.stride_response;
-    const float reference_speed =
-        LocomotionEffectiveGaitSpeed(clip, body.height_scale);
-    const float min_stride = std::min(control.gait.min_stride_scale,
-                                      control.gait.max_stride_scale);
-    const float max_stride = std::max(control.gait.min_stride_scale,
-                                      control.gait.max_stride_scale);
-    raw_target =
-        LocomotionStrideScaleFor(style, achieved_speed, reference_speed);
-    target_stride = std::clamp(raw_target, min_stride, max_stride);
-    const float stride_scale = std::clamp(
-        SmoothLocomotionStrideScale(playback.stride_scale, target_stride, dt),
-        min_stride, max_stride);
-
+    // Cadence-only: the clip plays at the speed the body achieved, with its
+    // authored stride. Changing the stride would require solving the leg -
+    // exactly the runtime IK this stage removes.
+    const float stride_scale = 1.0f;
     LocomotionPlaybackRequest previous;
     previous.clip_id = sample.clip_id;
     previous.frame_time = playback.frame_time;
@@ -144,11 +148,11 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
   sample.diagnostics.capability_limited =
       sample.diagnostics.capability_limited &&
       (achieved_speed + 1e-4f < desired_speed);
-  sample.diagnostics.ik_free_pose = clip.motion_quality.ik_free_usable;
-  // A clip whose support track is trusted and whose stance foot agrees with its
-  // root may skip the compatibility plant; an untrusted clip keeps it.
-  sample.diagnostics.fallback_used =
-      !sample.diagnostics.ik_free_pose && !clip.foot_support.empty();
+  // RMA-7: a stance-calibrated locomotion clip runs without the compatibility
+  // plant. Its cadence follows the stance foot and its root is speed-capped to
+  // what that cadence can play, so no runtime IK is needed to hold the foot.
+  sample.diagnostics.ik_free_pose =
+      locomotion && clip.motion_quality.stance_calibrated;
   return sample;
 }
 

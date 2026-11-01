@@ -13,11 +13,8 @@
 #include "football/animation/foot_support.hpp"
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
-#include "football/player/execution/player_foot_ik.hpp"
 #include "football/player/execution/player_action_adapter.hpp"
-#include "football/player/execution/player_motion.hpp"
 #include "football/player/execution/player_pose_adapter.hpp"
-#include "player/execution/player_baked_body_pose.hpp"
 #include "player/execution/player_diagnostics.hpp"
 #include "player/execution/player_motion_constants.hpp"
 #include "player/execution/player_runtime_sink.hpp"
@@ -240,194 +237,6 @@ void PlayerExecution::UpdateLocomotionPlayback(AnimationId clip_id, float frame_
 }
 
 
-PoseFrame PlayerExecution::SettleMovementPose(const PoseFrame& pose,
-                                              float base_angle,
-                                              const AnimationClip& clip,
-                                              float clip_frame_time) {
-  // P3b: only ordinary movement carries a support foot. Slide/trip/fall/header
-  // intentionally keep both feet free and keep the sampled pose untouched.
-  if (state_.installed_action_.function_type != e_FunctionType_Movement) {
-    state_.foot_plant_ = PlayerFootPlantState{};
-    return pose;
-  }
-  const PlayerKinematicState& kinematics = port().GetKinematicState();
-  const football::player::PlayerBodyProfile body = port().BodyProfile();
-  const float final_base_angle = base_angle;
-  const PoseFrame sampled_pose = pose;
-  const BakedBodyPose gait =
-      EvaluateBakedBodyPose(sampled_pose, kinematics, final_base_angle, body);
-
-  // STRIDE-1: the gait's fore-aft excursion is re-aimed at the stride the motion
-  // achieved. Support is not decided here.
-  PlayerStrideAdaptInput stride;
-  stride.left.valid = true;
-  stride.left.hip = gait.joints[BodyPart::left_thigh];
-  stride.left.ankle = gait.joints[BodyPart::left_ankle];
-  stride.right.valid = true;
-  stride.right.hip = gait.joints[BodyPart::right_thigh];
-  stride.right.ankle = gait.joints[BodyPart::right_ankle];
-  stride.facing = Vector3(0, -1, 0).GetRotated2D(final_base_angle);
-  stride.stride_scale = state_.stride_scale_;
-  stride.gait_phase = state_.locomotion_playback_.gait_phase;
-  const PlayerStrideAdaptResult adapted = PlayerPoseAdapter::AdaptStride(stride);
-  if (!adapted.targets.has_left && !adapted.targets.has_right) return pose;
-
-  const PlayerFootPlantState previous_plant = state_.foot_plant_;
-
-  // Support detection: the foot that is travelling *backwards* relative to the
-  // body is the one carrying weight. Height alone cannot separate a stance foot
-  // from one that merely hangs lower, and a settled pose can never decide it at
-  // all (a locked foot keeps its height by construction).
-  const Vector3 facing = Vector3(0, -1, 0).GetRotated2D(final_base_angle);
-  const Vector3 left_offset = gait.joints[BodyPart::left_ankle] -
-                              gait.joints[BodyPart::left_thigh];
-  const Vector3 right_offset = gait.joints[BodyPart::right_ankle] -
-                               gait.joints[BodyPart::right_thigh];
-  const float left_fore_aft = left_offset.GetDotProduct(facing);
-  const float right_fore_aft = right_offset.GetDotProduct(facing);
-  PlayerFootSupportInput support_input;
-  // Positive = the ankle moved backwards along the facing axis since last tick.
-  support_input.left_backward_rate =
-      state_.previous_fore_aft_[0] - left_fore_aft;
-  support_input.right_backward_rate =
-      state_.previous_fore_aft_[1] - right_fore_aft;
-  support_input.have_previous = state_.have_previous_fore_aft_;
-  support_input.previous_support_left = state_.support_left_;
-  support_input.have_previous_support = state_.have_support_;
-  support_input.switch_margin = kSupportSwitchMargin;
-  // The clip's own support track answers this question; the velocity rule is the
-  // fallback for clips without one (and keeps the history warm for them).
-  const FootSupportFrame track = SampleFootSupport(clip, clip_frame_time);
-  PlayerFootSupportResult support;
-  if (FootSupportTrusted(clip.foot_support_summary, !clip.foot_support.empty())) {
-    support.left_support = FootIsSupporting(track.left);
-    support.right_support = FootIsSupporting(track.right);
-    // The baked phases assume the clip is played along its own direction. When
-    // the Player turns while the animation is still "stance", the foot is
-    // pivoting on the ground and must not be locked to a fixed world point: the
-    // world motion has the final say on whether the foot is standing still.
-    if (state_.have_previous_fore_aft_) {
-      const auto world_speed = [&](BodyPart ankle, int index) {
-        return (gait.joints[ankle] - state_.previous_world_ankle_[index])
-                   .Get2D()
-                   .GetLength() /
-               0.01f;
-      };
-      const float left_world = world_speed(BodyPart::left_ankle, 0);
-      const float right_world = world_speed(BodyPart::right_ankle, 1);
-      if (support.left_support && left_world > kStanceMaxWorldSpeed) {
-        support.left_support = false;
-      }
-      if (support.right_support && right_world > kStanceMaxWorldSpeed) {
-        support.right_support = false;
-      }
-    }
-  } else {
-    support = SelectFootSupport(support_input);
-  }
-  // RMA-0: measure the slip the settled support actually shipped, on the same
-  // adapted sample the root was committed with. Only a foot supported on both
-  // sides of the interval counts.
-  if (state_.adapted_locomotion_valid_) {
-    state_.adapted_locomotion_.diagnostics.left_support_slip =
-        MeasureSupportSlip(previous_plant.left_planted, support.left_support,
-                           state_.previous_world_ankle_[0],
-                           gait.joints[BodyPart::left_ankle]);
-    state_.adapted_locomotion_.diagnostics.right_support_slip =
-        MeasureSupportSlip(previous_plant.right_planted, support.right_support,
-                           state_.previous_world_ankle_[1],
-                           gait.joints[BodyPart::right_ankle]);
-  }
-  state_.previous_world_ankle_[0] = gait.joints[BodyPart::left_ankle];
-  state_.previous_world_ankle_[1] = gait.joints[BodyPart::right_ankle];
-  state_.previous_fore_aft_[0] = left_fore_aft;
-  state_.previous_fore_aft_[1] = right_fore_aft;
-  state_.have_previous_fore_aft_ = true;
-  state_.support_left_ = support.left_support;
-  state_.have_support_ = support.left_support != support.right_support;
-
-  PlayerFootPlantInput plant_input;
-  // The anchor of a newly planted foot is the stride-adapted ankle, i.e. exactly
-  // where the settled foot would be: planting never moves the foot.
-  plant_input.left_ankle = adapted.targets.left;
-  plant_input.right_ankle = adapted.targets.right;
-  plant_input.left_support = support.left_support;
-  plant_input.right_support = support.right_support;
-  plant_input.plant_height = 0.22f * body.height_scale;
-  state_.foot_plant_ = PlayerFootIk::Update(previous_plant, plant_input);
-
-  // STRIDE-0: how far the stride-adapted gait sits from the anchor a foot is
-  // still locked on. Only a foot that stays planted across the tick counts: at
-  // the handover tick the foot is being released, not dragged. With a paired
-  // cadence/stride this is discretisation only; when the rate and the stride
-  // disagree it is the drift the plant has to absorb.
-  const PlayerFootPlantSlip drift = MeasureFootPlantSlip(
-      previous_plant, adapted.targets.left, adapted.targets.right);
-  if (previous_plant.left_planted && state_.foot_plant_.left_planted) {
-    state_.locomotion_diagnostics_.left_animation_slip = drift.left;
-  }
-  if (previous_plant.right_planted && state_.foot_plant_.right_planted) {
-    state_.locomotion_diagnostics_.right_animation_slip = drift.right;
-  }
-
-  // STRIDE-2: the same solve has to live in the skeleton, not only in a
-  // world-space joint list, so Pose(), the baked sample, the colliders and the
-  // touch geometry cannot disagree about where the feet are. The support
-  // authority overrides the gait for planted feet.
-  const PlayerFootIkTargets targets =
-      ApplyFootPlantLocks(state_.foot_plant_, adapted.targets);
-  const BakedPoseFootSolve first = ApplyWorldFootTargetsToPose(
-      sampled_pose, kinematics, final_base_angle, body, targets);
-
-  // P1: an anchor the leg can no longer reach must not pin the leg at maximum
-  // extension. It slides toward the foot by a bounded step (the foot really does
-  // move when the body was pushed away), and only a discontinuity releases it.
-  // The relaxation target is where the animation's foot actually is, not the
-  // locked anchor it was replaced with.
-  const PlayerFootPlantRelax relax = RelaxFootPlant(
-      state_.foot_plant_, adapted.targets, first.left_residual,
-      first.right_residual);
-  const bool plant_changed =
-      relax.left_slide > 0.0f || relax.right_slide > 0.0f ||
-      relax.left_released || relax.right_released;
-  if (relax.left_released || relax.right_released) {
-    state_.locomotion_diagnostics_.left_plant_released = relax.left_released;
-    state_.locomotion_diagnostics_.right_plant_released = relax.right_released;
-    ++audit_.plant_releases_;
-  }
-  state_.locomotion_diagnostics_.left_plant_slide = relax.left_slide;
-  state_.locomotion_diagnostics_.right_plant_slide = relax.right_slide;
-  state_.foot_plant_ = relax.plant;
-
-  // The pose must match the plant state it ships with. If the anchor moved or was
-  // released, solve once more against the new anchors: bounded (only on the ticks
-  // that relaxed) and it is what keeps "Final Pose == contact state".
-  BakedPoseFootSolve solved = first;
-  if (plant_changed) {
-    const PlayerFootIkTargets relaxed_targets =
-        ApplyFootPlantLocks(state_.foot_plant_, adapted.targets);
-    solved = ApplyWorldFootTargetsToPose(sampled_pose, kinematics,
-                                         final_base_angle, body, relaxed_targets);
-    ++audit_.pose_resolves_;
-  }
-
-  // A planted leg targets its anchor, so the solve residual *is* the slide the
-  // final pose ships. An unplanted leg reports nothing.
-  state_.locomotion_diagnostics_.left_foot_slip =
-      state_.foot_plant_.left_planted ? solved.left_residual : 0.0f;
-  state_.locomotion_diagnostics_.right_foot_slip =
-      state_.foot_plant_.right_planted ? solved.right_residual : 0.0f;
-  // Where a residual comes from matters: a locked support anchor the leg cannot
-  // reach is a plant problem, a swinging foot's own target out of reach is a clip
-  // or stride problem.
-  state_.locomotion_diagnostics_.max_plant_residual = std::max(
-      state_.foot_plant_.left_planted ? solved.left_residual : 0.0f,
-      state_.foot_plant_.right_planted ? solved.right_residual : 0.0f);
-  state_.locomotion_diagnostics_.max_swing_residual = std::max(
-      !state_.foot_plant_.left_planted ? solved.left_residual : 0.0f,
-      !state_.foot_plant_.right_planted ? solved.right_residual : 0.0f);
-  return solved.pose;
-}
 
 void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
                                        bool motion_driven) {
@@ -466,9 +275,7 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
     warped_base_angle = warped_result.base_angle;
   }
 
-  // 2. M3 bounded realization: no joint may turn faster than a body can. This
-  //    runs before the foot solve on purpose - the IK and the plant lock are
-  //    the last word on the feet, so a rate limit can never undo a locked foot.
+  // 2. M3 bounded realization: no joint may turn faster than a body can.
   PlayerPoseRealizeInput realize;
   realize.previous_pose =
       state_.final_pose_valid_ ? state_.final_pose_ : warped;
@@ -484,21 +291,10 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
       !clip.metadata.outgoing_special_state.empty();
   const PlayerPoseRealizeResult realized = PlayerPoseAdapter::Realize(realize);
 
-  // 3. STRIDE: settle the movement pose against the achieved motion - stride
-  //    target, support, plant lock and the local-rotation write-back. Support,
-  //    anchor and shipped pose are decided together, so no anchor is ever
-  //    captured on a pose nobody sees and no foot stays locked after the gait
-  //    already lifted it.
-  state_.settle_source_pose_ = realized.pose;
-  state_.settle_source_valid_ = true;
-  // The support track is a clip-time fact: locomotion ticks sample the
-  // motion-driven clip time, action-clock ticks the action cursor.
-  const float clip_frame_time =
-      motion_driven ? state_.locomotion_playback_.frame_time
-                    : static_cast<float>(state_.actionState.Frame());
-  state_.settle_clip_frame_time_ = clip_frame_time;
-  const PoseFrame settled = SettleMovementPose(realized.pose, warped_base_angle,
-                                               clip, clip_frame_time);
+  // 3. RMA-7: the realized pose is the Final Pose. There is no runtime support
+  //    plant or two-bone foot solve; support correctness comes from the
+  //    clip's calibrated cadence and the speed cap applied to the root.
+  const PoseFrame settled = realized.pose;
 
   // P1: the realization bounds the *incoming animation*, and the plant solve has
   // the last word on the legs. Report how fast the shipped leg joints actually
@@ -549,18 +345,44 @@ void PlayerExecution::NoteRootCorrection(const football::math::Vector3& offset) 
 
 bool PlayerExecution::ResettleFinalPose(PlayerExecutionPort& owner) {
   PortScope scope(*this, owner);
-  if (!state_.final_pose_valid_ || !state_.settle_source_valid_) return false;
+  if (!state_.final_pose_valid_) return false;
   if (state_.installed_action_.function_type != e_FunctionType_Movement) {
     return false;
   }
-  // M4: a root that changed after the tick invalidates the settled pose, not the
-  // clip. Re-run the same settle on the same realized pose with the corrected
-  // root; the plant anchors are world-fixed, so the legs re-reach the feet and
-  // the residual stays bounded by the IK reach. No clip time is consumed.
-  const PoseFrame settled =
-      SettleMovementPose(state_.settle_source_pose_, state_.final_pose_base_angle_,
-                         GetCurrentBakedClip(), state_.settle_clip_frame_time_);
-  state_.final_pose_ = settled;
+  // RMA-7: a corrected root re-derives the *warp* from the same adapted
+  // reference pose, with the corrected displacement. No clip time is consumed
+  // and no foot solve exists to re-run - the legs never depended on the root.
+  if (!state_.adapted_locomotion_valid_) return false;
+  const AnimationClip& clip = GetCurrentBakedClip();
+  const football::player::PlayerBodyProfile body = port().BodyProfile();
+  const float base_angle =
+      state_.startAngle + state_.legacy_anim_state_.rotationSmuggleOffset;
+  PlayerPoseWarpInput warp;
+  warp.reference_pose = state_.playback_state_.have_pose
+                            ? state_.playback_state_.final_pose
+                            : state_.adapted_locomotion_.pose;
+  warp.reference_base_angle = base_angle;
+  warp.reference_delta =
+      state_.locomotion_reference_delta_.Get2D().GetRotated2D(base_angle);
+  warp.achieved_delta =
+      (port().GetKinematicState().position -
+       state_.adapted_locomotion_start_position_)
+          .Get2D();
+  warp.body = body;
+  warp.pelvis_bob_scale = animation_config_.Get(clip.id).pelvis_bob_scale;
+  warp.max_yaw_correction = kPlayerPoseWarpMaxYawPerTick;
+  const PlayerPoseWarpResult warped = PlayerPoseAdapter::Warp(warp);
+
+  PlayerPoseRealizeInput realize;
+  realize.previous_pose = state_.final_pose_;
+  realize.target_pose = warped.pose;
+  realize.body = body;
+  realize.entry_weight = 0.0f;
+  realize.outgoing_special_state =
+      !clip.metadata.outgoing_special_state.empty();
+  const PlayerPoseRealizeResult realized = PlayerPoseAdapter::Realize(realize);
+  state_.final_pose_ = realized.pose;
+  state_.final_pose_base_angle_ = warped.base_angle;
   state_.final_pose_valid_ = true;
   state_.playback_state_.SetBlendSource(state_.final_pose_,
                                        state_.final_pose_base_angle_);
@@ -611,6 +433,7 @@ AdaptedMotionSample PlayerExecution::EvaluateAdaptedLocomotion(
       clip, current, capability, body, control, playback, dt);
   state_.adapted_locomotion_ = sample;
   state_.adapted_locomotion_valid_ = sample.feasible;
+  state_.adapted_locomotion_start_position_ = current.position;
   return sample;
 }
 
@@ -813,10 +636,8 @@ PlayerBakedPoseSample PlayerExecution::PreviewRawPose(PlayerExecutionPort& owner
   sample.frame_clamped = sampled != requested;
   sample.pose = clip.poses[static_cast<std::size_t>(sampled)];
   sample.outgoing_special_state = !clip.metadata.outgoing_special_state.empty();
-  // A raw-clip preview is not a settled pose: it must not inherit this tick's
-  // support anchors, or the "original reference pose" would silently carry the
-  // current plant constraints.
-  sample.foot_targets = PlayerFootIkTargets{};
+  // A raw-clip preview returns the unmodified clip skeleton; the committed
+  // Final Pose is a different, realized value.
   return sample;
 }
 

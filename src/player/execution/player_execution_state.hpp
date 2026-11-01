@@ -34,7 +34,6 @@
 #include "football/player/player_action.hpp"
 #include "football/player/player_action_request.hpp"
 #include "football/player/execution/player_action_adapter.hpp"
-#include "football/player/execution/player_foot_ik.hpp"
 #include "player/execution/locomotion_intent_scheduler.hpp"
 #include "player/execution/player_action_execution_state.hpp"
 #include "player/execution/player_action_executor.hpp"
@@ -108,37 +107,20 @@ struct PlayerExecutionState {
   football::animation::PlaybackState playback_state_;
   // P3/M3: the single Final Pose channel. `playback_state_.final_pose` is the
   // animation's blended output; this is the Player-corrected skeleton (warp ->
-  // bounded realization -> stride/plant IK) that Pose(), the baked sample, the
-  // colliders and the touch geometry all read. The base yaw stays separate so
-  // animation matching still sees local joint rotations.
+  // bounded realization) that Pose(), the baked sample, the colliders and the
+  // touch geometry all read. The base yaw stays separate so animation matching
+  // still sees local joint rotations.
   PoseFrame final_pose_;
   float final_pose_base_angle_ = 0.0f;
-  // The clip time the Final Pose was settled from. A post-tick re-settle must
-  // reuse it, not re-derive one from the integer action cursor: a locomotion
-  // pose lives at a fractional clip time.
-  float settle_clip_frame_time_ = 0.0f;
   bool final_pose_valid_ = false;
-  // The realized pose the Final Pose was settled from. A root correction after
-  // the tick re-settles this pose instead of re-deriving one.
-  PoseFrame settle_source_pose_;
-  bool settle_source_valid_ = false;
+  // RMA-7: the root position the adapted locomotion sample started from. A
+  // post-tick correction re-derives the warp from the corrected displacement.
+  football::math::Vector3 adapted_locomotion_start_position_ =
+      football::math::Vector3(0);
   // ANIM-2 A10.1: the tick of the last real playback update, so a repeated
   // same-tick call cannot advance the transition twice.
   std::optional<football::sim::Tick> last_playback_tick_;
   bool playback_blend_enabled_ = true;
-  // P3b: support-foot world anchors. Only Movement clips populate this.
-  PlayerFootPlantState foot_plant_;
-  // Support detection state: the previous tick's hip-relative fore-aft ankle
-  // offsets, plus which foot was support. A foot travelling backwards relative
-  // to the body is the one carrying weight (see SelectFootSupport).
-  float previous_fore_aft_[2] = {0.0f, 0.0f};
-  // World ankle positions of the previous tick's gait pose, used to check that a
-  // foot the clip calls "stance" is really standing still in the world.
-  football::math::Vector3 previous_world_ankle_[2] = {
-      football::math::Vector3(0), football::math::Vector3(0)};
-  bool have_previous_fore_aft_ = false;
-  bool support_left_ = false;
-  bool have_support_ = false;
   // LOCO-2.3b: fresh snapshot of the last committed locomotion tick.
   std::optional<LocomotionAnimationInput> locomotion_animation_input_;
   // M2: the motion-driven playback cursor. Carried across ticks so the gait

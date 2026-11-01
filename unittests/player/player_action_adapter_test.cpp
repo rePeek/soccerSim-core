@@ -11,6 +11,7 @@
 
 #include <cmath>
 
+#include "football/animation/foot_support.hpp"
 #include "football/player/execution/player_action_adapter.hpp"
 #include "football/player/execution/player_motion.hpp"
 
@@ -118,18 +119,17 @@ TEST_CASE("cadence and stride are one pair at the clip's own speed",
   CHECK(foot_speed == Catch::Approx(sample.velocity.GetLength()).margin(1e-4f));
 }
 
-TEST_CASE("a slower body shortens the stride and quickens the clip",
-          "[player][adapter][rma2]") {
+TEST_CASE("a slower body only slows the cadence; the stride stays authored",
+          "[player][adapter][rma7]") {
   const AnimationClip clip = GaitClip(2.0f);
   const auto sample = PlayerActionAdapter::Evaluate(
       clip, Moving(0.5f), Profile(), Body(), Control(Vector3(0, -0.5f, 0)),
       PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
-  // Pairing: rate = achieved / (reference * stride), never chosen separately.
+  // RMA-7: no runtime IK means no pose-level stride shortening. The clip keeps
+  // its authored stride and the cadence carries the speed difference.
+  CHECK(sample.stride_scale == Catch::Approx(1.0f).margin(1e-6f));
   CHECK(sample.playback_rate ==
-        Catch::Approx(sample.velocity.GetLength() /
-                      (2.0f * sample.stride_scale))
-            .margin(1e-5f));
-  CHECK(sample.stride_scale <= 1.0f);
+        Catch::Approx(sample.velocity.GetLength() / 2.0f).margin(1e-5f));
 }
 
 TEST_CASE("locomotion ignores the clip's root trajectory",
@@ -227,4 +227,28 @@ TEST_CASE("an action plan is validated without moving its clip time",
   CHECK(sample.playback_rate == Catch::Approx(1.0f).margin(1e-6f));
   CHECK(sample.diagnostics.final_delta.coords[1] ==
         Catch::Approx(-0.03f).margin(1e-6f));
+}
+
+TEST_CASE("a calibrated gait caps the root to the speed the clip can play",
+          "[player][adapter][rma7]") {
+  AnimationClip clip = GaitClip(2.0f);
+  clip.metadata.action_type = e_DefString_Movement;
+  clip.motion_quality.stance_calibrated = true;
+  // The support derivation's stance speed (1 m/s) is the calibrated cadence.
+  clip.stance_speed = 1.0f;
+  clip.foot_support.assign(clip.frame_count,
+                           FootSupportFrame{FootPhase::Stance,
+                                            FootPhase::Swing});
+
+  const auto sample = PlayerActionAdapter::Evaluate(
+      clip, Moving(5.0f), Profile(), Body(), Control(Vector3(0, -5.0f, 0)),
+      PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
+  CHECK(sample.diagnostics.ik_free_pose);
+  CHECK(sample.stride_scale == Catch::Approx(1.0f).margin(1e-6f));
+  // The authored stride is kept, so the root may not outrun the playable
+  // cadence. No IK will pull the foot back afterwards.
+  CHECK(sample.velocity.GetLength() <=
+        2.2f + 1e-4f);
+  CHECK(sample.diagnostics.capability_limited);
+  CHECK(sample.playback_rate <= 2.2f + 1e-4f);
 }

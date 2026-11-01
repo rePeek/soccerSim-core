@@ -43,6 +43,7 @@ class AnimationLibrary {
     std::size_t total = 0;
     std::size_t tracked = 0;
     std::size_t ik_free_usable = 0;
+    std::size_t stance_calibrated = 0;
     std::size_t support_slip = 0;
     std::size_t loop_discontinuous = 0;
   };
@@ -53,6 +54,7 @@ class AnimationLibrary {
       if (!clip.motion_quality.tracked) continue;
       ++census.tracked;
       if (clip.motion_quality.ik_free_usable) ++census.ik_free_usable;
+      if (clip.motion_quality.stance_calibrated) ++census.stance_calibrated;
       if (!clip.motion_quality.support_consistent) ++census.support_slip;
       if (!clip.motion_quality.loop_continuous) ++census.loop_discontinuous;
     }
