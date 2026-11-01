@@ -181,9 +181,50 @@ TEST_CASE("RM-0: every movement clip's gate verdict has a measured reason",
         !clip.motion_quality.support_consistent ||
         clip.motion_quality.root_speed <= 0.5f ||
         clip.motion_quality.stance_speed <= 0.5f;
-    CHECK((usable || reason));
-    CHECK_FALSE((usable && !reason));
+    // The strict gate is exactly this reason set for a movement clip: a
+    // usable clip has no failing measurement, a rejected one names at least
+    // one.
+    CHECK(usable == !reason);
     if (!usable && reason) ++explained;
   }
   CHECK(explained == census.movement_rejected);
+}
+
+// RM-1: the import-time gait repair must produce a real, playable cycle, not
+// just move the gate. A repaired clip is a GLB source (not "autogen") whose
+// frame count grew from the authored half-cycle, whose root speed is constant
+// across the cycle, and whose stance foot is planted in the clip's own world
+// track.
+TEST_CASE("RM-1: a real GLB gait is repaired into an IK-free cycle",
+          "[animation][motionquality][catalog][rm1]") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_ANIMATION_CATALOG_PATH));
+  int real_glb = 0;
+  for (const AnimationClip& clip : library.Clips()) {
+    if (clip.metadata.action_type != e_DefString_Movement) continue;
+    if (!clip.motion_quality.ik_free_usable) continue;
+    if (clip.name.starts_with("autogen")) continue;
+    ++real_glb;
+    CHECK(clip.frame_count > 25);
+    CHECK(clip.motion_quality.support_consistent);
+    CHECK(clip.motion_quality.loop_continuous);
+    CHECK(clip.motion_quality.stance_direction_alignment > 0.9f);
+    // The retime makes the root a constant-speed track. One GLB frame of
+    // tolerance covers the float accumulation in the cumulative positions.
+    REQUIRE(clip.root_positions.size() >= 3);
+    float shortest = 1e9f;
+    float longest = 0.0f;
+    for (std::size_t frame = 0; frame + 1 < clip.root_positions.size();
+         ++frame) {
+      const float step =
+          (clip.root_positions[frame + 1] - clip.root_positions[frame])
+              .Get2D()
+              .GetLength();
+      shortest = std::min(shortest, step);
+      longest = std::max(longest, step);
+    }
+    INFO("clip " << clip.name << " step " << shortest << ".." << longest);
+    CHECK(longest - shortest <= 1e-4f);
+  }
+  CHECK(real_glb > 0);
 }

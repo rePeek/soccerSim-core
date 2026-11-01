@@ -87,6 +87,7 @@ TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
 
   const PlayerBodyProfile body = Body();
   int tested = 0;
+  int real_glb_tested = 0;
   int rejected_clips = 0;
   for (const AnimationClip& clip : library.Clips()) {
     if (clip.metadata.action_type != e_DefString_Movement) continue;
@@ -108,8 +109,10 @@ TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
     const float reference_speed = LocomotionEffectiveGaitSpeed(
         clip, body.height_scale);
     if (reference_speed <= 0.5f) continue;
-    // Turning and ball-control clips pivot the support foot by design; the
-    // straight ordinary gait is the migration target this acceptance covers.
+    // Turning clips pivot the support foot by design; the straight ordinary
+    // gait is the migration target this acceptance covers. RM-1 repaired the
+    // first real sprint half-cycle into a full IK-free cycle, so the positive
+    // branch must now be exercised.
     if (!OrdinaryStraightGait(clip)) continue;
 
     PlayerActionControl control;
@@ -189,10 +192,14 @@ TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
     CHECK(worst_right <= 0.015f);
     CHECK(max_joint_step <= 1.5f);
     ++tested;
+    // A repaired GLB keeps its canonical name, which is an absolute source
+    // path; generated clips are named "autogen ...".
+    if (!clip.name.starts_with("autogen")) ++real_glb_tested;
   }
   CHECK(rejected_clips > 0);
-  if (tested == 0) {
-    SUCCEED("no strict IK-free straight gait; the IK-free path stays gated off");
-    return;
-  }
+  // RM-1: the positive branch is a gate, not a note. At least one real catalog
+  // gait must execute without IK, and at least one of them must be a GLB
+  // (the generated clips are also valid, but they are not the asset proof).
+  REQUIRE(tested > 0);
+  REQUIRE(real_glb_tested > 0);
 }

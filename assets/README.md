@@ -79,6 +79,11 @@ assets/motion_templates/*.glb + manifest.json + generation_keys.json
 不会对运行中的匹配自动热重载。失败加载不发布半成品，保留先前成功加载的库。
 
 支撑脚轨道继续由 `DeriveFootSupport` 从姿态派生；本次没有新增 GLB FootIK extras。
+`DeriveMotionQuality` 在加载后测量根轨迹与支撑脚的滑动、循环缝和方向一致性。
+对“半步 + 其镜像”的直线 movement 动作，导入器会尝试合成完整循环：用支撑脚
+FK 反推根轨迹去滑步，再按支撑脚位移重采样为恒定速度的循环；只有修复后的动作
+自己通过严格 IK-free 门禁时才会替换内存中的动作，否则保留原 GLB 轨道并回退。
+该过程不写回 GLB、不生成第二套磁盘格式，也不在运行时做 Foot IK。
 C++ 已移除 `.simanim` 读写、内容哈希及资源版本校验；动画直接使用当前 GLB。
 目前不提供磁盘录像归档功能，不包含录像格式、版本兼容、CRC 或后台写盘线程。
 模拟侧的内存快照和快照历史仍保留，不会写出录像文件。
