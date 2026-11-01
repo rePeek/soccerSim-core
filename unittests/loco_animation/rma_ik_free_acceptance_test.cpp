@@ -19,6 +19,7 @@
 #include "football/animation/foot_support.hpp"
 #include "football/animation/library.hpp"
 #include "football/player/execution/player_action_adapter.hpp"
+#include "football/player/execution/player_motion.hpp"
 #include "player/execution/player_baked_body_pose.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
 
@@ -202,4 +203,94 @@ TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
   // (the generated clips are also valid, but they are not the asset proof).
   REQUIRE(tested > 0);
   REQUIRE(real_glb_tested > 0);
+}
+
+// RM-4: the production composition. The adapter samples the clip root; the
+// caller commits it when executable and uses the capability profile's fallback
+// (capped by the gait's playable speed) when it is not. The loop must
+// accelerate, hold a steady cadence and brake without a root discontinuity.
+TEST_CASE("RM-4: a repaired real gait accelerates and brakes through the adapter",
+          "[loco][ikfree][catalog][adapter][rm4]") {
+  AnimationLibrary library;
+  REQUIRE(library.Load(GFOOTBALL_ANIMATION_CATALOG_PATH));
+  const AnimationClip* clip = nullptr;
+  for (const AnimationClip& candidate : library.Clips()) {
+    if (candidate.metadata.action_type != e_DefString_Movement) continue;
+    if (!candidate.motion_quality.ik_free_usable) continue;
+    if (candidate.name.starts_with("autogen")) continue;
+    if (!OrdinaryStraightGait(candidate)) continue;
+    clip = &candidate;
+    break;
+  }
+  REQUIRE(clip != nullptr);
+
+  const PlayerBodyProfile body = Body();
+  const PlayerMotionProfile profile = Profile();
+  PlayerActionControl control;
+  control.idle_facing = Vector3(0, -1, 0);
+  control.authority = PlayerMotionAuthority::Locomotion;
+
+  PlayerKinematicState state;
+  state.bodyFacing = Vector3(0, -1, 0);
+  PlayerPlaybackState playback;
+  state.velocity = Vector3(0);
+  const float playable = clip->motion_quality.root_speed *
+                         body.height_scale * kLocomotionMaxPlaybackRate;
+  INFO("clip " << clip->name << " playable " << playable);
+
+  int root_ticks = 0;
+  float previous_speed = 0.0f;
+  float worst_acceleration = 0.0f;
+  const auto one_tick = [&](const Vector3& desired) {
+    control.desired_velocity = desired;
+    const AdaptedMotionSample sample =
+        PlayerActionAdapter::Evaluate(*clip, state, profile, body, control,
+                                      playback, kTick);
+    if (sample.feasible) {
+      ++root_ticks;
+      state.position += sample.root_delta;
+      state.velocity = sample.velocity;
+      playback.frame_time = sample.continuous_clip_time;
+      return;
+    }
+    // Mirrors Player::CommitLocomotion's compatibility fallback: brake toward
+    // the gait's playable range, never chase a speed this clip cannot play.
+    Vector3 fallback = desired;
+    if (sample.diagnostics.playable_speed > 1e-3f &&
+        fallback.GetLength() > sample.diagnostics.playable_speed) {
+      fallback = fallback.GetNormalized(control.idle_facing) *
+                 sample.diagnostics.playable_speed;
+    }
+    state = PlayerMotion::StepContinuous(state, profile, fallback,
+                                         control.idle_facing, kTick)
+                .state;
+  };
+
+  for (int tick = 0; tick < 300; ++tick) {
+    one_tick(Vector3(0, -profile.max_speed, 0));
+    const float speed = state.velocity.GetLength();
+    const float delta = std::fabs(speed - previous_speed);
+    if (tick > 0) {
+      worst_acceleration = std::max(worst_acceleration, delta / kTick);
+      // A direction change is not in this straight test, so every step is a
+      // pure speed change and must stay inside the profile.
+      CHECK(delta <= profile.acceleration * kTick + 1e-4f);
+    }
+    CHECK(speed <= profile.max_speed + 1e-4f);
+    previous_speed = speed;
+  }
+  CHECK(root_ticks > 0);
+  CHECK(state.velocity.GetLength() > 0.5f);
+
+  // Now stop. The same composition must brake, not teleport to zero.
+  previous_speed = state.velocity.GetLength();
+  for (int tick = 0; tick < 300; ++tick) {
+    one_tick(Vector3(0));
+    const float speed = state.velocity.GetLength();
+    const float delta = std::fabs(speed - previous_speed);
+    CHECK(delta <= profile.braking * kTick + 1e-4f);
+    previous_speed = speed;
+  }
+  CHECK(state.velocity.GetLength() <= kLocomotionStopSpeed + 1e-3f);
+  CHECK(worst_acceleration <= profile.acceleration + 1e-2f);
 }

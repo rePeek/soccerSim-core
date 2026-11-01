@@ -163,8 +163,19 @@ PlayerKinematicState Player::CommitLocomotion(
     next.position += adapted.root_delta;
     next.velocity = adapted.velocity;
   } else {
-    next = PlayerMotion::StepContinuous(tick_start, profile,
-                                        input.desiredVelocity, input.idleFacing, dt)
+    // RM-3: a body above the clip's playable range brakes toward that range
+    // instead of chasing a control target the active gait can never play.
+    // This is the compatibility path, not a second root authority: it only
+    // keeps the body inside the range where the root sample can take over.
+    football::math::Vector3 fallback_desired = input.desiredVelocity;
+    if (adapted.diagnostics.playable_speed > 1e-3f &&
+        fallback_desired.GetLength() > adapted.diagnostics.playable_speed) {
+      fallback_desired =
+          fallback_desired.GetNormalized(input.idleFacing) *
+          adapted.diagnostics.playable_speed;
+    }
+    next = PlayerMotion::StepContinuous(tick_start, profile, fallback_desired,
+                                        input.idleFacing, dt)
                .state;
   }
   // Torso model consumes the resulting locomotion facing and writes only
