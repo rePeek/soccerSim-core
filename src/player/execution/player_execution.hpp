@@ -155,6 +155,10 @@ class PlayerExecution final {
   // stride scale, gait phase and plant anchors: bounded, no clip time consumed.
   // Returns false when this tick has no movement pose to re-settle.
   bool ResettleFinalPose(PlayerExecutionPort& owner);
+  // RMA-6: Runtime committed an external root correction (pair contact, ball
+  // arbitration) after this tick. Record it on the sample whose root was
+  // corrected; the re-settle then uses the corrected root, never the stale one.
+  void NoteRootCorrection(const football::math::Vector3& offset);
 
   // --- observation ------------------------------------------------------
   const PlayerActionState& ActionState() const { return state_.actionState; }

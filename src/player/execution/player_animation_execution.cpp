@@ -530,6 +530,23 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
                                        state_.final_pose_base_angle_);
 }
 
+
+void PlayerExecution::NoteRootCorrection(const football::math::Vector3& offset) {
+  // RMA-6: the correction is the final displacement stage. Record it on the
+  // sample that owns the root so the diagnostic never reports the pre-collision
+  // motion as what shipped.
+  if (state_.adapted_locomotion_valid_) {
+    state_.adapted_locomotion_.diagnostics.collision_limited = true;
+    state_.adapted_locomotion_.diagnostics.final_delta =
+        state_.adapted_locomotion_.diagnostics.adapted_delta + offset;
+  }
+  if (state_.adapted_action_valid_) {
+    state_.adapted_action_.diagnostics.collision_limited = true;
+    state_.adapted_action_.diagnostics.final_delta =
+        state_.adapted_action_.diagnostics.adapted_delta + offset;
+  }
+}
+
 bool PlayerExecution::ResettleFinalPose(PlayerExecutionPort& owner) {
   PortScope scope(*this, owner);
   if (!state_.final_pose_valid_ || !state_.settle_source_valid_) return false;
