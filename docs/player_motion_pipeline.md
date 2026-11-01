@@ -702,6 +702,39 @@ version bump needs (a) one implementation reachable from both paths - e.g. a C++
 which are a *model* fact (boot geometry) that Animation does not own today. Until
 both exist, load-time derivation keeps one implementation and zero duplication.
 
+### R2/P3 result: the crude filter leaves Animation, legacy verification deleted
+
+| moved (git mv, code unchanged) | from | to |
+|---|---|---|
+| `BakedAnimationSelector::CrudeSelection` | `animation/selector.cpp` | `player/execution/player_crude_filter.cpp` as `CrudeAnimationFilter::Select` |
+| `CrudeSelectionQuery`, `SelectionProperties` | `animation/selection_query.hpp` | `player/execution/player_crude_query.hpp` |
+
+`Quadrant` stays in Animation: it is a pure value type the offline baker's legacy
+import still assigns, not a decision.
+
+Deleted as legacy (no behaviour change to the game):
+- `AnimCollection::CrudeSelection` in the baker (326 lines) - the tool's own copy
+  of the legacy selection, used only by the deleted verification;
+- the baker's query matrix + `VERIFY-SELECTION` mode (182 lines + the CLI flag +
+  the wrapper): it proved that the baked selection matched the legacy one during
+  A0/A1. That migration is complete; re-proving it on every run is not a test of
+  today's code.
+
+Measured: Animation went from 1789 to **1437** non-comment code lines (-20%),
+and the baker lost 525 lines. Runtime cost: zero (pure relocation).
+
+What is left in Animation, by code lines: artifact schema + loader 390, enums and
+value types 186, foot support 246, pose/playback/transition 230, touch geometry
+169, reference motion + entry frames + math 215.
+
+The only legacy left is inside the artifact *schema* itself: 9 metadata fields are
+read by nobody (`forced_foot`, `special_var1/2`, `touch_foot`,
+`incoming_movement`, `incoming/outgoing_ball_direction_max_deviation`,
+`incoming_ball_direction`), plus ~12 that only one to three call sites touch.
+Removing them needs a `.simanim` v8 bump and a matching Python writer change, for
+about 40 lines of saving - which is why it is queued behind a real contract change
+rather than done on its own.
+
 ### What is still open
 
 - Support phases are derived at load time. A bake-time contract needs one shared

@@ -21,7 +21,8 @@ add_executable(football_player_unit_tests
   player_motion_adapter_test.cpp
   player_pose_adapter_test.cpp
   player_foot_ik_test.cpp
-  player_stride_pipeline_test.cpp)
+  player_stride_pipeline_test.cpp
+  player_crude_filter_test.cpp)
 target_include_directories(football_player_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/../animation)

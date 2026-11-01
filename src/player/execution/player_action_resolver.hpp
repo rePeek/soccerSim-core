@@ -10,7 +10,8 @@
 #include "football/animation/entry_frame.hpp"
 #include "football/animation/library.hpp"
 #include "player/execution/player_action_candidates.hpp"
-#include "football/animation/selector.hpp"
+#include "player/execution/player_crude_query.hpp"
+#include "player/execution/player_crude_filter.hpp"
 #include "player/execution/player_reaction_resolver.hpp"
 
 // The Player's action resolver: which clip performs this action, and from which

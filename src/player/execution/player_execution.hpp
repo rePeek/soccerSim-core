@@ -41,7 +41,9 @@ class Ball;
 }
 class AnimationLibrary;
 struct AnimationClip;
+namespace football::player {
 struct CrudeSelectionQuery;
+}
 struct PlayerCommandInputs;
 struct CommandBuildResult;
 struct LocomotionAnimationInput;
@@ -337,7 +339,7 @@ class PlayerExecution final {
   bool CanCommitMatchedSelection(int selected_anim_id, const PlayerCommand& command,
                                  e_InterruptAnim local_interrupt_anim,
                                  const football::sim::TouchChoice& touch_choice) const;
-  CrudeSelectionQuery BuildCrudeSelectionQuery(
+  football::player::CrudeSelectionQuery BuildCrudeSelectionQuery(
       const PlayerCommand& command, const football::sim::PlayerTickContext& tick,
       football::sim::Tick now, const football::sim::player::PlayerObservation& observation);
   bool NeedTouch(football::sim::Tick now, const football::sim::PlayerTickContext& tick,

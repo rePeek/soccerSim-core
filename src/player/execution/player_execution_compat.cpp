@@ -18,7 +18,7 @@
 #include "football/animation/movement_math.hpp"
 #include "player/execution/player_action_candidates.hpp"
 #include "football/animation/selection_math.hpp"
-#include "football/animation/selector.hpp"
+#include "player/execution/player_crude_filter.hpp"
 #include "football/player/execution/player_motion.hpp"
 #include "player/execution/player_action_arbitration.hpp"
 #include "player/execution/player_action_motion.hpp"

@@ -1,13 +1,12 @@
-# animation — the shared, immutable clip resource and its pure algorithms: clip
-# selection, pose sampling/blending, entry frames, transitions, foot support and
-# touch geometry. Action *decisions* (Match/MatchTouch/Trip) belong to the Player
-# and are tested in unittests/player.
+# animation — the shared, immutable clip resource and its pure algorithms: pose
+# sampling/blending, entry frames, transitions, foot support and touch geometry.
+# Candidate/action selection belongs to the Player (unittests/player,
+# unittests/player_decision).
 
 add_executable(football_animation_unit_tests
   motion_clip_test.cpp
   pose_sampling_test.cpp
   pose_blend_test.cpp
-  selector_test.cpp
   entry_frame_continuity_test.cpp
   touch_geometry_test.cpp
   foot_support_test.cpp)

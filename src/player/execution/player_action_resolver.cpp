@@ -8,6 +8,8 @@
 
 #include <algorithm>
 
+using namespace football::player;
+
 
 namespace football::player {
 
@@ -20,7 +22,7 @@ std::optional<MatchResult> Match(const AnimationLibrary& library,
     crude.assign(query.crude_candidates.begin(), query.crude_candidates.end());
   } else {
     DataSet selected;
-    BakedAnimationSelector::CrudeSelection(library.Clips(), query.constraints.crude,
+    CrudeAnimationFilter::Select(library.Clips(), query.constraints.crude,
                                            selected);
     crude.assign(selected.begin(), selected.end());
   }

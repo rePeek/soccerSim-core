@@ -1,11 +1,13 @@
-// ANIM-1 A1 — pure clip selection tests (BakedAnimationSelector).
+// ANIM-1 A1 — pure clip selection tests (CrudeAnimationFilter).
 
 #include <catch2/catch_test_macros.hpp>
 
 #include <vector>
 
 #include "animation_test_support.hpp"
-#include "football/animation/selector.hpp"
+#include "player/execution/player_crude_filter.hpp"
+
+using namespace football::player;
 
 namespace {
 std::vector<AnimationClip> Clips() {
@@ -26,7 +28,7 @@ TEST_CASE("selection filters by function type") {
   query.byFunctionType = true;
   query.functionType = e_FunctionType_Shot;
   DataSet out;
-  BakedAnimationSelector::CrudeSelection(clips, query, out);
+  CrudeAnimationFilter::Select(clips, query, out);
   REQUIRE(out.size() == 1);
   CHECK(out[0] == 3);
 }
@@ -39,7 +41,7 @@ TEST_CASE("selection filters by incoming velocity bucket") {
   query.byIncomingVelocity = true;
   query.incomingVelocity = e_Velocity_Idle;
   DataSet out;
-  BakedAnimationSelector::CrudeSelection(clips, query, out);
+  CrudeAnimationFilter::Select(clips, query, out);
 
   REQUIRE_FALSE(out.empty());
   for (const int id : out) {
@@ -57,8 +59,8 @@ TEST_CASE("selection is deterministic for equal input") {
   query.functionType = e_FunctionType_Movement;
   DataSet a;
   DataSet b;
-  BakedAnimationSelector::CrudeSelection(clips, query, a);
-  BakedAnimationSelector::CrudeSelection(clips, query, b);
+  CrudeAnimationFilter::Select(clips, query, a);
+  CrudeAnimationFilter::Select(clips, query, b);
   REQUIRE(a == b);
   REQUIRE_FALSE(a.empty());
 }

@@ -22,7 +22,9 @@
 #include <cmath>
 
 #include "football/animation/movement_math.hpp"
-#include "football/animation/selector.hpp"
+#include "player/execution/player_crude_filter.hpp"
+
+using namespace football::player;
 
 using namespace football::math;
 
@@ -222,8 +224,8 @@ void KeepBestDirectionAnims(const AnimationLibrary& library,
       }
     } else {
       const int quadrant_id = library.Get(static_cast<uint32_t>(*iter)).metadata.quadrant;
-      const Quadrant& best_quadrant = BakedAnimationSelector::GetQuadrant(best_quadrant_id);
-      const Quadrant& quadrant = BakedAnimationSelector::GetQuadrant(quadrant_id);
+      const Quadrant& best_quadrant = CrudeAnimationFilter::GetQuadrant(best_quadrant_id);
+      const Quadrant& quadrant = CrudeAnimationFilter::GetQuadrant(quadrant_id);
 
       bool predicate = true;
       if (!library.Get(static_cast<uint32_t>(*iter)).metadata.last_ditch) {
@@ -521,7 +523,7 @@ AnimationId SelectIdleMovementAnim(const AnimationLibrary& library,
   query.outgoingVelocity = e_Velocity_Idle;
 
   DataSet data_set;
-  BakedAnimationSelector::CrudeSelection(library.Clips(), query, data_set);
+  CrudeAnimationFilter::Select(library.Clips(), query, data_set);
 
   SortByIdle(library, data_set, 1.0f);
   SortByIncomingBodyDirection(library, data_set, Vector3(0, -1, 0));
@@ -553,7 +555,7 @@ AnimationId SelectRetainAnimClip(const AnimationLibrary& library,
   query.properties.incoming_retain_state = "right_elbow";
 
   DataSet data_set;
-  BakedAnimationSelector::CrudeSelection(library.Clips(), query, data_set);
+  CrudeAnimationFilter::Select(library.Clips(), query, data_set);
   assert(!data_set.empty());
   SortByMovementSimilarity(library, data_set, rel_desired_direction,
                            desired_velocity, cornering_bias);

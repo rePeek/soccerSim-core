@@ -16,13 +16,15 @@
 // unchanged, so the candidate set and its order stay identical for both the
 // runtime and the offline baker.
 
-#include "football/animation/selector.hpp"
+#include "player/execution/player_crude_filter.hpp"
 
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 
 #include "football/animation/selection_math.hpp"
+
+namespace football::player {
 
 namespace {
 
@@ -68,7 +70,7 @@ constexpr float kMaxOutgoingBallDirectionDeviation = 0.25f * pi;
 
 }  // namespace
 
-void BakedAnimationSelector::CrudeSelection(const std::vector<AnimationClip>& clips,
+void CrudeAnimationFilter::Select(const std::vector<AnimationClip>& clips,
                                             const CrudeSelectionQuery& query,
                                             DataSet& data_set) {
   using namespace football::math;
@@ -341,7 +343,7 @@ void BakedAnimationSelector::CrudeSelection(const std::vector<AnimationClip>& cl
   }
 }
 
-Quadrant BakedAnimationSelector::GetQuadrant(int id) {
+Quadrant CrudeAnimationFilter::GetQuadrant(int id) {
   using namespace football::math;
   Quadrant q;
   q.id = id;
@@ -372,3 +374,5 @@ Quadrant BakedAnimationSelector::GetQuadrant(int id) {
                EnumToFloatVelocity(q.velocity);
   return q;
 }
+
+}  // namespace football::player

@@ -14,6 +14,7 @@ add_library(football_player_execution STATIC
   player_animation_config.cpp
   player_action_resolver.cpp
   player_action_candidates.cpp
+  player_crude_filter.cpp
   player_touch_action_resolver.cpp
   player_touch_action_scoring.cpp
   player_reaction_resolver.cpp

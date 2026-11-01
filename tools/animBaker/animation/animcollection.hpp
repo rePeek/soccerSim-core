@@ -25,7 +25,6 @@
 
 #include "football/animation/quadrant.hpp"
 #include "football/animation/selection_math.hpp"
-#include "football/animation/selection_query.hpp"
 
 using namespace football::anim_baker;
 
@@ -52,7 +51,6 @@ class AnimCollection {
 
     const std::vector < Animation* > &GetAnimations() const;
 
-    void CrudeSelection(DataSet &dataSet, const CrudeSelectionQuery &query);
 
     inline Animation* GetAnim(int index) {
       return animations.at(index);

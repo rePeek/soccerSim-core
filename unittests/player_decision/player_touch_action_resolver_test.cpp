@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "player/execution/player_action_resolver.hpp"
-#include "football/animation/selector.hpp"
+#include "player/execution/player_crude_filter.hpp"
 #include "player/execution/player_touch_action_resolver.hpp"
 
 using namespace football::player;
@@ -77,7 +77,7 @@ std::vector<int> CrudeCandidates(const AnimationLibrary& library,
   query.byFunctionType = true;
   query.functionType = type;
   DataSet data;
-  BakedAnimationSelector::CrudeSelection(library.Clips(), query, data);
+  CrudeAnimationFilter::Select(library.Clips(), query, data);
   std::vector<int> out;
   for (int i = 0; i < n && i < static_cast<int>(data.size()); ++i) {
     out.push_back(data[i]);

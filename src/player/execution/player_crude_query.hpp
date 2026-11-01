@@ -11,17 +11,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _HPP_ANIMATION_SELECTION_QUERY
-#define _HPP_ANIMATION_SELECTION_QUERY
+#ifndef PLAYER_CRUDE_QUERY_HPP
+#define PLAYER_CRUDE_QUERY_HPP
 
 #include <string>
 
-#include "football/foundation/math/vector3.hpp"
 #include "football/animation/types.hpp"
+#include "football/foundation/math/vector3.hpp"
 
-// The subset of clip metadata used to refine a selection. This is deliberately
-// separate from the legacy Animation variable cache: baked runtime selection
-// needs typed values, not source-asset parsing state.
+namespace football::player {
+
+
+// The subset of clip metadata used to filter candidates. This is deliberately
+// separate from the legacy Animation variable cache: baked selection needs typed
+// values, not source-asset parsing state.
+//
+// ACFG-4: the query lives with the Player's filter, not with the clip resource.
 struct SelectionProperties {
   std::string incoming_special_state;
   std::string incoming_retain_state;
@@ -74,4 +79,6 @@ struct CrudeSelectionQuery {
   SelectionProperties properties;
 };
 
-#endif
+}  // namespace football::player
+
+#endif  // PLAYER_CRUDE_QUERY_HPP

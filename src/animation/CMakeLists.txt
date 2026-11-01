@@ -1,8 +1,10 @@
 # ANIM-2 A12: the Animation module owns two archives.
 #
 # football::animation_base — the .simanim format, the baked data structures, the
-# artifact reader and the base/coarse candidate selection. The offline baker
-# links ONLY this archive, so it never depends on the runtime algorithms.
+# derived foot-support contract and the artifact reader. The offline baker links
+# ONLY this archive, so it never depends on the runtime algorithms or the Player.
+# Candidate selection (the crude filter, its query and quadrants) lives in the
+# Player since ACFG-4.
 #
 # football::animation — the runtime algorithms on top of the base: full match
 # refinement, touch geometry/scoring, pose sampling/blending, playback and
@@ -15,7 +17,6 @@ add_library(football_animation_base STATIC
   format.cpp
   clip.cpp
   library.cpp
-  selector.cpp
   foot_support.cpp
 )
 add_library(football::animation_base ALIAS football_animation_base)
@@ -26,9 +27,6 @@ target_sources(football_animation_base PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/format.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/clip.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/library.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/selector.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/selection_math.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/selection_query.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/quadrant.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/foot_support.hpp)
 target_compile_features(football_animation_base PUBLIC cxx_std_23)

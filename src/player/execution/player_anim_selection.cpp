@@ -14,7 +14,7 @@
 #include "football/animation/library.hpp"
 #include "football/animation/movement_math.hpp"
 #include "football/animation/selection_math.hpp"
-#include "football/animation/selector.hpp"
+#include "player/execution/player_crude_filter.hpp"
 #include "football/ball/ball.hpp"
 #include "player/execution/player_touch_math.hpp"
 #include "football/player/execution/player_motion.hpp"
@@ -329,7 +329,7 @@ bool PlayerExecution::TrySelectAction(football::sim::Tick now,
   CrudeSelectionQuery query = BuildCrudeSelectionQuery(command, tick, now, observation);
 
   DataSet dataSet;
-  BakedAnimationSelector::CrudeSelection(
+  CrudeAnimationFilter::Select(
       animations_.Clips(), query, dataSet);
   if (dataSet.size() == 0) {
     if (command.desiredFunctionType == e_FunctionType_Movement) {

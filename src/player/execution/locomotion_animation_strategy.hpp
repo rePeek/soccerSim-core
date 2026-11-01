@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "football/animation/clip.hpp"
-#include "football/animation/selector.hpp"
+#include "player/execution/player_crude_filter.hpp"
 #include "football/animation/types.hpp"
 #include "football/player/player_kinematics.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
@@ -16,7 +16,7 @@
 //
 // Reads only LocomotionAnimationInput (a value snapshot) and the baked clip
 // list. It never runs the motion model, never writes a world position, and has
-// no Simulation/Humanoid/RNG dependency. It reuses BakedAnimationSelector for
+// no Simulation/Humanoid/RNG dependency. It reuses football::player::CrudeAnimationFilter for
 // the coarse Movement/incoming-velocity filter, then ranks the survivors with a
 // deterministic score instead of re-implementing the selector.
 
@@ -80,13 +80,13 @@ inline LocomotionAnimationChoice SelectLocomotionAnimation(
   // Coarse filter: Movement clips whose incoming velocity is compatible with
   // the committed speed. Non-strict, so the continuous ranking below still sees
   // the adjacent buckets (e.g. 6 m/s ranks walk 5 over sprint 8).
-  CrudeSelectionQuery query;
+  football::player::CrudeSelectionQuery query;
   query.byFunctionType = true;
   query.functionType = e_FunctionType_Movement;
   query.byIncomingVelocity = true;
   query.incomingVelocity = FloatToEnumVelocity(actual_speed);
   DataSet candidates;
-  BakedAnimationSelector::CrudeSelection(clips, query, candidates);
+  football::player::CrudeAnimationFilter::Select(clips, query, candidates);
 
   LocomotionAnimationChoice best;
   best.animation_id = -1;
