@@ -1,5 +1,4 @@
-#ifndef FOOTBALL_ANIMATION_FOOT_SUPPORT_HPP
-#define FOOTBALL_ANIMATION_FOOT_SUPPORT_HPP
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -87,5 +86,3 @@ FootSupportFrame SampleFootSupport(const AnimationClip& clip, float frame_time);
 // that fails the gate keeps the compatibility path - the flags are a
 // diagnostic of the source animation, not a clamp.
 void DeriveMotionQuality(AnimationClip& clip);
-
-#endif  // FOOTBALL_ANIMATION_FOOT_SUPPORT_HPP

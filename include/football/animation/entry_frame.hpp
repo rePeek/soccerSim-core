@@ -1,5 +1,4 @@
-#ifndef FOOTBALL_ANIMATION_ENTRY_FRAME_HPP
-#define FOOTBALL_ANIMATION_ENTRY_FRAME_HPP
+#pragma once
 
 #include <limits>
 
@@ -60,5 +59,3 @@ EntryFrameResult SelectEntryFrame(const AnimationClip& clip,
                                   const EntryFrameRequest& request);
 
 }  // namespace football::animation
-
-#endif  // FOOTBALL_ANIMATION_ENTRY_FRAME_HPP

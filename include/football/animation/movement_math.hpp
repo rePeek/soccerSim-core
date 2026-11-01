@@ -1,5 +1,4 @@
-#ifndef FOOTBALL_ANIMATION_MOVEMENT_MATH_HPP
-#define FOOTBALL_ANIMATION_MOVEMENT_MATH_HPP
+#pragma once
 
 // ANIM-1 A6.4 A8.0: pure reference-motion math shared by the animation
 // selection path and the PlayerMotion action plan. No Player, Humanoid, Ball or
@@ -98,5 +97,3 @@ inline float CorneringBiasForFastCornering(const Vector3& current_movement,
 }
 
 }  // namespace football::animation
-
-#endif  // FOOTBALL_ANIMATION_MOVEMENT_MATH_HPP

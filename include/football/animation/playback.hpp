@@ -1,5 +1,4 @@
-#ifndef FOOTBALL_ANIMATION_PLAYBACK_HPP
-#define FOOTBALL_ANIMATION_PLAYBACK_HPP
+#pragma once
 
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
@@ -84,5 +83,3 @@ struct PlaybackState {
 };
 
 }  // namespace football::animation
-
-#endif  // FOOTBALL_ANIMATION_PLAYBACK_HPP

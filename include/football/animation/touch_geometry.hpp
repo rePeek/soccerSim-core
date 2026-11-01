@@ -1,5 +1,4 @@
-#ifndef FOOTBALL_ANIMATION_TOUCH_GEOMETRY_HPP
-#define FOOTBALL_ANIMATION_TOUCH_GEOMETRY_HPP
+#pragma once
 
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
@@ -69,5 +68,3 @@ struct TouchGeometryResult {
 TouchGeometryResult EvaluateTouchGeometry(const TouchGeometryRequest& request);
 
 }  // namespace football::animation
-
-#endif  // FOOTBALL_ANIMATION_TOUCH_GEOMETRY_HPP

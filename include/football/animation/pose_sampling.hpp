@@ -1,5 +1,4 @@
-#ifndef FOOTBALL_ANIMATION_POSE_SAMPLING_HPP
-#define FOOTBALL_ANIMATION_POSE_SAMPLING_HPP
+#pragma once
 
 #include "football/animation/clip.hpp"
 
@@ -15,5 +14,3 @@
 float PoseFrameTimeClamped(const AnimationClip& clip, float frame_time);
 
 PoseFrame SamplePose(const AnimationClip& clip, float frame_time);
-
-#endif  // FOOTBALL_ANIMATION_POSE_SAMPLING_HPP

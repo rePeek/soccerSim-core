@@ -1,5 +1,4 @@
-#ifndef FOOTBALL_ANIMATION_POSE_BLEND_HPP
-#define FOOTBALL_ANIMATION_POSE_BLEND_HPP
+#pragma once
 
 #include "football/animation/clip.hpp"
 
@@ -15,5 +14,3 @@
 
 PoseFrame BlendPose(const PoseFrame& source, const PoseFrame& target,
                     float weight);
-
-#endif  // FOOTBALL_ANIMATION_POSE_BLEND_HPP

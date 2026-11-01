@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_ANIMATION_TRANSITION_HPP
-#define FOOTBALL_ANIMATION_TRANSITION_HPP
+#pragma once
+
 #include "football/animation/clip.hpp"
 #include "football/foundation/math/scalar.hpp"
 
@@ -52,5 +52,3 @@ struct AnimationTransitionState {
 };
 
 }  // namespace football::animation
-
-#endif  // FOOTBALL_ANIMATION_TRANSITION_HPP

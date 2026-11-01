@@ -1,5 +1,4 @@
-#ifndef FOOTBALL_ANIMATION_MOTION_CLIP_HPP
-#define FOOTBALL_ANIMATION_MOTION_CLIP_HPP
+#pragma once
 
 #include <cstddef>
 #include <vector>
@@ -71,5 +70,3 @@ football::math::Vector3 ReferencePositionAt(const MotionClip& clip,
 // times, never by scaling the result at different call sites.
 football::math::Vector3 SampleDisplacement(const MotionClip& clip,
                                            float start_time, float end_time);
-
-#endif  // FOOTBALL_ANIMATION_MOTION_CLIP_HPP
