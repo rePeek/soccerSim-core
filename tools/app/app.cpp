@@ -5,7 +5,6 @@
 
 #include "app/args.hpp"
 #include "app/fixtures/default_teams.hpp"
-#include "app/recording/snapshot_archive.hpp"
 #include "football/env.hpp"
 #include "football/foundation/time/tick_boundary.hpp"
 
@@ -34,21 +33,9 @@ int main(int argc, char** argv) {
                  football::pitch::Pitch{}, football::ball::BallModel{},
                  match_options, {}};
     game.Start();
-    football::app::recording::SnapshotArchive archive;
-    football::sim::observation::SnapshotRecord sample;
-    if (config.snapshot_path) {
-      archive.Open(*config.snapshot_path, game.SnapshotMetadata());
-      game.CopyLatestSnapshot(sample);
-      archive.Append(sample); // Initial step zero comes from the same history.
-    }
     while (!game.Finished()) {
       game.Step();
-      if (config.snapshot_path) {
-        game.CopyLatestSnapshot(sample);
-        archive.Append(sample);
-      }
     }
-    if (config.snapshot_path) archive.Close();
     const MatchResult result = game.Result();
     std::cout << "home_score=" << result.home_score << " away_score=" << result.away_score
               << " outcome=" << OutcomeName(result.outcome)

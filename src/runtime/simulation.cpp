@@ -941,7 +941,6 @@ void Simulation::Init(
   football::sim::observation::SnapshotMetadata metadata;
   football::sim::observation::PlayerSlotTable player_slots;
   metadata.pitch = pitch_;
-  metadata.animation_library_hash = animations_->ContentHash();
   // Slot order 0 then 1, exactly as the legacy local teams array iterated.
   for (const auto& team : teams_) {
     if (!team) continue;

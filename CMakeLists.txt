@@ -88,8 +88,8 @@ target_link_libraries(simcore
 target_include_directories(simcore PRIVATE ${PROJECT_SOURCE_DIR}/src)
 football_configure_target(simcore)
 
-# Executable-side args/fixtures live under tools/app. app_support/recording stay
-# EXCLUDE_FROM_ALL and are pulled in only by the football_sim executable.
+# Executable-side args/fixtures live under tools/app. app_support stays
+# EXCLUDE_FROM_ALL and is pulled in only by the football_sim executable.
 add_subdirectory(tools/app)
 
 if(BUILD_TESTING)

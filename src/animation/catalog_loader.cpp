@@ -5,7 +5,6 @@
 
 #include "football/animation/library.hpp"
 #include "football/animation/foot_support.hpp"
-#include "football/animation/format.hpp"
 
 #include <algorithm>
 #include <array>
@@ -14,7 +13,6 @@
 #include <iostream>
 #include <memory>
 #include <set>
-#include <sstream>
 #include <stdexcept>
 #include <string_view>
 
@@ -439,16 +437,6 @@ AnimationClip Generate(const Json& entry, const std::vector<MotionTemplate>& tem
   return clip;
 }
 
-std::uint64_t HashClips(const std::vector<AnimationClip>& clips) {
-  // Hash semantic runtime data using the established serialization order, not
-  // absolute source paths; no intermediate file is written.
-  std::ostringstream bytes(std::ios::binary);
-  SimAnimWriteHeader(bytes, static_cast<uint32_t>(clips.size()));
-  for (const auto& clip : clips) clip.Serialize(bytes);
-  std::uint64_t hash = UINT64_C(14695981039346656037);
-  for (unsigned char c : bytes.str()) { hash ^= c; hash *= UINT64_C(1099511628211); }
-  return hash;
-}
 }  // namespace
 
 bool AnimationLibrary::LoadCatalog(const std::filesystem::path& manifest) {
@@ -499,9 +487,7 @@ bool AnimationLibrary::LoadCatalog(const std::filesystem::path& manifest) {
       // any Player can choose the IK-free adaptation for this clip.
       DeriveMotionQuality(clip);
     }
-    const auto hash = HashClips(clips);
     clips_ = std::move(clips);
-    content_hash_ = hash;
     return true;
   } catch (const std::exception& error) {
     std::cerr << "AnimationLibrary: " << manifest << ": " << error.what() << '\n';

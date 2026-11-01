@@ -1,7 +1,7 @@
 # ANIM-2 A12: the Animation module owns two archives.
 #
 # football::animation_base — immutable clips, canonical GLB/catalog import,
-# derived foot support, and write-only content-hash encoding.
+# and derived foot support.
 # Candidate selection remains in Player.
 #
 # football::animation — the runtime algorithms on top of the base: full match
@@ -12,8 +12,6 @@
 # targets, sources and header sets.
 
 add_library(football_animation_base STATIC
-  format.cpp
-  clip.cpp
   library.cpp
   catalog_loader.cpp
   foot_support.cpp
@@ -23,7 +21,6 @@ target_sources(football_animation_base PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
   FILES
     ${PROJECT_SOURCE_DIR}/include/football/animation/types.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/format.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/clip.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/library.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/quadrant.hpp

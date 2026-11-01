@@ -1,4 +1,4 @@
-"""Strict stdlib reader for SIMANIM v7; layout: src/animation/clip.cpp."""
+"""Strict stdlib reader for historical SIMANIM v7 artifacts (not runtime IO)."""
 from dataclasses import dataclass
 import math
 from pathlib import Path

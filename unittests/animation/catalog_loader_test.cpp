@@ -93,13 +93,43 @@ float QuaternionError(const Quaternion& a, const Quaternion& b) {
   }
   return std::min(same, opposite);
 }
+void RequireSameClip(const AnimationClip& actual, const AnimationClip& expected) {
+  REQUIRE(actual.id == expected.id);
+  REQUIRE(actual.name == expected.name);
+  REQUIRE(actual.frame_count == expected.frame_count);
+  REQUIRE(actual.root_positions.size() == expected.root_positions.size());
+  REQUIRE(actual.poses.size() == expected.poses.size());
+  for (std::size_t f = 0; f < actual.poses.size(); ++f) {
+    REQUIRE(actual.root_positions[f] == expected.root_positions[f]);
+    for (std::size_t joint = 0; joint < kBodyPartCount; ++joint) {
+      for (int c = 0; c < 4; ++c)
+        REQUIRE(actual.poses[f].orientations[joint].elements[c] ==
+                expected.poses[f].orientations[joint].elements[c]);
+      REQUIRE(actual.poses[f].positions[joint] == expected.poses[f].positions[joint]);
+    }
+  }
+  REQUIRE(actual.metadata.action_type == expected.metadata.action_type);
+  REQUIRE(actual.metadata.touch_frame == expected.metadata.touch_frame);
+  REQUIRE(actual.has_contact == expected.has_contact);
+  REQUIRE(actual.contact_position == expected.contact_position);
+  REQUIRE(actual.touches.size() == expected.touches.size());
+  for (std::size_t i = 0; i < actual.touches.size(); ++i) {
+    REQUIRE(actual.touches[i].frame == expected.touches[i].frame);
+    REQUIRE(actual.touches[i].position == expected.touches[i].position);
+  }
+  REQUIRE(actual.foot_support.size() == expected.foot_support.size());
+  for (std::size_t f = 0; f < actual.foot_support.size(); ++f) {
+    REQUIRE(actual.foot_support[f].left == expected.foot_support[f].left);
+    REQUIRE(actual.foot_support[f].right == expected.foot_support[f].right);
+  }
+  REQUIRE(actual.stance_speed == expected.stance_speed);
+}
 }  // namespace
 
 TEST_CASE("C++ loads the complete source catalog without a baked cache", "[animation][glb]") {
   const auto& library = Catalog();
   const auto doc = ReadJson(GFOOTBALL_ANIMATION_CATALOG_PATH);
   REQUIRE(library.Size() == 1452);
-  REQUIRE(library.ContentHash() != 0);
   for (std::size_t i = 0; i < library.Size(); ++i) {
     const auto& clip = library.Get(i);
     REQUIRE(clip.id == i);
@@ -155,11 +185,10 @@ TEST_CASE("GLB-generated transitions stay close to pre-migration reference poses
   }
 }
 
-TEST_CASE("GLB edits change runtime poses and content provenance immediately", "[animation][glb]") {
+TEST_CASE("GLB edits change runtime poses immediately", "[animation][glb]") {
   Fixture f;
   AnimationLibrary library;
   REQUIRE(library.LoadCatalog(f.manifest));
-  const auto hash = library.ContentHash();
   const auto before = library.Get(0).poses.front().orientations[body];
   f.Alter([](Json& doc, auto& binary) {
     for (const auto& channel : doc["animations"][0]["channels"]) {
@@ -173,7 +202,6 @@ TEST_CASE("GLB edits change runtime poses and content provenance immediately", "
     }
   });
   REQUIRE(library.LoadCatalog(f.manifest));
-  REQUIRE(library.ContentHash() != hash);
   REQUIRE(QuaternionError(library.Get(0).poses.front().orientations[body], before) > .1f);
   REQUIRE(library.Get(0).poses.front().orientations[body].elements[2] == Catch::Approx(std::sin(.2f)));
   REQUIRE(library.Get(0).metadata.touch_frame == f.doc["clips"][0]["metadata"]["touch_frame"]);
@@ -183,7 +211,7 @@ TEST_CASE("Bad source catalogs fail atomically without a cache fallback", "[anim
   Fixture f;
   AnimationLibrary library;
   REQUIRE(library.LoadCatalog(f.manifest));
-  const auto hash = library.ContentHash();
+  const auto before = library.Get(0);
   SECTION("missing GLB") { fs::remove(f.glb); }
   SECTION("bad ID") { f.doc["clips"][0]["id"] = 7; f.Save(); }
   SECTION("missing metadata") { f.doc["clips"][0]["metadata"].erase("touch_frame"); f.Save(); }
@@ -233,20 +261,22 @@ TEST_CASE("Bad source catalogs fail atomically without a cache fallback", "[anim
   }
   REQUIRE_FALSE(library.LoadCatalog(f.manifest));
   REQUIRE(library.Size() == 1);
-  REQUIRE(library.ContentHash() == hash);
+  RequireSameClip(library.Get(0), before);
 }
 
 TEST_CASE("Catalog import is deterministic across independent libraries", "[animation][glb]") {
   AnimationLibrary library;
   REQUIRE(library.LoadCatalog(GFOOTBALL_ANIMATION_CATALOG_PATH));
-  REQUIRE(library.ContentHash() == Catalog().ContentHash());
+  REQUIRE(library.Size() == Catalog().Size());
+  for (std::size_t i = 0; i < library.Size(); ++i)
+    RequireSameClip(library.Get(i), Catalog().Get(i));
 }
 
 TEST_CASE("Library Load accepts only catalogs and rejects legacy binary artifacts", "[animation][glb]") {
   Fixture f;
   AnimationLibrary library;
   REQUIRE(library.Load(f.manifest));
-  const auto hash = library.ContentHash();
+  const auto before = library.Get(0);
   const auto old_artifact = f.directory / "legacy.simanim";
   // A valid empty v7 artifact used to load successfully. Construct its header
   // explicitly so this test never depends on the removed binary writer/reader.
@@ -259,7 +289,7 @@ TEST_CASE("Library Load accepts only catalogs and rejects legacy binary artifact
   REQUIRE_FALSE(library.Load(old_artifact));
   REQUIRE_FALSE(library.LoadCatalog(old_artifact));
   REQUIRE(library.Size() == 1);
-  REQUIRE(library.ContentHash() == hash);
+  RequireSameClip(library.Get(0), before);
 }
 
 TEST_CASE("Procedural variants read actual GLB templates, not legacy assets", "[animation][glb]") {
@@ -279,7 +309,6 @@ TEST_CASE("Procedural variants read actual GLB templates, not legacy assets", "[
   f.Save();
   AnimationLibrary library;
   REQUIRE(library.LoadCatalog(f.manifest));
-  const auto hash = library.ContentHash();
   const auto before = library.Get(0).poses.front().orientations[body];
   f.glb = f.directory / "templates/06_sprintD000.glb";
   f.Alter([](Json& doc, auto& binary) {
@@ -293,10 +322,9 @@ TEST_CASE("Procedural variants read actual GLB templates, not legacy assets", "[
     }
   });
   REQUIRE(library.LoadCatalog(f.manifest));
-  REQUIRE(library.ContentHash() != hash);
   REQUIRE(QuaternionError(library.Get(0).poses.front().orientations[body], before) > .1f);
-  const auto modified_hash = library.ContentHash();
+  const auto modified = library.Get(0);
   fs::remove(f.glb);
   REQUIRE_FALSE(library.LoadCatalog(f.manifest));
-  REQUIRE(library.ContentHash() == modified_hash);
+  RequireSameClip(library.Get(0), modified);
 }

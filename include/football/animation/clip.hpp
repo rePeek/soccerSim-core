@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstdint>
-#include <iosfwd>
 #include <string>
 #include <vector>
 
@@ -70,9 +69,6 @@ struct FootballAnimationMetadata {
   Vector3 outgoing_movement;
   Vector3 translation;
   int32_t outgoing_foot = 0;
-
-  // Stable write-only encoding for catalog content hashing (clip.cpp).
-  void Serialize(std::ostream& os) const;
 };
 
 // One contact touch (frame + ball position), mirroring
@@ -80,12 +76,10 @@ struct FootballAnimationMetadata {
 struct BakedTouch {
   int32_t frame = 0;
   Vector3 position;
-
-  void Serialize(std::ostream& os) const;
 };
 
 // Immutable runtime animation data, prepared once from the canonical GLB
-// catalog and shared by all players. Serialization is used for content hashing.
+// catalog and shared by all players.
 struct AnimationClip {
   uint32_t id = 0;
   std::string name;
@@ -119,7 +113,4 @@ struct AnimationClip {
   // load. It never changes the clip; it states whether the IK-free adaptation
   // may use this clip or must fall back to the compatibility path.
   ClipMotionQuality motion_quality;
-
-  // Stable write-only encoding for catalog content hashing (clip.cpp).
-  void Serialize(std::ostream& os) const;
 };

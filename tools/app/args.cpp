@@ -12,17 +12,11 @@ AppOptions ParseArgs(int argc, char** argv) {
   AppOptions options;
   for (int index = 1; index < argc; ++index) {
     const std::string_view argument(argv[index]);
-    if (argument.starts_with("--snapshot=")) {
-      const auto value = argument.substr(std::string_view("--snapshot=").size());
-      if (value.empty()) throw std::runtime_error("--snapshot requires an output path");
-      options.snapshot_path = std::filesystem::path(value);
-      continue;
-    }
     const bool duration = argument.starts_with("--half-duration-ms=");
     const bool capacity = argument.starts_with("--snapshot-capacity=");
     if (!duration && !capacity) {
       throw std::runtime_error("usage: football_sim [--half-duration-ms=N] "
-                               "[--snapshot=PATH] [--snapshot-capacity=N]");
+                               "[--snapshot-capacity=N]");
     }
     const auto prefix = duration ? std::string_view("--half-duration-ms=")
                                  : std::string_view("--snapshot-capacity=");

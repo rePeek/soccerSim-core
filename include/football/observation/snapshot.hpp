@@ -40,8 +40,6 @@ struct Snapshot {
 struct SnapshotMetadata {
   std::vector<football::player::PlayerId> player_ids;
   football::pitch::Pitch pitch;
-  // FNV-1a-64 over the exact loaded .simanim bytes (not a cryptographic hash).
-  std::uint64_t animation_library_hash = 0;
 };
 
 struct SnapshotStamp {
