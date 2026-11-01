@@ -93,7 +93,7 @@ TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
     if (clip.foot_support.empty()) continue;
     // The gate must be a decision, not a comment: a movement clip with a
     // support track that failed calibration is rejected.
-    if (!clip.motion_quality.stance_calibrated) {
+    if (!clip.motion_quality.ik_free_usable) {
       PlayerActionControl control;
       control.desired_velocity = Vector3(0, -1.0f, 0);
       const AdaptedMotionSample rejected = PlayerActionAdapter::Evaluate(
@@ -192,7 +192,7 @@ TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
   }
   CHECK(rejected_clips > 0);
   if (tested == 0) {
-    SUCCEED("no stance-calibrated straight gait; the IK-free path stays gated off");
+    SUCCEED("no strict IK-free straight gait; the IK-free path stays gated off");
     return;
   }
 }

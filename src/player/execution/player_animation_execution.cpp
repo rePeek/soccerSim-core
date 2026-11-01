@@ -16,7 +16,6 @@
 #include "football/player/execution/player_action_adapter.hpp"
 #include "football/player/execution/player_pose_adapter.hpp"
 #include "player/execution/player_diagnostics.hpp"
-#include "player/execution/player_motion_constants.hpp"
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_touch_math.hpp"
 
@@ -488,23 +487,9 @@ void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
           static_cast<float>(state_.last_begun_start_frame_);
       const float reference_speed = LocomotionEffectiveGaitSpeed(
           clip, port().BodyProfile().height_scale);
-      const ClipTuning& tuning = animation_config_.Get(authority_clip);
-      LocomotionStrideStyle style;
-      style.stride_preference = tuning.stride_preference;
-      style.cadence_preference = tuning.cadence_preference;
-      style.stride_response = tuning.stride_response;
-      const float reach_ceiling =
-          std::min(tuning.max_stride_scale, kLocomotionMaxStrideScale);
-      const float target_stride = std::clamp(
-          LocomotionStrideScaleFor(style, achieved_speed, reference_speed),
-          kLocomotionMinStrideScale, reach_ceiling);
-      state_.stride_scale_ =
-          SmoothLocomotionStrideScale(state_.stride_scale_, target_stride, 0.01f);
-      state_.stride_scale_ = std::min(state_.stride_scale_, reach_ceiling);
-      state_.locomotion_diagnostics_.reach_limited =
-          target_stride <
-                  LocomotionStrideScaleFor(style, achieved_speed, reference_speed) -
-              1e-6f;
+      // Cadence-only, like the adapted path: the pose is never stride-shortened.
+      state_.stride_scale_ = 1.0f;
+      state_.locomotion_diagnostics_.reach_limited = false;
       const LocomotionPlaybackRequest previous = state_.locomotion_playback_;
       state_.locomotion_playback_ = AdvanceLocomotionPlayback(
           previous, authority_clip, clip, achieved_speed, reference_speed,

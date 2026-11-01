@@ -63,7 +63,7 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
   // instead of snapping to the cap in one tick.
   football::math::Vector3 motion_desired = control.desired_velocity;
   bool gait_limited = false;
-  if (locomotion && clip.motion_quality.stance_calibrated &&
+  if (locomotion && clip.motion_quality.ik_free_usable &&
       reference_speed > 1e-3f) {
     const float max_gait_speed =
         reference_speed * kLocomotionMaxPlaybackRate;
@@ -147,12 +147,12 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
       locomotion && clip.motion_quality.ik_free_usable;
   sample.diagnostics.calibrated_ik_free =
       locomotion && clip.motion_quality.stance_calibrated;
-  // A movement clip with a support track that is not even stance-calibrated
-  // cannot be executed by the IK-free path. Reject it so the caller falls
-  // back explicitly instead of shipping an unexplained slide.
+  // The strict source gate controls execution. A clip whose own root track and
+  // support foot disagree is rejected: stance calibration is a diagnostic that
+  // the asset could be fixed, not permission to ship the slide.
   if (locomotion && clip.metadata.action_type == e_DefString_Movement &&
       !clip.foot_support.empty() &&
-      !clip.motion_quality.stance_calibrated) {
+      !clip.motion_quality.ik_free_usable) {
     sample.feasible = false;
     sample.diagnostics.fallback_used = true;
   }

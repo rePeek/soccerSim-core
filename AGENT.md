@@ -215,10 +215,11 @@ observation, controls and stored physics are all the Stadium Frame.
   root direction, so the Player may drive the root from the stance-foot speed
   instead of the authored root track (the in-memory calibrated reference).
   `ik_free_usable` is the stricter source gate (root track already agrees).
-  Runtime execution is gated on `stance_calibrated`; the acceptance test states
-  that no shipped catalog clip currently passes it, so ordinary locomotion
-  falls back explicitly. Never widen either gate to make a test pass - the
-  slide is a property of the source GLB.
+  Runtime execution is gated on `ik_free_usable`; `stance_calibrated` is the
+  diagnostic that the asset could be calibrated. The acceptance test states that
+  no shipped catalog clip currently passes the strict gate, so ordinary
+  locomotion falls back explicitly. Never widen either gate to make a test pass
+  - the slide is a property of the source GLB.
 - Module boundary: Animation owns the shared clip resource and the pure algorithms
   that turn a clip into data (`SamplePose`, `BlendPose`, `SelectEntryFrame`,
   `PoseDistance`, foot support, touch geometry). *Decisions* about which clip to
@@ -248,7 +249,7 @@ observation, controls and stored physics are all the Stadium Frame.
   speed (`reference_speed * kLocomotionMaxPlaybackRate`) is a *desired* bound
   fed into the motion constraint, never a post-integration scale: a body already
   faster brakes at the profile's rate instead of snapping to the cap in one
-  tick. A movement clip with a support track that is not stance-calibrated is
+  tick. A movement clip with a support track that fails `ik_free_usable` is
   rejected (`feasible == false`) so the caller falls back explicitly. There is
   no runtime `SettleMovementPose`, plant anchor, `PlayerFootIk::Update`,
   `ApplyFootPlantLocks` or `ApplyWorldFootTargetsToPose` in the Player

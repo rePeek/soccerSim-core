@@ -132,7 +132,11 @@ TEST_CASE("a slower body only slows the cadence; the stride stays authored",
         Catch::Approx(sample.velocity.GetLength() / 2.0f).margin(1e-5f));
 }
 
-TEST_CASE("locomotion ignores the clip's root trajectory",
+// Current contract: the control intent owns the root; the clip supplies the
+// gait/cadence. This is the remaining Root-Motion gap: the root is not yet the
+// clip's reference root. The test pins today's authority so a future change is
+// deliberate.
+TEST_CASE("locomotion intent owns the root while the clip supplies the gait",
           "[player][adapter][rma2]") {
   const PlayerKinematicState current = Moving(2.0f);
   const PlayerActionControl control = Control(Vector3(0, -2.0f, 0));
@@ -235,6 +239,7 @@ TEST_CASE("the gait cap is applied through the motion profile",
   AnimationClip clip = GaitClip(2.0f);
   clip.metadata.action_type = e_DefString_Movement;
   clip.motion_quality.stance_calibrated = true;
+  clip.motion_quality.ik_free_usable = true;
   // The support derivation's stance speed (1 m/s) is the calibrated cadence.
   clip.stance_speed = 1.0f;
   clip.foot_support.assign(clip.frame_count,
@@ -246,7 +251,7 @@ TEST_CASE("the gait cap is applied through the motion profile",
   const auto sample = PlayerActionAdapter::Evaluate(
       clip, Moving(5.0f), Profile(), Body(), Control(Vector3(0, -5.0f, 0)),
       PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
-  CHECK_FALSE(sample.diagnostics.ik_free_pose);
+  CHECK(sample.diagnostics.ik_free_pose);
   CHECK(sample.diagnostics.calibrated_ik_free);
   CHECK(sample.stride_scale == Catch::Approx(1.0f).margin(1e-6f));
   CHECK(sample.velocity.GetLength() ==
