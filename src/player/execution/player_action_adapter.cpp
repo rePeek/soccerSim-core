@@ -43,8 +43,9 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
     // RMA-5: an action plan already produced its trajectory, including the
     // smuggle corrections. That plan is the candidate; the same constraint
     // core validates it instead of adding a second hidden displacement.
+    // A supplied zero is a real zero (planted touch, stop), not "missing".
     reference_delta =
-        control.reference_delta.GetLength() > 1e-6f
+        control.has_reference_delta
             ? control.reference_delta
             : (clip.root_positions.size() >= 2
                    ? RotateLocalDelta(clip.root_positions[1] -
@@ -53,12 +54,32 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
                    : football::math::Vector3(0));
   }
 
+  const float reference_speed =
+      locomotion ? LocomotionEffectiveGaitSpeed(clip, body.height_scale)
+                 : 0.0f;
+  // The gait's playable speed is a desired bound, not a post-integration
+  // scale. Feeding it into the motion constraint keeps acceleration and
+  // braking inside the profile; a body already faster decelerates over time
+  // instead of snapping to the cap in one tick.
+  football::math::Vector3 motion_desired = control.desired_velocity;
+  bool gait_limited = false;
+  if (locomotion && clip.motion_quality.stance_calibrated &&
+      reference_speed > 1e-3f) {
+    const float max_gait_speed =
+        reference_speed * kLocomotionMaxPlaybackRate;
+    if (motion_desired.GetLength() > max_gait_speed) {
+      motion_desired = motion_desired.GetNormalized(control.idle_facing) *
+                       max_gait_speed;
+      gait_limited = true;
+    }
+  }
+
   PlayerMotionConstraintInput motion;
-  motion.reference_delta = reference_delta;
+  motion.reference_delta = locomotion ? motion_desired * dt : reference_delta;
   motion.current = current;
   motion.body = body;
   motion.capability = capability;
-  motion.desired_velocity = control.desired_velocity;
+  motion.desired_velocity = motion_desired;
   motion.authority = control.authority;
   motion.idle_facing = control.idle_facing;
   motion.dt = dt;
@@ -69,34 +90,12 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
   sample.velocity = constrained.state.velocity;
 
   const float desired_speed = control.desired_velocity.GetLength();
-  float achieved_speed = constrained.state.velocity.GetLength();
+  const float achieved_speed = constrained.state.velocity.GetLength();
   sample.diagnostics.capability_limited =
-      desired_speed > capability.max_speed + 1e-4f ||
+      desired_speed > capability.max_speed + 1e-4f || gait_limited ||
       (control.authority != PlayerMotionAuthority::Locomotion &&
        constrained.constrained);
 
-  const float reference_speed =
-      locomotion ? LocomotionEffectiveGaitSpeed(clip, body.height_scale)
-                 : 0.0f;
-  // RMA-7: there is no runtime foot-IK stage. The gait keeps its authored
-  // stride; the root is capped to the speed the clip can actually play, so a
-  // support foot does not have to be dragged back. A stance-calibrated clip
-  // replaces its authored root track with the stance-foot speed cadence follows.
-  if (locomotion && clip.motion_quality.stance_calibrated &&
-      reference_speed > 1e-3f) {
-    const float max_gait_speed =
-        reference_speed * kLocomotionMaxPlaybackRate;
-    if (achieved_speed > max_gait_speed) {
-      const float scale = max_gait_speed / achieved_speed;
-      sample.root_delta = constrained.achieved_delta * scale;
-      sample.velocity = constrained.state.velocity * scale;
-      achieved_speed = max_gait_speed;
-      sample.diagnostics.capability_limited = true;
-    }
-  }
-
-  float raw_target = 1.0f;
-  float target_stride = 1.0f;
   football::math::Vector3 reference_local = football::math::Vector3(0);
   if (locomotion) {
     // Cadence-only: the clip plays at the speed the body achieved, with its
@@ -143,16 +142,20 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
   sample.diagnostics.final_delta = constrained.achieved_delta;
   sample.diagnostics.playback_rate = sample.playback_rate;
   sample.diagnostics.stride_scale = sample.stride_scale;
-  sample.diagnostics.reach_limited =
-      locomotion && raw_target > target_stride + 1e-6f;
-  sample.diagnostics.capability_limited =
-      sample.diagnostics.capability_limited &&
-      (achieved_speed + 1e-4f < desired_speed);
-  // RMA-7: a stance-calibrated locomotion clip runs without the compatibility
-  // plant. Its cadence follows the stance foot and its root is speed-capped to
-  // what that cadence can play, so no runtime IK is needed to hold the foot.
+  sample.diagnostics.reach_limited = false;
   sample.diagnostics.ik_free_pose =
+      locomotion && clip.motion_quality.ik_free_usable;
+  sample.diagnostics.calibrated_ik_free =
       locomotion && clip.motion_quality.stance_calibrated;
+  // A movement clip with a support track that is not even stance-calibrated
+  // cannot be executed by the IK-free path. Reject it so the caller falls
+  // back explicitly instead of shipping an unexplained slide.
+  if (locomotion && clip.metadata.action_type == e_DefString_Movement &&
+      !clip.foot_support.empty() &&
+      !clip.motion_quality.stance_calibrated) {
+    sample.feasible = false;
+    sample.diagnostics.fallback_used = true;
+  }
   return sample;
 }
 

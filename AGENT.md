@@ -196,16 +196,16 @@ observation, controls and stored physics are all the Stadium Frame.
   position correction is an instantaneous displacement, not new velocity.
 - `PlayerActionAdapter` is the one pure adaptation entry between a reference
   clip and one Player. It solves the admissible root displacement (through
-  `PlayerMotionAdapter`) and the clip time/rate that performs it in one call,
-  returning `AdaptedMotionSample`. Ordinary locomotion commits the same
-  sample's root and feeds its clip time to playback, so root and pose cannot be
   derived from different phases. One-shot actions pass their plan's trajectory
-  as `PlayerActionControl::reference_delta`; the adapter validates it but never
-  advances the action clock, so a touch frame cannot move. The sample is a
-  value: it never writes kinematics, reads no world state and publishes no
-  event. A clip it cannot perform (`feasible == false`) falls back instead of
-  being stretched. `Predict` is the same loop for a constant control horizon,
-  so short-horizon forecasts reuse execution's own phase evolution.
+  as `PlayerActionControl::reference_delta` with
+  `has_reference_delta = true`; a supplied zero is a real zero (a planted
+  touch or a stop) and is never replaced by the clip's first-frame root. The
+  adapter validates the value but never advances the action clock, so a touch
+  frame cannot move. The sample is a value: it never writes kinematics, reads
+  no world state and publishes no event. A clip it cannot perform
+  (`feasible == false`) falls back instead of being stretched. `Predict` is the
+  same loop for a constant control horizon, so short-horizon forecasts reuse
+  execution's own phase evolution.
 - RMA-1 clip quality is an Animation fact: `DeriveMotionQuality` fills
   `AnimationClip::motion_quality` once at load from the clip's own root and
   support tracks (mean/worst stance slip, loop seam root/pose step).
@@ -239,11 +239,17 @@ observation, controls and stored physics are all the Stadium Frame.
   who is not the reference build. `ClipTuning::max_stride_scale` bounds any
   pre-baked stride variant, not a runtime IK correction.
 - Ordinary locomotion is cadence-only and IK-free. The clip keeps its authored
-  stride; playback follows the achieved/reference ratio, and the root is capped
-  to `reference_speed * kLocomotionMaxPlaybackRate` so the support foot is not
-  asked to travel faster than the gait can play. There is no runtime
-  `SettleMovementPose`, plant anchor, `PlayerFootIk::Update`, `ApplyFootPlantLocks`
-  or `ApplyWorldFootTargetsToPose` in the Player execution path.
+  stride; playback follows the achieved/reference ratio. The gait's playable
+  speed (`reference_speed * kLocomotionMaxPlaybackRate`) is a *desired* bound
+  fed into the motion constraint, never a post-integration scale: a body already
+  faster brakes at the profile's rate instead of snapping to the cap in one
+  tick. A movement clip with a support track that is not stance-calibrated is
+  rejected (`feasible == false`) so the caller falls back explicitly. There is
+  no runtime `SettleMovementPose`, plant anchor, `PlayerFootIk::Update`,
+  `ApplyFootPlantLocks` or `ApplyWorldFootTargetsToPose` in the Player
+  execution path. `ik_free_pose` is the strict source gate;
+  `calibrated_ik_free` states that the stance-speed calibration is what makes
+  the IK-free root possible.
 - A clip's native speed is measured over the intervals its samples actually
   span (`N` root samples = `N-1` ticks). `frame_count` is not that span, and
   using it biases every playback rate by `N/(N-1)`.

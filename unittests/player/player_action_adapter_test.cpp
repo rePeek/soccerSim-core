@@ -215,6 +215,7 @@ TEST_CASE("an action plan is validated without moving its clip time",
   PlayerActionControl control;
   control.authority = PlayerMotionAuthority::KinematicReference;
   control.reference_delta = Vector3(0, -0.03f, 0);
+  control.has_reference_delta = true;
   const PlayerKinematicState current = Moving(1.0f);
   const PlayerPlaybackState playback{5.0f, 1.0f, 0.0f};
   const auto sample = PlayerActionAdapter::Evaluate(
@@ -229,7 +230,7 @@ TEST_CASE("an action plan is validated without moving its clip time",
         Catch::Approx(-0.03f).margin(1e-6f));
 }
 
-TEST_CASE("a calibrated gait caps the root to the speed the clip can play",
+TEST_CASE("the gait cap is applied through the motion profile",
           "[player][adapter][rma7]") {
   AnimationClip clip = GaitClip(2.0f);
   clip.metadata.action_type = e_DefString_Movement;
@@ -240,15 +241,32 @@ TEST_CASE("a calibrated gait caps the root to the speed the clip can play",
                            FootSupportFrame{FootPhase::Stance,
                                             FootPhase::Swing});
 
+  // 5 m/s body against a 2.2 m/s playable gait: the constraint brakes at the
+  // profile's 12 m/s^2, never snapping 2.8 m/s in one 10 ms tick.
   const auto sample = PlayerActionAdapter::Evaluate(
       clip, Moving(5.0f), Profile(), Body(), Control(Vector3(0, -5.0f, 0)),
       PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
-  CHECK(sample.diagnostics.ik_free_pose);
+  CHECK_FALSE(sample.diagnostics.ik_free_pose);
+  CHECK(sample.diagnostics.calibrated_ik_free);
   CHECK(sample.stride_scale == Catch::Approx(1.0f).margin(1e-6f));
-  // The authored stride is kept, so the root may not outrun the playable
-  // cadence. No IK will pull the foot back afterwards.
-  CHECK(sample.velocity.GetLength() <=
-        2.2f + 1e-4f);
+  CHECK(sample.velocity.GetLength() ==
+        Catch::Approx(4.88f).margin(1e-4f));
   CHECK(sample.diagnostics.capability_limited);
+  // The playback cap still exposes that the gait cannot follow this speed yet.
   CHECK(sample.playback_rate <= 2.2f + 1e-4f);
+}
+
+TEST_CASE("an explicit zero action root stays zero",
+          "[player][adapter][rma5]") {
+  const AnimationClip clip = GaitClip(2.0f);
+  PlayerActionControl control;
+  control.authority = PlayerMotionAuthority::KinematicReference;
+  control.has_reference_delta = true;
+  control.reference_delta = Vector3(0);
+  const auto sample = PlayerActionAdapter::Evaluate(
+      clip, Moving(2.0f), Profile(), Body(), control,
+      PlayerPlaybackState{5.0f, 1.0f, 0.0f}, 0.01f);
+  // A planted touch frame or a stop is a real zero, not a missing value.
+  CHECK(sample.root_delta.GetLength() == Catch::Approx(0.0f).margin(1e-9f));
+  CHECK(sample.velocity.GetLength() == Catch::Approx(0.0f).margin(1e-9f));
 }

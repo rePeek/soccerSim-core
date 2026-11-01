@@ -819,6 +819,9 @@ void PlayerExecution::ComputeAndCommitActionMotion() {
   action_control.reference_delta =
       motion.position - port().GetKinematicState().position;
   action_control.reference_delta.coords[2] = 0.0f;
+  // The plan's zero is a real zero; it must not be replaced by the clip's
+  // first-frame root delta.
+  action_control.has_reference_delta = true;
   action_control.base_angle = state_.startAngle;
   PlayerPlaybackState action_playback;
   action_playback.frame_time = static_cast<float>(currentAnim.frameNum);

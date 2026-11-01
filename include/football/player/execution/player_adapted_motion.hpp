@@ -39,8 +39,12 @@ struct MotionAdaptationDiagnostics {
   bool fallback_used = false;
   // The style asked for a longer step than the body can make.
   bool reach_limited = false;
-  // The clip passed RMA-1 and needs no compatibility foot-IK stage.
+  // RMA-7: the clip's source root track already agrees with its stance foot.
   bool ik_free_pose = false;
+  // RMA-7: the stance-foot speed is a trustworthy cadence reference, so the
+  // Player can calibrate the root in memory even though the authored root
+  // track itself is not strict enough for `ik_free_pose`.
+  bool calibrated_ik_free = false;
 };
 
 struct AdaptedMotionSample {

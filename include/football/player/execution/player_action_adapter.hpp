@@ -52,8 +52,10 @@ struct PlayerActionControl {
   float base_angle = 0.0f;
   // RMA-5: an explicit world-aligned reference displacement. One-shot actions
   // pass the trajectory their plan produced (including smuggle corrections);
-  // locomotion ignores it and derives the root from the control target.
   football::math::Vector3 reference_delta = football::math::Vector3(0);
+  // A zero `reference_delta` is a real value (a planted touch frame, a stop).
+  // Only `has_reference_delta == false` means "the plan did not supply one".
+  bool has_reference_delta = false;
   PlayerGaitRequest gait;
 };
 
