@@ -445,6 +445,8 @@ AdaptedMotionSample PlayerExecution::EvaluateAdaptedLocomotion(
   state_.adapted_locomotion_ = sample;
   state_.adapted_locomotion_valid_ = sample.feasible;
   state_.adapted_locomotion_start_position_ = current.position;
+  state_.locomotion_diagnostics_.turn_limited =
+      sample.diagnostics.turn_limited;
   return sample;
 }
 
@@ -507,6 +509,16 @@ void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
       state_.locomotion_playback_ = AdvanceLocomotionPlayback(
           previous, authority_clip, clip, achieved_speed, reference_speed,
           entry_frame_time, 0.01f, state_.stride_scale_);
+      // RM-F1: the compatibility path advances the *same* continuous cursor
+      // the root-driven path uses. Without this, alternating modes re-samples
+      // an older phase when the root becomes executable again.
+      const float playback_period = std::max(
+          static_cast<float>(clip.frame_count > 1 ? clip.frame_count - 1 : 1),
+          1.0f);
+      state_.locomotion_continuous_time_ = AdvanceContinuousLocomotionTime(
+          state_.locomotion_continuous_time_, previous.clip_id,
+          authority_clip, previous.frame_time,
+          state_.locomotion_playback_.frame_time, playback_period);
       UpdateLocomotionPlayback(authority_clip,
                                state_.locomotion_playback_.frame_time, base_angle,
                                blend_ticks);

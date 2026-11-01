@@ -63,9 +63,14 @@ ReferenceAnimationSample SampleAnimationStep(const AnimationClip& clip,
     const float to = std::max(next_time, from);
     sample.root_delta = LoopRootAt(clip, to, period, total) -
                         LoopRootAt(clip, from, period, total);
-    sample.pose_time = to - std::floor(to / period) * period;
+    const auto from_cycle =
+        static_cast<std::int64_t>(std::floor(from / period));
+    const auto to_cycle =
+        static_cast<std::int64_t>(std::floor(to / period));
+    sample.pose_time = to - static_cast<float>(to_cycle) * period;
     sample.continuous_time = to;
-    sample.looped = to >= period;
+    sample.looped = to_cycle > from_cycle;
+    sample.cycle_index = to_cycle;
   } else {
     const float last = static_cast<float>(clip.root_positions.size() - 1);
     const float from = std::clamp(current_time, 0.0f, last);

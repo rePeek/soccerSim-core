@@ -310,6 +310,29 @@ inline LocomotionPlaybackRequest AdvanceLocomotionPlayback(
   return next;
 }
 
+// RM-F1: one animation phase for both the root-driven and the compatibility
+// path. The wrapped playback time is what `PlaybackState` samples; the
+// continuous time is what the next root sample starts from. Advancing only the
+// former (the old fallback) used to leave the latter behind, so switching back
+// to the root path jumped to a stale phase. The delta is wrap-aware and the
+// clip change resets the cursor to the new clip's entry sample.
+inline float AdvanceContinuousLocomotionTime(
+    float continuous_frame, AnimationId previous_clip_id,
+    AnimationId clip_id, float previous_frame_time, float next_frame_time,
+    float period) {
+  const float safe_period = period > 1e-3f ? period : 1.0f;
+  if (previous_clip_id != clip_id) {
+    // A new clip starts at its entry frame; earlier cycle counts belong to the
+    // old clip and must not leak into the new timeline.
+    return next_frame_time;
+  }
+  float delta = next_frame_time - previous_frame_time;
+  if (delta < 0.0f) delta += safe_period;
+  if (delta >= safe_period) delta = std::fmod(delta, safe_period);
+  return std::max(continuous_frame + delta, 0.0f);
+}
+
+
 // STRIDE-0: measured locomotion/animation agreement for one tick. Diagnostic
 // only - nothing in production branches on these values. `reference_distance`
 // is measured over the frames that were actually sampled this tick (wrap
@@ -340,6 +363,8 @@ struct LocomotionPoseDiagnostics {
   // Reach-aware stride: the player's style asked for more than the legs can make
   // and the ceiling was applied before the cadence pairing.
   bool reach_limited = false;
+  // RM-F3: the root sample was rejected by the turn-rate constraint this tick.
+  bool turn_limited = false;
   // Where the residual comes from: a locked support anchor the leg cannot reach,
   // or a swinging foot whose own target is out of reach. They mean different
   // things and must not be conflated.

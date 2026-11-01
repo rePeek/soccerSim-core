@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "football/animation/clip.hpp"
 #include "football/foundation/math/vector3.hpp"
 
@@ -28,8 +30,12 @@ struct ReferenceAnimationSample {
   float pose_time = 0.0f;
   // Unwrapped clip time after this interval; carry it as the next current_time.
   float continuous_time = 0.0f;
-  // The interval crossed at least one loop seam.
+  // The interval crossed at least one loop seam. A clip that is already in a
+  // later cycle but does not cross a seam this tick reports false.
   bool looped = false;
+  // Completed cycles at `continuous_time` (floor(continuous_time / period));
+  // 0 for a non-looping clip.
+  std::int64_t cycle_index = 0;
 };
 
 // Pure and deterministic. `current_time` and `next_time` are continuous clip

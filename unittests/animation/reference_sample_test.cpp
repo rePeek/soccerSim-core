@@ -94,3 +94,19 @@ TEST_CASE("a non-looping action clamps at the last sample", "[animation][rm2]") 
   const ReferenceAnimationSample past = SampleAnimationStep(clip, 4.0f, 8.0f);
   CHECK(past.root_delta.GetLength() == Catch::Approx(0.0f).margin(1e-6f));
 }
+
+TEST_CASE("RM-F1: looped means this interval crossed a seam",
+          "[animation][rm2][rmf1]") {
+  const AnimationClip clip = StraightGait(5);  // period 4
+  const ReferenceAnimationSample later =
+      SampleAnimationStep(clip, 70.0f, 71.0f);
+  CHECK_FALSE(later.looped);
+  CHECK(later.cycle_index == 17);
+  CHECK(later.pose_time == Catch::Approx(3.0f).margin(1e-5f));
+
+  const ReferenceAnimationSample crossing =
+      SampleAnimationStep(clip, 70.5f, 72.5f);
+  CHECK(crossing.looped);
+  CHECK(crossing.cycle_index == 18);
+  CHECK(crossing.pose_time == Catch::Approx(0.5f).margin(1e-5f));
+}

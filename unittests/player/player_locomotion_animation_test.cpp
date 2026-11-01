@@ -412,3 +412,35 @@ TEST_CASE("style values are sanitized deterministically") {
   CHECK(short_stride.stride_preference < natural.stride_preference);
   CHECK(short_stride.cadence_preference > natural.cadence_preference);
 }
+
+TEST_CASE("RM-F1: the continuous cursor advances through fallback too",
+          "[player][locomotion][rmf1]") {
+  // Two ticks of compatibility playback (wrapped time moves forward), then a
+  // root-driven tick. The unwrapped cursor must be continuous across all three.
+  float continuous = 46.0f;
+  AnimationId clip = 3;
+  float previous_wrapped = 46.0f;
+  // Fallback advances 2.2 frames per tick and wraps at period 48.
+  for (int tick = 0; tick < 3; ++tick) {
+    float next_wrapped = previous_wrapped + 2.2f;
+    if (next_wrapped >= 48.0f) next_wrapped = std::fmod(next_wrapped, 48.0f);
+    continuous = AdvanceContinuousLocomotionTime(
+        continuous, clip, clip, previous_wrapped, next_wrapped, 48.0f);
+    previous_wrapped = next_wrapped;
+  }
+  CHECK(continuous == Catch::Approx(52.6f).margin(1e-4f));
+  CHECK(previous_wrapped == Catch::Approx(4.6f).margin(1e-4f));
+
+  // A root-driven tick starting at the same cursor must continue from 52.6,
+  // not from a stale 46.0 (the old two-cursor bug).
+  const float root_next =
+      AdvanceContinuousLocomotionTime(continuous, clip, clip, previous_wrapped,
+                                      previous_wrapped + 1.0f, 48.0f);
+  CHECK(root_next == Catch::Approx(53.6f).margin(1e-4f));
+
+  // A clip change resets to the new clip's wrapped entry sample, never to the
+  // old clip's cycle count.
+  CHECK(AdvanceContinuousLocomotionTime(continuous, clip, clip + 1,
+                                        previous_wrapped, 5.0f, 30.0f) ==
+        Catch::Approx(5.0f).margin(1e-6f));
+}
