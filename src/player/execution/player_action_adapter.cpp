@@ -65,9 +65,6 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
   const float root_speed =
       locomotion ? LocomotionClipReferenceSpeed(clip) * body.height_scale
                  : 0.0f;
-  const float playable_speed =
-      reference_speed * kLocomotionMaxPlaybackRate;
-  if (locomotion) sample.diagnostics.playable_speed = playable_speed;
 
   // RM-3: ordinary locomotion is driven by the clip's own root track when the
   // source passes the strict IK-free gate. The control supplies the target
@@ -181,7 +178,7 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
     sample.diagnostics.playback_rate = rate;
     sample.diagnostics.stride_scale = 1.0f;
     sample.diagnostics.capability_limited =
-        desired_speed > playable_speed + 1e-4f;
+        desired_speed > root_playable + 1e-4f;
     return sample;
   }
 

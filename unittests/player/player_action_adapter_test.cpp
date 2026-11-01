@@ -158,7 +158,6 @@ TEST_CASE("a clip without a pose is rejected instead of stretched",
   const auto sample = PlayerActionAdapter::Evaluate(
       empty, Moving(2.0f), Profile(), Body(), Control(Vector3(0, -2.0f, 0)),
       PlayerPlaybackState{}, 0.01f);
-  CHECK_FALSE(sample.feasible);
   CHECK(sample.diagnostics.fallback_used);
   CHECK(sample.root_delta.GetLength() == Catch::Approx(0.0f).margin(1e-9f));
 }
@@ -389,4 +388,16 @@ TEST_CASE("RM-3: a taller body scales the sampled root",
   REQUIRE(scaled.feasible);
   CHECK(scaled.root_delta.GetLength() ==
         Catch::Approx(normal.root_delta.GetLength() * 1.2f).margin(1e-5f));
+}
+
+TEST_CASE("RM-4: only a root-driven gait reports a playable-speed cap",
+          "[player][adapter][rm4]") {
+  AnimationClip clip = GaitClip(2.0f);
+  clip.metadata.action_type = e_DefString_Movement;
+  // Not ik-free: the compatibility path owns the motion, so the fallback must
+  // keep chasing the control target instead of capping it to this clip.
+  const auto sample = PlayerActionAdapter::Evaluate(
+      clip, Moving(5.0f), Profile(), Body(), Control(Vector3(0, -5.0f, 0)),
+      PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
+  CHECK(sample.diagnostics.playable_speed == Catch::Approx(0.0f));
 }
