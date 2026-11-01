@@ -483,6 +483,8 @@ AnimationClip RetimeGaitCycle(const AnimationClip& source) {
 // clip outside its bounded range or label a walk as a sprint. Clamp the
 // declared in/out motion to what the repaired root can actually reach; this
 // keeps the existing velocity bucket truthful without inventing a new field.
+// Mirrors the Player's kLocomotionMaxPlaybackRate; the Animation target
+// cannot include a Player header. Keep the two values in step.
 constexpr float kGaitRepairMaxPlaybackRate = 2.2f;
 
 void RevalidateRepairedMetadata(AnimationClip& clip) {
