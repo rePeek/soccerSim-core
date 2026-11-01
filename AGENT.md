@@ -199,9 +199,16 @@ observation, controls and stored physics are all the Stadium Frame.
   reject a candidate, they do not integrate a second displacement. A sample
   that cannot be performed (`feasible == false`, `Status::NeedAnotherClip` or
   `CapabilityLimited`) is never stretched or silently re-rooted. The
-  compatibility path (`PlayerMotion` plus legacy playback) remains only for a
-  clip outside the gate, and it brakes toward the clip's reported
-  `playable_speed` instead of chasing an unreachable control speed.
+  `playable_speed` instead of chasing an unreachable control speed. The root
+  and fallback paths share one unwrapped cursor
+  (`AdvanceContinuousLocomotionTime`); a fallback tick advances it even though
+  it owns the displacement, so a later root tick cannot resume a stale phase.
+  A root sample also checks the heading change against
+  `PlayerMotionProfile::turn_rate`; an illegal turn returns `NeedAnotherClip`
+  with `turn_limited`. A rejected root sample asks the selector for one
+  replacement (`RequestLocomotionRequeue`, 10-tick cooldown); the fallback
+  still supplies this tick's legal displacement and the replacement installs
+  on the next tick.
   `CommitActionMotionState` still installs the whole state the solver
   produced, so fields the compatibility projection does not carry cannot be
   dropped by a round trip. A position correction is an instantaneous passive
@@ -228,9 +235,12 @@ observation, controls and stored physics are all the Stadium Frame.
   is gated on `ik_free_usable` plus `looping`. A straight half-cycle and its
   catalog mirror are repaired at import time (concatenated into a full cycle,
   root derived from the stance foot, retimed to constant stance travel); the
-  repaired clip replaces the source only if the repaired cycle itself passes
-  the strict gate. Never widen the gate to make a test pass - a rejected
-  repair leaves the authored root track and the compatibility fallback.
+  repaired cycle itself passes the strict gate. A repaired cycle also revalidates
+  selection metadata: declared in/out velocities and movement vectors are
+  clamped to the repaired root's reachable range and `metadata.translation` is
+  rewritten from the repaired track. Never widen the gate to make a test pass
+  - a rejected repair leaves the authored root track and the compatibility
+  fallback.
 - Module boundary: Animation owns the shared clip resource and the pure algorithms
   that turn a clip into data (`SamplePose`, `BlendPose`, `SelectEntryFrame`,
   `PoseDistance`, foot support, touch geometry). *Decisions* about which clip to
@@ -272,7 +282,12 @@ observation, controls and stored physics are all the Stadium Frame.
   span (`N` root samples = `N-1` ticks). `frame_count` is not that span, and
   using it biases every playback rate by `N/(N-1)`.
 - A Final Pose is the skeleton the colliders read. `ComposeFinalPose` produces
-  it as Warp -> bounded Realize. In steady locomotion the adapted sample's pose
+  it as Warp -> bounded Realize. The IK-free acceptance drives that same
+  `SampleAnimationStep -> Warp -> Realize` chain and measures the final world
+  ankle, not only the adapter sample. Steady stance uses the tight budget; a
+  support handover has an explicit transient budget because the knee/ankle may
+  legitimately turn fast while the other foot takes over. In steady locomotion
+  the adapted sample's pose
   is the source pose (it is the pose the sample's clip time selected); playback
   still owns the cross-clip blend, so only an active transition re-samples. In
   both cases `Pose()`, `BakedPoseSample()`, `Geometry()`, `ContactRegions()` and

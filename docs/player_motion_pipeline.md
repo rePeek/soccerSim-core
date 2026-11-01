@@ -831,3 +831,46 @@ Known limits of this first root-driven version:
   compatibility path carries the transition until a suitable clip is selected.
 - Foot support is still derived from ankle height; foot roll and toe contact
   remain an offline verification concern, not a runtime IK correction.
+
+## RM-F1..RM-F4 result: phase, final pose, turning and repaired-gait validation
+
+The RM migration made the clip root the active motion authority. The follow-up
+review found four engineering gaps; this stage closes them without changing the
+architecture again.
+
+- **RM-F1 — one phase.** The root-driven path and the compatibility fallback now
+  advance the same unwrapped cursor (`locomotion_continuous_time_`). The
+  fallback computes its wrapped playback time as before, then advances the
+  continuous cursor by the same wrap-aware delta
+  (`AdvanceContinuousLocomotionTime`). Switching back to the root path no longer
+  re-samples a stale phase. `ReferenceAnimationSample::looped` now means "this
+  interval crossed a seam", with `cycle_index` carrying completed cycles. The
+  root/fallback/root acceptance crosses a loop seam and checks cursor monotonicity
+  and pose continuity.
+- **RM-F2 — final pose.** The IK-free acceptance now drives
+  `SampleAnimationStep -> Warp -> bounded Realize -> Final Pose` and measures the
+  stance ankle in the final world skeleton for two body heights. Steady stance
+  keeps a tight budget; a support handover gets an explicit transient budget
+  because a knee/ankle may legitimately turn fast while the other foot takes
+  over. Realize is still the bounded production stage, not removed or bypassed.
+- **RM-F3 — turning and reselection.** A root sample now checks both the
+  speed-vector constraints and the heading change against
+  `PlayerMotionProfile::turn_rate` (speed-scaled). A heading change beyond one
+  tick's authority returns `NeedAnotherClip`/`turn_limited`. A rejected
+  root-driven sample asks the selector for one replacement
+  (`RequestLocomotionRequeue`), with a 10-tick cooldown so a long turn or a body
+  outside the gait range cannot run candidates every tick. The fallback still
+  supplies this tick's legal displacement; the replacement installs on the next
+  tick through RM-5.
+- **RM-F4 — repaired-gait downstream validation.** A repaired cycle changes its
+  frame count and native root speed. The importer now clamps declared
+  `incoming_velocity`/`outgoing_velocity` and `incoming_movement`/`outgoing_movement`
+  to the repaired root's reachable range (native root speed × bounded playback),
+  and rewrites `metadata.translation` from the repaired track. A catalog test
+  checks frame count, no contact data on movement clips, reachable metadata,
+  translation, and source/mirror symmetry. The acceptance also continues to run
+  the repaired clip for many ticks without an unexpected reselection.
+
+Remaining known boundary: the final-pose handover budget is a separate, bounded
+transient standard rather than the steady-stance standard. Foot roll/toe contact
+is still an offline validation concern, not runtime IK.
