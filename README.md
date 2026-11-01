@@ -143,6 +143,6 @@ current scope is `pitch`, `ball`, `player` and `team`, plus the `animation`
 acceptance suites and the Player/Team link smokes; no test constructs a full
 Simulation or plays a match. Tests assert physical correctness, state
 invariants and module contracts; there is no golden/fingerprint tier and no
-full-match requirement for a module change. The old `.anim` baker under
-`tools/animBaker/` is an explicitly selected recovery tool, excluded from the
-default build. Asset compiler tests are included in the `animation` label.
+full-match requirement for a module change. The legacy `.anim` baker was
+removed; asset tests cover the C++ GLB catalog importer and the remaining
+Python recovery tooling and are included in the `animation` label.

@@ -15,6 +15,9 @@ import simanim
 
 REPO = Path(__file__).resolve().parents[2]
 MANIFEST = REPO / "assets/animations/manifest.json"
+AUTOGEN = assets._discover_autogen(MANIFEST)
+needs_autogen = unittest.skipUnless(
+    AUTOGEN, "requires a historical generated autogen.simanim artifact")
 
 
 class CatalogTest(unittest.TestCase):
@@ -127,6 +130,7 @@ class CatalogTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             assets.load(self.manifest)
 
+    @needs_autogen
     def test_full_catalog_cache_roundtrip(self):
         clips = assets.load(MANIFEST)
         entries = assets.json_read(MANIFEST)["clips"]
@@ -138,6 +142,7 @@ class CatalogTest(unittest.TestCase):
         self.assertEqual(clips, simanim.load(path))
         self.assertEqual([c.id for c in clips], list(range(len(clips))))
 
+    @needs_autogen
     def test_a1b_procedural_autogen_and_a2_source_count(self):
         doc = assets.json_read(MANIFEST)
         entries = doc["clips"]
@@ -171,6 +176,7 @@ class CatalogTest(unittest.TestCase):
             self.assertGreaterEqual(clip.metadata["incoming_velocity"], 0.0)
             self.assertGreaterEqual(clip.metadata["outgoing_velocity"], 0.0)
 
+    @needs_autogen
     def test_virtual_mirrors_resolve_from_authored_clips(self):
         doc = assets.json_read(MANIFEST)
         entries = doc["clips"]

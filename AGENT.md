@@ -37,17 +37,15 @@ BqLog (pinned) and nlohmann/json v3.11.3 (pinned, the coach tool-call JSON
 boundary) are fetched in every build mode through `cmake/CPM.cmake`; Catch2
 v3.7.1 is fetched only with `BUILD_TESTING=ON`. All use `.cache/CPM`.
 
-Animation assets are compiled by `cmake/animation_assets.cmake`:
-`assets/animations/{manifest.json,*.glb}` plus
+The C++ runtime loads the canonical GLB catalog directly through `cgltf`:
+`assets/animations/{manifest.json,*.glb}`, `assets/motion_templates/` and
 `assets/skeletons/player.json` are the only animation source authority.
-`tools/playerAssets/animation_assets.py bake` creates
-`<build-dir>/assets/runtime/animations.simanim`; Runtime and asset tests depend
-on `football_animation_assets` and consume that generated cache. Normal builds
-need neither Blender nor the legacy `.anim` importer. `tools/animBaker` is an
-explicitly selected recovery/provenance tool, excluded from the default build.
-GLBs use Y-up logical joint axes; physics/cache metadata stays Z-up. Do not
-copy Blender display-bone preview exports over canonical sources. See
-`assets/README.md` for the format contract and authoring/validation commands.
+`AnimationLibrary::LoadCatalog` imports authored clips, derives mirrors and
+generates movement variants in memory; there is no build-time cache and no
+legacy `.anim` baker. Normal builds need neither Blender nor Python. GLBs use
+Y-up logical joint axes; physics metadata stays Z-up. Do not copy Blender
+display-bone preview exports over canonical sources. See `assets/README.md`
+for the format contract and authoring/validation commands.
 
 ### Module testing policy
 
@@ -464,8 +462,8 @@ assets/              canonical distributable assets (see assets/README.md)
 ├── animations/            100 Hz GLBs + football metadata manifest
 ├── characters/            default body, plus base/kit/shoes/hair slots + manifest
 └── skeletons/player.json  shared logical bone contract
-tools/               app (football_sim), animBaker (legacy recovery only),
-                     playerAssets (stdlib asset compiler + Blender preview tools)
+tools/               app (football_sim), playerAssets (legacy recovery and
+                     Blender preview tools)
 unittests/           one directory per active module (ball/pitch/player/team/
                      animation), including player_link and loco_animation
 ```

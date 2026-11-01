@@ -39,44 +39,30 @@ blender -b --factory-startup --python-exit-code 1 \
 C++ 运行时已经直接读取 GLB，不再通过这些 Python 工具编译缓存。
 下面各 Blender 工具输出 `build/` 下的建模/动画预览，不是另一套正式动作来源。
 
-`animation_assets.py bake` 和 `simanim.load()` 保留用于历史恢复/离线预览。
-完整 catalog 的 Python procedural 分支仍需要旧 baker 显式生成的 `autogen.simanim`；
-它不是 C++ 构建或运行的依赖。恢复缓存可使用：
-
-```sh
-cmake --build build/debug --target football_anim_baker
-./build/debug/football_anim_baker \
-  --autogen-out build/debug/assets/runtime/autogen.simanim \
-  --template-dir data/media/animations/templates \
-  --player-object data/media/objects/players/player.object
-python3 tools/playerAssets/animation_assets.py bake \
-  --manifest assets/animations/manifest.json \
-  --autogen build/debug/assets/runtime/autogen.simanim \
-  --output build/asset-cache/animations.simanim
-```
+`animation_assets.py bake` 和 `simanim.load()` 保留用于读取已有历史产物或
+离线预览，不是 C++ 构建/运行的依赖。旧 baker 已移除；若手上没有完整的
+历史 `autogen.simanim`，Python 无法从零编译 procedural 条目。
 
 历史 A0 镜像虚拟化时，`manifest.json` 有 726 个 authored GLB；另外 726 个镜像
 条目使用 `mirror_of`，编译时交换左右骨骼、反射根运动/方向、交换脚别并映射
 quadrant。`animation_assets.py virtualize-mirrors` 用于一次性迁移：默认只检查，
 `--write` 改写 manifest，`--delete-files` 才删除已迁移的镜像 GLB。
 
-A1a 将 10 个 legacy `.anim` 运动模板转换为 `assets/motion_templates/` 的 canonical
-GLB；A1b 则让离线 baker 直接从这些 `.anim` 模板重新生成 443 个 Autogen 片段：
+历史 A1a 将 10 个 legacy `.anim` 运动模板转换为 `assets/motion_templates/`
+的 canonical GLB；A1b 曾让已移除的离线 baker 从这些模板生成 443 个 Autogen 片段。
+
+当前由 C++ 在加载 catalog 时直接读取 GLB 模板生成 Autogen；以下命令仅记录
+历史迁移方式，不再提供可执行的 baker：
 
 ```sh
-# 生成 443 个非镜像 Autogen 片段
-./build/debug/football_anim_baker \
-  --autogen-out build/debug/assets/runtime/autogen.simanim \
-  --template-dir data/media/animations/templates \
-  --player-object data/media/objects/players/player.object
-
-# 把 manifest 中的 Autogen GLB 改成 procedural 条目（默认只检查）
+# 历史命令，对应工具已移除
+# football_anim_baker --autogen-out ... --template-dir ... --player-object ...
 python3 tools/playerAssets/animation_assets.py proceduralize-autogen \
-  --autogen build/debug/assets/runtime/autogen.simanim --write
+  --autogen <已有历史 autogen.simanim> --write
 ```
 
-以上为历史迁移/恢复命令，CMake 不再自动执行。当前 C++ 加载时直接从 GLB
-模板生成 Autogen，并派生镜像；`assets/animations/` 只保留 283 个 authored GLB。
+`assets/animations/` 仍只保留 283 个 authored GLB；C++ 加载时生成 Autogen
+及镜像。
 
 正式外观包（皮肤、球衣、球鞋、发型）由 `export_character_parts.py` 生成，
 需要下方 `default_14_smooth.blend` 预览模板：
@@ -421,8 +407,9 @@ GLB 不能跨文件引用骨骼。外观和动作文件各带同一份参考骨�
   straight 骨架作为动画绑定姿态。保留原来的预混合逻辑，而非自动权重。
 - `src/loaders/aseloader.cpp`：ASE 顶点已是世界坐标；`NODE_TM` 只参与法线
   处理，不能再应用到顶点位置。
-- 当前 `tools/animBaker/animation/animation.cpp`：root translation、关节旋转
-  替换、位置线性插值/旋转 SLERP、每帧 10 ms。
+- 历史导入实现 `tools/animBaker/animation/animation.cpp`（已移除，见 git 历史）：
+  root translation、关节旋转替换、位置线性插值/旋转 SLERP、每帧 10 ms。
+  当前生成与采样逻辑在 `src/animation/catalog_loader.cpp`。
 
 Blender 骨骼的显示方向与逻辑关节坐标轴不同，导入器显式做基变换。
 Blender 内使用 Z-up，glTF 导出器统一转换到 Y-up。

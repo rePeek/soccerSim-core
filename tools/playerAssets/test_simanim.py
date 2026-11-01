@@ -6,6 +6,7 @@ import unittest
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import animation_assets as assets
 import legacy
 import simanim
 
@@ -64,6 +65,8 @@ class SimanimTest(unittest.TestCase):
 
     def test_checked_in_library(self):
         repo = Path(__file__).resolve().parents[2]
+        if assets._discover_autogen(repo / "assets/animations/manifest.json") is None:
+            self.skipTest("requires historical autogen.simanim; the legacy baker was removed")
         clips = simanim.load(repo / "assets/animations/manifest.json")
         self.assertGreater(len(clips), 1000)
         joints = legacy.load_rig(repo / "data/media/objects/players/player.object")

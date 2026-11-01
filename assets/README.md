@@ -65,7 +65,7 @@ assets/motion_templates/*.glb + manifest.json + generation_keys.json
 ```
 
 普通构建和 C++ 运行时不需要 Python、Blender、旧 `.anim`、`player.object`
-或 animBaker；也不生成或读取 `animations.simanim` / `autogen.simanim`。
+或已移除的 baker；也不生成或读取 `animations.simanim` / `autogen.simanim`。
 283 个 authored 动作直接导入，443 个程序动作从 GLB 模板生成，再派生 726 个镜像。
 所有资源在初始化时准备，多个 Player 共享动作库，不在每帧或每个球员上重新导入。
 
@@ -119,13 +119,13 @@ Blender 默认导出（显示骨骼基、轨道优化等）**不保证可直接�
 ## 旧资料与离线外观工具
 
 `data/` 中旧 `.anim`、ASE、XML、BMP 保留为来源/建模参考；不再是正常构建时的
-动作权威来源。`tools/animBaker` 是显式选择才构建的历史恢复工具。
-`animation_assets.py migrate-legacy` 是一次性迁移/恢复命令，不参与正常构建。
+动作权威来源。旧 `.anim` baker（原 `tools/animBaker`）已经移除，需要时从 git
+历史恢复。`animation_assets.py migrate-legacy` 是一次性迁移/恢复命令，不参与正常构建。
 `import_templates.py` 是一次性迁移/恢复工具，把旧模板转换为 canonical GLB、
 模板 manifest 及控制采样帧配置；正常构建不调用它。
 
-旧 Python 预览/缓存编译工具仍可用于恢复，但完整 catalog 的 procedural 分支
-仍需显式提供旧生成器缓存；它们不参与当前 C++ 加载流程。
+历史 Python 缓存编译/预览工具仍可读取已有缓存或 GLB，但它们不再是运行时权威，
+也不能在没有历史生成产物的前提下从零重建完整 procedural catalog。
 它们的 `.blend`、实验骨架和截图仍输出到 Git 忽略的 `build/`。重新制作外观后，
 可以用 `animation_assets.py character --source ... --output ... --skeleton ...`
 把静态 Blender 导出包的显示骨骼基转换为共享逻辑骨骼基，再发布到 characters。

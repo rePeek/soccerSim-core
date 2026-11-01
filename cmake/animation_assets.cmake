@@ -15,3 +15,12 @@ function(football_require_animation_cache target)
   target_compile_definitions(${target} PRIVATE
     GFOOTBALL_BAKED_ANIM_PATH="${FOOTBALL_ANIMATION_MANIFEST}")
 endfunction()
+
+if(BUILD_TESTING)
+  find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+  add_test(NAME animation_asset_tools
+    COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+      -s "${PROJECT_SOURCE_DIR}/tools/playerAssets" -v)
+  set_tests_properties(animation_asset_tools PROPERTIES
+    LABELS "unit;animation" TIMEOUT 60)
+endif()

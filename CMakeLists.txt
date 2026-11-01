@@ -95,7 +95,5 @@ add_subdirectory(tools/app)
 if(BUILD_TESTING)
   CPMAddPackage(NAME Catch2 GITHUB_REPOSITORY catchorg/Catch2 GIT_TAG v3.7.1
     OPTIONS "CATCH_BUILD_TESTING OFF")
-  # Provenance/recovery utility only; not the source of runtime assets.
-  add_subdirectory(tools/animBaker EXCLUDE_FROM_ALL)
   add_subdirectory(unittests)
 endif()

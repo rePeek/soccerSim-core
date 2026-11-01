@@ -1,8 +1,9 @@
-"""Canonical GLB animation sources and deterministic SIMANIM v7 cache compiler.
+"""Legacy Python compiler for canonical GLB sources and SIMANIM v7 caches.
 
-No Blender or third-party Python packages are needed. The supported GLB contract
-is documented in assets/README.md; malformed/non-canonical files fail closed.
-"""
+The C++ runtime now loads GLB catalogs directly; this remains for recovery and
+offline preview. No Blender or third-party Python packages are needed. The
+supported GLB contract is documented in assets/README.md; malformed or
+non-canonical files fail closed."""
 from __future__ import annotations
 
 import argparse
@@ -392,6 +393,7 @@ def read_clip(path, entry, skeleton):
 
 
 def _discover_autogen(manifest):
+    """Find a historical procedural artifact; the baker that made it is gone."""
     candidates = [manifest.parent / "autogen.simanim"]
     repo = manifest.parents[2]
     candidates.extend(sorted(repo.glob("build*/**/assets/runtime/autogen.simanim")))
