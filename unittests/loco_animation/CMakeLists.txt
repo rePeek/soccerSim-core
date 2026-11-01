@@ -15,6 +15,7 @@ add_executable(football_loco_animation_tests
   loco_animation_ccd_consistency_test.cpp
   loco_motion_pose_test.cpp
   rma_ik_free_acceptance_test.cpp
+  rm_final_pose_acceptance_test.cpp
   rm_phase_continuity_test.cpp)
 target_include_directories(football_loco_animation_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/src)
