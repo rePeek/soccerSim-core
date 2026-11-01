@@ -27,6 +27,11 @@ struct MotionAdaptationDiagnostics {
   football::math::Vector3 adapted_delta = football::math::Vector3(0);
   // What the caller finally committed (collision stage).
   football::math::Vector3 final_delta = football::math::Vector3(0);
+  // RM-7: the part of final_delta that came from an external correction, not
+  // from the action. active + passive == final when the decomposition is
+  // consistent; a contact correction is allowed to slide a planted foot, but
+  // it must remain traceable as passive displacement.
+  football::math::Vector3 passive_correction = football::math::Vector3(0);
 
   float playback_rate = 1.0f;
   float stride_scale = 1.0f;

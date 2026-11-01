@@ -335,15 +335,17 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
 
 
 void PlayerExecution::NoteRootCorrection(const football::math::Vector3& offset) {
-  static_cast<void>(offset);
-  // RMA-6: a correction is the final displacement stage. Only mark the fact
-  // here; the cumulative final_delta is computed once from the actual start and
-  // end positions when the pose is re-derived.
+  // RMA-6/RM-7: a correction is the passive displacement stage. Record the
+  // offset so final_delta can be decomposed into active root + passive
+  // correction; the pose itself is re-derived below from the corrected root.
   if (state_.adapted_locomotion_valid_) {
     state_.adapted_locomotion_.diagnostics.collision_limited = true;
+    state_.adapted_locomotion_.diagnostics.passive_correction +=
+        offset.Get2D();
   }
   if (state_.adapted_action_valid_) {
     state_.adapted_action_.diagnostics.collision_limited = true;
+    state_.adapted_action_.diagnostics.passive_correction += offset.Get2D();
   }
 }
 
@@ -392,6 +394,16 @@ bool PlayerExecution::ResettleFinalPose(PlayerExecutionPort& owner) {
   state_.adapted_locomotion_.diagnostics.final_delta =
       port().GetKinematicState().position -
       state_.adapted_locomotion_start_position_;
+  // RM-7: the decomposition is a contract, not only a report. The external
+  // correction is the only difference between the active sample and the
+  // committed root.
+  const football::math::Vector3 decomposition_residual =
+      state_.adapted_locomotion_.diagnostics.final_delta -
+      state_.adapted_locomotion_.diagnostics.adapted_delta -
+      state_.adapted_locomotion_.diagnostics.passive_correction;
+  assert(decomposition_residual.Get2D().GetLength() < 1e-3f &&
+         "active root + passive correction must equal the final displacement");
+  static_cast<void>(decomposition_residual);
   state_.playback_state_.SetBlendSource(state_.final_pose_,
                                        state_.final_pose_base_angle_);
   ++audit_.pose_resolves_;
