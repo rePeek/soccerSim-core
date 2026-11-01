@@ -2,6 +2,7 @@
 #define FOOTBALL_SIM_PLAYER_ADAPTED_MOTION_HPP
 
 #include <algorithm>
+#include <cstdint>
 
 #include "football/animation/clip.hpp"
 #include "football/animation/types.hpp"
@@ -33,6 +34,10 @@ struct MotionAdaptationDiagnostics {
   float left_support_slip = 0.0f;
   float right_support_slip = 0.0f;
   float max_joint_rotation_step = 0.0f;
+  // RM-3: the fastest the reference gait may play under the bounded playback
+  // rate. A body above it must brake into range before the root can take over;
+  // the compatibility fallback uses this bound instead of the raw control.
+  float playable_speed = 0.0f;
 
   bool capability_limited = false;
   bool collision_limited = false;
@@ -60,7 +65,7 @@ struct AdaptedMotionSample {
   PoseFrame pose;
   float base_angle = 0.0f;
 
-  // Continuous animation phase and its derived timing.
+  // Wrapped clip time used for the pose this tick.
   float clip_time = 0.0f;
   float gait_phase = 0.0f;
   float playback_rate = 1.0f;
@@ -70,6 +75,18 @@ struct AdaptedMotionSample {
   // pose warp compares it (rotated by base yaw) with the achieved motion.
   football::math::Vector3 reference_delta_local = football::math::Vector3(0);
   FootSupportFrame support;
+  // RM-2: unwrapped clip time the next step starts from. `clip_time` is the
+  // wrapped time used for the pose, so a loop seam must not lose the cycle.
+  float continuous_clip_time = 0.0f;
+  // RM-3: why this sample is (not) executable. `feasible` is kept as the
+  // boolean shorthand used by the existing callers.
+  enum class Status : std::uint8_t {
+    Accepted,
+    NeedAnotherClip,
+    CapabilityLimited,
+    InvalidReference,
+  };
+  Status status = Status::Accepted;
   bool feasible = true;
   MotionAdaptationDiagnostics diagnostics;
 };

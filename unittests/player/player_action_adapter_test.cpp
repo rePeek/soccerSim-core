@@ -14,6 +14,8 @@
 #include "football/animation/foot_support.hpp"
 #include "football/player/execution/player_action_adapter.hpp"
 #include "football/player/execution/player_motion.hpp"
+#include "football/animation/pose_sampling.hpp"
+#include "football/animation/reference_sample.hpp"
 
 using football::math::Vector3;
 
@@ -234,31 +236,41 @@ TEST_CASE("an action plan is validated without moving its clip time",
         Catch::Approx(-0.03f).margin(1e-6f));
 }
 
-TEST_CASE("the gait cap is applied through the motion profile",
-          "[player][adapter][rma7]") {
+TEST_CASE("a body above the gait range refuses the root, never snaps it",
+          "[player][adapter][rma7][rm3]") {
   AnimationClip clip = GaitClip(2.0f);
+  clip.looping = true;
   clip.metadata.action_type = e_DefString_Movement;
   clip.motion_quality.stance_calibrated = true;
   clip.motion_quality.ik_free_usable = true;
-  // The support derivation's stance speed (1 m/s) is the calibrated cadence.
   clip.stance_speed = 1.0f;
   clip.foot_support.assign(clip.frame_count,
                            FootSupportFrame{FootPhase::Stance,
                                             FootPhase::Swing});
 
-  // 5 m/s body against a 2.2 m/s playable gait: the constraint brakes at the
-  // profile's 12 m/s^2, never snapping 2.8 m/s in one 10 ms tick.
-  const auto sample = PlayerActionAdapter::Evaluate(
+  // 5 m/s body against a 4.4 m/s playable gait: the profile can only brake to
+  // 4.88 this tick, still above the range. The adapter must not commit a root
+  // it cannot sample consistently; the caller brakes in the fallback path.
+  const auto refused = PlayerActionAdapter::Evaluate(
       clip, Moving(5.0f), Profile(), Body(), Control(Vector3(0, -5.0f, 0)),
       PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
-  CHECK(sample.diagnostics.ik_free_pose);
-  CHECK(sample.diagnostics.calibrated_ik_free);
-  CHECK(sample.stride_scale == Catch::Approx(1.0f).margin(1e-6f));
-  CHECK(sample.velocity.GetLength() ==
-        Catch::Approx(4.88f).margin(1e-4f));
-  CHECK(sample.diagnostics.capability_limited);
-  // The playback cap still exposes that the gait cannot follow this speed yet.
-  CHECK(sample.playback_rate <= 2.2f + 1e-4f);
+  CHECK_FALSE(refused.feasible);
+  CHECK(refused.status == AdaptedMotionSample::Status::NeedAnotherClip);
+  CHECK(refused.root_delta.GetLength() == Catch::Approx(0.0f).margin(1e-9f));
+  CHECK(refused.diagnostics.playable_speed == Catch::Approx(4.4f).margin(1e-4f));
+
+  // Once the body is inside the range, the same gait drives the root. The
+  // control asks for more than the gait can play, so it is reported limited,
+  // but the committed velocity is the sampled root's, not the control's.
+  const auto limited = PlayerActionAdapter::Evaluate(
+      clip, Moving(2.0f), Profile(), Body(), Control(Vector3(0, -5.0f, 0)),
+      PlayerPlaybackState{0.0f, 1.0f, 0.0f}, 0.01f);
+  CHECK(limited.feasible);
+  CHECK(limited.diagnostics.capability_limited);
+  CHECK(limited.velocity.GetLength() == Catch::Approx(2.06f).margin(1e-4f));
+  CHECK(limited.root_delta.GetLength() ==
+        Catch::Approx(0.0206f).margin(1e-5f));
+  CHECK(limited.playback_rate <= 2.2f + 1e-4f);
 }
 
 TEST_CASE("an explicit zero action root stays zero",
@@ -274,4 +286,97 @@ TEST_CASE("an explicit zero action root stays zero",
   // A planted touch frame or a stop is a real zero, not a missing value.
   CHECK(sample.root_delta.GetLength() == Catch::Approx(0.0f).margin(1e-9f));
   CHECK(sample.velocity.GetLength() == Catch::Approx(0.0f).margin(1e-9f));
+}
+
+// RM-3/RM-4: ordinary locomotion samples the clip's own root. The clip owns
+// the spatial trajectory; the control only selects how much of that trajectory
+// this tick may play.
+namespace {
+
+AnimationClip RootGait(float root_speed, const Vector3& direction) {
+  AnimationClip clip = GaitClip(1.0f);
+  clip.looping = true;
+  clip.motion_quality.stance_calibrated = true;
+  clip.motion_quality.ik_free_usable = true;
+  const Vector3 step = direction.GetNormalized() * (root_speed * 0.01f);
+  for (std::size_t frame = 0; frame < clip.root_positions.size(); ++frame) {
+    clip.root_positions[frame] = step * static_cast<float>(frame);
+  }
+  return clip;
+}
+
+}  // namespace
+
+TEST_CASE("RM-3: locomotion displacement follows the clip root, not a second integrator",
+          "[player][adapter][rm3]") {
+  const AnimationClip forward = RootGait(3.0f, Vector3(0, -1, 0));
+  const PlayerPlaybackState playback{0.0f, 1.0f, 0.0f};
+  const auto straight = PlayerActionAdapter::Evaluate(
+      forward, Moving(3.0f), Profile(), Body(), Control(Vector3(0, -3.0f, 0)),
+      playback, 0.01f);
+  REQUIRE(straight.feasible);
+  CHECK(straight.velocity.coords[1] == Catch::Approx(-3.0f).margin(1e-4f));
+  CHECK(straight.root_delta.coords[1] == Catch::Approx(-0.03f).margin(1e-5f));
+
+  // Same control, different clip root direction: the displacement changes with
+  // the clip. A direction the clip cannot express is refused instead of being
+  // silently re-rotated while the pose keeps the old bearing.
+  const AnimationClip sideways = RootGait(3.0f, Vector3(1, 0, 0));
+  const auto refused = PlayerActionAdapter::Evaluate(
+      sideways, Moving(3.0f), Profile(), Body(), Control(Vector3(0, -3.0f, 0)),
+      playback, 0.01f);
+  CHECK_FALSE(refused.feasible);
+  CHECK(refused.status == AdaptedMotionSample::Status::NeedAnotherClip);
+}
+
+TEST_CASE("RM-3: a loop seam advances the committed root",
+          "[player][adapter][rm3]") {
+  const AnimationClip clip = RootGait(2.0f, Vector3(0, -1, 0));
+  const PlayerPlaybackState playback{19.5f, 1.0f, 0.0f};
+  const auto sample = PlayerActionAdapter::Evaluate(
+      clip, Moving(2.0f), Profile(), Body(), Control(Vector3(0, -2.0f, 0)),
+      playback, 0.01f);
+  REQUIRE(sample.feasible);
+  CHECK(sample.looped);
+  CHECK(sample.continuous_clip_time == Catch::Approx(20.5f).margin(1e-4f));
+  CHECK(sample.clip_time == Catch::Approx(0.5f).margin(1e-4f));
+  CHECK(sample.root_delta.coords[1] == Catch::Approx(-0.02f).margin(1e-5f));
+}
+
+TEST_CASE("RM-3: the root delta and pose are one reference sample",
+          "[player][adapter][rm3]") {
+  const AnimationClip clip = RootGait(2.0f, Vector3(0, -1, 0));
+  const PlayerPlaybackState playback{3.25f, 1.0f, 0.0f};
+  const auto sample = PlayerActionAdapter::Evaluate(
+      clip, Moving(2.0f), Profile(), Body(), Control(Vector3(0, -2.0f, 0)),
+      playback, 0.01f);
+  REQUIRE(sample.feasible);
+  const ReferenceAnimationSample reference =
+      SampleAnimationStep(clip, playback.frame_time, sample.continuous_clip_time);
+  CHECK(sample.clip_time == Catch::Approx(reference.pose_time));
+  CHECK(sample.root_delta.coords[1] ==
+        Catch::Approx(reference.root_delta.coords[1]).margin(1e-6f));
+  const PoseFrame expected = SamplePose(clip, reference.pose_time);
+  for (std::size_t joint = 0; joint < kBodyPartCount; ++joint) {
+    CHECK(sample.pose.orientations[joint].GetDotProduct(
+              expected.orientations[joint]) == Catch::Approx(1.0f).margin(1e-6f));
+  }
+}
+
+TEST_CASE("RM-3: a taller body scales the sampled root",
+          "[player][adapter][rm3]") {
+  const AnimationClip clip = RootGait(2.0f, Vector3(0, -1, 0));
+  football::player::PlayerBodyProfile tall = Body();
+  tall.height_scale = 1.2f;
+  const PlayerPlaybackState playback{0.0f, 1.0f, 0.0f};
+  const auto normal = PlayerActionAdapter::Evaluate(
+      clip, Moving(2.0f), Profile(), Body(), Control(Vector3(0, -2.0f, 0)),
+      playback, 0.01f);
+  const auto scaled = PlayerActionAdapter::Evaluate(
+      clip, Moving(2.4f), Profile(), tall, Control(Vector3(0, -2.4f, 0)),
+      playback, 0.01f);
+  REQUIRE(normal.feasible);
+  REQUIRE(scaled.feasible);
+  CHECK(scaled.root_delta.GetLength() ==
+        Catch::Approx(normal.root_delta.GetLength() * 1.2f).margin(1e-5f));
 }

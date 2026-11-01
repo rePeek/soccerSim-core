@@ -126,6 +126,10 @@ struct PlayerExecutionState {
   // M2: the motion-driven playback cursor. Carried across ticks so the gait
   // phase stays continuous while the same clip keeps playing.
   LocomotionPlaybackRequest locomotion_playback_;
+  // RM-2/RM-3: unwrapped clip time. `locomotion_playback_.frame_time` stays the
+  // wrapped pose time; this cursor keeps the completed cycle count so a loop
+  // seam advances the root instead of jumping back.
+  float locomotion_continuous_time_ = 0.0f;
   // M3: the clip's own reference displacement for this tick, in clip-local XY.
   // The warp compares it (rotated by the base yaw) with the achieved motion.
   football::math::Vector3 locomotion_reference_delta_ =

@@ -422,7 +422,7 @@ AdaptedMotionSample PlayerExecution::EvaluateAdaptedLocomotion(
   const bool same_clip =
       state_.locomotion_playback_.clip_id == clip_id;
   playback.frame_time =
-      same_clip ? state_.locomotion_playback_.frame_time
+      same_clip ? state_.locomotion_continuous_time_
                 : static_cast<float>(state_.last_begun_start_frame_);
   playback.stride_scale = state_.stride_scale_;
   playback.entry_frame_time =
@@ -464,6 +464,7 @@ void PlayerExecution::UpdatePlaybackFromAuthority(football::sim::Tick now,
       state_.locomotion_playback_.gait_phase = adapted.gait_phase;
       state_.locomotion_playback_.stride_scale = adapted.stride_scale;
       state_.locomotion_playback_.looped = adapted.looped;
+      state_.locomotion_continuous_time_ = adapted.continuous_clip_time;
       UpdateLocomotionPlayback(authority_clip, adapted.clip_time, base_angle,
                                blend_ticks);
       state_.locomotion_reference_delta_ =

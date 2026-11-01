@@ -117,6 +117,7 @@ void PlayerExecution::ResetPoseChannel() {
   // next pose toward where the Player used to stand.
   state_.playback_state_.Reset();
   state_.locomotion_playback_ = LocomotionPlaybackRequest{};
+  state_.locomotion_continuous_time_ = 0.0f;
   state_.locomotion_reference_delta_ = Vector3(0);
   state_.stride_scale_ = 1.0f;
   state_.locomotion_diagnostics_ = LocomotionPoseDiagnostics{};
