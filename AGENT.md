@@ -182,10 +182,12 @@ observation, controls and stored physics are all the Stadium Frame.
   `PrepareActionContacts`. Contacts are last so the touch geometry, the pose and
   the root belong to the same tick, and the pose is classified with the retainer
   state the motion was committed with. A touch only proposes; it never moves the
-  root. A root corrected after the tick (`Player::OffsetPosition`) records the
-  collision-limited delta and re-derives the pose from the adapted reference
+  root. A root corrected after the tick (`Player::OffsetPosition`) marks the
+  sample collision-limited and re-derives the pose from the adapted reference
   sample through `PlayerExecution::ResettleFinalPose` - bounded, no clip time
-  consumed, never a pose left on a stale root.
+  consumed, `final_delta` measured from the real start/end. With no runtime
+  foot solve, an external push may slide a support foot: that is the explicit
+  passive-displacement model, not a hidden IK correction.
 - Motion and animation authority are separate facts. `PlayerMotionAdapter`
   returns the one admissible displacement; `achieved_delta` and the committed
   velocity must describe that same motion (a speed ceiling publishes the
@@ -257,14 +259,17 @@ observation, controls and stored physics are all the Stadium Frame.
   span (`N` root samples = `N-1` ticks). `frame_count` is not that span, and
   using it biases every playback rate by `N/(N-1)`.
 - A Final Pose is the skeleton the colliders read. `ComposeFinalPose` produces
-  it as blend -> Warp -> bounded Realize, and `Pose()`, `BakedPoseSample()`,
-  `Geometry()`, `ContactRegions()` and the runtime body tape read it without
-  re-solving. Never re-solve a second pose for geometry: `Geometry()` /
-  `ContactRegions()` are a pure forward-kinematics pass over the Final Pose.
-  The bounded rotation-rate realization belongs to the Player; Runtime may only
-  fold the base yaw for its physics tape, never rate-limit a committed pose.
-  A clip switch blends from the published Final Pose
-  (`PlaybackState::SetBlendSource`), not from the raw animation sample.
+  it as Warp -> bounded Realize. In steady locomotion the adapted sample's pose
+  is the source pose (it is the pose the sample's clip time selected); playback
+  still owns the cross-clip blend, so only an active transition re-samples. In
+  both cases `Pose()`, `BakedPoseSample()`, `Geometry()`, `ContactRegions()` and
+  the runtime body tape read the one value without re-solving. Never re-solve a
+  second pose for geometry: `Geometry()` / `ContactRegions()` are a pure
+  forward-kinematics pass over the Final Pose. The bounded rotation-rate
+  realization belongs to the Player; Runtime may only fold the base yaw for its
+  physics tape, never rate-limit a committed pose. A clip switch blends from
+  the published Final Pose (`PlaybackState::SetBlendSource`), not from the raw
+  animation sample.
 - The support derivation is a contract with a verdict, not a guess:
   `FootSupportSummary` (per-phase stance speed, duty cycles, shortest contact run)
   plus `FootSupportTrusted()`. A clip whose phases cannot be read (no contact,

@@ -245,7 +245,15 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
     return;
   }
   const football::player::PlayerBodyProfile body = port().BodyProfile();
-  const PoseFrame blended = state_.playback_state_.final_pose;
+  // RMA-2/RMA-7: in steady locomotion the pose the adapter produced *is* the
+  // source pose. Playback still owns the cross-clip blend, so a switch keeps
+  // its transition; otherwise the adapter's sample is not re-sampled here.
+  const bool use_adapted_pose =
+      motion_driven && state_.adapted_locomotion_valid_ &&
+      !state_.playback_state_.transition.active;
+  const PoseFrame& blended = use_adapted_pose
+                                 ? state_.adapted_locomotion_.pose
+                                 : state_.playback_state_.final_pose;
   const float blended_base_angle = state_.playback_state_.final_base_angle;
 
   // 1. P3a warp: the body yaw and pelvis bob follow the motion the Player
@@ -328,18 +336,15 @@ void PlayerExecution::ComposeFinalPose(const AnimationClip& clip,
 
 
 void PlayerExecution::NoteRootCorrection(const football::math::Vector3& offset) {
-  // RMA-6: the correction is the final displacement stage. Record it on the
-  // sample that owns the root so the diagnostic never reports the pre-collision
-  // motion as what shipped.
+  static_cast<void>(offset);
+  // RMA-6: a correction is the final displacement stage. Only mark the fact
+  // here; the cumulative final_delta is computed once from the actual start and
+  // end positions when the pose is re-derived.
   if (state_.adapted_locomotion_valid_) {
     state_.adapted_locomotion_.diagnostics.collision_limited = true;
-    state_.adapted_locomotion_.diagnostics.final_delta =
-        state_.adapted_locomotion_.diagnostics.adapted_delta + offset;
   }
   if (state_.adapted_action_valid_) {
     state_.adapted_action_.diagnostics.collision_limited = true;
-    state_.adapted_action_.diagnostics.final_delta =
-        state_.adapted_action_.diagnostics.adapted_delta + offset;
   }
 }
 
@@ -358,9 +363,7 @@ bool PlayerExecution::ResettleFinalPose(PlayerExecutionPort& owner) {
   const float base_angle =
       state_.startAngle + state_.legacy_anim_state_.rotationSmuggleOffset;
   PlayerPoseWarpInput warp;
-  warp.reference_pose = state_.playback_state_.have_pose
-                            ? state_.playback_state_.final_pose
-                            : state_.adapted_locomotion_.pose;
+  warp.reference_pose = state_.adapted_locomotion_.pose;
   warp.reference_base_angle = base_angle;
   warp.reference_delta =
       state_.locomotion_reference_delta_.Get2D().GetRotated2D(base_angle);
@@ -384,6 +387,12 @@ bool PlayerExecution::ResettleFinalPose(PlayerExecutionPort& owner) {
   state_.final_pose_ = realized.pose;
   state_.final_pose_base_angle_ = warped.base_angle;
   state_.final_pose_valid_ = true;
+  // A collision correction is accepted as passive displacement. With no runtime
+  // foot solve, a support foot may slide under an external push; that is the
+  // explicit model, not a hidden IK correction.
+  state_.adapted_locomotion_.diagnostics.final_delta =
+      port().GetKinematicState().position -
+      state_.adapted_locomotion_start_position_;
   state_.playback_state_.SetBlendSource(state_.final_pose_,
                                        state_.final_pose_base_angle_);
   ++audit_.pose_resolves_;
@@ -403,21 +412,12 @@ AdaptedMotionSample PlayerExecution::EvaluateAdaptedLocomotion(
                                  : state_.legacy_anim_state_.animationId;
   const AnimationClip& clip = GetBakedClip(clip_id);
 
-  const ClipTuning& tuning = animation_config_.Get(clip_id);
   PlayerActionControl control;
   control.desired_velocity = desired_velocity;
   control.idle_facing = idle_facing;
   control.authority = PlayerMotionAuthority::Locomotion;
   control.base_angle =
       state_.startAngle + state_.legacy_anim_state_.rotationSmuggleOffset;
-  control.gait.stride_preference = tuning.stride_preference;
-  control.gait.cadence_preference = tuning.cadence_preference;
-  control.gait.stride_response = tuning.stride_response;
-  control.gait.min_stride_scale = kLocomotionMinStrideScale;
-  // Reach-aware ceiling first: the adapter derives the playback rate from the
-  // step it is actually allowed to take.
-  control.gait.max_stride_scale =
-      std::min(tuning.max_stride_scale, kLocomotionMaxStrideScale);
 
   PlayerPlaybackState playback;
   const bool same_clip =

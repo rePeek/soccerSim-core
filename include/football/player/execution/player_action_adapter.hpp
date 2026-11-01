@@ -29,17 +29,10 @@
 //   - symmetric to failure: when the clip or the gait cannot satisfy the
 //     constraints the sample is marked infeasible instead of stretched.
 
-// A player's stride/cadence preference, as the adapter needs it. The values are
-// the neutral shipped gait by default; `min/max` bound the step length the
-// caller is willing to author.
-struct PlayerGaitRequest {
-  float stride_preference = 1.0f;
-  float cadence_preference = 1.0f;
-  float stride_response = 0.5f;
-  float min_stride_scale = 0.6f;
-  float max_stride_scale = 1.35f;
-};
-
+// The adapter is cadence-only in the IK-free runtime path: per-player stride
+// preferences belong to pre-baked movement variants, not to a runtime leg
+// solve. Keeping them out of this input prevents a config field from looking
+// effective when the runtime cannot honour it.
 struct PlayerActionControl {
   // Requested velocity before capability and the animation gait apply.
   football::math::Vector3 desired_velocity = football::math::Vector3(0);
@@ -56,7 +49,6 @@ struct PlayerActionControl {
   // A zero `reference_delta` is a real value (a planted touch frame, a stop).
   // Only `has_reference_delta == false` means "the plan did not supply one".
   bool has_reference_delta = false;
-  PlayerGaitRequest gait;
 };
 
 struct PlayerPlaybackState {

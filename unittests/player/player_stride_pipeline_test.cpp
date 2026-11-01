@@ -1,3 +1,7 @@
+// LEGACY ALGORITHM TEST - NOT PRODUCTION ACCEPTANCE.
+// The pipeline below still exercises the removed runtime IK/stance settle to
+// validate the pure geometry. Current production execution is cadence-only and
+// gated by ClipMotionQuality; see rma_ik_free_acceptance_test.cpp.
 // STRIDE-0..3 — the locomotion pose pipeline, end to end and asset-free.
 //
 // One synthetic gait clip, one synthetic Player root, the real production

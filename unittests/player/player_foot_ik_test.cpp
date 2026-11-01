@@ -1,3 +1,8 @@
+// LEGACY ALGORITHM TEST - NOT PRODUCTION ACCEPTANCE.
+// RMA-7 removed the runtime foot-IK stage. This suite still proves the pure
+// support-anchor/two-bone math, but passing it does not prove the current
+// Player execution path. IK-free production coverage lives in
+// unittests/loco_animation/rma_ik_free_acceptance_test.cpp.
 // P3b core: pure support-anchor and two-bone IK contract.
 
 #include <catch2/catch_approx.hpp>

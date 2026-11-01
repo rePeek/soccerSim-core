@@ -1,3 +1,7 @@
+// LEGACY PIPELINE TEST - NOT PRODUCTION ACCEPTANCE.
+// This suite manually drives the removed IK/plant chain to validate its pure
+// math. The current Player execution path is covered by
+// rma_ik_free_acceptance_test.cpp (real catalog, PlayerActionAdapter).
 // Player x Animation acceptance on the *real* catalog: cruise, brake, stop and
 // turn through the production pose chain.
 //
