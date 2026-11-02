@@ -12,8 +12,13 @@
 # targets, sources and header sets.
 
 add_library(football_animation_base STATIC
-  library.cpp
-  foot_support.cpp
+  import/catalog_loader.cpp
+  import/glb_reader.cpp
+  import/metadata.cpp
+  import/mirror.cpp
+  import/procedural_generator.cpp
+  import/gait_repair.cpp
+  import/motion_quality.cpp
 )
 add_library(football::animation_base ALIAS football_animation_base)
 target_sources(football_animation_base PUBLIC FILE_SET HEADERS

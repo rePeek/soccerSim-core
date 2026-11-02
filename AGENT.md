@@ -489,7 +489,9 @@ include/football/    public headers, one directory per module
 
 src/                 implementations; public headers live in include/football/
 ├── foundation/      football::foundation, football::geometry, football::collision
-├── animation/       football::animation_base (baker-shared) + football::animation
+├── animation/       football::animation_base (resource/import) + football::animation
+│                      import/: catalog, GLB, metadata, mirror, procedural generation,
+│                      gait repair and motion quality; root/pose runtime files stay flat
 ├── pitch/           football::pitch (pitch.cpp)
 ├── ball/            football::ball
 ├── contact/         football::contact (no concrete Player or Runtime)
