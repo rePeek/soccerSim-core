@@ -117,12 +117,12 @@ void RequireSameClip(const AnimationClip& actual, const AnimationClip& expected)
     REQUIRE(actual.touches[i].frame == expected.touches[i].frame);
     REQUIRE(actual.touches[i].position == expected.touches[i].position);
   }
-  REQUIRE(actual.foot_support.size() == expected.foot_support.size());
-  for (std::size_t f = 0; f < actual.foot_support.size(); ++f) {
-    REQUIRE(actual.foot_support[f].left == expected.foot_support[f].left);
-    REQUIRE(actual.foot_support[f].right == expected.foot_support[f].right);
-  }
-  REQUIRE(actual.stance_speed == expected.stance_speed);
+  REQUIRE(actual.looping == expected.looping);
+  REQUIRE(actual.motion_quality.tracked == expected.motion_quality.tracked);
+  REQUIRE(actual.motion_quality.support_trusted == expected.motion_quality.support_trusted);
+  REQUIRE(actual.motion_quality.root_speed == expected.motion_quality.root_speed);
+  REQUIRE(actual.motion_quality.stance_speed == expected.motion_quality.stance_speed);
+  REQUIRE(actual.motion_quality.ik_free_usable == expected.motion_quality.ik_free_usable);
 }
 }  // namespace
 
@@ -136,7 +136,7 @@ TEST_CASE("C++ loads the complete source catalog without a baked cache", "[anima
     REQUIRE(clip.name == doc["clips"][i]["name"].get<std::string>());
     REQUIRE(clip.poses.size() == clip.frame_count);
     REQUIRE(clip.root_positions.size() == clip.frame_count);
-    REQUIRE(clip.foot_support.size() == clip.frame_count);
+    REQUIRE(clip.motion_quality.tracked);
     for (const auto& root : clip.root_positions) REQUIRE(root.coords[2] == 0);
   }
 }

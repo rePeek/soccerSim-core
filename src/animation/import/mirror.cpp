@@ -10,8 +10,8 @@ std::string MirrorString(std::string value) {
   return value;
 }
 }
-AnimationClip Mirror(const AnimationClip& source) {
-  AnimationClip clip = source;
+ImportedAnimationClip Mirror(const ImportedAnimationClip& source) {
+  ImportedAnimationClip clip = source;
   for (std::size_t f = 0; f < clip.poses.size(); ++f) {
     for (std::size_t j = 0; j < kNames.size(); ++j) {
       const auto& q = source.poses[f].orientations[kMirror[j]];

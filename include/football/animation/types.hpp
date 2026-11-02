@@ -22,64 +22,6 @@ const float idleDribbleSwitch = 1.8f;
 const float dribbleWalkSwitch = 4.2f;
 const float walkSprintSwitch = 6.0f;
 
-// Foot support phases, as an animation-domain fact.
-//
-// A gait clip knows which foot is carrying weight and when. Player Execution
-// needs that answer to decide when a world-space support anchor may be planted
-// or released; deriving it from ankle height alone mislabels authored clips (a
-// swinging foot can hang lower than a stance foot), and deriving it from the
-// settled pose cannot work at all (a locked foot keeps its height).
-enum class FootPhase : std::uint8_t {
-  Swing = 0,
-  // First frame of a contact: the foot touches down this frame.
-  Landing = 1,
-  // Carrying weight.
-  Stance = 2,
-  // Last frame of a contact: the foot leaves the ground after this frame.
-  Takeoff = 3,
-};
-
-struct FootSupportFrame {
-  FootPhase left = FootPhase::Swing;
-  FootPhase right = FootPhase::Swing;
-};
-
-inline bool FootIsSupporting(FootPhase phase) {
-  return phase == FootPhase::Landing || phase == FootPhase::Stance ||
-         phase == FootPhase::Takeoff;
-}
-
-// What the derivation concluded about a whole clip, and whether it may be
-// trusted. A gait clip that never carries weight, carries weight the whole time,
-// or whose stance foot disagrees wildly with its own root track is a clip the
-// derivation could not read - the Player must fall back instead of locking feet
-// on a guess.
-struct FootSupportSummary {
-  // Mean backward speed of the support foot *inside* the clip, per phase. The
-  // stance value is the cadence reference playback follows.
-  float landing_speed = 0.0f;
-  float stance_speed = 0.0f;
-  float takeoff_speed = 0.0f;
-  // Duty cycles over the cycle, 0..1.
-  float support_duty = 0.0f;
-  float double_support_duty = 0.0f;
-  float flight_duty = 0.0f;
-  // A support run shorter than this many frames cannot be a real step.
-  int shortest_support_run = 0;
-  bool no_support = false;
-  bool all_support = false;
-  bool stance_too_short = false;
-  bool speed_outlier = false;
-};
-
-// Trustworthy = there is a track, it has real contact, and it agrees with the
-// clip's own travel. Callers use the velocity bridge when this is false.
-inline bool FootSupportTrusted(const FootSupportSummary& summary,
-                               bool has_track) {
-  return has_track && !summary.no_support && !summary.all_support &&
-         !summary.stance_too_short && !summary.speed_outlier;
-}
-
 // RMA-1: motion quality of a clip, as an animation-domain fact.
 //
 // The IK-free adaptation only works on a clip whose root track and support
@@ -107,12 +49,11 @@ struct ClipMotionQuality {
   float stance_direction_alignment = 0.0f;
   // The clip has a derived support track to measure against.
   bool tracked = false;
+  // Import could read real alternating support consistent with native travel.
+  bool support_trusted = false;
   bool support_consistent = false;
   bool loop_continuous = false;
-  // The support track is trustworthy and loops, so the Player may drive the
-  // root from the stance-foot speed instead of the clip's own root track. This
-  // is the in-memory calibrated reference: it removes the authored root/foot
-  // disagreement without editing the GLB.
+  // A readable, continuous straight gait with a usable reference cadence.
   bool stance_calibrated = false;
   // The strict source gate: the clip's own root track already agrees with its
   // stance foot, so it needs no calibration at all.

@@ -9,10 +9,9 @@
 // The declared 14-bone model: hierarchy and bind offsets.
 //
 // This is the skeleton contract, not a foot-support policy. It is shared by the
-// Player's forward kinematics, the colliders and the offline/animation
-// verification, so a bind change cannot land in only one of them. The support
-// derivation in `foot_support.hpp` consumes it; production pose evaluation
-// includes only this header.
+// Player's forward kinematics, the colliders and Animation Import verification,
+// so a bind change cannot land in only one of them. Support analysis stays in
+// the private import workspace; production pose evaluation uses this contract.
 struct SkeletonBindJoint {
   BodyPart part;
   BodyPart parent;

@@ -82,7 +82,6 @@ struct AdaptedMotionSample {
   // The clip's own local reference displacement over the same interval; the
   // pose warp compares it (rotated by base yaw) with the achieved motion.
   football::math::Vector3 reference_delta_local = football::math::Vector3(0);
-  FootSupportFrame support;
   // RM-2: unwrapped clip time the next step starts from. `clip_time` is the
   // wrapped time used for the pose, so a loop seam must not lose the cycle.
   float continuous_clip_time = 0.0f;

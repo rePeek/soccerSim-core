@@ -50,7 +50,7 @@ const MotionTemplate& FindTemplate(const std::vector<MotionTemplate>& templates,
   Check(best && error < 0.02f, "no matching motion template");
   return *best;
 }
-AnimationClip Generate(const Json& entry, const std::vector<MotionTemplate>& templates) {
+ImportedAnimationClip Generate(const Json& entry, const std::vector<MotionTemplate>& templates) {
   const auto metadata = Metadata(entry.at("metadata"));
   const auto& a = FindTemplate(templates, metadata.incoming_velocity, metadata.incoming_body_angle, false);
   const auto& b = FindTemplate(templates, metadata.outgoing_velocity, metadata.outgoing_body_angle, true);
@@ -64,7 +64,7 @@ AnimationClip Generate(const Json& entry, const std::vector<MotionTemplate>& tem
   Check(std::fabs(angle - metadata.outgoing_angle) < 0.02f, "unsupported generated heading");
   const float average = std::clamp((GetVelocityID(FloatToEnumVelocity(metadata.incoming_velocity)) +
                                    GetVelocityID(FloatToEnumVelocity(metadata.outgoing_velocity))) / 6.0f, 0.0f, 1.0f);
-  AnimationClip clip;
+  ImportedAnimationClip clip;
   clip.poses.resize(25);
   clip.root_positions.resize(25);
   for (std::size_t joint = 0; joint < kNames.size(); ++joint) {

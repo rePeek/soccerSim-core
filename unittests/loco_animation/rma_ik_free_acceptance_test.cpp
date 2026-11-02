@@ -16,7 +16,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "football/animation/foot_support.hpp"
+#include "foot_support.hpp"
 #include "football/animation/library.hpp"
 #include "football/player/execution/player_action_adapter.hpp"
 #include "football/player/execution/player_motion.hpp"
@@ -92,7 +92,7 @@ TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
   int rejected_clips = 0;
   for (const AnimationClip& clip : library.Clips()) {
     if (clip.metadata.action_type != e_DefString_Movement) continue;
-    if (clip.foot_support.empty()) continue;
+    if (!clip.motion_quality.tracked) continue;
     // The gate must be a decision, not a comment: a movement clip with a
     // support track that failed calibration is rejected.
     if (!clip.motion_quality.ik_free_usable) {
@@ -115,6 +115,8 @@ TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
     // first real sprint half-cycle into a full IK-free cycle, so the positive
     // branch must now be exercised.
     if (!OrdinaryStraightGait(clip)) continue;
+    ImportedAnimationClip verification(clip);
+    DeriveFootSupport(verification);
 
     PlayerActionControl control;
     control.desired_velocity = Vector3(0, -reference_speed, 0);
@@ -157,15 +159,16 @@ TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
           sample.pose, state, sample.base_angle, body);
       const Vector3 left = world.joints[BodyPart::left_ankle];
       const Vector3 right = world.joints[BodyPart::right_ankle];
+      const auto support = SampleFootSupport(verification, sample.clip_time);
 
       if (have_previous) {
         if (Stance(previous_support, true) &&
-            Stance(sample.support, true)) {
+            Stance(support, true)) {
           worst_left =
               std::max(worst_left, (left - previous_left).Get2D().GetLength());
         }
         if (Stance(previous_support, false) &&
-            Stance(sample.support, false)) {
+            Stance(support, false)) {
           worst_right =
               std::max(worst_right, (right - previous_right).Get2D().GetLength());
         }
@@ -180,7 +183,7 @@ TEST_CASE("a calibrated real clip keeps its support foot planted without IK",
       }
       previous_left = left;
       previous_right = right;
-      previous_support = sample.support;
+      previous_support = support;
       previous_pose = sample.pose;
       have_previous = true;
     }

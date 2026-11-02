@@ -2,10 +2,9 @@
 // fast it travels backwards inside the clip.
 //
 // Everything here is derived from the clip's own pose track and the declared
-// 14-bone model. It runs once per clip when the library loads, so the runtime
-// pays a table lookup per tick and the artifact format does not change.
+// 14-bone model. Only scalar resource facts survive import.
 
-#include "football/animation/foot_support.hpp"
+#include "foot_support.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -103,7 +102,7 @@ void AssignPhases(const std::vector<bool>& down,
 
 }  // namespace
 
-void DeriveFootSupport(AnimationClip& clip) {
+void DeriveFootSupport(ImportedAnimationClip& clip) {
   clip.foot_support.clear();
   clip.stance_speed = 0.0f;
   const std::size_t frames = std::min(clip.poses.size(), clip.root_positions.size());
@@ -245,7 +244,7 @@ void DeriveFootSupport(AnimationClip& clip) {
   clip.stance_speed = stance_speed;
 }
 
-FootSupportFrame SampleFootSupport(const AnimationClip& clip, float frame_time) {
+FootSupportFrame SampleFootSupport(const ImportedAnimationClip& clip, float frame_time) {
   FootSupportFrame frame;
   if (clip.foot_support.empty()) return frame;
   const float last = static_cast<float>(clip.foot_support.size() - 1);
@@ -262,7 +261,7 @@ FootSupportFrame SampleFootSupport(const AnimationClip& clip, float frame_time) 
 // it is planted. The IK-free adaptation removes the last world-space correction;
 // it can only do that if the reference itself is already consistent. This
 // measurement is the gate: report the slide, do not invent a fix for it.
-void DeriveMotionQuality(AnimationClip& clip) {
+void DeriveMotionQuality(ImportedAnimationClip& clip) {
   ClipMotionQuality quality;
   const std::size_t frames =
       std::min({clip.poses.size(), clip.root_positions.size(),
@@ -360,6 +359,7 @@ void DeriveMotionQuality(AnimationClip& clip) {
       quality.seam_root_speed_delta <= kIkFreeMaxSeamRootSpeedDelta;
   const bool trusted =
       FootSupportTrusted(clip.foot_support_summary, !clip.foot_support.empty());
+  quality.support_trusted = trusted;
   // Only an ordinary movement action makes a locomotion claim.
   const bool movement = clip.metadata.action_type == e_DefString_Movement;
   // Calibration is only possible when the clip measured a usable stance-foot

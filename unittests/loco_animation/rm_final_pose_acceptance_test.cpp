@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "football/animation/foot_support.hpp"
+#include "foot_support.hpp"
 #include "football/animation/library.hpp"
 #include "football/player/execution/player_action_adapter.hpp"
 #include "football/player/execution/player_pose_adapter.hpp"
@@ -87,6 +87,8 @@ struct FinalPoseMetrics {
 };
 
 FinalPoseMetrics Drive(const AnimationClip& clip, const PlayerBodyProfile& body) {
+  ImportedAnimationClip verification(clip);
+  DeriveFootSupport(verification);
   const float native_speed =
       LocomotionClipReferenceSpeed(clip) * body.height_scale;
   PlayerActionControl control;
@@ -118,9 +120,10 @@ FinalPoseMetrics Drive(const AnimationClip& clip, const PlayerBodyProfile& body)
     state.position += sample.root_delta;
     state.velocity = sample.velocity;
     playback.frame_time = sample.continuous_clip_time;
+    const auto support = SampleFootSupport(verification, sample.clip_time);
 
     if (have_previous) {
-      if (SupportChanged(previous_support, sample.support)) {
+      if (SupportChanged(previous_support, support)) {
         ticks_since_support_change = 0;
       } else {
         ++ticks_since_support_change;
@@ -169,13 +172,13 @@ FinalPoseMetrics Drive(const AnimationClip& clip, const PlayerBodyProfile& body)
     const Vector3 right = world.joints[BodyPart::right_ankle];
     const bool handover = ticks_since_support_change <= kHandoverWindowTicks;
     if (have_previous) {
-      if (Stance(previous_support, true) && Stance(sample.support, true)) {
+      if (Stance(previous_support, true) && Stance(support, true)) {
         const float slip = (left - previous_left).Get2D().GetLength();
         float& target =
             handover ? metrics.handover_left_slip : metrics.steady_left_slip;
         target = std::max(target, slip);
       }
-      if (Stance(previous_support, false) && Stance(sample.support, false)) {
+      if (Stance(previous_support, false) && Stance(support, false)) {
         const float slip = (right - previous_right).Get2D().GetLength();
         float& target =
             handover ? metrics.handover_right_slip : metrics.steady_right_slip;
@@ -184,7 +187,7 @@ FinalPoseMetrics Drive(const AnimationClip& clip, const PlayerBodyProfile& body)
     }
     previous_left = left;
     previous_right = right;
-    previous_support = sample.support;
+    previous_support = support;
     previous_final = final_pose;
     have_final = true;
     have_previous = true;

@@ -14,6 +14,9 @@ add_executable(football_animation_unit_tests
   motion_quality_test.cpp
   reference_sample_test.cpp)
 football_require_animation_cache(football_animation_unit_tests)
+# Import verification may inspect support workspaces; production consumers cannot.
+target_include_directories(football_animation_unit_tests PRIVATE
+  ${PROJECT_SOURCE_DIR}/src/animation/import)
 target_link_libraries(football_animation_unit_tests
   PRIVATE
     football::animation

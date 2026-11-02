@@ -11,7 +11,7 @@
 #include <cmath>
 #include <vector>
 
-#include "football/animation/foot_support.hpp"
+#include "foot_support.hpp"
 #include "football/animation/library.hpp"
 
 using football::math::Vector3;
@@ -20,8 +20,8 @@ namespace {
 
 // A clip whose two legs alternate between "straight down" and "lifted": the
 // lifted leg rotates its thigh forward, which raises the ankle.
-AnimationClip AlternatingClip(int frames = 20, int half = 10) {
-  AnimationClip clip;
+ImportedAnimationClip AlternatingClip(int frames = 20, int half = 10) {
+  ImportedAnimationClip clip;
   clip.id = 1;
   clip.frame_count = static_cast<uint32_t>(frames);
   clip.root_positions.assign(frames, Vector3(0, 0, 0));
@@ -43,7 +43,7 @@ AnimationClip AlternatingClip(int frames = 20, int half = 10) {
 
 TEST_CASE("the derived track marks landing, stance and takeoff per foot",
           "[animation][footsupport]") {
-  AnimationClip clip = AlternatingClip();
+  auto clip = AlternatingClip();
   DeriveFootSupport(clip);
   REQUIRE(clip.foot_support.size() == clip.frame_count);
 
@@ -68,8 +68,8 @@ TEST_CASE("the derived track marks landing, stance and takeoff per foot",
 
 TEST_CASE("the derivation is deterministic and survives an empty clip",
           "[animation][footsupport]") {
-  AnimationClip a = AlternatingClip();
-  AnimationClip b = AlternatingClip();
+  auto a = AlternatingClip();
+  auto b = AlternatingClip();
   DeriveFootSupport(a);
   DeriveFootSupport(b);
   REQUIRE(a.foot_support.size() == b.foot_support.size());
@@ -79,7 +79,7 @@ TEST_CASE("the derivation is deterministic and survives an empty clip",
   }
   CHECK(a.stance_speed == b.stance_speed);
 
-  AnimationClip empty;
+  ImportedAnimationClip empty;
   DeriveFootSupport(empty);
   CHECK(empty.foot_support.empty());
   CHECK(empty.stance_speed == Catch::Approx(0.0f));
@@ -87,7 +87,7 @@ TEST_CASE("the derivation is deterministic and survives an empty clip",
 
 TEST_CASE("sampling a support track is a clamped nearest-frame lookup",
           "[animation][footsupport]") {
-  AnimationClip clip = AlternatingClip();
+  auto clip = AlternatingClip();
   DeriveFootSupport(clip);
   // Rounds to the nearest baked frame and clamps at both ends.
   CHECK(SampleFootSupport(clip, 0.0f).left == FootPhase::Landing);
@@ -103,7 +103,7 @@ TEST_CASE("sampling a support track is a clamped nearest-frame lookup",
 
   // A clip without a track reports "nothing known", which is the caller's signal
   // to fall back to its own detection.
-  AnimationClip untracked;
+  ImportedAnimationClip untracked;
   const auto fallback = SampleFootSupport(untracked, 3.0f);
   CHECK_FALSE(FootIsSupporting(fallback.left));
   CHECK_FALSE(FootIsSupporting(fallback.right));
@@ -114,7 +114,9 @@ TEST_CASE("the shipped catalog derives a usable support track", "[animation][foo
   REQUIRE(library.Load(GFOOTBALL_BAKED_ANIM_PATH));
   int movement_clips = 0;
   int clips_with_stance = 0;
-  for (const auto& clip : library.Clips()) {
+  for (const auto& resource : library.Clips()) {
+    ImportedAnimationClip clip(resource);
+    DeriveFootSupport(clip);
     if (clip.metadata.action_type != e_DefString_Movement) continue;
     if (clip.frame_count < 4) continue;
     REQUIRE(clip.foot_support.size() == clip.frame_count);
@@ -139,7 +141,7 @@ TEST_CASE("the shipped catalog derives a usable support track", "[animation][foo
 // ---------------------------------------------------------------------------
 TEST_CASE("the derived contract reports phases, duty cycles and a verdict",
           "[animation][footsupport]") {
-  AnimationClip clip = AlternatingClip();
+  auto clip = AlternatingClip();
   clip.metadata.action_type = e_DefString_Movement;
   DeriveFootSupport(clip);
   const FootSupportSummary& summary = clip.foot_support_summary;
@@ -167,7 +169,7 @@ TEST_CASE("the derived contract reports phases, duty cycles and a verdict",
 
 TEST_CASE("a clip whose contact cannot be read is not trusted",
           "[animation][footsupport]") {
-  AnimationClip clip = AlternatingClip();
+  auto clip = AlternatingClip();
   clip.metadata.action_type = e_DefString_Movement;
   DeriveFootSupport(clip);
   // No track at all: nothing to trust.
@@ -175,7 +177,7 @@ TEST_CASE("a clip whose contact cannot be read is not trusted",
 
   // A frozen pose rests on both feet the whole cycle: fine for a stance clip,
   // but it is not a gait.
-  AnimationClip frozen;
+  ImportedAnimationClip frozen;
   frozen.id = 2;
   frozen.frame_count = 6;
   frozen.root_positions.assign(6, Vector3(0, 0, 0));
@@ -195,7 +197,28 @@ TEST_CASE("the quality gate accepts the shipped locomotion catalog", "[animation
   int all_support = 0;
   int too_short = 0;
   int outlier = 0;
-  for (const auto& clip : library.Clips()) {
+  for (const auto& resource : library.Clips()) {
+    ImportedAnimationClip clip(resource);
+    DeriveFootSupport(clip);
+    CHECK(FootSupportTrusted(clip.foot_support_summary, !clip.foot_support.empty()) ==
+          resource.motion_quality.support_trusted);
+    CHECK(clip.stance_speed == resource.motion_quality.stance_speed);
+    DeriveMotionQuality(clip);
+    const auto& actual = clip.motion_quality;
+    const auto& expected = resource.motion_quality;
+    CHECK(actual.root_speed == expected.root_speed);
+    CHECK(actual.stance_speed == expected.stance_speed);
+    CHECK(actual.support_slip_speed == expected.support_slip_speed);
+    CHECK(actual.worst_support_slip_speed == expected.worst_support_slip_speed);
+    CHECK(actual.seam_root_speed_delta == expected.seam_root_speed_delta);
+    CHECK(actual.seam_pose_step == expected.seam_pose_step);
+    CHECK(actual.stance_direction_alignment == expected.stance_direction_alignment);
+    CHECK(actual.tracked == expected.tracked);
+    CHECK(actual.support_trusted == expected.support_trusted);
+    CHECK(actual.support_consistent == expected.support_consistent);
+    CHECK(actual.loop_continuous == expected.loop_continuous);
+    CHECK(actual.stance_calibrated == expected.stance_calibrated);
+    CHECK(actual.ik_free_usable == expected.ik_free_usable);
     if (clip.metadata.action_type != e_DefString_Movement) continue;
     if (clip.frame_count < 4) continue;
     ++movement_clips;

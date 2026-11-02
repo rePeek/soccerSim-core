@@ -11,7 +11,6 @@
 
 #include <cmath>
 
-#include "football/animation/foot_support.hpp"
 #include "football/player/execution/player_action_adapter.hpp"
 #include "football/player/execution/player_motion.hpp"
 #include "football/animation/pose_sampling.hpp"
@@ -20,6 +19,15 @@
 using football::math::Vector3;
 
 namespace {
+
+template <class T> concept HasSupportTrack = requires(T value) { value.foot_support; };
+template <class T> concept HasSupportSummary = requires(T value) { value.foot_support_summary; };
+template <class T> concept HasStanceSpeed = requires(T value) { value.stance_speed; };
+template <class T> concept HasSupportSample = requires(T value) { value.support; };
+static_assert(!HasSupportTrack<AnimationClip>);
+static_assert(!HasSupportSummary<AnimationClip>);
+static_assert(!HasStanceSpeed<AnimationClip>);
+static_assert(!HasSupportSample<AdaptedMotionSample>);
 
 AnimationClip GaitClip(float root_speed = 2.0f, int frames = 21) {
   AnimationClip clip;
@@ -252,10 +260,9 @@ TEST_CASE("a body above the gait range refuses the root, never snaps it",
   clip.metadata.action_type = e_DefString_Movement;
   clip.motion_quality.stance_calibrated = true;
   clip.motion_quality.ik_free_usable = true;
-  clip.stance_speed = 1.0f;
-  clip.foot_support.assign(clip.frame_count,
-                           FootSupportFrame{FootPhase::Stance,
-                                            FootPhase::Swing});
+  clip.motion_quality.stance_speed = 1.0f;
+  clip.motion_quality.support_trusted = true;
+  clip.motion_quality.tracked = true;
 
   // 5 m/s body against a 4.4 m/s playable gait: the profile can only brake to
   // 4.88 this tick, still above the range. The adapter must not commit a root

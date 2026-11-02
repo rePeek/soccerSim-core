@@ -60,7 +60,7 @@ void ReadValues(const cgltf_accessor* a, std::size_t frame, float* values, std::
   Check(cgltf_accessor_read_float(a, frame, values, size), "cannot read animation sample");
   for (std::size_t i = 0; i < size; ++i) Check(std::isfinite(values[i]), "non-finite animation sample");
 }
-AnimationClip ReadGlb(const fs::path& path, const Json& entry, const Skeleton& skeleton) {
+ImportedAnimationClip ReadGlb(const fs::path& path, const Json& entry, const Skeleton& skeleton) {
   cgltf_options options{};
   cgltf_data* raw = nullptr;
   const auto result = cgltf_parse_file(&options, path.string().c_str(), &raw);
@@ -110,7 +110,7 @@ AnimationClip ReadGlb(const fs::path& path, const Json& entry, const Skeleton& s
     Identity(*ancestor);
     for (float v : ancestor->translation) Check(v == 0, "non-identity skeleton object");
   }
-  AnimationClip clip;
+  ImportedAnimationClip clip;
   clip.poses.resize(frames);
   clip.root_positions.resize(frames);
   std::array<bool, 14> rotations{};

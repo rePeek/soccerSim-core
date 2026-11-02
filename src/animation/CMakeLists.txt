@@ -28,8 +28,7 @@ target_sources(football_animation_base PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/clip.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/library.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/quadrant.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/skeleton.hpp
-    ${PROJECT_SOURCE_DIR}/include/football/animation/foot_support.hpp)
+    ${PROJECT_SOURCE_DIR}/include/football/animation/skeleton.hpp)
 target_compile_features(football_animation_base PUBLIC cxx_std_23)
 target_link_libraries(football_animation_base PUBLIC football::foundation
   PRIVATE football_cgltf nlohmann_json::nlohmann_json)

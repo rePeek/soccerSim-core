@@ -62,8 +62,7 @@ class AnimationLibrary {
         ++census.movement_untracked;
         rejected = true;
       }
-      if (!FootSupportTrusted(clip.foot_support_summary,
-                              !clip.foot_support.empty())) {
+      if (!clip.motion_quality.support_trusted) {
         ++census.movement_support_untrusted;
         rejected = true;
       }

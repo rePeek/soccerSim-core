@@ -1,6 +1,5 @@
 // Canonical catalog orchestration; preprocessing stays inside Animation Import.
 #include "import.hpp"
-#include "football/animation/foot_support.hpp"
 
 #include <iostream>
 #include <set>
@@ -26,7 +25,7 @@ bool AnimationLibrary::Load(const std::filesystem::path& manifest) {
     std::vector<MotionTemplate> templates;
     if (procedural) templates = ReadTemplates(directory / doc.at("motion_templates").get<std::string>(),
                                               directory / doc.at("generation_keys").get<std::string>());
-    std::vector<AnimationClip> clips(entries.size());
+    std::vector<ImportedAnimationClip> clips(entries.size());
     std::set<fs::path> paths;
     for (std::size_t i = 0; i < entries.size(); ++i) {
       const auto& e = entries[i];
@@ -59,7 +58,12 @@ bool AnimationLibrary::Load(const std::filesystem::path& manifest) {
       clip.looping = clip.metadata.action_type == e_DefString_Movement &&
                      clip.motion_quality.loop_continuous;
     }
-    clips_ = std::move(clips);
+    std::vector<::AnimationClip> resources;
+    resources.reserve(clips.size());
+    for (auto& clip : clips) {
+      resources.push_back(std::move(static_cast<::AnimationClip&>(clip)));
+    }
+    clips_ = std::move(resources);
     return true;
   } catch (const std::exception& error) {
     std::cerr << "AnimationLibrary: " << manifest << ": " << error.what() << '\n';

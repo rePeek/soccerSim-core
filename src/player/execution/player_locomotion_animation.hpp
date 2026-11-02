@@ -133,11 +133,8 @@ inline float LocomotionClipReferenceSpeed(const AnimationClip& clip) {
 //
 // Authored clips carry foot slide: on the shipped catalog a run clip's stance
 // foot travels ~3.5 m/s inside the animation while its root track claims ~5 m/s.
-// Playing such a clip at `achieved / root_track_speed` therefore drags the stance
-// foot across the ground for the whole stance, and the plant has to absorb it.
-// The derived support track (`clip.stance_speed`, see foot_support.hpp) states how
-// fast the stance foot actually travels, so this is the speed a foot-locked
-// playback should use.
+// Import reports a reference stance speed for compatibility cadence.
+// Playback reads the scalar fact, never the per-frame support analysis.
 //
 // Falls back to the root-track definition when the clip has no usable stance
 // data (idle clips, actions, or a derivation that found nothing).
@@ -146,8 +143,8 @@ inline float LocomotionClipGaitSpeed(const AnimationClip& clip) {
   // An untrusted derivation must not drive cadence: a clip whose support phases
   // could not be read keeps the root-track definition.
   const float stance_speed =
-      FootSupportTrusted(clip.foot_support_summary, !clip.foot_support.empty())
-          ? clip.stance_speed
+      clip.motion_quality.support_trusted
+          ? clip.motion_quality.stance_speed
           : 0.0f;
   if (stance_speed <= 0.5f) return root_speed;
   // A stance foot cannot travel much faster than the body it carries; anything

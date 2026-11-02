@@ -10,7 +10,6 @@
 
 #include <bq_log/bq_log.h>
 
-#include "football/animation/foot_support.hpp"
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "football/player/execution/player_action_adapter.hpp"

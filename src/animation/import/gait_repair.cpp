@@ -1,5 +1,4 @@
 #include "import.hpp"
-#include "football/animation/foot_support.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -77,12 +76,12 @@ PoseFrame InterpolateGaitPose(const PoseFrame& a, const PoseFrame& b,
 // One full gait cycle from a half-cycle and its mirror. The mirror's first
 // sample is the same gait instant as the half-cycle's last sample, so it is
 // the seam, not a new frame.
-AnimationClip MakeGaitCycle(const AnimationClip& first,
-                            const AnimationClip& second) {
+ImportedAnimationClip MakeGaitCycle(const ImportedAnimationClip& first,
+                                    const ImportedAnimationClip& second) {
   Check(first.poses.size() == second.poses.size(),
         "gait pair has different frame counts");
   const std::size_t count = first.poses.size();
-  AnimationClip cycle = first;
+  ImportedAnimationClip cycle = first;
   cycle.poses.resize(2 * count - 1);
   cycle.root_positions.resize(2 * count - 1);
   const Vector3 seam = first.root_positions[count - 1];
@@ -102,7 +101,7 @@ AnimationClip MakeGaitCycle(const AnimationClip& first,
 // timing follows the foot; the root becomes a straight, constant-speed track.
 // That is the difference between "the foot happens to be planted" and a gait
 // the Player can play at any bounded rate without a root-speed pop.
-AnimationClip RetimeGaitCycle(const AnimationClip& source) {
+ImportedAnimationClip RetimeGaitCycle(const ImportedAnimationClip& source) {
   const std::size_t count = source.poses.size();
   if (count < 3 || source.foot_support.size() != count) return source;
   std::vector<Vector3> left;
@@ -149,7 +148,7 @@ AnimationClip RetimeGaitCycle(const AnimationClip& source) {
     travel_at[frame + 1] = total;
   }
   if (total <= 1e-3f) return source;
-  AnimationClip result = source;
+  ImportedAnimationClip result = source;
   for (std::size_t frame = 0; frame < count; ++frame) {
     const float distance =
         total * static_cast<float>(frame) / static_cast<float>(count - 1);
@@ -203,13 +202,13 @@ void RevalidateRepairedMetadata(AnimationClip& clip) {
       clip.root_positions.back() - clip.root_positions.front();
 }
 
-void RepairGaitCycles(std::vector<AnimationClip>& clips,
+void RepairGaitCycles(std::vector<ImportedAnimationClip>& clips,
                       const std::vector<int>& partner) {
   for (std::size_t index = 0; index < clips.size(); ++index) {
     const int other = partner[index];
     if (other < 0 || static_cast<std::size_t>(other) < index) continue;
-    const AnimationClip& first = clips[index];
-    const AnimationClip& second = clips[static_cast<std::size_t>(other)];
+    const ImportedAnimationClip& first = clips[index];
+    const ImportedAnimationClip& second = clips[static_cast<std::size_t>(other)];
     const bool debug = std::getenv("FOOTBALL_GAIT_DEBUG") != nullptr;
     const auto reject = [&](const char* why) {
       if (debug) {
@@ -232,7 +231,7 @@ void RepairGaitCycles(std::vector<AnimationClip>& clips,
       reject("root track is not straight");
       continue;
     }
-    AnimationClip probe = first;
+    ImportedAnimationClip probe = first;
     DeriveMotionQuality(probe);
     if (!probe.motion_quality.tracked ||
         probe.motion_quality.root_speed <= 0.5f ||
@@ -252,7 +251,7 @@ void RepairGaitCycles(std::vector<AnimationClip>& clips,
       continue;
     }
 
-    AnimationClip cycle = MakeGaitCycle(first, second);
+    ImportedAnimationClip cycle = MakeGaitCycle(first, second);
     DeriveFootSupport(cycle);
     cycle = RetimeGaitCycle(cycle);
     DeriveFootSupport(cycle);
@@ -281,7 +280,7 @@ void RepairGaitCycles(std::vector<AnimationClip>& clips,
       continue;
     }
 
-    AnimationClip mirrored = Mirror(cycle);
+    ImportedAnimationClip mirrored = Mirror(cycle);
     DeriveFootSupport(mirrored);
     DeriveMotionQuality(mirrored);
     if (!mirrored.motion_quality.ik_free_usable) {

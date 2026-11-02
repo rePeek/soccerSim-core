@@ -243,7 +243,8 @@ observation, controls and stored physics are all the Stadium Frame.
   fallback.
 - Module boundary: Animation owns the shared clip resource and the pure algorithms
   that turn a clip into data (`SamplePose`, `BlendPose`, `SelectEntryFrame`,
-  `PoseDistance`, foot support, touch geometry). *Decisions* about which clip to
+  `PoseDistance`, touch geometry). Foot-support analysis belongs to Import only.
+  *Decisions* about which clip to
   perform belong to the Player: the crude candidate filter, the candidate
   refinement, the movement pick, `Match`, `MatchTouch` and the trip/reaction match
   live under `src/player/execution/player_*_filter|_candidates|_resolver`.
@@ -251,7 +252,7 @@ observation, controls and stored physics are all the Stadium Frame.
   re-implement pose sampling. `Quadrant` remains an Animation value type because
   the offline baker's legacy import assigns it.
 - Animation is a shared immutable resource: one `AnimationLibrary` per process,
-  its clips read-only (including the derived foot-support track). Per-player
+  its clips read-only (root/pose, contacts and scalar motion facts). Per-player
   animation behaviour lives in `PlayerAnimationConfig`, built once in the Player
   constructor from `PlayerDefinition::animation_style` and held `const` by the
   execution, so no tick, reset, action switch or fall can change or lose it.
@@ -298,26 +299,18 @@ observation, controls and stored physics are all the Stadium Frame.
   physics tape, never rate-limit a committed pose. A clip switch blends from
   the published Final Pose (`PlaybackState::SetBlendSource`), not from the raw
   animation sample.
-- The support derivation is a contract with a verdict, not a guess:
-  `FootSupportSummary` (per-phase stance speed, duty cycles, shortest contact run)
-  plus `FootSupportTrusted()`. A clip whose phases cannot be read (no contact,
-  both feet down all cycle, contact too short, stance foot disagreeing with the
-  root track) must not drive cadence - the Player falls back to the velocity
-  bridge and the root-track speed. Never widen the gate to make a test pass;
-  the flags exist so a wrong reading is visible.
-- Support feet come from the clip: `FootPhase { Swing, Landing, Stance, Takeoff }`
-  per foot per frame, derived once per clip at load (`DeriveFootSupport`,
-  `SampleFootSupport`). Height alone mislabels authored clips. The derivation also
-  reports `clip.stance_speed`, the speed a stance foot travels inside the clip,
-  which playback follows instead of the root track (`LocomotionClipGaitSpeed`).
-  That stance speed is what calibrates the IK-free root: the authored root track
-  may disagree, but the cadence and the committed displacement then agree with
-  the foot. Foot support is an import-time/verification fact only; the old
-  runtime IK algorithm is gone.
+- Support analysis is private to `src/animation/import/foot_support.hpp`.
+  `ImportedAnimationClip` holds phases, per-phase speeds and duty/run diagnostics
+  during loading and gait repair; the library publishes only `AnimationClip`.
+  `motion_quality.support_trusted` preserves the import verdict, and
+  `motion_quality.stance_speed` is the compatibility cadence reference.
+  Unreadable support must not drive cadence; the Player uses the root-track
+  speed instead. Never widen the quality gate to make a test pass.
+  Player samples contain no support frame. Acceptance tests derive a private
+  verification track from the published poses, without feeding it to execution.
 - The 14-bone declaration (`kPlayerBindJoints`) lives in
-  `football/animation/skeleton.hpp` and is shared by the animation support
-  derivation and the Player's forward kinematics and colliders. The
-  foot-support policy header is verification/compatibility only.
+  `football/animation/skeleton.hpp` and is shared by import support analysis
+  and the Player's forward kinematics and colliders.
 - `PlayerExecutionState::final_pose_` is the one Final Pose channel:
   `ComposeFinalPose` produces it once per tick as blend -> Warp -> Realize, and
   `Pose()`, `BakedPoseSample()`, `Geometry()`, `ContactRegions()` and the runtime
@@ -473,7 +466,7 @@ Rules:
 include/football/    public headers, one directory per module
 ├── foundation/      math/ (Vector3, quaternion, scalar), time/ (Tick),
 │                    geometry/ (shapes, collider), collision/ (sweep, hits)
-├── animation/       baked schema/library, playback, pose, foot support, touch geometry
+├── animation/       clip schema/library, motion facts, playback, pose, touch geometry
 ├── ball/            Ball, BallModel, BallState, contact/impulse integration
 ├── pitch/           Pitch description and the static ground/post/crossbar scene
 ├── contact/         value-only contact models, colliders, impulses and evidence

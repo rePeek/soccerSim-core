@@ -10,7 +10,7 @@
 
 #include <cmath>
 
-#include "football/animation/foot_support.hpp"
+#include "foot_support.hpp"
 #include "football/animation/library.hpp"
 
 using football::math::Vector3;
@@ -19,8 +19,8 @@ namespace {
 
 // Four frames of a perfectly repeated pose with an explicit stance track. The
 // root track decides whether the planted foot slides.
-AnimationClip StanceClip(const Vector3& per_frame_root) {
-  AnimationClip clip;
+ImportedAnimationClip StanceClip(const Vector3& per_frame_root) {
+  ImportedAnimationClip clip;
   clip.id = 1;
   clip.frame_count = 4;
   clip.metadata.action_type = e_DefString_Movement;
@@ -38,8 +38,8 @@ AnimationClip StanceClip(const Vector3& per_frame_root) {
 
 // A 2 m/s straight gait whose stance ankle travels backward at the same speed.
 // This is what the in-memory stance-speed calibration can execute.
-AnimationClip CalibratedStanceClip() {
-  AnimationClip clip;
+ImportedAnimationClip CalibratedStanceClip() {
+  ImportedAnimationClip clip;
   clip.id = 2;
   clip.frame_count = 8;
   clip.metadata.action_type = e_DefString_Movement;
@@ -64,7 +64,7 @@ TEST_CASE("motion quality reports a stance foot dragged by the root track",
           "[animation][motionquality]") {
   // Root advances 2 cm per frame (2 m/s) while the stance pose never moves the
   // ankle: the foot is planted in the skeleton but dragged by the root.
-  AnimationClip clip = StanceClip(Vector3(0, -0.02f, 0));
+  auto clip = StanceClip(Vector3(0, -0.02f, 0));
   DeriveMotionQuality(clip);
   CHECK(clip.motion_quality.tracked);
   CHECK(clip.motion_quality.root_speed == Catch::Approx(2.0f).margin(1e-4f));
@@ -80,7 +80,7 @@ TEST_CASE("motion quality reports a stance foot dragged by the root track",
 
 TEST_CASE("a calibrated straight gait is IK-free usable",
           "[animation][motionquality]") {
-  AnimationClip clip = CalibratedStanceClip();
+  auto clip = CalibratedStanceClip();
   DeriveMotionQuality(clip);
   CHECK(clip.motion_quality.root_speed == Catch::Approx(2.0f).margin(1e-4f));
   CHECK(clip.motion_quality.stance_speed == Catch::Approx(2.0f).margin(1e-4f));
@@ -92,7 +92,7 @@ TEST_CASE("a calibrated straight gait is IK-free usable",
 
 TEST_CASE("a stationary root with a planted foot has no slide",
           "[animation][motionquality]") {
-  AnimationClip clip = StanceClip(Vector3(0));
+  auto clip = StanceClip(Vector3(0));
   DeriveMotionQuality(clip);
   CHECK(clip.motion_quality.tracked);
   CHECK(clip.motion_quality.root_speed == Catch::Approx(0.0f).margin(1e-6f));
@@ -105,7 +105,7 @@ TEST_CASE("a stationary root with a planted foot has no slide",
 
 TEST_CASE("motion quality reports a loop seam pose pop",
           "[animation][motionquality]") {
-  AnimationClip clip = StanceClip(Vector3(0));
+  auto clip = StanceClip(Vector3(0));
   // Turn one joint a quarter turn on the last frame: the loop would snap.
   clip.poses.back().orientations[BodyPart::left_thigh].SetAngleAxis(
       1.4f, Vector3(0, 0, 1));
@@ -174,8 +174,7 @@ TEST_CASE("RM-0: every movement clip's gate verdict has a measured reason",
     const bool usable = clip.motion_quality.ik_free_usable;
     const bool reason =
         !clip.motion_quality.tracked ||
-        !FootSupportTrusted(clip.foot_support_summary,
-                            !clip.foot_support.empty()) ||
+        !clip.motion_quality.support_trusted ||
         !clip.motion_quality.loop_continuous ||
         clip.motion_quality.stance_direction_alignment < 0.9f ||
         !clip.motion_quality.support_consistent ||

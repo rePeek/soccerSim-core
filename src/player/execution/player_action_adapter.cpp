@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cmath>
 
-#include "football/animation/foot_support.hpp"
 #include "football/animation/pose_sampling.hpp"
 #include "football/animation/reference_sample.hpp"
 #include "player/execution/player_locomotion_animation.hpp"
@@ -91,7 +90,6 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
           SampleAnimationStep(clip, start, start);
       sample.velocity = football::math::Vector3(0);
       sample.pose = still.pose;
-      sample.support = SampleFootSupport(clip, still.pose_time);
       sample.clip_time = still.pose_time;
       sample.continuous_clip_time = start;
       sample.gait_phase = period > 0.0f ? still.pose_time / period : 0.0f;
@@ -184,7 +182,6 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
     sample.velocity = velocity;
     sample.reference_delta_local = reference.root_delta;
     sample.pose = reference.pose;
-    sample.support = SampleFootSupport(clip, reference.pose_time);
     sample.clip_time = reference.pose_time;
     sample.continuous_clip_time = reference.continuous_time;
     sample.gait_phase =
@@ -279,7 +276,6 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
   }
 
   sample.pose = SamplePose(clip, sample.clip_time);
-  sample.support = SampleFootSupport(clip, sample.clip_time);
   sample.reference_delta_local = reference_local;
   sample.diagnostics.reference_delta =
       locomotion ? RotateLocalDelta(reference_local, control.base_angle)
@@ -297,7 +293,7 @@ AdaptedMotionSample PlayerActionAdapter::Evaluate(
   // support foot disagree is rejected: stance calibration is a diagnostic that
   // the asset could be fixed, not permission to ship the slide.
   if (locomotion && clip.metadata.action_type == e_DefString_Movement &&
-      !clip.foot_support.empty() &&
+      clip.motion_quality.tracked &&
       !clip.motion_quality.ik_free_usable) {
     sample.status = AdaptedMotionSample::Status::NeedAnotherClip;
     sample.feasible = false;

@@ -90,7 +90,7 @@ Json MetadataJson(const FootballAnimationMetadata& m) {
 #undef STRING_FIELDS
 #undef VECTOR_FIELDS
 
-void ApplyEntry(AnimationClip& clip, const Json& entry) {
+void ApplyEntry(ImportedAnimationClip& clip, const Json& entry) {
   clip.id = Integer(entry.at("id"));
   clip.name = entry.at("name").get<std::string>();
   const int frames = Integer(entry.at("frame_count"));

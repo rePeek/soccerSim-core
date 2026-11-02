@@ -17,7 +17,8 @@ add_executable(football_loco_animation_tests
   rm_final_pose_acceptance_test.cpp
   rm_phase_continuity_test.cpp)
 target_include_directories(football_loco_animation_tests PRIVATE
-  ${PROJECT_SOURCE_DIR}/src)
+  ${PROJECT_SOURCE_DIR}/src
+  ${PROJECT_SOURCE_DIR}/src/animation/import)
 football_require_animation_cache(football_loco_animation_tests)
 target_link_libraries(football_loco_animation_tests
   PRIVATE
