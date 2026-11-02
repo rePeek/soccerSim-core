@@ -10,6 +10,17 @@
 # Both are declared here (not in the root CMakeLists) so the module owns its
 # targets, sources and header sets.
 
+# Imports and runtime algorithms may depend only on lower-level contracts.
+file(GLOB_RECURSE _animation_boundary_files CONFIGURE_DEPENDS
+  ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+  ${PROJECT_SOURCE_DIR}/include/football/animation/*.hpp)
+foreach(_file IN LISTS _animation_boundary_files)
+  file(READ "${_file}" _content)
+  if(_content MATCHES "#[ \t]*include[ \t]*[<\"](football/)?(player|runtime|team|ball)/")
+    message(FATAL_ERROR "Animation boundary violation: ${_file} includes an upper-layer header")
+  endif()
+endforeach()
+
 add_library(football_animation_base STATIC
   import/catalog_loader.cpp
   import/glb_reader.cpp
@@ -50,6 +61,7 @@ target_sources(football_animation PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/animation/pose_blend.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/pose_sampling.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/movement_math.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/animation/selection_math.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/touch_geometry.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/transition.hpp
     ${PROJECT_SOURCE_DIR}/include/football/animation/playback.hpp

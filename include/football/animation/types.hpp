@@ -1,17 +1,14 @@
 #pragma once
 
 #include <cstdint>
-#include <vector>
-#include "football/foundation/math/scalar.hpp"
 
 // Runtime identity of an entry in AnimationLibrary. Keep this signed while
 // selection still uses -1 as its invalid sentinel.
 using AnimationId = int32_t;
 static_assert(sizeof(AnimationId) == sizeof(signed int));
 
-// Animation-domain movement buckets and action kinds. These live here (not in
-// sim/) so that animation stays free of any sim/ dependency: sim depends on
-// these types through animation/.
+// Stable catalog movement buckets and action tags, shared with Player.
+// These describe resource metadata, not a player's execution capabilities.
 
 const float idleVelocity = 0.0f;
 const float dribbleVelocity = 3.5f;
@@ -47,7 +44,7 @@ struct ClipMotionQuality {
   // relative to its travel can move the foot sideways: that is a pivot, not a
   // calibrated straight gait, and the IK-free root cannot follow it.
   float stance_direction_alignment = 0.0f;
-  // The clip has a derived support track to measure against.
+  // Import had enough root/pose/support samples to measure motion quality.
   bool tracked = false;
   // Import could read real alternating support consistent with native travel.
   bool support_trusted = false;
@@ -59,14 +56,6 @@ struct ClipMotionQuality {
   // stance foot, so it needs no calibration at all.
   bool ik_free_usable = false;
 };
-
-// A support foot may not slide faster than this inside the clip for the
-// IK-free path; beyond it the original animation already contains foot slide.
-inline constexpr float kIkFreeMaxSupportSlipSpeed = 0.9f;
-// A loop seam may not change the root speed by more than this, or restart the
-// pose by more than this joint step, without reading as a pop.
-inline constexpr float kIkFreeMaxSeamRootSpeedDelta = 1.5f;
-inline constexpr float kIkFreeMaxSeamPoseStep = 0.6f;
 
 enum e_Velocity {
   e_Velocity_Idle,
@@ -93,8 +82,8 @@ enum e_FunctionType {
   e_FunctionType_Special
 };
 
-// Stable numeric action tags written to .simanim metadata. These are shared by
-// the offline source parser and baked runtime selection.
+// Stable numeric tags used by canonical catalog metadata. Historical non-action
+// tags keep their numbers for schema compatibility; never renumber this enum.
 enum e_DefString {
   e_DefString_Empty = 0,
   e_DefString_OutgoingSpecialState = 1,
@@ -142,7 +131,7 @@ enum e_Foot {
   e_Foot_Right
 };
 
-// Stable pose-array order shared by legacy source assets and baked clips.
+// Canonical pose-array order (middle..player), shared with skeleton binding.
 enum BodyPart {
   middle,
   neck,
@@ -160,8 +149,6 @@ enum BodyPart {
   player,
   body_part_max
 };
-
-typedef std::vector<int> DataSet;
 
 inline int GetVelocityID(e_Velocity velo, bool treatDribbleAsWalk = false) {
   int id = 0;
@@ -195,12 +182,6 @@ inline float RangeVelocity(float velocity) {
   else if (velocity >= walkSprintSwitch)
     ret_velocity = sprintVelocity;
   return ret_velocity;
-}
-
-inline float ClampVelocity(float velocity) {
-  if (velocity < 0) return 0;
-  if (velocity > sprintVelocity) return sprintVelocity;
-  return velocity;
 }
 
 inline float EnumToFloatVelocity(e_Velocity velocity) {

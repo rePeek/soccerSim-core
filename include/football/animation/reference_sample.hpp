@@ -1,9 +1,17 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 
 #include "football/animation/clip.hpp"
 #include "football/foundation/math/vector3.hpp"
+
+// Low-level clamped root interpolation shared by paired sampling and legacy
+// single-wrap compatibility playback. Position is relative to the first root;
+// no loop accumulation, pose requirement or Player policy is implied.
+// Empty/single-sample tracks return zero. Time must be finite.
+football::math::Vector3 SampleRootPosition(
+    std::span<const football::math::Vector3> roots, float frame_time);
 
 // RM-2: one reference sample over one interval of the clip's own timeline.
 //
@@ -42,6 +50,9 @@ struct ReferenceAnimationSample {
 // frame times (10 ms per frame at playback rate 1) and must satisfy
 // next_time >= current_time. A non-looping clip clamps to its last sample; a
 // looping clip measures the root on the unwrapped cycle and wraps the pose.
+// Use this paired entry for runtime root-driven motion. Empty poses or fewer
+// than two roots yield a default sample; use SamplePose for pose-only clips.
+// Inputs must be finite. A reversed interval is held at its clamped start.
 ReferenceAnimationSample SampleAnimationStep(const AnimationClip& clip,
                                              float current_time,
                                              float next_time);

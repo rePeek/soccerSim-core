@@ -93,7 +93,7 @@ void PlayerExecution::BeginSimulationAction() {
   // The evaluation runs against the Player's own touch math; the Player owns
   // the decision and retains the result.
 int PlayerExecution::SelectTouchAction(football::sim::Tick now, const football::sim::PlayerTickContext &tick,
-                              const football::sim::player::PlayerObservation& observation, const DataSet &sorted_data_set,
+                              const football::sim::player::PlayerObservation& observation, const std::vector<int> &sorted_data_set,
                               bool use_desired_movement, const Vector3 &desired_direction,
                               float desired_velocity_float, bool use_desired_body_direction,
                               const Vector3 &desired_body_direction_rel,

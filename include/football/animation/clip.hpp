@@ -11,21 +11,19 @@
 
 using namespace football::math;
 
-// Number of animated body parts. Must match the legacy BodyPart::body_part_max
-// so that a baked pose can be compared index-for-index against
-// Animation::GetKeyFrame(BodyPart, ...).
+// Canonical pose-array order follows BodyPart: middle..player.
 constexpr size_t kBodyPartCount = 14;
+static_assert(kBodyPartCount == BodyPart::body_part_max);
 
-// Per-frame joint pose, one entry per body part (indices follow the legacy
-// BodyPart enum order: middle..player).
+// Per-frame local joint pose in the canonical 14-joint skeleton.
 struct PoseFrame {
   std::array<Quaternion, kBodyPartCount> orientations;
   std::array<Vector3, kBodyPartCount> positions;
 };
 
-// Typed, baked animation metadata. The runtime never reads string variables.
+// Typed canonical catalog metadata, including authored string-valued tags.
 struct FootballAnimationMetadata {
-  int32_t action_type = 0;       // e_DefString from Animation::GetAnimType(), NOT e_FunctionType
+  int32_t action_type = 0;       // e_DefString numeric catalog tag, NOT e_FunctionType
   float incoming_velocity = 0.0f;
   float outgoing_velocity = 0.0f;
   float incoming_body_angle = 0.0f;
@@ -40,8 +38,7 @@ struct FootballAnimationMetadata {
   float special_var1 = 0.0f;
   float special_var2 = 0.0f;
 
-  // Selection-only fields. Baked verbatim from the legacy getters so the
-  // baked selector can reproduce CrudeSelection exactly.
+  // Authored movement/body/ball facts consumed by Player candidate selection.
   Vector3 incoming_body_direction;
   Vector3 outgoing_direction;
   Vector3 incoming_ball_direction;
@@ -56,9 +53,8 @@ struct FootballAnimationMetadata {
   std::string forced_foot;
   std::string touch_foot;
 
-  // Runtime-only derived/string fields (B5b5/B5b7). Baked from legacy
-  // string variables and motion getters that are not recoverable from
-  // keyframes alone.
+  // Catalog facts not recoverable from the pose track alone. Import may
+  // revalidate movement/translation when it installs a repaired gait.
   std::string outgoing_special_state;
   std::string touch_bodypart;
   float touch_max_power_factor = 0.0f;
@@ -71,8 +67,7 @@ struct FootballAnimationMetadata {
   int32_t outgoing_foot = 0;
 };
 
-// One contact touch (frame + ball position), mirroring
-// FootballAnimationExtension::GetTouch.
+// One authored contact event: frame and ball position in clip space.
 struct BakedTouch {
   int32_t frame = 0;
   Vector3 position;

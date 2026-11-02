@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "football/animation/clip.hpp"
+#include "football/animation/reference_sample.hpp"
 #include "football/animation/types.hpp"
 #include "football/player/player_animation_style.hpp"
 #include "football/player/player_body_profile.hpp"
@@ -15,13 +16,9 @@
 // LOCO-2.2: read-only interface between the off-ball motion authority and the
 // animation adapter.
 //
-// The boundary is the whole point: PlayerMotion decides how far the player
-// moves; the animation adapter only chooses which pose performs that motion.
-// This input is a value snapshot, never a reference into live state, so the
-// adapter cannot mutate the Player. The output is a *proposal* of animation
-// identity/timing only -- it never contains a world position and never writes
-// PlayerKinematicState. Non-Movement actions keep their existing contact-frame
-// and action-clock semantics and are not described here.
+// Value snapshots for compatibility cadence/selection. They cannot mutate the
+// Player. Root-driven execution uses PlayerActionAdapter and SampleAnimationStep;
+// non-Movement actions retain their contact-frame and action-clock semantics.
 
 struct LocomotionAnimationInput {
   // Kinematic state before and after the tick under consideration. `next` is
@@ -58,18 +55,9 @@ inline LocomotionAnimationInput MakeLocomotionAnimationInput(
 // ---------------------------------------------------------------------------
 // M2/STRIDE: motion-driven locomotion playback.
 //
-// Ordinary locomotion is interpolated on the motion the Player actually
-// achieved. The action clock still owns action time; for a Movement clip there
-// is no contact event to protect, so clip time is derived from the achieved
-// speed relative to the clip's reference speed:
-//
-//   rate      = achieved_speed / (clip_reference_speed * stride_scale)
-//   clip_time += rate * dt / clip_frame_duration
-//
-// The clip time is continuous and wraps at the end of the clip, so the gait
-// phase never restarts mid-stride just because a tick boundary was crossed.
-// Root XY of the clip is never read here: it can change the gait, never the
-// Player's world trajectory.
+// Compatibility playback derives clip time from achieved speed. The root-driven
+// path instead samples paired root and pose through SampleAnimationStep.
+// This helper returns only a cadence request; it does not commit displacement.
 // ---------------------------------------------------------------------------
 struct LocomotionPlaybackRequest {
   AnimationId clip_id = -1;
@@ -117,8 +105,8 @@ inline constexpr float kLocomotionStrideTimeConstant_s = 0.3f;
 // clip carries no usable trajectory, which means "no speed reference".
 //
 // `root_positions` holds one sample per clip frame, so N samples span N-1 tick
-// intervals of travel. Dividing by frame_count would overstate every clip's
-// speed by N/(N-1) and bias the playback rate the wrong way.
+// intervals of travel. Dividing by frame_count would understate every clip's
+// speed by (N-1)/N and bias the playback rate the wrong way.
 inline float LocomotionClipReferenceSpeed(const AnimationClip& clip) {
   const std::size_t samples = clip.root_positions.size();
   if (samples < 2) return 0.0f;
@@ -214,39 +202,23 @@ inline float SmoothLocomotionStrideScale(float current, float target, float dt) 
   return current + (target - current) * alpha;
 }
 
-// Cumulative root reference position at a fractional frame time, measured from
-// the clip's first sample. Interpolated between baked samples and clamped at
-// the ends, so a caller never re-derives the trajectory itself.
-inline football::math::Vector3 LocomotionRootPositionAt(
-    const std::vector<football::math::Vector3>& roots, float frame_time) {
-  if (roots.empty()) return football::math::Vector3(0);
-  const float last = static_cast<float>(roots.size() - 1);
-  const float t = std::clamp(frame_time, 0.0f, last);
-  const auto lower = static_cast<std::size_t>(std::floor(t));
-  const float fraction = t - static_cast<float>(lower);
-  football::math::Vector3 position = roots[lower] - roots.front();
-  if (fraction > 0.0f && lower + 1 < roots.size()) {
-    position += (roots[lower + 1] - roots[lower]) * fraction;
-  }
-  return position;
-}
-
-// Reference displacement between two clip times of the *same* cycle. A wrap
-// (end < start) is measured across the loop boundary, so the reported reference
-// distance of a tick never collapses when the cycle restarts.
+// Compatibility-only displacement: times are clamped within one cycle and
+// end < start means one wrap. Keep the seam addition order for numerical parity.
+// This cannot replace SampleAnimationStep's unwrapped, multi-cycle semantics.
+// Root interpolation itself is shared with the paired Animation sampler.
 inline football::math::Vector3 LocomotionReferenceDelta(
     const std::vector<football::math::Vector3>& roots, float start_time,
     float end_time) {
   if (roots.size() < 2) return football::math::Vector3(0);
   const float period = static_cast<float>(roots.size() - 1);
   if (end_time >= start_time) {
-    return LocomotionRootPositionAt(roots, end_time) -
-           LocomotionRootPositionAt(roots, start_time);
+    return SampleRootPosition(roots, end_time) -
+           SampleRootPosition(roots, start_time);
   }
-  return (LocomotionRootPositionAt(roots, period) -
-          LocomotionRootPositionAt(roots, start_time)) +
-         (LocomotionRootPositionAt(roots, end_time) -
-          LocomotionRootPositionAt(roots, 0.0f));
+  return (SampleRootPosition(roots, period) -
+          SampleRootPosition(roots, start_time)) +
+         (SampleRootPosition(roots, end_time) -
+          SampleRootPosition(roots, 0.0f));
 }
 
 // The gait speed one player sees in a clip: the clip's own foot speed, scaled by

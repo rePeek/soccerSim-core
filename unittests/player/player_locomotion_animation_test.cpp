@@ -244,11 +244,11 @@ TEST_CASE("the reference distance of a tick is measured over the sampled span") 
   for (int frame = 0; frame < 11; ++frame) {
     roots.push_back(Vector3(0, -0.02f * static_cast<float>(frame), 0));
   }
-  CHECK(LocomotionRootPositionAt(roots, 0.0f).coords[1] ==
+  CHECK(SampleRootPosition(roots, 0.0f).coords[1] ==
         Catch::Approx(0.0f));
-  CHECK(LocomotionRootPositionAt(roots, 2.5f).coords[1] ==
+  CHECK(SampleRootPosition(roots, 2.5f).coords[1] ==
         Catch::Approx(-0.05f).margin(1e-6f));
-  CHECK(LocomotionRootPositionAt(roots, 99.0f).coords[1] ==
+  CHECK(SampleRootPosition(roots, 99.0f).coords[1] ==
         Catch::Approx(-0.20f).margin(1e-6f));
 
   // A normal tick.
@@ -257,6 +257,19 @@ TEST_CASE("the reference distance of a tick is measured over the sampled span") 
   // A tick that wraps: the reference must not collapse on the loop boundary.
   const Vector3 wrapped = LocomotionReferenceDelta(roots, 10.0f, 0.5f);
   CHECK(wrapped.coords[1] == Catch::Approx(-0.01f).margin(1e-6f));
+
+  AnimationClip clip;
+  clip.root_positions = roots;
+  clip.poses.resize(roots.size());
+  clip.looping = true;
+  const auto paired = SampleAnimationStep(clip, 10.0f, 10.5f);
+  CHECK((wrapped - paired.root_delta).GetLength() < 1e-6f);
+  // Compatibility receives wrapped times and can only infer a single seam.
+  // An unwrapped end must use the paired sampler, not this compatibility path.
+  const auto many = SampleAnimationStep(clip, 0.0f, 30.0f);
+  CHECK(many.root_delta.coords[1] == Catch::Approx(-0.6f).margin(1e-6f));
+  CHECK(LocomotionReferenceDelta(roots, 0.0f, 30.0f).coords[1] ==
+        Catch::Approx(-0.2f).margin(1e-6f));
 }
 
 TEST_CASE("a standing Player stops a movement clip but not an idle one") {

@@ -15,13 +15,7 @@ using football::math::Vector3;
 inline Vector3 CalculateMovementAtFrame(std::span<const Vector3> positions,
                                         unsigned int frameNum,
                                         unsigned int smoothFrames = 0) {
-  /*
-    // simple version for debugging purposes
-    unsigned int adaptedFrameNum = std::min(std::max(frameNum, (unsigned int)1),
-    (unsigned int)positions.size() - 1); return (positions[adaptedFrameNum] -
-    positions[adaptedFrameNum - 1]).Get2D() * 100.0f;
-  */
-
+  // Requires at least two samples and a valid integer frame.
   assert(frameNum < positions.size());
 
   // special case: want the exit movement to be unsmoothed, for we don't want the

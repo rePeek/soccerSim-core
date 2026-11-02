@@ -6,28 +6,19 @@
 #include "football/animation/clip.hpp"
 #include "football/foundation/math/vector3.hpp"
 
-// Motion reference data derived from an animation clip, in the clip's own local
-// frame. This is *reference*, not player state: it owns no world position and no
-// pose. Animation keeps producing the pose; Motion decides what to do with the
-// displacement. The source AnimationClip is never modified, so animation
-// selection, metadata and touch records are untouched.
+// Discrete XY reference contract: one delta per source frame, accumulated when
+// sampled. It owns neither pose nor world state and never modifies its source.
+// Root Z remains in the pose as pelvis bob, not in these displacements.
 //
-// Z is deliberately excluded. The baked root z is the pelvis bob and is still
-// applied as part of the animation root pose; adding it here as well would double
-// it. Real vertical motion (jumping, diving) becomes an explicit vertical state
-// later, not a second copy of the animation bob.
+// This interface currently has no production callers. It is retained as the
+// tested discrete trajectory contract, not an alternative runtime sampler.
+// Use SampleAnimationStep for paired runtime root/pose sampling.
 //
-// Time semantics (one vocabulary, no ambiguity):
-//   frame index      which animation frame: 0 .. size()-1
-//   frame time       continuous clip time measured in frames: 0.0 .. size()-1
-//   playback rate    frames of clip time advanced per unit of simulation time
-//   motion delta     the local displacement over one interval of frame time
-// `SampleDisplacement()` is the only operation production code needs: it answers
-// "how far did the reference move between these two clip times", so a caller can
-// scale it by a playback rate and split it across ticks without drifting.
-//
-// ANIM-2 A12.4: the extraction/sampling bodies live in
-// src/animation/motion_clip.cpp.
+// Unlike paired sampling, MotionClip always clamps (even for a looping source),
+// permits reversed intervals, needs no pose track and sums deltas rather than
+// subtracting raw root samples. Do not alias it to the paired sampler: that
+// would change loop/boundary semantics and floating-point accumulation.
+// Times are continuous frame units (one frame = 10 ms at native rate).
 
 struct MotionFrame {
   football::math::Vector3 local_displacement = football::math::Vector3(0);

@@ -33,6 +33,8 @@
 // dependency on it: the recovery tool no longer re-proves the old selection.
 namespace football::player {
 
+using DataSet = std::vector<int>;
+
 class CrudeAnimationFilter {
  public:
   static void Select(const std::vector<AnimationClip>& clips,

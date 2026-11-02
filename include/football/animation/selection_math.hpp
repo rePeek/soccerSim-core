@@ -1,6 +1,6 @@
 #pragma once
 
-#include "football/animation/types.hpp"
+#include "football/foundation/math/scalar.hpp"
 
 inline football::math::radian FixAngle(football::math::radian angle) {
   // Convert engine angle into football angle (different base orientation:

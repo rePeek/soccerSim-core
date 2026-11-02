@@ -62,9 +62,10 @@ thing, and its cost is paid only when relevant.
   a public interface or cross-module boundary changes.
 
 Current test scope is `ball`, `pitch`, `player`, `team` and `animation` only:
-`animation`, `pitch`, `ball`, `team`, `team_link`, `player`, `player_decision`,
-`player_link`, `player_animation`, `locomotion`, `loco_animation`. The foundation, model, ai,
-collision, contact, event, referee and public-header suites and the bounded
+`animation` (including `animation_link_smoke`), `pitch`, `ball`, `team`, `team_link`,
+`player`, `player_decision`, `player_link`, `player_animation`, `locomotion`,
+`loco_animation`. The foundation, model, ai, collision, contact, event, referee
+and public-header suites and the bounded
 runtime harness were removed with their modules parked; restore them from
 history when one of those modules is back under active work. Nothing in the
 current scope constructs a full Simulation or plays a match.
@@ -77,6 +78,13 @@ Rules:
 - There is no golden/fingerprint tier and no per-tick numerical digest. Tests
   assert physical correctness, state invariants and module contracts, not
   equality with a previous build's trajectory.
+- Animation's whole-archive link smoke uses only exported include paths and no
+  actors/assets. Every exported Animation header also compiles independently.
+  CMake rejects Animation includes of Player, Runtime, Team or Ball headers.
+  See `docs/animation_boundary.md` for ownership and root sampling contracts.
+  Root-driven execution uses `SampleAnimationStep`; the single-wrap Player
+  compatibility wrapper shares `SampleRootPosition` without changing its seam
+  arithmetic. MotionClip remains a distinct tested discrete trajectory contract.
 
 ## Coordinate frame policy
 

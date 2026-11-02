@@ -78,7 +78,8 @@ target_link_libraries(football_player_command_header_smoke PRIVATE football::pla
 football_configure_target(football_player_command_header_smoke)
 
 set(_prediction_smoke_sources)
-foreach(_name player_motion player_motion_profile player_body_facing player_pass_solver)
+foreach(_name player_motion player_motion_profile player_body_facing player_pass_solver
+    player_movement_math player_touch_geometry)
   set(_source ${CMAKE_CURRENT_BINARY_DIR}/${_name}_header.cpp)
   file(GENERATE OUTPUT ${_source} CONTENT "#include \"football/player/execution/${_name}.hpp\"\n")
   list(APPEND _prediction_smoke_sources ${_source})

@@ -39,6 +39,10 @@ struct ImportedAnimationClip : AnimationClip {
 };
 inline constexpr float kFootDownHeight = 0.04f;
 inline constexpr float kFootLiftHeight = 0.09f;
+// Import quality budgets. Runtime consumes the measured verdict, not thresholds.
+inline constexpr float kIkFreeMaxSupportSlipSpeed = 0.9f;
+inline constexpr float kIkFreeMaxSeamRootSpeedDelta = 1.5f;
+inline constexpr float kIkFreeMaxSeamPoseStep = 0.6f;
 void DeriveFootSupport(ImportedAnimationClip& clip);
 FootSupportFrame SampleFootSupport(const ImportedAnimationClip& clip, float frame_time);
 void DeriveMotionQuality(ImportedAnimationClip& clip);

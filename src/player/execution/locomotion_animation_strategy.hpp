@@ -85,7 +85,7 @@ inline LocomotionAnimationChoice SelectLocomotionAnimation(
   query.functionType = e_FunctionType_Movement;
   query.byIncomingVelocity = true;
   query.incomingVelocity = FloatToEnumVelocity(actual_speed);
-  DataSet candidates;
+  football::player::DataSet candidates;
   football::player::CrudeAnimationFilter::Select(clips, query, candidates);
 
   LocomotionAnimationChoice best;

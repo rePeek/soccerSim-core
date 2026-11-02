@@ -7,28 +7,27 @@
 
 #include "football/animation/pose_sampling.hpp"
 
-namespace {
-
 using football::math::Vector3;
+
+Vector3 SampleRootPosition(std::span<const Vector3> roots, float time) {
+  if (roots.empty()) return Vector3(0);
+  const float last = static_cast<float>(roots.size() - 1);
+  const float clamped = std::clamp(time, 0.0f, last);
+  const auto lower = static_cast<std::size_t>(std::floor(clamped));
+  const float fraction = clamped - static_cast<float>(lower);
+  Vector3 position = roots[lower] - roots.front();
+  if (fraction > 0.0f && lower + 1 < roots.size()) {
+    position +=
+        (roots[lower + 1] - roots[lower]) * fraction;
+  }
+  return position;
+}
+
+namespace {
 
 float CyclePeriod(const AnimationClip& clip) {
   const float samples = static_cast<float>(clip.root_positions.size());
   return std::max(samples - 1.0f, 1.0f);
-}
-
-// Cumulative local root position at a wrapped local time.
-Vector3 LocalRootAt(const AnimationClip& clip, float time) {
-  if (clip.root_positions.empty()) return Vector3(0);
-  const float last = static_cast<float>(clip.root_positions.size() - 1);
-  const float clamped = std::clamp(time, 0.0f, last);
-  const auto lower = static_cast<std::size_t>(std::floor(clamped));
-  const float fraction = clamped - static_cast<float>(lower);
-  Vector3 position = clip.root_positions[lower] - clip.root_positions.front();
-  if (fraction > 0.0f && lower + 1 < clip.root_positions.size()) {
-    position +=
-        (clip.root_positions[lower + 1] - clip.root_positions[lower]) * fraction;
-  }
-  return position;
 }
 
 // Root position on the unwrapped timeline. `period` frames are one cycle, and
@@ -39,11 +38,11 @@ Vector3 LoopRootAt(const AnimationClip& clip, float time, float period,
   if (time >= 0.0f) {
     const float cycles = std::floor(time / period);
     const float local = time - cycles * period;
-    return total * cycles + LocalRootAt(clip, local);
+    return total * cycles + SampleRootPosition(clip.root_positions, local);
   }
   // A negative time is before the clip starts; clamp instead of inventing a
   // reverse cycle.
-  return LocalRootAt(clip, 0.0f);
+  return SampleRootPosition(clip.root_positions, 0.0f);
 }
 
 }  // namespace
@@ -76,7 +75,8 @@ ReferenceAnimationSample SampleAnimationStep(const AnimationClip& clip,
     const float from = std::clamp(current_time, 0.0f, last);
     const float to = std::clamp(std::max(next_time, from), 0.0f, last);
     sample.root_delta =
-        LocalRootAt(clip, to) - LocalRootAt(clip, from);
+        SampleRootPosition(clip.root_positions, to) -
+        SampleRootPosition(clip.root_positions, from);
     sample.pose_time = to;
     sample.continuous_time = to;
     sample.looped = false;
