@@ -1,12 +1,11 @@
 # ANIM-2 A12: the Animation module owns two archives.
 #
-# football::animation_base — immutable clips, canonical GLB/catalog import,
-# and derived foot support.
-# Candidate selection remains in Player.
+# football::animation_base — immutable clips and canonical catalog import,
+# including private support analysis, gait repair and quality measurements.
+# Candidate selection and Player ability/touch policy remain in Player.
 #
-# football::animation — the runtime algorithms on top of the base: full match
-# refinement, touch geometry/scoring, pose sampling/blending, playback and
-# transition state. Player links this.
+# football::animation — pure runtime reference/pose sampling, geometry,
+# blending, playback and transitions on top of the resource target.
 #
 # Both are declared here (not in the root CMakeLists) so the module owns its
 # targets, sources and header sets.

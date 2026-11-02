@@ -21,7 +21,7 @@
 #include <cassert>
 #include <cmath>
 
-#include "football/animation/movement_math.hpp"
+#include "football/player/execution/player_movement_math.hpp"
 #include "player/execution/player_crude_filter.hpp"
 
 using namespace football::player;
@@ -531,7 +531,7 @@ AnimationId SelectIdleMovementAnim(const AnimationLibrary& library,
 
   const Vector3 rel_desired = Vector3(0, -1, 0);
   const Vector3 desired_movement = rel_desired * EnumToFloatVelocity(e_Velocity_Idle);
-  const radian cornering_bias = football::animation::CorneringBiasForFastCornering(
+  const radian cornering_bias = football::player::CorneringBiasForFastCornering(
       Vector3(0, -1.0f * float_velocity, 0), desired_movement, 1.0f, 0.9f);
   SortByBodyDirectionSimilarity(library, data_set,
                                 position + Vector3(0, -10, 0).GetRotated2D(angle),

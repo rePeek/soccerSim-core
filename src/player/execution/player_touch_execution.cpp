@@ -20,7 +20,6 @@
 
 #include "football/animation/library.hpp"
 #include "football/animation/movement_math.hpp"
-#include "football/animation/touch_geometry.hpp"
 #include "player/execution/player_touch_action_scoring.hpp"
 #include "player/execution/player_touch_event.hpp"
 #include "player/execution/player_touch_query.hpp"

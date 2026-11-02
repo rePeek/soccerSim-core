@@ -1,15 +1,9 @@
 #pragma once
 
-// ANIM-1 A6.4 A8.0: pure reference-motion math shared by the animation
-// selection path and the PlayerMotion action plan. No Player, Humanoid, Ball or
-// RNG dependency: only vectors, the velocity bucket constants and an assert.
-
+// Pure integer-frame reference-track velocity sampling.
 #include <cassert>
-#include <cmath>
 #include <span>
-#include <vector>
 
-#include "football/animation/types.hpp"
 #include "football/foundation/math/vector3.hpp"
 
 namespace football::animation {
@@ -56,44 +50,6 @@ inline Vector3 CalculateMovementAtFrame(std::span<const Vector3> positions,
   }
 
   return totalMovement;
-}
-
-// Maps a velocity from the animation's own bucket range onto the player's top
-// speed, preserving the walk/idle part.
-inline float StretchSprintTo(const float &inputVelocity,
-                             float inputSpaceMaxVelocity,
-                             float targetMaxVelocity) {
-  assert(targetMaxVelocity > walkSprintSwitch);
-
-  if (inputVelocity < walkSprintSwitch) return inputVelocity;
-
-  float howMuchSprintage = inputVelocity - walkSprintSwitch;
-
-  float oldLength = inputSpaceMaxVelocity - walkSprintSwitch;
-  float newLength = targetMaxVelocity - walkSprintSwitch;
-
-  float toNewFactor = newLength / oldLength;
-
-  float resultSprintage = howMuchSprintage * toNewFactor;
-
-  return walkSprintSwitch + resultSprintage;
-}
-
-// ANIM-2 A10.3: the fast-cornering bias, relocated from the Player touch math
-// so the legacy/idle selection can use it without a sim dependency. Pure.
-inline float CorneringBiasForFastCornering(const Vector3& current_movement,
-                                           const Vector3& desired_movement,
-                                           float velocity_power = 1.0f,
-                                           float bias = 1.0f) {
-  football::math::radian angle =
-      desired_movement.GetNormalized(current_movement).GetAngle2D(current_movement);
-  // wolfram alpha: sin(x - 0.5*pi) * 0.5 + 0.5, from x = 0 to pi.
-  float current_movement_bias = std::sin(std::fabs(angle) - 0.5f * football::math::pi) * 0.5f + 0.5f;
-  float velocity_bias = std::pow(
-      football::math::clamp(current_movement.GetLength() / (sprintVelocity - 0.5f),
-                            0.0f, 1.0f),
-      velocity_power);
-  return velocity_bias * current_movement_bias * bias;
 }
 
 }  // namespace football::animation

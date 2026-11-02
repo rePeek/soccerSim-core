@@ -5,7 +5,8 @@
 #define FOOTBALL_SIM_PLAYER_TOUCH_MATH_HPP
 
 #include "football/animation/movement_math.hpp"
-#include "football/animation/touch_geometry.hpp"
+#include "football/player/execution/player_movement_math.hpp"
+#include "football/player/execution/player_touch_geometry.hpp"
 
 #include "football/ball/ball.hpp"
 #include "football/foundation/math/vector3.hpp"
@@ -27,7 +28,7 @@ float CalculateBiasForFastCornering(const Vector3 &currentMovement,
                                     float veloPow = 1.0f, float bias = 1.0f);
 using football::animation::CalculateMovementAtFrame;
 Vector3 GetFrontOfFootOffsetRel(float velocity, radian bodyAngleRel, float height);
-using football::animation::StretchSprintTo;
+using football::player::StretchSprintTo;
 void GetDifficultyFactors(const football::ball::Ball *ball, Player *player, const football::player::PlayerTouchFacts& touches, const PlayerTeamView &opponent, football::sim::Tick now, const SpatialState &spatialState, const Vector3 &positionOffset, float &distanceFactor, float &heightFactor, float &ballMovementFactor);
 Vector3 GetBallControlVector(const football::ball::Ball *ball, Player *player, bool has_possession, const PlayerTeamView &opponent, const AnimationClip& clip, const Vector3 &nextStartPos, radian nextStartAngle, radian nextBodyAngle, const Vector3 &outgoingMovement, const Anim &currentAnim, int frameNum, const SpatialState &spatialState, float ffoOffset = 0.0f);
 Vector3 GetTrapVector(const football::ball::Ball *ball, Player *player, bool has_possession, const football::player::PlayerTouchFacts& touches, const PlayerTeamView &opponent, football::sim::Tick now, const AnimationClip& clip, const Vector3 &nextStartPos, radian nextStartAngle, radian nextBodyAngle, const Vector3 &outgoingMovement, const Anim &currentAnim, int frameNum, const SpatialState &spatialState, const Vector3 &positionOffset);

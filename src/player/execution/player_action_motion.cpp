@@ -4,6 +4,7 @@
 #include "player/execution/player_action_motion.hpp"
 
 #include "football/animation/movement_math.hpp"
+#include "football/player/execution/player_movement_math.hpp"
 #include "football/animation/selection_math.hpp"
 #include "player/execution/player_action_candidates.hpp"
 #include "player/execution/player_motion_constants.hpp"
@@ -15,7 +16,7 @@
 using namespace football::player;
 
 using football::animation::CalculateMovementAtFrame;
-using football::animation::StretchSprintTo;
+using football::player::StretchSprintTo;
 
 // ANIM-1 A6.4 A8.0: the selection-side reference-motion kernel, relocated
 // line-for-line from `HumanoidBase::CalculatePhysicsVector`. Same operation

@@ -5,13 +5,14 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "football/animation/movement_math.hpp"
+#include "football/player/execution/player_movement_math.hpp"
 #include "player/execution/player_action_candidates.hpp"
 #include "football/player/execution/player_motion.hpp"
 #include "player/execution/player_action_motion.hpp"
 
 using Catch::Approx;
 using football::animation::CalculateMovementAtFrame;
-using football::animation::StretchSprintTo;
+using football::player::StretchSprintTo;
 
 namespace {
 

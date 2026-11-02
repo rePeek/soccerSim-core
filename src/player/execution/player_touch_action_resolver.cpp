@@ -12,7 +12,7 @@
 
 #include "football/animation/entry_frame.hpp"
 #include "football/animation/movement_math.hpp"
-#include "football/animation/touch_geometry.hpp"
+#include "football/player/execution/player_touch_geometry.hpp"
 #include "player/execution/player_touch_action_scoring.hpp"
 
 using namespace football::math;

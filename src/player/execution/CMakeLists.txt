@@ -18,6 +18,7 @@ add_library(football_player_execution STATIC
   player_crude_filter.cpp
   player_touch_action_resolver.cpp
   player_touch_action_scoring.cpp
+  player_touch_geometry.cpp
   player_reaction_resolver.cpp
   player_action_selection.cpp
   player_anim_selection.cpp
@@ -47,6 +48,8 @@ target_sources(football_player_execution PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_body_facing.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_pass_solver.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_touch_facts.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_touch_geometry.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_movement_math.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_team_match_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_restart_facts.hpp
     ${PROJECT_SOURCE_DIR}/include/football/player/execution/player_action_feedback.hpp

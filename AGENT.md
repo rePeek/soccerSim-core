@@ -243,9 +243,11 @@ observation, controls and stored physics are all the Stadium Frame.
   fallback.
 - Module boundary: Animation owns the shared clip resource and the pure algorithms
   that turn a clip into data (`SamplePose`, `BlendPose`, `SelectEntryFrame`,
-  `PoseDistance`, touch geometry). Foot-support analysis belongs to Import only.
-  *Decisions* about which clip to
-  perform belong to the Player: the crude candidate filter, the candidate
+  `PoseDistance`, segment projection). Foot-support analysis belongs to Import only.
+  Touch reach/scoring (`player_touch_geometry`), sprint capability mapping and
+  fast-cornering preference (`player_movement_math`) belong to Player Execution;
+  their value-only public headers live under `football/player/execution/`.
+  Decisions about which clip to perform belong to the Player: the crude filter,
   refinement, the movement pick, `Match`, `MatchTouch` and the trip/reaction match
   live under `src/player/execution/player_*_filter|_candidates|_resolver`.
   Animation must never regain a decision path, and the Player must not

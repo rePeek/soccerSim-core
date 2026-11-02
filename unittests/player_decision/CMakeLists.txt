@@ -8,6 +8,7 @@ add_executable(football_player_decision_tests
   player_action_candidates_test.cpp
   player_touch_action_resolver_test.cpp
   player_touch_action_scoring_test.cpp
+  player_touch_geometry_test.cpp
   player_reaction_resolver_test.cpp
   player_entry_frame_test.cpp
   select_movement_test.cpp)

@@ -3,9 +3,9 @@
 // builder and the `NeedTouch` gate. The Player owns the decision; the
 // compatibility state only supplies the not-yet-migrated spatial facts.
 //
-// The pure scoring/refinement algorithms stay in Animation; the reference
-// motion comes from the A8.0 PlayerMotion kernel. Nothing about candidate
-// order, filter order or install timing changed.
+// Scoring/refinement and reference-motion planning belong to Player; Animation
+// supplies the read-only clips and sampling. Candidate order, filter order and
+// install timing remain unchanged.
 
 #include "player/execution/player_execution.hpp"
 #include "player/execution/player_diagnostics.hpp"
@@ -14,6 +14,7 @@
 #include "football/animation/library.hpp"
 #include "football/animation/movement_math.hpp"
 #include "football/animation/selection_math.hpp"
+#include "football/animation/touch_geometry.hpp"
 #include "player/execution/player_crude_filter.hpp"
 #include "football/ball/ball.hpp"
 #include "player/execution/player_touch_math.hpp"

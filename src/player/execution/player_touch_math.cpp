@@ -27,16 +27,14 @@ e_TouchType GetTouchTypeForBodyPart(const std::string &bodypartname) {
 float CalculateBiasForFastCornering(const Vector3 &currentMovement,
                                     const Vector3 &desiredMovement,
                                     float veloPow, float bias) {
-  // ANIM-2 A10.3: one pure definition, in the Animation module.
-  return football::animation::CorneringBiasForFastCornering(
+  return football::player::CorneringBiasForFastCornering(
       currentMovement, desiredMovement, veloPow, bias);
 }
 
 // offset where ball should usually be touched
-// ANIM-1 A6.4 step 2b: one definition, in the Animation module.
 Vector3 GetFrontOfFootOffsetRel(float velocity, radian bodyAngleRel,
                                 float height) {
-  return football::animation::FrontOfFootOffsetRel(
+  return football::player::FrontOfFootOffsetRel(
       velocity, bodyAngleRel, height, static_cast<float>(defaultTouchOffset_ms));
 }
 namespace {
