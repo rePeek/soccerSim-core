@@ -8,19 +8,21 @@ C++23. It is the engine only: no rendering, no input protocol, no network.
 
 ## Autonomous match runner
 
-Declare both teams, pitch, match rules and startup AI configuration explicitly:
+The repository builds the engine library, not a standalone match executable.
+Callers supply both teams, pitch, match rules and startup AI configuration:
 
 ```cpp
-#include "app/fixtures/default_teams.hpp" // executable-only sample inputs
 #include "football/env.hpp"
 
-GameEnv game{football::app::fixtures::MakeDefaultHomeTeam(),
-             football::app::fixtures::MakeDefaultAwayTeam(),
-             football::pitch::Pitch{}, football::ball::BallModel{},
-             MatchOptions{}, football::ai::AIConfig{}};
-game.Start();
-while (!game.Finished()) game.Step();
-const MatchResult result = game.Result();
+MatchResult RunMatch(const football::sim::TeamSetup& home,
+                     const football::sim::TeamSetup& away) {
+  GameEnv game{home, away, football::pitch::Pitch{},
+               football::ball::BallModel{}, MatchOptions{},
+               football::ai::AIConfig{}};
+  game.Start();
+  while (!game.Finished()) game.Step();
+  return game.Result();
+}
 ```
 
 `GameEnv` owns one Simulation and one AI composition root (tactical boards and

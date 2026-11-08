@@ -20,7 +20,7 @@ function(football_configure_target tgt)
   set_target_properties(${tgt} PROPERTIES POSITION_INDEPENDENT_CODE ON)
   get_target_property(_type ${tgt} TYPE)
   if(_type STREQUAL "EXECUTABLE")
-    # Keep product/tool executables at the build root.
+    # Keep configured executables at the build root.
     set_target_properties(${tgt} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
   endif()
 endfunction()
@@ -67,8 +67,7 @@ add_subdirectory(src/observation)
 add_subdirectory(src/model)
 add_subdirectory(src/ai)
 
-# The core shared library. Everything under src/ is compiled into libsimcore.so;
-# executables (tools/) link it and never get compiled into it.
+# The core shared library, composed from the simulation modules.
 add_library(simcore SHARED src/env.cpp)
 add_library(football::simcore ALIAS simcore)
 target_sources(simcore PUBLIC FILE_SET HEADERS
@@ -87,10 +86,6 @@ target_link_libraries(simcore
 # PRIVATE implementation include, never exported to simcore consumers.
 target_include_directories(simcore PRIVATE ${PROJECT_SOURCE_DIR}/src)
 football_configure_target(simcore)
-
-# Executable-side args/fixtures live under tools/app. app_support stays
-# EXCLUDE_FROM_ALL and is pulled in only by the football_sim executable.
-add_subdirectory(tools/app)
 
 if(BUILD_TESTING)
   CPMAddPackage(NAME Catch2 GITHUB_REPOSITORY catchorg/Catch2 GIT_TAG v3.7.1

@@ -518,8 +518,8 @@ assets/              canonical distributable assets (see assets/README.md)
 ├── animations/            100 Hz GLBs + football metadata manifest
 ├── characters/            default body, plus base/kit/shoes/hair slots + manifest
 └── skeletons/player.json  shared logical bone contract
-tools/               app (football_sim), playerAssets (legacy recovery and
-                     Blender preview tools)
+tools/               playerAssets (legacy recovery and Blender preview tools);
+                     no standalone match executable or CLI fixtures
 unittests/           one directory per active module (ball/pitch/player/team/
                      animation), including player_link and loco_animation
 ```
