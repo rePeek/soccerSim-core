@@ -66,8 +66,9 @@ thing, and its cost is paid only when relevant.
 Current test scope is `ball`, `pitch`, `player`, `team`, `animation` and the
 bounded `runtime` harness: `animation` (including `animation_link_smoke`),
 `pitch`, `ball`, `team`, `team_link`, `player`, `player_decision`, `player_link`,
-`player_animation`, `locomotion`, `loco_animation` and `sim_runtime`. The
-foundation, model, ai, collision, contact, event, referee and public-header
+`player_animation`, `locomotion`, `loco_animation`, `referee_unit` and
+`sim_runtime`. The
+remaining foundation, model, ai, collision, contact, event and public-header
 suites remain out of scope. The runtime harness is the match-level gate: a
 deterministic TickTrace replay, physical invariants, period/change-of-ends and
 the ruling path. `FOOTBALL_BUILD_RUNTIME=OFF` must still configure, build and
