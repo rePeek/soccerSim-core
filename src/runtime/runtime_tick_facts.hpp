@@ -3,8 +3,8 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
-#include "football/runtime/phase.hpp"
-#include "runtime/team_view.hpp"
+#include "football/match/phase.hpp"
+#include "team/team_view.hpp"
 
 namespace football::ball { class Ball; }
 

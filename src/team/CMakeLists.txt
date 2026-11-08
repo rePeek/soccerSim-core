@@ -4,7 +4,10 @@
 add_library(football_team STATIC
   team.cpp
   formation_preset.cpp
-  team_players.cpp)
+  team_players.cpp
+  formation_build.cpp
+  active_lineup.cpp
+  team_setup_adapter.cpp)
 add_library(football::team ALIAS football_team)
 target_sources(football_team PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include

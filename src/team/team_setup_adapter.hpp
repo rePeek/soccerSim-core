@@ -1,6 +1,6 @@
 #pragma once
 
-#include "football/runtime/match_config.hpp"
+#include "football/match/match_config.hpp"
 #include "football/team/team.hpp"
 
 namespace football::sim {

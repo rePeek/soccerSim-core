@@ -5,7 +5,7 @@
 
 #include "football/ai/coach_command.hpp"
 #include "football/player/player_definition.hpp"
-#include "football/runtime/match_config.hpp"
+#include "football/match/match_config.hpp"
 
 namespace football::ai {
 

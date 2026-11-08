@@ -1,4 +1,4 @@
-#include "runtime/team_setup_adapter.hpp"
+#include "team/team_setup_adapter.hpp"
 
 #include <algorithm>
 #include <stdexcept>

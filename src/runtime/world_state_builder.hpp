@@ -3,7 +3,7 @@
 
 #include "football/observation/world_state.hpp"
 #include "football/pitch/pitch.hpp"
-#include "runtime/team_view.hpp"
+#include "team/team_view.hpp"
 #include "runtime/restart_context.hpp"
 
 namespace football::ball { class Ball; }

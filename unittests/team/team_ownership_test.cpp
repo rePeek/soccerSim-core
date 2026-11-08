@@ -5,8 +5,8 @@
 #include <vector>
 #include <string>
 
-#include "runtime/formation_build.hpp"
-#include "runtime/team_setup_adapter.hpp"
+#include "team/formation_build.hpp"
+#include "team/team_setup_adapter.hpp"
 #include "testing/simulation_access.hpp"
 
 using namespace football::sim;

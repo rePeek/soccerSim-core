@@ -182,6 +182,9 @@ class SimulationAccess {
   static int FirstTeamOf(Simulation& s) { return s.first_team_; }
   static int SecondTeamOf(Simulation& s) { return s.second_team_; }
   static Player* DesignatedPlayerOf(Simulation& s) { return s.designated_possession_player_; }
+  static std::optional<football::sim::TeamSide> BestPossessionTeamOf(Simulation& s) {
+    return s.GetBestPossessionTeam();
+  }
   static Player* BallRetainerOf(Simulation& s) { return s.ball_retainer_; }
   static const football::pitch::Pitch& PitchOf(Simulation& s) { return s.pitch_; }
   static const football::pitch::Pitch& PitchOf(const Simulation& s) { return s.pitch_; }

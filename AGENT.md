@@ -61,14 +61,15 @@ thing, and its cost is paid only when relevant.
   object lifetime, data passing and ownership across a real boundary. Run when
   a public interface or cross-module boundary changes.
 
-Current test scope is `ball`, `pitch`, `player`, `team` and `animation` only:
-`animation` (including `animation_link_smoke`), `pitch`, `ball`, `team`, `team_link`,
-`player`, `player_decision`, `player_link`, `player_animation`, `locomotion`,
-`loco_animation`. The foundation, model, ai, collision, contact, event, referee
-and public-header suites and the bounded
-runtime harness were removed with their modules parked; restore them from
-history when one of those modules is back under active work. Nothing in the
-current scope constructs a full Simulation or plays a match.
+Current test scope is `ball`, `pitch`, `player`, `team`, `animation` and the
+bounded `runtime` harness: `animation` (including `animation_link_smoke`),
+`pitch`, `ball`, `team`, `team_link`, `player`, `player_decision`, `player_link`,
+`player_animation`, `locomotion`, `loco_animation` and `sim_runtime`. The
+foundation, model, ai, collision, contact, event, referee and public-header
+suites remain out of scope. The runtime harness is the match-level gate: a
+deterministic TickTrace replay, physical invariants, period/change-of-ends and
+the ruling path. `FOOTBALL_BUILD_RUNTIME=OFF` must still configure, build and
+run every domain-only suite.
 
 Rules:
 
@@ -99,7 +100,7 @@ There is exactly one physical coordinate system, the **Stadium Frame**:
 Consequences and rules:
 
 - A team's orientation is `TeamOrientation { defending_direction }`
-  (`runtime/team_state.hpp`). The attacking direction is the negation of the
+  (`team/team_state.hpp`). The attacking direction is the negation of the
   defending direction; never store it separately.
 - `Pitch` owns geometry and the static physics scene only. It does not know
   Home/Away, half, or any per-tick coordinate conversion.
@@ -500,12 +501,16 @@ src/                 implementations; public headers live in include/football/
 ├── contact/         football::contact (no concrete Player or Runtime)
 ├── player/          State/Execution static libs + Command protocol + aggregate
 │                      flat model/parser + actor files; execution/ implementation
-├── team/            football::team (validation, presets, team_players.cpp)
-├── runtime/         football::sim_contracts + football_sim_domain:
-│                      Simulation (clock/phase/score, ball, Teams, referee,
-│                      touch state, history), TeamOrientation/TeamView/team_facts,
-│                      possession, restart controller/planner and kickoff-only placement,
-│                      contact adapters, WorldState/Snapshot builders, clock/result
+├── team/            football::team (validation, presets, team_players.cpp),
+│                      formation/setup adapters, ActiveLineup slots and
+│                      TeamOrientation/TeamView/team match facts
+├── possession/      per-actor ball relations, staggered refresh and cross-team
+│                      arbitration (Runtime owns the instances)
+├── contracts/       football::sim_contracts: public match, observation and
+│                      event value headers, declared before every consumer
+├── runtime/         football_sim_domain: Simulation/clock/phase/score,
+│                      restart controller/planner and kickoff-only placement,
+│                      contact/interaction adapters, WorldState builder
 ├── observation/     mental image, snapshot history, temporal graph, slots
 ├── event/           event recognizer/log, touch state
 ├── referee/         football::referee (rules over value facts)
@@ -521,7 +526,8 @@ assets/              canonical distributable assets (see assets/README.md)
 tools/               playerAssets (legacy recovery and Blender preview tools);
                      no standalone match executable or CLI fixtures
 unittests/           one directory per active module (ball/pitch/player/team/
-                     animation), including player_link and loco_animation
+                     animation), plus the bounded runtime harness; including
+                     player_link and loco_animation
 ```
 
 ## Coding conventions

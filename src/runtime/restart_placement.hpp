@@ -2,9 +2,9 @@
 #define FOOTBALL_SIM_RUNTIME_RESTART_PLACEMENT_HPP
 
 #include "football/pitch/pitch.hpp"
-#include "football/runtime/simulation_config.hpp"
+#include "football/match/simulation_config.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "runtime/team_view.hpp"
+#include "team/team_view.hpp"
 namespace football::ball { class Ball; }
 
 class Player;

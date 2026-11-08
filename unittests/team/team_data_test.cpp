@@ -3,9 +3,9 @@
 #include <limits>
 #include <vector>
 
-#include "football/runtime/active_lineup.hpp"
-#include "football/runtime/match_config.hpp"
-#include "runtime/team_setup_adapter.hpp"
+#include "football/match/active_lineup.hpp"
+#include "football/match/match_config.hpp"
+#include "team/team_setup_adapter.hpp"
 
 using namespace football::sim;
 

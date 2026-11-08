@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "football/foundation/time/tick.hpp"
-#include "football/runtime/simulation_config.hpp"
+#include "football/match/simulation_config.hpp"
 #include "football/event/match_event.hpp"
 #include "runtime/runtime_tick_facts.hpp"
 #include "runtime/restart_context.hpp"

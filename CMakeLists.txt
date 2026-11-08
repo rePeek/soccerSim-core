@@ -56,17 +56,32 @@ add_subdirectory(src/contact)
 # Team is a football-domain module like ball/player/pitch: Runtime composes it.
 add_subdirectory(src/team)
 
-# The Runtime layer declares football_sim_contracts/football_sim_domain; the
-# sibling modules below only contribute their own sources to that target.
-add_subdirectory(src/runtime)
+# Possession relations and arbitration, independent of Runtime.
+add_subdirectory(src/possession)
+
+# Runtime is optional so the build continuously proves the domain modules are
+# independently buildable and testable without it.
+option(FOOTBALL_BUILD_RUNTIME "Build match simulation runtime" ON)
+
+# Public value contracts are independent of Runtime and declared before the
+# modules that consume them.
+add_subdirectory(src/contracts)
+
+# The Runtime layer composes these independent modules; each owns its own
+# build target. Declared before runtime so the dependency direction is
+# visible in the top-level build.
 add_subdirectory(src/referee)
 add_subdirectory(src/event)
 add_subdirectory(src/observation)
+if(FOOTBALL_BUILD_RUNTIME)
+  add_subdirectory(src/runtime)
+endif()
 # football::model is a leaf protocol/interface module (STL only). AI calls a
 # model through it; the concrete HTTP/local providers are separate targets.
 add_subdirectory(src/model)
 add_subdirectory(src/ai)
 
+if(FOOTBALL_BUILD_RUNTIME)
 # The core shared library, composed from the simulation modules.
 add_library(simcore SHARED src/env.cpp)
 add_library(football::simcore ALIAS simcore)
@@ -86,6 +101,7 @@ target_link_libraries(simcore
 # PRIVATE implementation include, never exported to simcore consumers.
 target_include_directories(simcore PRIVATE ${PROJECT_SOURCE_DIR}/src)
 football_configure_target(simcore)
+endif()
 
 if(BUILD_TESTING)
   CPMAddPackage(NAME Catch2 GITHUB_REPOSITORY catchorg/Catch2 GIT_TAG v3.7.1

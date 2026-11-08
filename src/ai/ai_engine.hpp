@@ -17,7 +17,7 @@
 #include "football/observation/world_state.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/player/player_control_set.hpp"
-#include "football/runtime/match_config.hpp"
+#include "football/match/match_config.hpp"
 
 namespace football::ai {
 

@@ -1,4 +1,4 @@
-#include "runtime/team_possession.hpp"
+#include "possession/team_possession.hpp"
 
 #include <algorithm>
 #include <cassert>

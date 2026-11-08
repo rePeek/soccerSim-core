@@ -9,11 +9,11 @@
 #include "football/player/player_definition.hpp"
 #include "football/match/player_role.hpp"
 #include "football/referee/game_mode.hpp"
-#include "football/runtime/match_config.hpp"
-#include "football/runtime/active_lineup.hpp"
+#include "football/match/match_config.hpp"
+#include "football/match/active_lineup.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/foundation/math/vector3.hpp"
-#include "football/runtime/phase.hpp"
+#include "football/match/phase.hpp"
 #include "football/foundation/time/tick.hpp"
 
 struct WorldPlayerState {

@@ -15,6 +15,7 @@ football_configure_target(football_team_unit_tests)
 add_test(NAME team_unit COMMAND football_team_unit_tests)
 set_tests_properties(team_unit PROPERTIES LABELS "unit;team" TIMEOUT 20)
 
+if(FOOTBALL_BUILD_RUNTIME)
 add_executable(football_team_composition_unit_tests
   team_entity_test.cpp
   team_ownership_test.cpp
@@ -34,3 +35,4 @@ add_test(NAME team_composition_unit COMMAND football_team_composition_unit_tests
 set_tests_properties(team_composition_unit PROPERTIES
   LABELS "unit;team"
   TIMEOUT 60)
+endif()

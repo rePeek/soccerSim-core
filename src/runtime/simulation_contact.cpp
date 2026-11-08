@@ -12,7 +12,7 @@
 // limitations under the License.
 
 #include "runtime/player_contact.hpp"
-#include "runtime/team_state.hpp"
+#include "team/team_state.hpp"
 
 #include <algorithm>
 #include <cassert>

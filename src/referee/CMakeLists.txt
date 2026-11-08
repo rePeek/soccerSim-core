@@ -15,5 +15,5 @@ target_include_directories(football_referee PUBLIC ${PROJECT_SOURCE_DIR}/include
 target_link_libraries(football_referee PUBLIC football::foundation football::pitch)
 football_configure_target(football_referee)
 
-# The Runtime composition depends on the referee rule library.
-target_link_libraries(football_sim_domain PRIVATE football::referee)
+# Runtime links this module; the rule library has no upward dependency.
+

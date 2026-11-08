@@ -7,8 +7,8 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/player/execution/player_ball_relation.hpp"
-#include "football/runtime/match_config.hpp"
-#include "runtime/team_state.hpp"
+#include "football/match/match_config.hpp"
+#include "team/team_state.hpp"
 
 namespace football::ball { class Ball; }
 class Player;

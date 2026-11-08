@@ -8,9 +8,9 @@
 #include "football/match/player_role.hpp"
 #include "football/referee/game_mode.hpp"
 #include "football/player/player_definition.hpp"
-#include "football/runtime/match_config.hpp"
+#include "football/match/match_config.hpp"
 #include "football/event/event.hpp"
-#include "football/runtime/phase.hpp"
+#include "football/match/phase.hpp"
 
 namespace football::sim::event {
 

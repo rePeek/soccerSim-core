@@ -1,6 +1,6 @@
 #include "runtime/simulation.hpp"
 #include "player/player.hpp"
-#include "runtime/team_possession.hpp"
+#include "possession/team_possession.hpp"
 #include "observation/mentalimage_sampling.hpp"
 #include "observation/player_observation_adapter.hpp"
 #include <algorithm>

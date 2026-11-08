@@ -5,7 +5,7 @@
 
 #include "football/ai/tactical_plan.hpp"
 #include "football/pitch/pitch.hpp"
-#include "football/runtime/match_config.hpp"
+#include "football/match/match_config.hpp"
 
 namespace football::ai {
 

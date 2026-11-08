@@ -15,14 +15,14 @@
 #include "football/ball/ball.hpp"
 #include "event/touch_query.hpp"
 #include "observation/mentalimage_sampling.hpp"
-#include "observation/world_state_builder.hpp"
+#include "runtime/world_state_builder.hpp"
 #include "runtime/player_contact.hpp"
-#include "runtime/team_possession.hpp"
+#include "possession/team_possession.hpp"
 #include "referee/goal.hpp"
 #include "referee/period.hpp"
 #include "referee/referee.hpp"
-#include "runtime/formation_build.hpp"
-#include "runtime/possession.hpp"
+#include "team/formation_build.hpp"
+#include "possession/possession.hpp"
 
 #include "football/pitch/pitch.hpp"
 using football::ball::Ball;

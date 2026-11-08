@@ -91,10 +91,12 @@ src/                (runtime implementation; public values live in include/footb
 ├── pitch/        Pitch description and static physics scene
 ├── ball/         Ball physics: impulse/response, integration, prediction
 ├── player/       four libs: state, command, contact, execution
-├── team/         Static Team entity, lineup/orders/presets, Player ownership
-├── runtime/      Simulation, clocks/phases/result, TeamOrientation/TeamView,
-│                 possession, restart context/controller/planner/placement,
-│                 WorldState and Snapshot builders
+├── team/         Static Team entity, lineup/orders/presets, formation/setup,
+│                 ActiveLineup slots and TeamOrientation/TeamView
+├── contracts/    public match/observation/event value headers (independent of Runtime)
+├── possession/   ball relations, staggered refresh and cross-team arbitration
+├── runtime/      Simulation, clocks/phases/result,
+│                 restart context/controller/planner/placement, WorldState builder
 ├── event/        EventRecognizer, TouchState, MatchEvent log
 ├── observation/  MentalImage, Snapshot/history, temporal graph, player slots
 ├── referee/      Referee over value facts, goal/period/offside/restart rules
@@ -104,7 +106,7 @@ src/                (runtime implementation; public values live in include/footb
 
 Dependency direction is one-way:
 `foundation -> geometry/collision -> pitch -> ball/animation -> player -> team
--> runtime`, with `ai`, `model`, `referee`, `event` and `observation` depending
+-> possession -> runtime`, with `ai`, `model`, `referee`, `event` and `observation` depending
 only on public value contracts. AI consumes
 `football/observation/world_state.hpp` and
 `football/player/player_control_set.hpp`; apps use `football/env.hpp`.

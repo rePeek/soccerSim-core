@@ -4,9 +4,9 @@
 #include <optional>
 #include <span>
 
-#include "football/runtime/match_config.hpp"
-#include "runtime/team_state.hpp"
-#include "runtime/player_ball_table.hpp"
+#include "football/match/match_config.hpp"
+#include "team/team_state.hpp"
+#include "possession/player_ball_table.hpp"
 
 class Player;
 

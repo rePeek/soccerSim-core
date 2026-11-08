@@ -23,7 +23,7 @@
 #include "football/pitch/pitch.hpp"
 #include "football/match/game_mode.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/runtime/phase.hpp"
+#include "football/match/phase.hpp"
 #include "football/contact/foul_assessment.hpp"
 #include "referee/ball_touch_facts.hpp"
 #include "referee/referee_facts.hpp"

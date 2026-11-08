@@ -7,7 +7,7 @@
 
 #include "football/foundation/time/tick.hpp"
 #include "football/contact/foul_assessment.hpp"
-#include "runtime/player_ball_table.hpp"
+#include "possession/player_ball_table.hpp"
 
 namespace football::ball { class Ball; }
 class Player;

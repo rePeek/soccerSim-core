@@ -6,8 +6,8 @@
 
 #include "football/player/execution/player_ball_relation.hpp"
 #include "football/team/formation_entry.hpp"
-#include "football/runtime/match_config.hpp"
-#include "runtime/team_state.hpp"
+#include "football/match/match_config.hpp"
+#include "team/team_state.hpp"
 
 class Player;
 
