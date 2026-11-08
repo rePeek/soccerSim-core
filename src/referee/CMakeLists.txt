@@ -6,6 +6,7 @@ add_library(football_referee STATIC
   ball_rules.cpp
   goal.cpp
   offside.cpp
+  denied_goal_opportunity.cpp
   foul_sanction.cpp
   period.cpp
   referee.cpp)

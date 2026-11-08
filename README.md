@@ -90,13 +90,14 @@ src/                (runtime implementation; public values live in include/footb
 ├── animation/    baked clip schema/library/selector, playback, touch, pose
 ├── pitch/        Pitch description and static physics scene
 ├── ball/         Ball physics: impulse/response, integration, prediction
-├── player/       four libs: state, command, contact, execution
+├── player/       three libs: state, command, execution (+ aggregate)
 ├── team/         Static Team entity, lineup/orders/presets, formation/setup,
 │                 ActiveLineup slots and TeamOrientation/TeamView
 ├── contracts/    public match/observation/event value headers (independent of Runtime)
 ├── possession/   ball relations, staggered refresh and cross-team arbitration
-├── runtime/      Simulation, clocks/phases/result,
-│                 restart context/controller/planner/placement, WorldState builder
+├── restart/      restart context/controller/planner/placement, rule command port
+├── runtime/      Simulation, clocks/phases/result, prepared-tick interaction,
+│                 diagnostic adapters, WorldState builder
 ├── event/        EventRecognizer, TouchState, MatchEvent log
 ├── observation/  MentalImage, Snapshot/history, temporal graph, player slots
 ├── referee/      Referee over value facts, goal/period/offside/restart rules

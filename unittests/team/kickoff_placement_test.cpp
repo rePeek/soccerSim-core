@@ -9,7 +9,7 @@
 #include "football/animation/library.hpp"
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
-#include "runtime/restart_placement.hpp"
+#include "restart/restart_placement.hpp"
 
 namespace {
 const AnimationLibrary& Animations() {

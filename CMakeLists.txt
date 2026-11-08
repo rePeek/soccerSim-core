@@ -25,6 +25,26 @@ function(football_configure_target tgt)
   endif()
 endfunction()
 
+# Domain modules must not depend on Runtime implementation headers or the
+# Runtime archive. This is the executable form of the dependency direction:
+# a module may include public contracts, never runtime/ or football::sim.
+function(football_check_no_runtime module_root)
+  file(GLOB_RECURSE _files
+    "${module_root}/*.cpp" "${module_root}/*.hpp" "${module_root}/CMakeLists.txt")
+  foreach(_file ${_files})
+    file(READ "${_file}" _content)
+    if(_content MATCHES "#include \"(football/)?runtime/")
+      message(FATAL_ERROR
+        "Runtime include forbidden in ${_file}")
+    endif()
+    if(_file MATCHES "CMakeLists\\.txt$" AND
+       _content MATCHES "football_sim_domain|football::sim[^_]")
+      message(FATAL_ERROR
+        "Runtime archive dependency forbidden in ${_file}")
+    endif()
+  endforeach()
+endfunction()
+
 set(CPM_SOURCE_CACHE "${PROJECT_SOURCE_DIR}/.cache/CPM"
   CACHE PATH "CPM dependency source cache")
 include(cmake/CPM.cmake)
@@ -59,6 +79,9 @@ add_subdirectory(src/team)
 # Possession relations and arbitration, independent of Runtime.
 add_subdirectory(src/possession)
 
+# Restart execution is a domain module; Referee awards, Restart executes.
+add_subdirectory(src/restart)
+
 # Runtime is optional so the build continuously proves the domain modules are
 # independently buildable and testable without it.
 option(FOOTBALL_BUILD_RUNTIME "Build match simulation runtime" ON)
@@ -81,6 +104,13 @@ endif()
 add_subdirectory(src/model)
 add_subdirectory(src/ai)
 
+foreach(_domain_dir
+    foundation animation pitch ball player contact team possession restart
+    referee event observation)
+  football_check_no_runtime(${PROJECT_SOURCE_DIR}/src/${_domain_dir})
+endforeach()
+
+
 if(FOOTBALL_BUILD_RUNTIME)
 # The core shared library, composed from the simulation modules.
 add_library(simcore SHARED src/env.cpp)
@@ -93,6 +123,13 @@ target_link_libraries(simcore
   PRIVATE football::ai BqLog
     # Keep the existing runtime exports, including unreferenced GetRoleFromString.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_sim_domain>"
+    # These modules were part of sim_domain before the split. Whole-archive
+    # them so the .so keeps exporting the same unreferenced symbols.
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_event>"
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_observation>"
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_possession>"
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_restart>"
+    "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_contact_actor>"
     # Preserve Player/Contact exports; Command is a header-only protocol.
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_player_execution>"
     "$<LINK_LIBRARY:WHOLE_ARCHIVE,football_contact>"

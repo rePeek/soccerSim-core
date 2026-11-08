@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "runtime/restart_placement.hpp"
+#include "restart/restart_placement.hpp"
 
 #include <cassert>
 #include <vector>

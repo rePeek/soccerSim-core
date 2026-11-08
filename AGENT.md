@@ -31,6 +31,8 @@ CMake >= 3.24, Ninja, C++23, Python >= 3.10; use the `flake.nix` dev shell.
 nix develop --command bash -c 'cmake --preset debug && cmake --build --preset debug -j $(nproc) && ctest --preset debug'
 # Core-only build, no tests
 nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF && cmake --build build/core -j $(nproc)'
+# Runtime-free domain gate: proves Runtime can be deleted.
+nix develop --command bash -c 'cmake -S . -B build/domain -DFOOTBALL_BUILD_RUNTIME=OFF -DBUILD_TESTING=ON && cmake --build build/domain -j $(nproc) && ctest --test-dir build/domain --output-on-failure'
 ```
 
 BqLog (pinned) and nlohmann/json v3.11.3 (pinned, the coach tool-call JSON
@@ -422,9 +424,11 @@ Rules for that composition:
 Rules:
 
 1. No circular static-library linking or linker-group workaround.
-2. Cross-actor adapters live in `src/runtime/simulation_contact.cpp` and
-   `src/runtime/simulation_prepared_tick.cpp`: read live Player inputs, call
-   Contact, apply corrections/reactions and publish facts. Contact never writes actors.
+2. Cross-actor adapters live in `src/contact/actor/` (player-aware execution of
+   the pure Contact kernel) and `src/runtime/simulation_prepared_tick.cpp`
+   (the prepared player/ball interaction transaction): read live Player inputs,
+   call Contact, apply corrections/reactions and publish facts. Contact never
+   writes actors.
 3. No Player library may depend on Runtime, Referee, AI, Event, Observation or
    Team implementation headers.
 4. Preserve the two contact chains: prepared action proposals are arbitrated
@@ -498,7 +502,8 @@ src/                 implementations; public headers live in include/football/
 │                      gait repair and motion quality; root/pose runtime files stay flat
 ├── pitch/           football::pitch (pitch.cpp)
 ├── ball/            football::ball
-├── contact/         football::contact (no concrete Player or Runtime)
+├── contact/         football::contact (pure kernel) + football::contact_actor
+│                      (Player-aware execution adapter)
 ├── player/          State/Execution static libs + Command protocol + aggregate
 │                      flat model/parser + actor files; execution/ implementation
 ├── team/            football::team (validation, presets, team_players.cpp),
@@ -506,11 +511,13 @@ src/                 implementations; public headers live in include/football/
 │                      TeamOrientation/TeamView/team match facts
 ├── possession/      per-actor ball relations, staggered refresh and cross-team
 │                      arbitration (Runtime owns the instances)
+├── restart/         restart context/controller/planner/placement and the
+│                      rule command port (Referee awards, Restart executes)
 ├── contracts/       football::sim_contracts: public match, observation and
 │                      event value headers, declared before every consumer
 ├── runtime/         football_sim_domain: Simulation/clock/phase/score,
-│                      restart controller/planner and kickoff-only placement,
-│                      contact/interaction adapters, WorldState builder
+│                      prepared-tick interaction and diagnostic adapters,
+│                      WorldState builder
 ├── observation/     mental image, snapshot history, temporal graph, slots
 ├── event/           event recognizer/log, touch state
 ├── referee/         football::referee (rules over value facts)

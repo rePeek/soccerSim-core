@@ -12,7 +12,7 @@
 // limitations under the License.
 
 // A player's formation role and slot position. Runtime owns this value and
-// computes the initial entries (see src/runtime/formation.cpp BuildFormation);
+// computes the initial entries (see src/team/formation_build.cpp BuildFormation);
 // Team owns the static declarations they are derived from, and the Player
 // never caches it.
 

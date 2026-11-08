@@ -6,7 +6,7 @@
 
 #include "event/touch_state.hpp"
 #include "player/execution/player_authorization.hpp"
-#include "runtime/restart_context.hpp"
+#include "restart/restart_context.hpp"
 
 namespace football::sim {
 

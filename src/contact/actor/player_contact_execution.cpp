@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "runtime/player_contact.hpp"
+#include "contact/actor/player_contact_execution.hpp"
 #include "team/team_state.hpp"
 
 #include <algorithm>

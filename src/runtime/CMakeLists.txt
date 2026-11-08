@@ -9,16 +9,12 @@ target_sources(football_sim_domain PRIVATE
   simulation.cpp simulation.hpp
   simulation_body_shadow.cpp simulation_active_touch_shadow.cpp
   simulation_prepared_tick.cpp
-  simulation_contact.cpp player_contact.hpp
   simulation_baked_body.cpp
   simulation_rule_touch.cpp
   touch_evidence_classification.hpp
   clock.cpp clock.hpp
-  play_state.hpp restart_context.hpp rule_command_sink.hpp
-  restart_controller.cpp restart_controller.hpp
+  play_state.hpp
   runtime_tick_facts.hpp
-  restart_planner.cpp restart_planner.hpp
-  restart_placement.cpp restart_placement.hpp
   player_authorization_port.cpp player_authorization_port.hpp
   world_state_builder.cpp world_state_builder.hpp
   ../testing/simulation_access.hpp)
@@ -26,7 +22,7 @@ target_link_libraries(football_sim_domain
   PUBLIC football::sim_contracts
   PRIVATE
     football::player football::contact football::animation football::ball
-    football::pitch football::referee football::event football::observation football::possession
+    football::pitch football::referee football::event football::observation football::possession football::restart football::contact_actor
     BqLog)
 football_configure_target(football_sim_domain)
 # Resource lookup belongs to runtime loading, never public value/policy contracts.

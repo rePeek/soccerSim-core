@@ -24,8 +24,9 @@
 #include "observation/player_slots.hpp"
 #include "football/match/result.hpp"
 #include "runtime/clock.hpp"
-#include "runtime/restart_controller.hpp"
-#include "runtime/restart_context.hpp"
+#include "runtime/runtime_tick_facts.hpp"
+#include "restart/restart_controller.hpp"
+#include "restart/restart_context.hpp"
 #include "runtime/player_authorization_port.hpp"
 #include "runtime/play_state.hpp"
 #include "event/accepted_touch_sink.hpp"
@@ -35,7 +36,7 @@
 #include "event/rule_touch.hpp"
 
 #include "referee/referee_tick_facts.hpp"
-#include "runtime/rule_command_sink.hpp"
+#include "restart/rule_command_sink.hpp"
 #include "player/execution/player_tick_context.hpp"
 #include "player/execution/player_runtime_sink.hpp"
 #include "player/execution/player_send_off_sink.hpp"
@@ -175,7 +176,7 @@ class Simulation {
   void CommitEventTransitions(football::sim::Tick now);
   // Runtime-owned restart execution for one instant; reports rule-state
   // side effects the Referee must apply.
-  void AdvanceRestart(const football::sim::RuntimeTickFacts& facts);
+  void AdvanceRestart(const football::sim::RestartExecutionContext& facts);
   football::sim::RuntimeTickFacts RefereeFacts() const;
   // The Referee's own value facts, derived from RefereeFacts().
   football::sim::rules::RefereeTickFacts RefereeValueFacts() const;
@@ -183,6 +184,15 @@ class Simulation {
   void EnsureAnimationLibrary();
   void CaptureMentalImage(const football::ball::Ball* view = nullptr);
   void StepImpl(const PlayerControlSet& controls);
+  // One Tick's named orchestration phases. They preserve the legacy order and
+  // let StepImpl read as the execution schedule rather than the algorithms.
+  void BeginTick(const PlayerControlSet& controls);
+  bool ProcessPreMovementRules(football::math::Vector3& previous_ball_pos);
+  void AdvanceStoppedTick();
+  void UpdatePossession();
+  void ResolvePlayerContactsAndFouls();
+  void AdvanceMatchTime();
+  void ProcessGoalsAndEvents(const football::math::Vector3& previous_ball_pos);
   // A stopped instant with no restart to organize and outside the opening/
   // half-time placement window executes no player/ball simulation: only the
   // clock advances. This is PlayState::Stopped outside the ceremony window.

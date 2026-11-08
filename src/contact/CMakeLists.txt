@@ -25,7 +25,7 @@ target_link_libraries(football_contact PUBLIC
 football_configure_target(football_contact)
 
 # Scan both implementations and exported headers, including public include paths.
-file(GLOB_RECURSE _contact_files
+file(GLOB _contact_files
   ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
   ${PROJECT_SOURCE_DIR}/include/football/contact/*.hpp)
@@ -35,3 +35,5 @@ get_target_property(_contact_model_headers football_player_state HEADER_SET)
 football_player_check_contract_files(
   "#include \"(football/)?(runtime|referee|ai|event|observation|team)/|#include \"(football/)?player/(execution|command|contact)/|#include \"player/player.hpp\""
   "${_contact_model_headers}" ${_contact_files})
+
+add_subdirectory(actor)

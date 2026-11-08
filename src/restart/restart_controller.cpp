@@ -1,4 +1,4 @@
-#include "runtime/restart_controller.hpp"
+#include "restart/restart_controller.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -7,9 +7,9 @@
 #include "referee/ruling.hpp"
 #include "football/ball/ball.hpp"
 #include "player/player.hpp"
-#include "runtime/rule_command_sink.hpp"
-#include "runtime/restart_placement.hpp"
-#include "runtime/restart_planner.hpp"
+#include "restart/rule_command_sink.hpp"
+#include "restart/restart_placement.hpp"
+#include "restart/restart_planner.hpp"
 
 namespace football::sim {
 
@@ -24,7 +24,7 @@ using football::math::Vector3;
 using football::sim::Seconds;
 using football::sim::Tick;
 using football::sim::TickSpan;
-using football::sim::RuntimeTickFacts;
+using football::sim::RestartExecutionContext;
 using football::sim::rules::RuleCommandSink;
 
 constexpr auto kRestartWhistle = Seconds(2);
@@ -50,7 +50,7 @@ RestartPolicy PolicyFor(e_GameMode mode) {
   }
 }
 
-std::vector<Player*> ActivePlayers(const RuntimeTickFacts& facts) {
+std::vector<Player*> ActivePlayers(const RestartExecutionContext& facts) {
   std::vector<Player*> active;
   for (Player* actor : facts.home.players) {
     if (actor->IsActive()) active.push_back(actor);
@@ -150,7 +150,7 @@ void RestartController::TickPostRestartGrace() {
 }
 
 RestartController::TickOutcome RestartController::Advance(
-    const RuntimeTickFacts& facts, const MatchOptions& options,
+    const RestartExecutionContext& facts, const MatchOptions& options,
     RuleCommandSink& commands, const RestartPlanningTable& planning) {
   TickOutcome outcome;
   if (facts.phase == MatchPhase::Finished) return outcome;
@@ -197,7 +197,7 @@ RestartController::TickOutcome RestartController::Advance(
   return outcome;
 }
 
-void RestartController::PrepareCeremonialKickOff(const RuntimeTickFacts& facts,
+void RestartController::PrepareCeremonialKickOff(const RestartExecutionContext& facts,
                                                  const MatchOptions& options,
                                                  RuleCommandSink& commands) {
   // Opening/half-time placement is intentionally separate from ordinary readiness.
@@ -211,7 +211,7 @@ void RestartController::PrepareCeremonialKickOff(const RuntimeTickFacts& facts,
   context_.SetTaker(context_.team_id == facts.first_team ? first_taker : second_taker);
 }
 
-void RestartController::ProcessRestart(const RuntimeTickFacts& facts, const MatchOptions& options,
+void RestartController::ProcessRestart(const RestartExecutionContext& facts, const MatchOptions& options,
                                        RuleCommandSink& commands,
                                        TickOutcome& outcome,
                                        const RestartPlanningTable& planning) {

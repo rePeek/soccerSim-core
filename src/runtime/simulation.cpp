@@ -16,8 +16,9 @@
 #include "event/touch_query.hpp"
 #include "observation/mentalimage_sampling.hpp"
 #include "runtime/world_state_builder.hpp"
-#include "runtime/player_contact.hpp"
+#include "contact/actor/player_contact_execution.hpp"
 #include "possession/team_possession.hpp"
+#include "referee/denied_goal_opportunity.hpp"
 #include "referee/goal.hpp"
 #include "referee/period.hpp"
 #include "referee/referee.hpp"
@@ -101,6 +102,14 @@ football::sim::rules::RestartRuleFacts ToRestartRuleFacts(
   return facts;
 }
 
+football::sim::RestartExecutionContext ToRestartExecutionContext(
+    const football::sim::RuntimeTickFacts& runtime) {
+  return football::sim::RestartExecutionContext{
+      runtime.now, runtime.phase, runtime.play_authorized,
+      runtime.set_piece_active, runtime.ball, runtime.pitch,
+      runtime.regulation, runtime.home, runtime.away, runtime.first_team};
+}
+
 // Law 11 play classification: a controlled kick/control is a deliberate play,
 // an uncontrolled contact is a deflection, and a keeper/save action is a
 // deliberate save. Runtime owns this classification; the rules only consume it.
@@ -156,12 +165,6 @@ football::sim::rules::RestartReleaseAction ToReleaseAction(e_FunctionType type) 
     default: return RestartReleaseAction::Other;
   }
 }
-
-// Law 12 obvious-goal-scoring-opportunity radius. Deterministic geometry, not
-// a probability: the victim must be close to the goal, close to the ball and
-// facing it, with no covering outfield opponent.
-constexpr float kDeniedGoalRange = 30.0f;
-constexpr float kDeniedGoalBallRange = 10.0f;
 
 }  // namespace
 
@@ -754,7 +757,7 @@ football::sim::rules::RefereeTickFacts Simulation::RefereeValueFacts() const {
   return ToRefereeTickFacts(RefereeFacts());
 }
 
-void Simulation::AdvanceRestart(const football::sim::RuntimeTickFacts& facts) {
+void Simulation::AdvanceRestart(const football::sim::RestartExecutionContext& facts) {
   const football::sim::RestartPlanningTable planning{
       {team_orientations_[0].defending_direction,
        &teams_[0]->Definition().set_piece_orders,
@@ -776,7 +779,7 @@ void Simulation::ProcessReferee() {
   const football::sim::rules::RefereeTickFacts tick = ToRefereeTickFacts(runtime);
   football::sim::rules::RefereeView view{tick, false};
   const bool was_restart = restarts_.context().Scheduled();
-  AdvanceRestart(runtime);
+  AdvanceRestart(ToRestartExecutionContext(runtime));
   // The grace is decremented by the restart tick; boundary settlement must
   // observe the post-advance value, exactly as the legacy single owner did.
   view.post_restart_grace = restarts_.InPostRestartGrace();
@@ -1064,6 +1067,21 @@ void Simulation::Step(const PlayerControlSet& controls) {
 }
 
 void Simulation::StepImpl(const PlayerControlSet& controls) {
+  BeginTick(controls);
+  Vector3 previous_ball_pos;
+  if (!ProcessPreMovementRules(previous_ball_pos)) return;
+  if (ShouldSkipPlayerSimulation()) {
+    AdvanceStoppedTick();
+    return;
+  }
+  RunPreparedPlayerTick();
+  UpdatePossession();
+  ResolvePlayerContactsAndFouls();
+  AdvanceMatchTime();
+  ProcessGoalsAndEvents(previous_ball_pos);
+}
+
+void Simulation::BeginTick(const PlayerControlSet& controls) {
   if (pending_change_of_ends_) {
     // The only permanent end change of the match. EndPeriod only published the
     // whistle and set the flag; the physical transaction runs here, once, at
@@ -1091,7 +1109,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
       }
     }
   }
+}
 
+bool Simulation::ProcessPreMovementRules(Vector3& previous_ball_pos) {
   // The Stadium Frame is the only frame; no processing-frame toggle exists.
   // P4b only: capture the common ball/player frame and run read-only dynamic
   // CCD before the legacy resolver can change Ball or emit AcceptedTouch.
@@ -1104,24 +1124,26 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   } else {
     ProcessReferee();
   }
-  Vector3 previous_ball_pos = ball_->state().position;
+  previous_ball_pos = ball_->state().position;
   referee_previous_ball_ = previous_ball_pos;
   // Restore the processing frame even on the referee's terminal transition.
   if (Finished()) {
     DiscardBodyCollisionShadow();
-    return;
+    return false;
   }
-  if (ShouldSkipPlayerSimulation()) {
-    // Opening/half-time ceremonies execute only their placement tail (the
-    // placement instant itself is not skipped); both clocks stay stopped and
-    // no player/ball simulation runs.
-    const auto admitted = clock_->Advance(football::sim::TickSpan{1}, phase_);
-    UpdateRecentPossession(admitted);
-    DiscardBodyCollisionShadow();
-    return;
-  }
-  RunPreparedPlayerTick();
+  return true;
+}
 
+void Simulation::AdvanceStoppedTick() {
+  // Opening/half-time ceremonies execute only their placement tail (the
+  // placement instant itself is not skipped); both clocks stay stopped and
+  // no player/ball simulation runs.
+  const auto admitted = clock_->Advance(football::sim::TickSpan{1}, phase_);
+  UpdateRecentPossession(admitted);
+  DiscardBodyCollisionShadow();
+}
+
+void Simulation::UpdatePossession() {
   // UpdatePossession: retain both per-team refreshes before arbitration.
   football::sim::RefreshTeamPossession(
       TeamOf(first_team_).Players(), ball_table_.MutableSlice(first_team_),
@@ -1142,7 +1164,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
       ball_retainer_);
   best_possession_team_ = possession.best_team;
   designated_possession_player_ = possession.designated_player;
+}
 
+void Simulation::ResolvePlayerContactsAndFouls() {
   // ResolvePlayerContacts: live pair mutations, then movement sharing.
   std::vector<Player*> players;
   GetActiveTeamPlayers(first_team_, players);
@@ -1160,7 +1184,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
     referee_->AssessFoul(assessment, GetTimelineTick(),
                          restarts_.context().active);
   }
+}
 
+void Simulation::AdvanceMatchTime() {
   // AdvanceClock → recent possession window → goal detection/consequences.
   const auto admitted = clock_->Advance(football::sim::TickSpan{1}, phase_);
   UpdateRecentPossession(admitted);
@@ -1168,7 +1194,9 @@ void Simulation::StepImpl(const PlayerControlSet& controls) {
   recognizer_.Advance(GetTimelineTick(),
       football::sim::event::EventView{play_authorized_, set_piece_active_, snapshot_step_, reset_sequence_});
   CommitEventTransitions(GetTimelineTick());
+}
 
+void Simulation::ProcessGoalsAndEvents(const Vector3& previous_ball_pos) {
   bool first_team_goal = false;
   bool second_team_goal = false;
   if (IsBallInPlay()) {
@@ -1207,27 +1235,21 @@ bool Simulation::DeniedGoalOpportunity(
     const football::sim::FoulAssessment& fact) const {
   const int offender_team = fact.offender_team_id;
   if (offender_team < 0 || offender_team > 1) return false;
-  // The goal the offender's team defends; the victim attacks it.
+  // Runtime samples the live geometry; the rule function owns the decision.
   const int defending = team_orientations_[offender_team].defending_direction;
-  const Vector3 goal(defending * pitch_.half_length(), 0.0f, 0.0f);
-  const float range = (goal - fact.victim_position.Get2D()).GetLength();
-  if (range > kDeniedGoalRange) return false;
-  if ((fact.victim_position.Get2D() - fact.ball_position.Get2D()).GetLength() >
-      kDeniedGoalBallRange)
-    return false;
-  // The victim must be oriented toward the goal they are attacking.
-  if (fact.victim_direction.GetDotProduct((goal - fact.victim_position.Get2D())
-          .GetNormalized(0)) < 0.0f)
-    return false;
-  // No covering outfield opponent is closer to the goal than the victim.
+  const football::sim::rules::GoalContext goal{
+      Vector3(defending * pitch_.half_length(), 0.0f, 0.0f)};
+  std::vector<football::sim::rules::DefenderState> defenders;
+  const auto offender_view = TeamViewOf(offender_team);
   for (Player* opponent : TeamOf(offender_team).Players()) {
-    if (!opponent->IsActive() || opponent->GetID() == fact.offender) continue;
-    const auto offender_view = TeamViewOf(offender_team);
-    if (const FormationEntry* entry = FormationEntryFor(offender_view, opponent);
-        entry != nullptr && entry->role == e_PlayerRole_GK) continue;
-    if ((goal - opponent->GetPosition().Get2D()).GetLength() < range) return false;
+    if (!opponent->IsActive()) continue;
+    const FormationEntry* entry = FormationEntryFor(offender_view, opponent);
+    defenders.push_back({opponent->GetPosition().Get2D(),
+                         entry != nullptr && entry->role == e_PlayerRole_GK,
+                         opponent->GetID() == fact.offender});
   }
-  return true;
+  return football::sim::rules::IsObviousGoalScoringOpportunity(
+      fact, goal, defenders);
 }
 
 bool Simulation::IsInPlay() const {
