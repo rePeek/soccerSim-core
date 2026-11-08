@@ -421,9 +421,9 @@ Rules for that composition:
 Rules:
 
 1. No circular static-library linking or linker-group workaround.
-2. Cross-player adapters live in `src/runtime/simulation_contact.cpp` and
-   `src/runtime/ball_player_contact.cpp`: read live Player inputs, call Contact,
-   apply corrections/reactions and publish facts. Contact never writes actors.
+2. Cross-actor adapters live in `src/runtime/simulation_contact.cpp` and
+   `src/runtime/simulation_prepared_tick.cpp`: read live Player inputs, call
+   Contact, apply corrections/reactions and publish facts. Contact never writes actors.
 3. No Player library may depend on Runtime, Referee, AI, Event, Observation or
    Team implementation headers.
 4. Preserve the two contact chains: prepared action proposals are arbitrated
@@ -504,7 +504,7 @@ src/                 implementations; public headers live in include/football/
 ├── runtime/         football::sim_contracts + football_sim_domain:
 │                      Simulation (clock/phase/score, ball, Teams, referee,
 │                      touch state, history), TeamOrientation/TeamView/team_facts,
-│                      possession, restart context/controller/planner/placement,
+│                      possession, restart controller/planner and kickoff-only placement,
 │                      contact adapters, WorldState/Snapshot builders, clock/result
 ├── observation/     mental image, snapshot history, temporal graph, slots
 ├── event/           event recognizer/log, touch state

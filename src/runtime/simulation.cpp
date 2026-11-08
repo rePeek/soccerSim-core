@@ -224,14 +224,12 @@ football::sim::PlayerTickContext Simulation::PlayerTickFacts(const Player& actor
           restarts_.context(), pitch_, own_view, opponent_view, processing_slot,
           ball_table_.Read(own_team, &actor),
           restarts_.NeedsSimulation(),
-          active_candidate_capture_ ? active_touch_shadow_sink_.get() : nullptr,
+          active_touch_report_enabled_ ? active_touch_shadow_sink_.get() : nullptr,
           nullptr, send_off_sink_.get(), &authorization_port_};
 }
 
-// The single write-only fact-production port. Touch bookkeeping stays synchronous
-// so later actors observe earlier touches; every fact then enters the tick buffer.
-// The single synchronous accepted-touch port. Touch bookkeeping stays in the
-// legacy order so later actors observe earlier touches.
+// The single synchronous accepted-touch port. Bookkeeping precedes behavior
+// recognition and rule evaluation at the committed-touch boundary.
 class Simulation::TouchEvents final : public football::sim::AcceptedTouchSink {
  public:
   explicit TouchEvents(Simulation& simulation) : simulation_(simulation) {}
@@ -274,8 +272,8 @@ Player* Simulation::FindPlayerById(football::player::PlayerId id) const {
   return nullptr;
 }
 
-// P4b observes a simple linear body sweep before the legacy resolver runs.
-// It never steps an actor, writes a touch, or passes its colliders to Ball.
+// Predict body sweeps before actor preparation. The comparison uses its own
+// Ball; prepared production later supplies the authoritative collider tape.
 
 void Simulation::BeginBodyCollisionShadow() {
   DiscardBodyCollisionShadow();
@@ -283,8 +281,7 @@ void Simulation::BeginBodyCollisionShadow() {
   body_shadow_touch_start_ = recorded_touches_.size();
   body_shadow_active_ = true;
 
-  // Fixed match slots, not active-roster order. Both teams currently share
-  // the first processing team's frame with Ball.
+  // Fixed match slots, not active-roster order, in the Stadium Frame.
   for (std::size_t slot = 0; slot < snapshot_players_.size(); ++slot) {
     Player* player = snapshot_players_[slot];
     if (!player->IsActive()) continue;

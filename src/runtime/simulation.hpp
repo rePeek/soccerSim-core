@@ -201,19 +201,11 @@ class Simulation {
   void BeginBodyPhysicsShadow();
   void CompleteBodyPhysicsShadow();
   void EnableActiveTouchShadow(bool enabled);
-  // P5e: the real candidate observer exists whenever candidate capture is on;
-  // the diagnostic report is only an optional extra duty of that observer.
+  // Optional observer for diagnostic actor calls. Prepared production collects
+  // touch proposals directly, never through this post-execution observer.
   void EnsureActiveTouchObserver();
-  // P5e: this is the real per-tick arbitration input, independent of any shadow.
-  // Candidates arrive from actors; the winner becomes pending_active_impulse_.
-  void SubmitActiveTouchCandidate(const ActiveTouchObservation& observation);
-  void ArbitratePendingActiveTouches();
-  // P5c: opt-in production takeover of the contact-point spin model for the
-  // migrated actions. Diagnostic/test entry point; product code never enables it.
-  void EnableActiveImpulseProduction(bool enabled);
-  // P4d-2: opt-in authority switch for passive body collisions. When enabled the
-  // production Ball integrates the predicted body colliders and the legacy
-  // resolver is skipped, so exactly one authority changes the ball.
+  // Init enables body CCD, prepared player ticks and baked body tapes. The
+  // setters also support teardown and internal diagnostic configurations.
   void EnableBodyPhysicsProduction(bool enabled);
   void EnablePreparedTickProduction(bool enabled);
   void RunPreparedPlayerTick();
@@ -223,8 +215,8 @@ class Simulation {
   // proves the reorder never changes the committed trajectory.
   void EnableLocomotionAnimationAdaptation(bool enabled);
   void EnableMovementPoseBlend(bool enabled);
-  // P7a: single production-entry/teardown points. Init/Stop own the lifecycle;
-  // these are the only places the three authority switches are flipped.
+  // Normal production entry/teardown. Internal diagnostics can also configure
+  // the individual modes through SimulationAccess.
   void InitializeProductionPhysics();
   void ReleaseProductionPhysics();
   void BeginBakedBodyTick();
@@ -363,15 +355,14 @@ class Simulation {
   // Read-only diagnostic log of accepted touches; shadow analysis only.
   std::vector<football::sim::event::RecordedTouch> recorded_touches_;
 
-  // Stable dynamic-collider identity is Simulation-owned. Ball only sees an
-  // opaque ColliderId; P4d will consume this mapping when it translates a
-  // physical body impact into the existing touch/rules identity.
+  // Stable dynamic-collider identity is Simulation-owned. Ball sees opaque
+  // ColliderIds; Runtime maps committed impacts back to players/body parts.
   std::map<football::geometry::ColliderId,
            std::pair<football::player::PlayerId, PlayerBodyPart>>
       body_collider_owners_;
 
-  // P4b transient CCD input/evidence. It is deliberately outside BallState,
-  // Snapshot and AcceptedTouch: the existing body-contact path stays authoritative.
+  // Transient CCD predictions/comparison evidence, separate from the committed
+  // BallState and rule touches. Body production currently also uses this setup.
   std::vector<PlayerBodyMotionPrediction> body_shadow_predictions_;
   std::vector<football::geometry::ColliderMotion> body_shadow_colliders_;
   std::optional<football::collision::CollisionHit> body_shadow_contact_;
@@ -380,11 +371,11 @@ class Simulation {
   bool body_shadow_action_phase_conflict_ = false;
   bool body_shadow_enabled_ = true; // internal diagnostic A/B gate, never policy
   PlayerBodyCollisionShadowReport body_shadow_report_;
-  // Opt-in production-kernel shadow owner; no extra physics implementation.
+  // Comparison Ball, allocated by normal production body-physics setup too.
   std::unique_ptr<football::ball::Ball> body_physics_shadow_ball_;
   std::vector<football::geometry::ColliderMotion> body_physics_shadow_colliders_;
   // The exact list the unified comparison used (upright, before any low-pose
-  // proposal overwrites the shadow buffer). P4d-2 feeds this to production.
+  // proposal overwrites it); used when baked body tapes are disabled.
   std::vector<football::geometry::ColliderMotion> body_physics_production_colliders_;
   std::vector<BodyShadowCandidate> body_physics_shadow_candidates_;
   std::optional<BodyPhysicsShadowTick> body_physics_shadow_tick_, body_physics_shadow_latest_;
@@ -395,8 +386,6 @@ class Simulation {
   // Tick candidate buffer and arbitrated same-Tick endpoint impulse.
   std::vector<ActiveImpulseCandidate> tick_active_candidates_;
   std::optional<ActiveImpulseCandidate> pending_active_impulse_;
-  ActiveTouchArbitration active_arbitration_;
-  bool active_candidate_capture_ = false;
   bool active_touch_report_enabled_ = false;
   bool body_physics_production_ = false;
   bool prepared_tick_production_ = false;
@@ -404,7 +393,7 @@ class Simulation {
   std::optional<football::ball::BallStepResult> committed_ball_tick_;
   std::vector<football::sim::event::RuleTouch> rule_touches_; // latest committed tick
   std::map<football::geometry::ColliderId, bool> rule_contact_episodes_;
-  bool baked_body_production_ = false; // P4f-2 experiment; defaults stay OFF
+  bool baked_body_production_ = false; // Enabled by Init; cleared on teardown.
   std::optional<std::uint64_t> baked_pose_generation_;
   std::vector<std::optional<PlayerBakedPoseSample>> baked_body_poses_, baked_body_starts_, baked_body_forecasts_;
   std::vector<football::geometry::ColliderMotion> baked_body_colliders_;

@@ -1,8 +1,6 @@
 #ifndef FOOTBALL_SIM_RUNTIME_RESTART_PLACEMENT_HPP
 #define FOOTBALL_SIM_RUNTIME_RESTART_PLACEMENT_HPP
 
-#include "football/match/player_role.hpp"
-#include "football/referee/game_mode.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/runtime/simulation_config.hpp"
 #include "football/foundation/time/tick.hpp"
@@ -10,16 +8,16 @@
 namespace football::ball { class Ball; }
 
 class Player;
-namespace football::sim::rules { class RuleCommandSink; }
 
-// Runtime-owned ceremony placement. Runtime calls it in the established
-// team order and owns the returned taker; the Referee never places actors.
-Player *PositionRestartPlayers(const football::pitch::Pitch& pitch,
-                              const football::sim::TeamView& team, e_GameMode set_piece,
+// Opening/half-time kickoff placement only. Ordinary restarts use PlanRestart.
+// Called in processing-team order; the awarded team's nearest active player
+// is returned as taker. Preserves the ceremony's ordered actor resets.
+Player* PositionKickOffPlayers(const football::pitch::Pitch& pitch,
+                              const football::sim::TeamView& team,
                               const football::sim::TeamView& other_team,
                               int kickoff_taker_team_id, int taker_team_id,
-                              const football::ball::Ball& ball, football::sim::TickSpan regulation,
-                              const MatchOptions& options,
-                              football::sim::rules::RuleCommandSink& commands);
+                              const football::ball::Ball& ball,
+                              football::sim::TickSpan regulation,
+                              const MatchOptions& options);
 
 #endif

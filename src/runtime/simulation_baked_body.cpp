@@ -90,10 +90,9 @@ void Simulation::CompleteBakedBodyPreparation() {
   for(std::size_t slot=0;slot<snapshot_players_.size();++slot) {
     auto& actor=*snapshot_players_[slot];
     if(!actor.IsActive()) { baked_body_poses_[slot].reset(); continue; }
-    // M3: the Player owns the Final Pose, including the bounded realization and
-    // the foot solve. Runtime only folds the base yaw into the world skeleton for
-    // the physics tape; it must never rate-limit the committed pose again, or the
-    // collider would lag the pose the touch decisions and the renderer use.
+    // Player owns the Final Pose and its bounded realization. Runtime only
+    // folds base yaw into the world skeleton for the physics tape; it must
+    // never rate-limit or solve the committed pose again.
     baked_body_poses_[slot]=WorldBakedPose(actor.GetBakedPoseSample());
   }
   BuildBakedBodyTape(baked_body_poses_);

@@ -35,7 +35,7 @@ void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& re
   // Boot impact during an authorized kick is reviewed deliberate play; other
   // live impacts are deflections. Ready restart release additionally requires
   // the designated taker. Corrections/continuation never fabricate a touch.
-  // Classification remains experimental pending complete P6c acceptance.
+  // Prepared production publishes these facts from the committed Ball step.
   for (const auto& contact : result.contacts) {
     if (contact.normal_impulse <= 0 ||
         contact.relative_velocity.GetDotProduct(contact.normal) >= 0) continue;
@@ -72,8 +72,8 @@ void Simulation::PublishBodyRuleTouches(const football::ball::BallStepResult& re
     rule_contact_episodes_.at(episode_key) = true;
   }
   // Re-arm only after geometric separation, not after a timer or a zero impulse.
-  // Collider tapes are in pitch physics coordinates; result is in first-team
-  // coordinates. No identity remapping occurs when ends/processing order change.
+  // Collider tapes and committed Ball state share the Stadium Frame; collider
+  // identity is independent of team ends and processing order.
   auto center = result.state.position;
   // Four leg primitives remain physically distinct, but continuation transfers
   // across adjacent lower-body surfaces without another rule touch. Re-arm only

@@ -39,16 +39,6 @@ inline bool IsDeliberateKickSwing(const football::math::Vector3& surface_velocit
          kMinDeliberateKickSwingSpeed;
 }
 
-// Evidence that must still be recorded authoritatively because a Snapshot alone
-// cannot disambiguate it: an accepted rule touch is always an authority fact,
-// and a physical impact with no rule fact is an unexplained authority gap that
-// must stay visible until P5c-3 attribution covers it.
-inline bool NeedsAuthoritativeRecord(TouchEvidence evidence) {
-  return evidence == TouchEvidence::AcceptedTouchOnly ||
-         evidence == TouchEvidence::PhysicalImpactAccepted ||
-         evidence == TouchEvidence::PhysicalImpactOnly;
-}
-
 }  // namespace football::sim
 
 #endif

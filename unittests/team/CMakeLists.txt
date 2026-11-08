@@ -19,7 +19,8 @@ add_executable(football_team_composition_unit_tests
   team_entity_test.cpp
   team_ownership_test.cpp
   team_lifecycle_test.cpp
-  team_data_test.cpp)
+  team_data_test.cpp
+  kickoff_placement_test.cpp)
 target_link_libraries(football_team_composition_unit_tests
   PRIVATE football::sim Catch2::Catch2WithMain)
 # The TeamSetup adapter and ActiveLineupState are Runtime-private, like every
@@ -27,6 +28,7 @@ target_link_libraries(football_team_composition_unit_tests
 target_include_directories(football_team_composition_unit_tests
   PRIVATE ${PROJECT_SOURCE_DIR}/src)
 football_configure_target(football_team_composition_unit_tests)
+football_require_animation_catalog(football_team_composition_unit_tests)
 
 add_test(NAME team_composition_unit COMMAND football_team_composition_unit_tests)
 set_tests_properties(team_composition_unit PROPERTIES

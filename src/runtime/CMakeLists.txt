@@ -37,7 +37,6 @@ target_sources(football_sim_domain PRIVATE
   simulation_body_shadow.cpp simulation_active_touch_shadow.cpp
   simulation_prepared_tick.cpp
   simulation_contact.cpp player_contact.hpp
-  ball_player_contact.cpp ball_player_contact.hpp
   simulation_baked_body.cpp
   simulation_rule_touch.cpp
   touch_evidence_classification.hpp

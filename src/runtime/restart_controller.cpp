@@ -204,10 +204,10 @@ void RestartController::PrepareCeremonialKickOff(const RuntimeTickFacts& facts,
   commands.ResetSituation(context_.position);
   const TeamView& first = facts.first_team == 0 ? facts.home : facts.away;
   const TeamView& second = facts.first_team == 0 ? facts.away : facts.home;
-  Player* first_taker = PositionRestartPlayers(facts.pitch, first, e_GameMode_KickOff, second,
-      context_.setpiece_team, context_.team_id, facts.ball, facts.regulation, options, commands);
-  Player* second_taker = PositionRestartPlayers(facts.pitch, second, e_GameMode_KickOff, first,
-      context_.setpiece_team, context_.team_id, facts.ball, facts.regulation, options, commands);
+  Player* first_taker = PositionKickOffPlayers(facts.pitch, first, second,
+      context_.setpiece_team, context_.team_id, facts.ball, facts.regulation, options);
+  Player* second_taker = PositionKickOffPlayers(facts.pitch, second, first,
+      context_.setpiece_team, context_.team_id, facts.ball, facts.regulation, options);
   context_.SetTaker(context_.team_id == facts.first_team ? first_taker : second_taker);
 }
 

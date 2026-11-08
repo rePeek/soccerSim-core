@@ -256,7 +256,6 @@ class SimulationAccess {
     return s.body_physics_shadow_candidates_;
   }
   static void EnableActiveTouchShadow(Simulation& s, bool enabled) { s.EnableActiveTouchShadow(enabled); }
-  static void EnableActiveImpulseProduction(Simulation& s, bool enabled) { s.EnableActiveImpulseProduction(enabled); }
   static void EnableBodyPhysicsProduction(Simulation& s, bool enabled) { s.EnableBodyPhysicsProduction(enabled); }
   static void EnableBakedBodyProduction(Simulation& s, bool enabled) { s.EnableBakedBodyProduction(enabled); }
   static void EnableLocomotionAnimationAdaptation(Simulation& s, bool enabled) { s.EnableLocomotionAnimationAdaptation(enabled); }
@@ -271,7 +270,6 @@ class SimulationAccess {
   static const auto& BakedBodyTapeOf(const Simulation& s) { return s.baked_body_colliders_; }
   static const auto& BakedBodyStartsOf(const Simulation& s) { return s.baked_body_starts_; }
   static const auto& ActiveTouchShadowReportOf(const Simulation& s) { return s.active_touch_shadow_report_; }
-  static const auto& ActiveArbitrationOf(const Simulation& s) { return s.active_arbitration_; }
   static const auto& PendingActiveImpulseOf(const Simulation& s) { return s.pending_active_impulse_; }
 
   // Test/diagnostic lifecycle escape hatches; product code uses Step().

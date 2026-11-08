@@ -1,4 +1,5 @@
-// Opt-in full static+dynamic physics comparison. No production writes.
+// Static/dynamic physics comparison on a separate Ball. Normal production
+// body-physics setup currently allocates it too; it never writes ball_.
 #include "runtime/simulation.hpp"
 #include "runtime/touch_evidence_classification.hpp"
 #include "football/ball/ball.hpp"
@@ -249,14 +250,12 @@ void Simulation::CompleteBodyPhysicsShadow() {
 void Simulation::EnableBodyPhysicsProduction(bool enabled) {
   body_physics_production_ = enabled;
   if (!enabled && baked_body_production_) EnableBakedBodyProduction(false);
-  active_candidate_capture_ = enabled || active_touch_report_enabled_;
   if (!enabled) return;
   if (!ball_) throw std::logic_error("simulation has no match");
-  // The production path needs the same predicted collider list the P4b/P4d-1
-  // shadow already builds. Both are read-only diagnostics, so this does not add
-  // a second Ball step or a second actor Process.
+  // Keep the comparison predictions and upright collider tape available.
+  // Baked production replaces the tape after actor preparation; the comparison
+  // Ball performs separate steps without changing the authoritative Ball.
   tick_active_candidates_.reserve(snapshot_players_.size() * 4);
-  EnsureActiveTouchObserver();
   DiscardBodyCollisionShadow();
   body_shadow_enabled_ = true;
   body_physics_shadow_colliders_.reserve(snapshot_players_.size() * kPlayerBodyPartCount);

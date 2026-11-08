@@ -111,33 +111,6 @@ struct ActiveTouchActionReport {
   float trajectory_deviation_50 = 0, trajectory_deviation_100 = 0,
         trajectory_deviation_200 = 0;
 };
-// Legacy observation factory for diagnostic arbitration. Prepared production
-// proposals are collected directly through PlayerTouchPreparationSink, before
-// physics, and never depend on this post-execution observer.
-inline std::optional<ActiveImpulseCandidate> MakeActiveImpulseCandidate(
-    const ActiveTouchObservation& observation,
-    const football::sim::player::TouchProposal& model,
-    float mass) {
-  if (!model.reachable) return std::nullopt;
-  if (observation.origin != ActiveTouchOrigin::Scheduled &&
-      observation.origin != ActiveTouchOrigin::Controlled) return std::nullopt;
-  if (observation.stage != ActiveTouchStage::Executed) return std::nullopt;
-  ActiveImpulseCandidate candidate;
-  candidate.player = observation.candidate.player;
-  candidate.body_part = observation.candidate.body_part;
-  candidate.action = observation.candidate.action;
-  candidate.impulse = model.impulse;
-  candidate.velocity_change_magnitude = model.impulse.impulse.GetLength() / mass;
-  candidate.passive_same_part = observation.same_part_passive_impact;
-  return candidate;
-}
-
-struct ActiveTouchArbitration {
-  std::uint64_t ticks_with_candidates = 0, candidates = 0, multi_candidate_ticks = 0;
-  std::uint64_t active_wins = 0, passive_wins = 0;
-  std::uint64_t passive_same_part_wins = 0, passive_other_player_wins = 0;
-  std::array<std::uint64_t, e_FunctionType_Special + 1> winner_actions{};
-};
 struct ActiveTouchShadowReport {
   std::array<ActiveTouchActionReport, e_FunctionType_Special + 1> actions{};
   std::array<std::uint64_t, 5> origins{};
