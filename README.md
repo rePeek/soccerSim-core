@@ -49,6 +49,44 @@ unittests/
 - `Pitch` owns geometry and the static scene only; no rules or actors.
 - `src/` is never a public include directory.
 
+## Animation manifest
+
+`assets/animations/manifest.json` lists the authored clips. `id` starts at 1 and
+is contiguous in catalog order; `file` is the GLB path relative to the
+manifest directory. The historical `name` field is not stored.
+
+- `frame_count` — number of 100 Hz pose samples; the clip span is
+  `frame_count - 1` native ticks.
+- `metadata` — selection/touch facts: velocities, body/ball angles and
+  directions, difficulty, quadrant, foot, retain/special state, touch body part
+  and touch power/difficulty factors.
+- `contact_position` — first touch ball position, or `null` when the clip has
+  no touch.
+- `touches` — all authored touches as `{frame, position}` entries.
+
+### `metadata.action_type`
+
+`action_type` is the numeric `e_DefString` catalog tag, not `e_FunctionType`:
+
+| value | tag | meaning |
+|---:|---|---|
+| 6 | `Trap` | trap / receive |
+| 7 | `Deflect` | deflect |
+| 8 | `Interfere` | interfere / tackle |
+| 9 | `Trip` | trip |
+| 10 | `ShortPass` | short pass |
+| 11 | `LongPass` | long pass |
+| 12 | `Shot` | shot |
+| 13 | `Sliding` | sliding tackle |
+| 14 | `Movement` | locomotion / movement |
+| 15 | `Special` | special action |
+| 16 | `BallControl` | ball control |
+| 17 | `HighPass` | high pass |
+| 18 | `Catch` | goalkeeper catch |
+
+All manifest vectors/angles use the Stadium Frame (x length, y width, z up),
+metres and radians, with 100 Hz frame numbers.
+
 ## License
 
 Apache-2.0. See `LICENSE`.
