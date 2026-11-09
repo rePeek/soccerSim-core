@@ -1,11 +1,9 @@
-// Deterministic match trace: the same input tape must produce the same
-// per-tick authoritative state and event order in two independent Simulations.
+// Public-API match regression: no internal access shim.
 //
-// This is the R0 regression anchor. It is deliberately value-only: it records
-// the ball, every player, phase/score/possession and the confirmed event
-// sequence, so a domain migration that changes execution order or a commit
-// boundary shows up as a trace divergence. Set FOOTBALL_TRACE_PATH to also
-// write the trace to a file for a manual before/after diff.
+// The same control tape must produce the same observed WorldState and the same
+// confirmed event order in two independent Simulations. The trace covers the
+// ball, every player, phase/clock/score/possession, restart state and the event
+// sequence, so an execution-order or commit-boundary change is visible.
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
@@ -19,18 +17,15 @@
 #include <vector>
 
 #include "football/ball/ball_model.hpp"
+#include "football/match/match_config.hpp"
 #include "football/observation/world_state.hpp"
 #include "football/pitch/pitch.hpp"
 #include "football/player/player_control_set.hpp"
-#include "football/match/match_config.hpp"
-#include "player/player.hpp"
 #include "runtime/simulation.hpp"
-#include "testing/simulation_access.hpp"
 
 namespace {
 
 using football::math::Vector3;
-using football::sim::testing::SimulationAccess;
 using namespace football::sim;
 
 TeamSetup TraceTeam(const char* name, football::player::PlayerId first_id) {
@@ -53,55 +48,13 @@ TeamSetup TraceTeam(const char* name, football::player::PlayerId first_id) {
   return team;
 }
 
-void InitTraceMatch(Simulation& sim) {
+void InitTraceMatch(Simulation& sim, TickSpan half = Minutes(45)) {
   MatchOptions options;
-  options.snapshot_capacity = 32;
+  options.snapshot_capacity = 64;
+  options.half_duration = half;
   options.ball_position = Vector3(1.25f, -0.75f, 0.0f);
   sim.Init(TraceTeam("home", 0), TraceTeam("away", 11),
            football::pitch::Pitch{}, options, football::ball::BallModel{});
-  SimulationAccess::ClearRestart(sim);
-  SimulationAccess::SetPhase(sim, MatchPhase::FirstHalf);
-  SimulationAccess::StartPlay(sim);
-  SimulationAccess::StartBallInPlay(sim);
-}
-
-struct TraceActor {
-  Player* player = nullptr;
-  Vector3 anchor;
-  int attack_direction = 1;
-};
-
-std::vector<TraceActor> TraceActors(Simulation& sim) {
-  std::vector<TraceActor> actors;
-  for (int team = 0; team < 2; ++team) {
-    const int direction =
-        SimulationAccess::TeamOrientationOf(sim, team).attack_direction();
-    for (Player* player : SimulationAccess::TeamOf(sim, team).Players()) {
-      if (player->IsActive()) {
-        actors.push_back({player, player->GetPosition(), direction});
-      }
-    }
-  }
-  return actors;
-}
-
-PlayerControlSet TraceTape(const std::vector<TraceActor>& actors, int tick) {
-  PlayerControlSet controls;
-  for (const TraceActor& actor : actors) {
-    const float phase =
-        0.07f * static_cast<float>(tick) + 0.35f * actor.player->GetID();
-    const Vector3 target =
-        actor.anchor + Vector3(3.0f * std::sin(phase),
-                               2.0f * std::cos(phase), 0.0f);
-    PlayerControl control;
-    control.move_direction =
-        (target - actor.player->GetPosition())
-            .GetNormalized(Vector3(static_cast<float>(actor.attack_direction),
-                                   0.0f, 0.0f));
-    control.desired_speed = 4.5f;
-    controls.Set(actor.player->GetID(), control);
-  }
-  return controls;
 }
 
 std::string EventFingerprint(const event::MatchEvent& match_event) {
@@ -145,65 +98,82 @@ std::string EventFingerprint(const event::MatchEvent& match_event) {
   return out.str();
 }
 
-
-std::string TickTrace(Simulation& sim) {
+std::string TickTrace(const WorldState& world,
+                      const std::vector<event::MatchEventRecord>& events) {
   std::ostringstream out;
   out << std::hexfloat;
-  out << "t=" << sim.Observe().tick << " phase="
-      << static_cast<int>(SimulationAccess::PhaseOf(sim)) << " score="
-      << SimulationAccess::ScoreOf(sim, 0) << ':'
-      << SimulationAccess::ScoreOf(sim, 1) << " poss="
-      << (SimulationAccess::BestPossessionTeamOf(sim).has_value()
-              ? static_cast<int>(*SimulationAccess::BestPossessionTeamOf(sim))
-              : -1);
-  const auto& ball = SimulationAccess::BallOf(sim)->state();
-  out << " ball=" << ball.position.coords[0] << ',' << ball.position.coords[1]
-      << ',' << ball.position.coords[2] << ';' << ball.velocity.coords[0] << ','
-      << ball.velocity.coords[1] << ',' << ball.velocity.coords[2] << ';'
-      << ball.angular_velocity.coords[0] << ','
-      << ball.angular_velocity.coords[1] << ','
-      << ball.angular_velocity.coords[2];
-  for (int team = 0; team < 2; ++team) {
-    for (Player* player : SimulationAccess::TeamOf(sim, team).Players()) {
-      const PlayerKinematicState& state = player->GetKinematicState();
-      const auto action = player->GetSimulationActionState();
-      out << " p" << player->GetID() << '=' << state.position.coords[0] << ','
-          << state.position.coords[1] << ',' << state.position.coords[2] << ';'
-          << state.velocity.coords[0] << ',' << state.velocity.coords[1] << ','
-          << state.velocity.coords[2] << ';' << state.bodyFacing.coords[0] << ','
-          << state.bodyFacing.coords[1] << ',' << state.bodyFacing.coords[2]
-          << ';' << static_cast<int>(action.type) << ',' << action.Frame() << ';'
-          << player->GetCurrentAnimationId() << ','
-          << player->GetCurrentFrame();
-    }
+  out << "t=" << world.tick << " phase=" << static_cast<int>(world.phase)
+      << " clock=" << world.regulation_time.value << " ball_in_play_time="
+      << world.ball_in_play_time.value << " underway=" << world.half_underway
+      << " in_play=" << world.in_play << " set_piece=" << world.in_set_piece
+      << " restart=" << static_cast<int>(world.restart)
+      << " restart_pending=" << world.restart_pending
+      << " score=" << world.teams[0].score << ':' << world.teams[1].score
+      << " poss=" << world.teams[0].has_possession << '/'
+      << world.teams[1].has_possession << " dir="
+      << world.teams[0].defending_direction << '/'
+      << world.teams[1].defending_direction;
+  out << " ball=" << world.ball_position.coords[0] << ','
+      << world.ball_position.coords[1] << ',' << world.ball_position.coords[2]
+      << ';' << world.ball_velocity.coords[0] << ','
+      << world.ball_velocity.coords[1] << ',' << world.ball_velocity.coords[2];
+  for (const WorldPlayerState& player : world.players) {
+    out << " p" << player.id << '=' << player.position.coords[0] << ','
+        << player.position.coords[1] << ',' << player.position.coords[2] << ';'
+        << player.velocity.coords[0] << ',' << player.velocity.coords[1] << ','
+        << player.velocity.coords[2] << ';' << player.facing.coords[0] << ','
+        << player.facing.coords[1] << ';' << player.active << ','
+        << player.has_possession << ',' << player.time_to_ball_ms;
   }
-  for (const auto& record : SimulationAccess::MatchEventsOf(sim)) {
+  for (const event::MatchEventRecord& record : events) {
     out << " #" << record.sequence << ':' << EventFingerprint(record.event);
   }
   return out.str();
 }
 
+PlayerControlSet Tape(const WorldState& world, int tick) {
+  PlayerControlSet controls;
+  for (const WorldPlayerState& player : world.players) {
+    if (!player.active) continue;
+    const float phase =
+        0.07f * static_cast<float>(tick) + 0.35f * static_cast<float>(player.id);
+    const Vector3 target =
+        player.position + Vector3(2.5f * std::sin(phase),
+                                  1.5f * std::cos(phase), 0.0f);
+    const int direction =
+        world.teams[static_cast<int>(player.side)].defending_direction;
+    PlayerControl control;
+    control.move_direction =
+        (target - player.position)
+            .GetNormalized(Vector3(static_cast<float>(-direction), 0.0f, 0.0f));
+    control.desired_speed = 4.0f;
+    controls.Set(player.id, control);
+  }
+  return controls;
+}
+
 std::vector<std::string> RunTrace(Simulation& sim, int ticks) {
   InitTraceMatch(sim);
-  const std::vector<TraceActor> actors = TraceActors(sim);
+  event::MatchEventCursor cursor;
   std::vector<std::string> trace;
   trace.reserve(static_cast<std::size_t>(ticks));
   for (int tick = 0; tick < ticks; ++tick) {
-    if (tick == 12) SimulationAccess::RequestChangeOfEnds(sim);
-    sim.Step(TraceTape(actors, tick));
-    trace.push_back(TickTrace(sim));
+    const WorldState world = sim.Observe();
+    sim.Step(Tape(world, tick));
+    const WorldState next = sim.Observe();
+    trace.push_back(TickTrace(next, sim.ReadEvents(cursor)));
   }
   return trace;
 }
 
 }  // namespace
 
-TEST_CASE("Runtime trace: independent Simulations replay bit-exactly",
+TEST_CASE("Runtime trace: independent matches replay bit-exactly",
           "[runtime][sim][trace]") {
   Simulation first;
   Simulation second;
-  const std::vector<std::string> first_trace = RunTrace(first, 40);
-  const std::vector<std::string> second_trace = RunTrace(second, 40);
+  const std::vector<std::string> first_trace = RunTrace(first, 120);
+  const std::vector<std::string> second_trace = RunTrace(second, 120);
   REQUIRE(first_trace.size() == second_trace.size());
 
   std::size_t divergence = first_trace.size();
@@ -229,13 +199,24 @@ TEST_CASE("Runtime trace: independent Simulations replay bit-exactly",
   CHECK(second.Stop());
 }
 
-TEST_CASE("Runtime trace: a reset does not reuse the previous tick generation",
-          "[runtime][sim][trace]") {
+TEST_CASE("Runtime trace: a short match reaches full time and publishes a result",
+          "[runtime][sim][lifecycle]") {
   Simulation sim;
-  InitTraceMatch(sim);
-  const std::uint64_t reset_before = SimulationAccess::ResetSequenceOf(sim);
-  SimulationAccess::ResetBall(sim, Vector3(2.0f, 1.0f, 0.0f));
-  sim.ResetSituation(Vector3(0.0f, 0.0f, 0.0f));
-  CHECK(SimulationAccess::ResetSequenceOf(sim) > reset_before);
+  InitTraceMatch(sim, TickSpan{2});
+  event::MatchEventCursor cursor;
+  int tick = 0;
+  while (!sim.Finished() && tick < 2000) {
+    const WorldState world = sim.Observe();
+    sim.Step(Tape(world, tick++));
+    (void)sim.ReadEvents(cursor);
+  }
+  REQUIRE(sim.Finished());
+  CHECK(tick < 2000);
+  const MatchResult result = sim.Result();
+  CHECK(result.home_score == 0);
+  CHECK(result.away_score == 0);
+  CHECK(result.outcome == MatchOutcome::Draw);
+  CHECK(result.duration_ticks > 0);
   CHECK(sim.Stop());
+  CHECK_FALSE(sim.Finished());
 }

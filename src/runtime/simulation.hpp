@@ -57,7 +57,6 @@ class Player;
 namespace football::ball { class Ball; }
 class Referee;
 class AnimationLibrary;
-namespace football::sim::testing { class SimulationAccess; }
 
 // Simulation owns the whole match composition: clock/phase/score, ball, two
 // Team entities (each owning its Players; Runtime owns their team state),
@@ -115,7 +114,6 @@ class Simulation {
   void TouchBall(const football::math::Vector3& impulse);
 
  private:
-  friend class football::sim::testing::SimulationAccess;
   class RuleCommands;
   class TouchEvents;
   class RulingEvents;
@@ -225,8 +223,8 @@ class Simulation {
   // proves the reorder never changes the committed trajectory.
   void EnableLocomotionAnimationAdaptation(bool enabled);
   void EnableMovementPoseBlend(bool enabled);
-  // Normal production entry/teardown. Internal diagnostics can also configure
-  // the individual modes through SimulationAccess.
+  // Normal production entry/teardown. Internal test hooks configure
+  // the individual modes directly.
   void InitializeProductionPhysics();
   void ReleaseProductionPhysics();
   void BeginBakedBodyTick();

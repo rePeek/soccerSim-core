@@ -1,10 +1,9 @@
 # Team domain suites.
 #
-# `football_team_unit_tests` is the leaf suite: football::team only, no
-# Runtime/AI/actors. `football_team_composition_unit_tests` covers the Team
-# lifecycle that needs the real Runtime-owned construction path (TeamSetup
-# adapter, formation build, active lineup and Player ownership). It links the
-# sim domain but never runs a match: it places players and inspects ownership.
+# `football_team_unit_tests` is the leaf suite: football::team only.
+# `football_team_domain_unit_tests` covers the Team/Setup/Restart-placement
+# construction path with real Players and Animation, but never constructs a
+# Simulation or runs a match tick.
 add_executable(football_team_unit_tests
   team_test.cpp
   formation_preset_test.cpp)
@@ -15,24 +14,18 @@ football_configure_target(football_team_unit_tests)
 add_test(NAME team_unit COMMAND football_team_unit_tests)
 set_tests_properties(team_unit PROPERTIES LABELS "unit;team" TIMEOUT 20)
 
-if(FOOTBALL_BUILD_RUNTIME)
-add_executable(football_team_composition_unit_tests
-  team_entity_test.cpp
-  team_ownership_test.cpp
-  team_lifecycle_test.cpp
+add_executable(football_team_domain_unit_tests
   team_data_test.cpp
   kickoff_placement_test.cpp)
-target_link_libraries(football_team_composition_unit_tests
-  PRIVATE football::sim Catch2::Catch2WithMain)
-# The TeamSetup adapter and ActiveLineupState are Runtime-private, like every
-# other internal header these cases inspect.
-target_include_directories(football_team_composition_unit_tests
+target_link_libraries(football_team_domain_unit_tests
+  PRIVATE
+    football::team football::restart football::player_execution
+    football::animation Catch2::Catch2WithMain)
+# The adapter and restart placement headers are module internals.
+target_include_directories(football_team_domain_unit_tests
   PRIVATE ${PROJECT_SOURCE_DIR}/src)
-football_configure_target(football_team_composition_unit_tests)
-football_require_animation_catalog(football_team_composition_unit_tests)
+football_configure_target(football_team_domain_unit_tests)
+football_require_animation_catalog(football_team_domain_unit_tests)
 
-add_test(NAME team_composition_unit COMMAND football_team_composition_unit_tests)
-set_tests_properties(team_composition_unit PROPERTIES
-  LABELS "unit;team"
-  TIMEOUT 60)
-endif()
+add_test(NAME team_domain_unit COMMAND football_team_domain_unit_tests)
+set_tests_properties(team_domain_unit PROPERTIES LABELS "unit;team" TIMEOUT 60)

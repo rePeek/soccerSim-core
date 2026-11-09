@@ -102,12 +102,11 @@ src/                (runtime implementation; public values live in include/footb
 ├── observation/  MentalImage, Snapshot/history, temporal graph, player slots
 ├── referee/      Referee over value facts, goal/period/offside/restart rules
 ├── ai/           tactical board/plan/interpreter, coach
-└── testing/      SimulationAccess (internal, never product/actor-facing)
 ```
 
 Dependency direction is one-way:
 `foundation -> geometry/collision -> pitch -> ball/animation -> player -> team
--> possession -> runtime`, with `ai`, `model`, `referee`, `event` and `observation` depending
+-> possession -> runtime`, with `ai`, `referee`, `event` and `observation` depending
 only on public value contracts. AI consumes
 `football/observation/world_state.hpp` and
 `football/player/player_control_set.hpp`; apps use `football/env.hpp`.

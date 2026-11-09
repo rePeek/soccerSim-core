@@ -99,9 +99,7 @@ add_subdirectory(src/observation)
 if(FOOTBALL_BUILD_RUNTIME)
   add_subdirectory(src/runtime)
 endif()
-# football::model is a leaf protocol/interface module (STL only). AI calls a
-# model through it; the concrete HTTP/local providers are separate targets.
-add_subdirectory(src/model)
+
 add_subdirectory(src/ai)
 
 foreach(_domain_dir

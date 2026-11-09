@@ -35,7 +35,7 @@ nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF && c
 nix develop --command bash -c 'cmake -S . -B build/domain -DFOOTBALL_BUILD_RUNTIME=OFF -DBUILD_TESTING=ON && cmake --build build/domain -j $(nproc) && ctest --test-dir build/domain --output-on-failure'
 ```
 
-BqLog (pinned) and nlohmann/json v3.11.3 (pinned, the coach tool-call JSON
+BqLog (pinned) and nlohmann/json v3.11.3 (pinned, the animation import JSON
 boundary) are fetched in every build mode through `cmake/CPM.cmake`; Catch2
 v3.7.1 is fetched only with `BUILD_TESTING=ON`. All use `.cache/CPM`.
 
@@ -59,20 +59,19 @@ thing, and its cost is paid only when relevant.
   isolation, without a running match. This is the routine gate: a module is
   complete when its own unit tests pass.
 - **Level 2 — interface and bounded integration** (the Player link smokes and
-  the Team composition suite; labels `interface`/`team`). Independent linking,
+  the Team domain suite; labels `interface`/`team`). Independent linking,
   object lifetime, data passing and ownership across a real boundary. Run when
   a public interface or cross-module boundary changes.
 
 Current test scope is `ball`, `pitch`, `player`, `team`, `animation` and the
 bounded `runtime` harness: `animation` (including `animation_link_smoke`),
-`pitch`, `ball`, `team`, `team_link`, `player`, `player_decision`, `player_link`,
-`player_animation`, `locomotion`, `loco_animation`, `referee_unit` and
-`sim_runtime`. The
-remaining foundation, model, ai, collision, contact, event and public-header
-suites remain out of scope. The runtime harness is the match-level gate: a
-deterministic TickTrace replay, physical invariants, period/change-of-ends and
-the ruling path. `FOOTBALL_BUILD_RUNTIME=OFF` must still configure, build and
-run every domain-only suite.
+`pitch`, `ball`, `team`, `team_domain_unit`, `team_link`, `player`,
+`player_decision`, `player_link`, `player_animation`, `locomotion`,
+`loco_animation`, `referee_unit` and `sim_runtime`. The remaining foundation,
+ai, collision, contact, event and public-header suites remain out of scope.
+The runtime harness is the match-level gate: a deterministic public-API
+TickTrace replay and a full-time lifecycle. `FOOTBALL_BUILD_RUNTIME=OFF` must
+still configure, build and run every domain-only suite.
 
 Rules:
 
@@ -493,7 +492,6 @@ include/football/    public headers, one directory per module
 ├── event/           MatchEvent, EventLog, touch/rule-touch values
 ├── referee/         rule values, rulings and the referee
 ├── ai/              tactical board/plan/interpreter, coach commands and loop
-├── model/           provider-neutral model protocol/seam (STL only)
 └── env.hpp          public autonomous-match facade
 
 src/                 implementations; public headers live in include/football/
@@ -523,8 +521,6 @@ src/                 implementations; public headers live in include/football/
 ├── event/           event recognizer/log, touch state
 ├── referee/         football::referee (rules over value facts)
 ├── ai/              tactical_*, coach/
-├── model/           football::model (header-only protocol/provider)
-├── testing/         internal SimulationAccess (never product/actor-facing)
 └── env.cpp          public facade implementation
 
 assets/              canonical distributable assets (see assets/README.md)

@@ -17,7 +17,7 @@ target_sources(football_sim_domain PRIVATE
   runtime_tick_facts.hpp
   player_authorization_port.cpp player_authorization_port.hpp
   world_state_builder.cpp world_state_builder.hpp
-  ../testing/simulation_access.hpp)
+)
 target_link_libraries(football_sim_domain
   PUBLIC football::sim_contracts
   PRIVATE
