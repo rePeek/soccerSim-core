@@ -4,8 +4,7 @@
 #include <span>
 #include <vector>
 
-#include "football/ball/ball_impulse.hpp"
-#include "football/ball/ball_state.hpp"
+#include "football/ball/ball.hpp"
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/vector3.hpp"
 

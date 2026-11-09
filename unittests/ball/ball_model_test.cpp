@@ -6,7 +6,7 @@
 #include <limits>
 #include <stdexcept>
 
-#include "football/ball/ball_model.hpp"
+#include "football/ball/ball.hpp"
 
 using football::ball::BallModel;
 using Catch::Approx;

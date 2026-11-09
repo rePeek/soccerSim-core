@@ -17,10 +17,6 @@ target_sources(football_ball
     BASE_DIRS ${PROJECT_SOURCE_DIR}/include
     FILES
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball.hpp
-      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_model.hpp
-      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_state.hpp
-      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_impulse.hpp
-      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_timing.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_contact.hpp
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball_response.hpp
 )

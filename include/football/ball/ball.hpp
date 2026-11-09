@@ -1,19 +1,62 @@
 #pragma once
 
+#include <cmath>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <vector>
 
-#include "football/ball/ball_contact.hpp"
-#include "football/ball/ball_impulse.hpp"
-#include "football/ball/ball_model.hpp"
-#include "football/ball/ball_state.hpp"
 #include "football/foundation/geometry/collider.hpp"
+#include "football/foundation/math/quaternion.hpp"
+#include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
+#include "football/foundation/time/tick_boundary.hpp"
 
 namespace football::pitch { class Pitch; }
 
 namespace football::ball {
+
+class BallModel {
+ public:
+  constexpr BallModel() = default;
+
+  BallModel(float mass, float radius, float magnus_coefficient = 0.02f)
+      : mass_(mass),
+        radius_(radius),
+        magnus_coefficient_(magnus_coefficient) {
+    if (!std::isfinite(mass) || !std::isfinite(radius) ||
+        !std::isfinite(magnus_coefficient) ||
+        mass <= 0.0f || radius <= 0.0f || magnus_coefficient < 0.0f) {
+      throw std::invalid_argument("Invalid ball configuration");
+    }
+  }
+
+  constexpr float mass() const { return mass_; }
+  constexpr float radius() const { return radius_; }
+  constexpr float magnus_coefficient() const { return magnus_coefficient_; }
+
+  bool operator==(const BallModel&) const = default;
+
+ private:
+  float mass_ = 0.43f;
+  float radius_ = 0.11f;
+  float magnus_coefficient_ = 0.02f;
+};
+
+struct BallImpulse {
+  football::math::Vector3 impulse = football::math::Vector3(0);
+  football::math::Vector3 contact_point = football::math::Vector3(0);
+};
+
+struct BallState {
+  football::math::Vector3 position;
+  football::math::Vector3 velocity;
+  football::math::Vector3 angular_velocity;
+  football::math::Quaternion orientation;
+};
+
+// Defined in ball_contact.hpp together with BallContact and AdvanceBallTick.
+struct BallStepResult;
 
 struct BallTickInput {
   std::span<const football::geometry::ColliderMotion> dynamic_colliders;
@@ -52,4 +95,9 @@ class Ball {
   std::vector<football::geometry::ColliderMotion> tick_colliders_;
 };
 
-}
+}  // namespace football::ball
+
+namespace football::sim::ball_timing {
+inline constexpr auto kPredictionHorizon = Seconds(3);
+inline constexpr TickSpan kPredictionCache{100};
+}  // namespace football::sim::ball_timing

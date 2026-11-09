@@ -9,9 +9,7 @@
 #include <variant>
 #include <vector>
 
-#include "football/ball/ball_model.hpp"
 #include "football/ball/ball_response.hpp"
-#include "football/ball/ball_state.hpp"
 #include "football/foundation/collision/sweep.hpp"
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/quaternion.hpp"

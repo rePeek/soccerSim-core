@@ -1,8 +1,6 @@
 #include "football/ball/ball_response.hpp"
 
 #include "football/ball/ball_contact.hpp"
-#include "football/ball/ball_model.hpp"
-#include "football/ball/ball_state.hpp"
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/vector3.hpp"
 

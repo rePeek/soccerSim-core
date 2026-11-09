@@ -2,8 +2,7 @@
 
 
 #include "football/ball/ball.hpp"
-#include "football/ball/ball_model.hpp"
-#include "football/ball/ball_state.hpp"
+#include "football/ball/ball_contact.hpp"
 #include "football/pitch/pitch.hpp"
 
 // Minimal environment facade: one authoritative Ball on one Pitch. There is no
