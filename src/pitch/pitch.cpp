@@ -40,18 +40,19 @@ football::geometry::ColliderMotion StaticCollider(
 }  // namespace
 
 Pitch::Pitch(float length, float width, float quadratic_resistance,
-             float ground_deceleration, float grass_height)
+             float ground_deceleration, float grass_height, float air_drag)
     : length_(length),
       width_(width),
       quadratic_resistance_(quadratic_resistance),
       ground_deceleration_(ground_deceleration),
-      grass_height_(grass_height) {
+      grass_height_(grass_height),
+      air_drag_(air_drag) {
   if (!std::isfinite(length) || !std::isfinite(width) ||
       !std::isfinite(quadratic_resistance) || !std::isfinite(ground_deceleration) ||
-      !std::isfinite(grass_height) ||
+      !std::isfinite(grass_height) || !std::isfinite(air_drag) ||
       length <= 0.0f || width <= 0.0f ||
       quadratic_resistance < 0.0f || ground_deceleration < 0.0f ||
-      grass_height <= 0.0f) {
+      grass_height <= 0.0f || air_drag < 0.0f) {
     throw std::invalid_argument(
         "football::pitch::Pitch: invalid geometry or ground parameters");
   }
@@ -65,7 +66,8 @@ bool Pitch::operator==(const Pitch& other) const {
   return length_ == other.length_ && width_ == other.width_ &&
          quadratic_resistance_ == other.quadratic_resistance_ &&
          ground_deceleration_ == other.ground_deceleration_ &&
-         grass_height_ == other.grass_height_ && line_width_ == other.line_width_ &&
+         grass_height_ == other.grass_height_ && air_drag_ == other.air_drag_ &&
+         line_width_ == other.line_width_ &&
          goal_width_ == other.goal_width_ && goal_height_ == other.goal_height_ &&
          goal_depth_ == other.goal_depth_ &&
          penalty_area_depth_ == other.penalty_area_depth_ &&

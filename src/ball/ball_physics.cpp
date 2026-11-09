@@ -43,7 +43,7 @@ struct Dynamics {
 Dynamics MakeDynamics(const football::ball::BallModel& config,
                       const football::pitch::Pitch& pitch) {
   Dynamics dynamics;
-  dynamics.quadratic_resistance = config.drag();
+  dynamics.quadratic_resistance = pitch.air_drag();
   dynamics.ground_deceleration = pitch.ground_deceleration();
   dynamics.quadratic_ground_resistance = pitch.quadratic_resistance();
   dynamics.grass_height = pitch.grass_height();
@@ -319,7 +319,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     const auto& v = result.state.velocity;
     const auto& w = result.state.angular_velocity;
     const float az = pitch.gravity() -
-        config.drag() * v.GetLength() * v.coords[2] +
+        pitch.air_drag() * v.GetLength() * v.coords[2] +
         config.magnus_coefficient() *
             (w.coords[0] * v.coords[1] - w.coords[1] * v.coords[0]);
     if (v.coords[2] > 1e-4f && az < 0.0f)

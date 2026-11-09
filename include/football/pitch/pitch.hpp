@@ -29,7 +29,7 @@ class Pitch {
   // every consumer shares one validated description.
   Pitch(float length = 105.0f, float width = 68.0f,
         float quadratic_resistance = 0.04f, float ground_deceleration = 1.6f,
-        float grass_height = 0.025f);
+        float grass_height = 0.025f, float air_drag = 0.015f);
 
   constexpr float length() const { return length_; }
   constexpr float width() const { return width_; }
@@ -49,6 +49,8 @@ class Pitch {
   constexpr float quadratic_resistance() const { return quadratic_resistance_; }
   constexpr float ground_deceleration() const { return ground_deceleration_; }
   constexpr float grass_height() const { return grass_height_; }
+  // Quadratic air-drag coefficient: a = -air_drag * |v| * v.
+  constexpr float air_drag() const { return air_drag_; }
 
   // ---- Physics scene: ground, posts and crossbars, generated once ----
   // Stable ids (also the deterministic CCD tie-break order) and a fixed order.
@@ -80,6 +82,7 @@ private:
   float quadratic_resistance_ = 0.04f;
   float ground_deceleration_ = 1.6f;
   float grass_height_ = 0.025f;
+  float air_drag_ = 0.015f;
   float line_width_ = 0.12f;
   float goal_width_ = 7.32f;
   float goal_height_ = 2.44f;
