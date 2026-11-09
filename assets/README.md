@@ -90,10 +90,11 @@ C++ 已移除 `.simanim` 读写、内容哈希及资源版本校验；动画直�
 
 ## 足球元数据
 
-manifest 中 `id` 连续且按现有运行时顺序排列，不得随意重排。`name` 保留迁移前
-标识（部分含历史机器路径），它是字符串标识而非文件查找路径。当前 manifest 只保留 authored 条目：
+manifest 中 `id` 从 1 开始连续编号，顺序即 catalog 顺序，不得随意重排。
+`file` 是相对 manifest 目录的 GLB 路径，不再保存历史 `name`。
+当前 manifest 只保留 authored 条目：
 
-- authored：`file` 指向 283 个 GLB；
+- `file` 指向 283 个 GLB；
 
 选择参数、进出速度/方向、脚别、保留状态、触球帧与触球点都在 manifest。
 这些字段仍是足球语义的权威来源；姿态直接来自对应 GLB。

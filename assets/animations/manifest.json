@@ -7,8 +7,7 @@
   "generation_keys": "../motion_templates/generation_keys.json",
   "clips": [
     {
-      "id": 886,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/000.anim",
+      "id": 1,
       "file": "ballcontrol_idle_000.glb",
       "frame_count": 38,
       "metadata": {
@@ -99,8 +98,7 @@
       ]
     },
     {
-      "id": 888,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/000_accel.anim",
+      "id": 2,
       "file": "ballcontrol_idle_000_accel.glb",
       "frame_count": 28,
       "metadata": {
@@ -191,8 +189,7 @@
       ]
     },
     {
-      "id": 890,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/000_accel_close.anim",
+      "id": 3,
       "file": "ballcontrol_idle_000_accel_close.glb",
       "frame_count": 28,
       "metadata": {
@@ -283,8 +280,7 @@
       ]
     },
     {
-      "id": 892,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/000_accel_far.anim",
+      "id": 4,
       "file": "ballcontrol_idle_000_accel_far.glb",
       "frame_count": 28,
       "metadata": {
@@ -375,8 +371,7 @@
       ]
     },
     {
-      "id": 894,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/020.anim",
+      "id": 5,
       "file": "ballcontrol_idle_020.glb",
       "frame_count": 38,
       "metadata": {
@@ -467,8 +462,7 @@
       ]
     },
     {
-      "id": 896,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/020_accel_far.anim",
+      "id": 6,
       "file": "ballcontrol_idle_020_accel_far.glb",
       "frame_count": 28,
       "metadata": {
@@ -559,8 +553,7 @@
       ]
     },
     {
-      "id": 898,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/045.anim",
+      "id": 7,
       "file": "ballcontrol_idle_045.glb",
       "frame_count": 33,
       "metadata": {
@@ -651,8 +644,7 @@
       ]
     },
     {
-      "id": 900,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/045_accel.anim",
+      "id": 8,
       "file": "ballcontrol_idle_045_accel.glb",
       "frame_count": 36,
       "metadata": {
@@ -743,8 +735,7 @@
       ]
     },
     {
-      "id": 902,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/090.anim",
+      "id": 9,
       "file": "ballcontrol_idle_090.glb",
       "frame_count": 40,
       "metadata": {
@@ -835,8 +826,7 @@
       ]
     },
     {
-      "id": 904,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/090_accel.anim",
+      "id": 10,
       "file": "ballcontrol_idle_090_accel.glb",
       "frame_count": 32,
       "metadata": {
@@ -927,8 +917,7 @@
       ]
     },
     {
-      "id": 906,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/090_accel_far.anim",
+      "id": 11,
       "file": "ballcontrol_idle_090_accel_far.glb",
       "frame_count": 50,
       "metadata": {
@@ -1019,8 +1008,7 @@
       ]
     },
     {
-      "id": 908,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/135.anim",
+      "id": 12,
       "file": "ballcontrol_idle_135.glb",
       "frame_count": 47,
       "metadata": {
@@ -1111,8 +1099,7 @@
       ]
     },
     {
-      "id": 910,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/135_accel.anim",
+      "id": 13,
       "file": "ballcontrol_idle_135_accel.glb",
       "frame_count": 55,
       "metadata": {
@@ -1203,8 +1190,7 @@
       ]
     },
     {
-      "id": 912,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/180.anim",
+      "id": 14,
       "file": "ballcontrol_idle_180.glb",
       "frame_count": 59,
       "metadata": {
@@ -1295,8 +1281,7 @@
       ]
     },
     {
-      "id": 914,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/idle/180_accel.anim",
+      "id": 15,
       "file": "ballcontrol_idle_180_accel.glb",
       "frame_count": 55,
       "metadata": {
@@ -1387,8 +1372,7 @@
       ]
     },
     {
-      "id": 916,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/sprint/000.anim",
+      "id": 16,
       "file": "ballcontrol_sprint_000.glb",
       "frame_count": 25,
       "metadata": {
@@ -1479,8 +1463,7 @@
       ]
     },
     {
-      "id": 918,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/sprint/000_close.anim",
+      "id": 17,
       "file": "ballcontrol_sprint_000_close.glb",
       "frame_count": 22,
       "metadata": {
@@ -1571,8 +1554,7 @@
       ]
     },
     {
-      "id": 920,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/sprint/000_decel.anim",
+      "id": 18,
       "file": "ballcontrol_sprint_000_decel.glb",
       "frame_count": 25,
       "metadata": {
@@ -1663,8 +1645,7 @@
       ]
     },
     {
-      "id": 922,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/sprint/020_decel.anim",
+      "id": 19,
       "file": "ballcontrol_sprint_020_decel.glb",
       "frame_count": 25,
       "metadata": {
@@ -1755,8 +1736,7 @@
       ]
     },
     {
-      "id": 924,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/sprint/020_right_nondecel_stretch.anim",
+      "id": 20,
       "file": "ballcontrol_sprint_020_right_nondecel_stretch.glb",
       "frame_count": 40,
       "metadata": {
@@ -1847,8 +1827,7 @@
       ]
     },
     {
-      "id": 926,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/sprint/045_decel.anim",
+      "id": 21,
       "file": "ballcontrol_sprint_045_decel.glb",
       "frame_count": 35,
       "metadata": {
@@ -1939,8 +1918,7 @@
       ]
     },
     {
-      "id": 928,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/sprint/090_decel_decel.anim",
+      "id": 22,
       "file": "ballcontrol_sprint_090_decel_decel.glb",
       "frame_count": 53,
       "metadata": {
@@ -2031,8 +2009,7 @@
       ]
     },
     {
-      "id": 930,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/sprint/135_decel_decel_decel.anim",
+      "id": 23,
       "file": "ballcontrol_sprint_135_decel_decel_decel.glb",
       "frame_count": 59,
       "metadata": {
@@ -2123,8 +2100,7 @@
       ]
     },
     {
-      "id": 932,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/sprint/180_decel_decel_decel.anim",
+      "id": 24,
       "file": "ballcontrol_sprint_180_decel_decel_decel.glb",
       "frame_count": 59,
       "metadata": {
@@ -2215,8 +2191,7 @@
       ]
     },
     {
-      "id": 934,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/sprint/lastditch/020_decel_stretch.anim",
+      "id": 25,
       "file": "ballcontrol_sprint_lastditch_020_decel_stretch.glb",
       "frame_count": 31,
       "metadata": {
@@ -2307,8 +2282,7 @@
       ]
     },
     {
-      "id": 936,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/000.anim",
+      "id": 26,
       "file": "ballcontrol_walk_000.glb",
       "frame_count": 26,
       "metadata": {
@@ -2399,8 +2373,7 @@
       ]
     },
     {
-      "id": 938,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/000_accel.anim",
+      "id": 27,
       "file": "ballcontrol_walk_000_accel.glb",
       "frame_count": 26,
       "metadata": {
@@ -2491,8 +2464,7 @@
       ]
     },
     {
-      "id": 940,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/000_accel_ballright.anim",
+      "id": 28,
       "file": "ballcontrol_walk_000_accel_ballright.glb",
       "frame_count": 26,
       "metadata": {
@@ -2583,8 +2555,7 @@
       ]
     },
     {
-      "id": 942,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/000_accel_close.anim",
+      "id": 29,
       "file": "ballcontrol_walk_000_accel_close.glb",
       "frame_count": 26,
       "metadata": {
@@ -2675,8 +2646,7 @@
       ]
     },
     {
-      "id": 944,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/000_close.anim",
+      "id": 30,
       "file": "ballcontrol_walk_000_close.glb",
       "frame_count": 26,
       "metadata": {
@@ -2767,8 +2737,7 @@
       ]
     },
     {
-      "id": 946,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/000_decel_decel.anim",
+      "id": 31,
       "file": "ballcontrol_walk_000_decel_decel.glb",
       "frame_count": 37,
       "metadata": {
@@ -2859,8 +2828,7 @@
       ]
     },
     {
-      "id": 948,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/020_accel.anim",
+      "id": 32,
       "file": "ballcontrol_walk_020_accel.glb",
       "frame_count": 29,
       "metadata": {
@@ -2951,8 +2919,7 @@
       ]
     },
     {
-      "id": 950,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/020_accel_close.anim",
+      "id": 33,
       "file": "ballcontrol_walk_020_accel_close.glb",
       "frame_count": 29,
       "metadata": {
@@ -3043,8 +3010,7 @@
       ]
     },
     {
-      "id": 952,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/020_decel_decel.anim",
+      "id": 34,
       "file": "ballcontrol_walk_020_decel_decel.glb",
       "frame_count": 37,
       "metadata": {
@@ -3135,8 +3101,7 @@
       ]
     },
     {
-      "id": 954,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/020_left.anim",
+      "id": 35,
       "file": "ballcontrol_walk_020_left.glb",
       "frame_count": 26,
       "metadata": {
@@ -3227,8 +3192,7 @@
       ]
     },
     {
-      "id": 956,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/020_left_close.anim",
+      "id": 36,
       "file": "ballcontrol_walk_020_left_close.glb",
       "frame_count": 28,
       "metadata": {
@@ -3319,8 +3283,7 @@
       ]
     },
     {
-      "id": 958,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/045.anim",
+      "id": 37,
       "file": "ballcontrol_walk_045.glb",
       "frame_count": 41,
       "metadata": {
@@ -3411,8 +3374,7 @@
       ]
     },
     {
-      "id": 960,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/045_accel_2step.anim",
+      "id": 38,
       "file": "ballcontrol_walk_045_accel_2step.glb",
       "frame_count": 50,
       "metadata": {
@@ -3503,8 +3465,7 @@
       ]
     },
     {
-      "id": 962,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/045_decel_decel.anim",
+      "id": 39,
       "file": "ballcontrol_walk_045_decel_decel.glb",
       "frame_count": 36,
       "metadata": {
@@ -3595,8 +3556,7 @@
       ]
     },
     {
-      "id": 964,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/090_decel_decel.anim",
+      "id": 40,
       "file": "ballcontrol_walk_090_decel_decel.glb",
       "frame_count": 36,
       "metadata": {
@@ -3687,8 +3647,7 @@
       ]
     },
     {
-      "id": 966,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/090_strongfoot.anim",
+      "id": 41,
       "file": "ballcontrol_walk_090_strongfoot.glb",
       "frame_count": 53,
       "metadata": {
@@ -3779,8 +3738,7 @@
       ]
     },
     {
-      "id": 968,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/135_decel_decel.anim",
+      "id": 42,
       "file": "ballcontrol_walk_135_decel_decel.glb",
       "frame_count": 47,
       "metadata": {
@@ -3871,8 +3829,7 @@
       ]
     },
     {
-      "id": 970,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/180_decel.anim",
+      "id": 43,
       "file": "ballcontrol_walk_180_decel.glb",
       "frame_count": 75,
       "metadata": {
@@ -3963,8 +3920,7 @@
       ]
     },
     {
-      "id": 972,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/180_decel_decel.anim",
+      "id": 44,
       "file": "ballcontrol_walk_180_decel_decel.glb",
       "frame_count": 45,
       "metadata": {
@@ -4055,8 +4011,7 @@
       ]
     },
     {
-      "id": 974,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/ballcontrol/walk/lastditch/045_left_decel_far.anim",
+      "id": 45,
       "file": "ballcontrol_walk_lastditch_045_left_decel_far.glb",
       "frame_count": 57,
       "metadata": {
@@ -4147,8 +4102,7 @@
       ]
     },
     {
-      "id": 976,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/celebration/happy_extreme/000_decel_decel.anim",
+      "id": 46,
       "file": "celebration_happy_extreme_000_decel_decel.glb",
       "frame_count": 306,
       "metadata": {
@@ -4226,8 +4180,7 @@
       "touches": []
     },
     {
-      "id": 978,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/celebration/happy_normal/000.anim",
+      "id": 47,
       "file": "celebration_happy_normal_000.glb",
       "frame_count": 101,
       "metadata": {
@@ -4305,8 +4258,7 @@
       "touches": []
     },
     {
-      "id": 980,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/celebration/sad_normal/000.anim",
+      "id": 48,
       "file": "celebration_sad_normal_000.glb",
       "frame_count": 101,
       "metadata": {
@@ -4384,8 +4336,7 @@
       "touches": []
     },
     {
-      "id": 982,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/000_ground_holdball.anim",
+      "id": 49,
       "file": "deflect_idle_000_ground_holdball.glb",
       "frame_count": 82,
       "metadata": {
@@ -4476,8 +4427,7 @@
       ]
     },
     {
-      "id": 984,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/000_high_deflect_close.anim",
+      "id": 50,
       "file": "deflect_idle_000_high_deflect_close.glb",
       "frame_count": 40,
       "metadata": {
@@ -4568,8 +4518,7 @@
       ]
     },
     {
-      "id": 986,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/000_high_deflect_far.anim",
+      "id": 51,
       "file": "deflect_idle_000_high_deflect_far.glb",
       "frame_count": 67,
       "metadata": {
@@ -4660,8 +4609,7 @@
       ]
     },
     {
-      "id": 988,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/000_high_deflect_sideclose.anim",
+      "id": 52,
       "file": "deflect_idle_000_high_deflect_sideclose.glb",
       "frame_count": 60,
       "metadata": {
@@ -4752,8 +4700,7 @@
       ]
     },
     {
-      "id": 990,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/000_high_holdball.anim",
+      "id": 53,
       "file": "deflect_idle_000_high_holdball.glb",
       "frame_count": 51,
       "metadata": {
@@ -4844,8 +4791,7 @@
       ]
     },
     {
-      "id": 992,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/000_kneeheight_holdball.anim",
+      "id": 54,
       "file": "deflect_idle_000_kneeheight_holdball.glb",
       "frame_count": 49,
       "metadata": {
@@ -4936,8 +4882,7 @@
       ]
     },
     {
-      "id": 994,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/000_trunk_holdball.anim",
+      "id": 55,
       "file": "deflect_idle_000_trunk_holdball.glb",
       "frame_count": 47,
       "metadata": {
@@ -5028,8 +4973,7 @@
       ]
     },
     {
-      "id": 996,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/090_ground_deflect_far.anim",
+      "id": 56,
       "file": "deflect_idle_090_ground_deflect_far.glb",
       "frame_count": 54,
       "metadata": {
@@ -5120,8 +5064,7 @@
       ]
     },
     {
-      "id": 998,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/090_ground_holdball_close.anim",
+      "id": 57,
       "file": "deflect_idle_090_ground_holdball_close.glb",
       "frame_count": 58,
       "metadata": {
@@ -5212,8 +5155,7 @@
       ]
     },
     {
-      "id": 1000,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/090_high_deflect_far.anim",
+      "id": 58,
       "file": "deflect_idle_090_high_deflect_far.glb",
       "frame_count": 84,
       "metadata": {
@@ -5304,8 +5246,7 @@
       ]
     },
     {
-      "id": 1002,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/090_midheight_deflect_far.anim",
+      "id": 59,
       "file": "deflect_idle_090_midheight_deflect_far.glb",
       "frame_count": 80,
       "metadata": {
@@ -5396,8 +5337,7 @@
       ]
     },
     {
-      "id": 1004,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/090_midheight_holdball_close.anim",
+      "id": 60,
       "file": "deflect_idle_090_midheight_holdball_close.glb",
       "frame_count": 50,
       "metadata": {
@@ -5488,8 +5428,7 @@
       ]
     },
     {
-      "id": 1006,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/idle/090_trunk_deflect_far.anim",
+      "id": 61,
       "file": "deflect_idle_090_trunk_deflect_far.glb",
       "frame_count": 81,
       "metadata": {
@@ -5580,8 +5519,7 @@
       ]
     },
     {
-      "id": 1008,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/sprint/000_ground_deflect_far.anim",
+      "id": 62,
       "file": "deflect_sprint_000_ground_deflect_far.glb",
       "frame_count": 41,
       "metadata": {
@@ -5672,8 +5610,7 @@
       ]
     },
     {
-      "id": 1010,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/sprint/000_ground_holdball.anim",
+      "id": 63,
       "file": "deflect_sprint_000_ground_holdball.glb",
       "frame_count": 52,
       "metadata": {
@@ -5764,8 +5701,7 @@
       ]
     },
     {
-      "id": 1012,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/sprint/000_ground_holdball_ballside.anim",
+      "id": 64,
       "file": "deflect_sprint_000_ground_holdball_ballside.glb",
       "frame_count": 40,
       "metadata": {
@@ -5856,8 +5792,7 @@
       ]
     },
     {
-      "id": 1014,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/000_ground_holdball_close.anim",
+      "id": 65,
       "file": "deflect_walk_000_ground_holdball_close.glb",
       "frame_count": 85,
       "metadata": {
@@ -5948,8 +5883,7 @@
       ]
     },
     {
-      "id": 1016,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/000_kneeheight_holdball_close.anim",
+      "id": 66,
       "file": "deflect_walk_000_kneeheight_holdball_close.glb",
       "frame_count": 49,
       "metadata": {
@@ -6040,8 +5974,7 @@
       ]
     },
     {
-      "id": 1018,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/000_trunk_holdball_close.anim",
+      "id": 67,
       "file": "deflect_walk_000_trunk_holdball_close.glb",
       "frame_count": 50,
       "metadata": {
@@ -6132,8 +6065,7 @@
       ]
     },
     {
-      "id": 1020,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/045_kneeheight_deflect_far.anim",
+      "id": 68,
       "file": "deflect_walk_045_kneeheight_deflect_far.glb",
       "frame_count": 66,
       "metadata": {
@@ -6224,8 +6156,7 @@
       ]
     },
     {
-      "id": 1022,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/angled/090_ground_deflect_far.anim",
+      "id": 69,
       "file": "deflect_walk_angled_090_ground_deflect_far.glb",
       "frame_count": 71,
       "metadata": {
@@ -6316,8 +6247,7 @@
       ]
     },
     {
-      "id": 1024,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/angled/090_ground_holdball_close.anim",
+      "id": 70,
       "file": "deflect_walk_angled_090_ground_holdball_close.glb",
       "frame_count": 56,
       "metadata": {
@@ -6408,8 +6338,7 @@
       ]
     },
     {
-      "id": 1026,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/angled/090_high_deflect_far.anim",
+      "id": 71,
       "file": "deflect_walk_angled_090_high_deflect_far.glb",
       "frame_count": 84,
       "metadata": {
@@ -6500,8 +6429,7 @@
       ]
     },
     {
-      "id": 1028,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/angled/090_high_holdball_close.anim",
+      "id": 72,
       "file": "deflect_walk_angled_090_high_holdball_close.glb",
       "frame_count": 37,
       "metadata": {
@@ -6592,8 +6520,7 @@
       ]
     },
     {
-      "id": 1030,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/angled/090_midheight_deflect_far.anim",
+      "id": 73,
       "file": "deflect_walk_angled_090_midheight_deflect_far.glb",
       "frame_count": 71,
       "metadata": {
@@ -6684,8 +6611,7 @@
       ]
     },
     {
-      "id": 1032,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/angled/090_midheight_holdball_close.anim",
+      "id": 74,
       "file": "deflect_walk_angled_090_midheight_holdball_close.glb",
       "frame_count": 56,
       "metadata": {
@@ -6776,8 +6702,7 @@
       ]
     },
     {
-      "id": 1034,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/angled/090_trunk_deflect_far.anim",
+      "id": 75,
       "file": "deflect_walk_angled_090_trunk_deflect_far.glb",
       "frame_count": 82,
       "metadata": {
@@ -6868,8 +6793,7 @@
       ]
     },
     {
-      "id": 1036,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/deflect/walk/angled/090_trunk_holdball_close.anim",
+      "id": 76,
       "file": "deflect_walk_angled_090_trunk_holdball_close.glb",
       "frame_count": 37,
       "metadata": {
@@ -6960,8 +6884,7 @@
       ]
     },
     {
-      "id": 1038,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/dribble/000.anim",
+      "id": 77,
       "file": "highpass_dribble_000.glb",
       "frame_count": 61,
       "metadata": {
@@ -7052,8 +6975,7 @@
       ]
     },
     {
-      "id": 1040,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/idle/000_long.anim",
+      "id": 78,
       "file": "highpass_idle_000_long.glb",
       "frame_count": 90,
       "metadata": {
@@ -7144,8 +7066,7 @@
       ]
     },
     {
-      "id": 1042,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/idle/020.anim",
+      "id": 79,
       "file": "highpass_idle_020.glb",
       "frame_count": 58,
       "metadata": {
@@ -7236,8 +7157,7 @@
       ]
     },
     {
-      "id": 1044,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/idle/090.anim",
+      "id": 80,
       "file": "highpass_idle_090.glb",
       "frame_count": 88,
       "metadata": {
@@ -7328,8 +7248,7 @@
       ]
     },
     {
-      "id": 1046,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/idle/special/000_throw.anim",
+      "id": 81,
       "file": "highpass_idle_special_000_throw.glb",
       "frame_count": 50,
       "metadata": {
@@ -7420,8 +7339,7 @@
       ]
     },
     {
-      "id": 1048,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/idle/special/045_throw.anim",
+      "id": 82,
       "file": "highpass_idle_special_045_throw.glb",
       "frame_count": 50,
       "metadata": {
@@ -7512,8 +7430,7 @@
       ]
     },
     {
-      "id": 1050,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/sprint/090.anim",
+      "id": 83,
       "file": "highpass_sprint_090.glb",
       "frame_count": 51,
       "metadata": {
@@ -7604,8 +7521,7 @@
       ]
     },
     {
-      "id": 1052,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/sprint/090_slide.anim",
+      "id": 84,
       "file": "highpass_sprint_090_slide.glb",
       "frame_count": 35,
       "metadata": {
@@ -7696,8 +7612,7 @@
       ]
     },
     {
-      "id": 1054,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/walk/000.anim",
+      "id": 85,
       "file": "highpass_walk_000.glb",
       "frame_count": 39,
       "metadata": {
@@ -7788,8 +7703,7 @@
       ]
     },
     {
-      "id": 1056,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/walk/000_long.anim",
+      "id": 86,
       "file": "highpass_walk_000_long.glb",
       "frame_count": 69,
       "metadata": {
@@ -7880,8 +7794,7 @@
       ]
     },
     {
-      "id": 1058,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/walk/045_air_left.anim",
+      "id": 87,
       "file": "highpass_walk_045_air_left.glb",
       "frame_count": 52,
       "metadata": {
@@ -7972,8 +7885,7 @@
       ]
     },
     {
-      "id": 1060,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/walk/080.anim",
+      "id": 88,
       "file": "highpass_walk_080.glb",
       "frame_count": 44,
       "metadata": {
@@ -8064,8 +7976,7 @@
       ]
     },
     {
-      "id": 1062,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/walk/090_long.anim",
+      "id": 89,
       "file": "highpass_walk_090_long.glb",
       "frame_count": 89,
       "metadata": {
@@ -8156,8 +8067,7 @@
       ]
     },
     {
-      "id": 1064,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/walk/180_turn.anim",
+      "id": 90,
       "file": "highpass_walk_180_turn.glb",
       "frame_count": 77,
       "metadata": {
@@ -8248,8 +8158,7 @@
       ]
     },
     {
-      "id": 1066,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/highpass/walk/special/000_throw.anim",
+      "id": 91,
       "file": "highpass_walk_special_000_throw.glb",
       "frame_count": 50,
       "metadata": {
@@ -8340,8 +8249,7 @@
       ]
     },
     {
-      "id": 1068,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/interfere/idle/000_front.anim",
+      "id": 92,
       "file": "interfere_idle_000_front.glb",
       "frame_count": 29,
       "metadata": {
@@ -8432,8 +8340,7 @@
       ]
     },
     {
-      "id": 1070,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/interfere/idle/000_header_jump.anim",
+      "id": 93,
       "file": "interfere_idle_000_header_jump.glb",
       "frame_count": 94,
       "metadata": {
@@ -8524,8 +8431,7 @@
       ]
     },
     {
-      "id": 1072,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/interfere/idle/000_side.anim",
+      "id": 94,
       "file": "interfere_idle_000_side.glb",
       "frame_count": 36,
       "metadata": {
@@ -8616,8 +8522,7 @@
       ]
     },
     {
-      "id": 1074,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/interfere/sprint/000_header_jump.anim",
+      "id": 95,
       "file": "interfere_sprint_000_header_jump.glb",
       "frame_count": 67,
       "metadata": {
@@ -8708,8 +8613,7 @@
       ]
     },
     {
-      "id": 1076,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/interfere/sprint/000_reach.anim",
+      "id": 96,
       "file": "interfere_sprint_000_reach.glb",
       "frame_count": 40,
       "metadata": {
@@ -8800,8 +8704,7 @@
       ]
     },
     {
-      "id": 1078,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/interfere/walk/000_decel_side_behind.anim",
+      "id": 97,
       "file": "interfere_walk_000_decel_side_behind.glb",
       "frame_count": 59,
       "metadata": {
@@ -8892,8 +8795,7 @@
       ]
     },
     {
-      "id": 1080,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/interfere/walk/000_stretch.anim",
+      "id": 98,
       "file": "interfere_walk_000_stretch.glb",
       "frame_count": 27,
       "metadata": {
@@ -8984,8 +8886,7 @@
       ]
     },
     {
-      "id": 1082,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/045_decel.anim",
+      "id": 99,
       "file": "movement_dribble_045_decel.glb",
       "frame_count": 25,
       "metadata": {
@@ -9063,8 +8964,7 @@
       "touches": []
     },
     {
-      "id": 1084,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/090_decel.anim",
+      "id": 100,
       "file": "movement_dribble_090_decel.glb",
       "frame_count": 25,
       "metadata": {
@@ -9142,8 +9042,7 @@
       "touches": []
     },
     {
-      "id": 1086,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/135.anim",
+      "id": 101,
       "file": "movement_dribble_135.glb",
       "frame_count": 44,
       "metadata": {
@@ -9221,8 +9120,7 @@
       "touches": []
     },
     {
-      "id": 1088,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/135_decel.anim",
+      "id": 102,
       "file": "movement_dribble_135_decel.glb",
       "frame_count": 38,
       "metadata": {
@@ -9300,8 +9198,7 @@
       "touches": []
     },
     {
-      "id": 1090,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/180_decel.anim",
+      "id": 103,
       "file": "movement_dribble_180_decel.glb",
       "frame_count": 46,
       "metadata": {
@@ -9379,8 +9276,7 @@
       "touches": []
     },
     {
-      "id": 1092,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/D045.anim",
+      "id": 104,
       "file": "movement_dribble_angled_D045.glb",
       "frame_count": 33,
       "metadata": {
@@ -9458,8 +9354,7 @@
       "touches": []
     },
     {
-      "id": 1094,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/D045_decel.anim",
+      "id": 105,
       "file": "movement_dribble_angled_D045_decel.glb",
       "frame_count": 19,
       "metadata": {
@@ -9537,8 +9432,7 @@
       "touches": []
     },
     {
-      "id": 1096,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/D135_045_decel.anim",
+      "id": 106,
       "file": "movement_dribble_angled_D135_045_decel.glb",
       "frame_count": 25,
       "metadata": {
@@ -9616,8 +9510,7 @@
       "touches": []
     },
     {
-      "id": 1098,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/D135_decel.anim",
+      "id": 107,
       "file": "movement_dribble_angled_D135_decel.glb",
       "frame_count": 25,
       "metadata": {
@@ -9695,8 +9588,7 @@
       "touches": []
     },
     {
-      "id": 1100,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/D135_to_D045_045.anim",
+      "id": 108,
       "file": "movement_dribble_angled_D135_to_D045_045.glb",
       "frame_count": 41,
       "metadata": {
@@ -9774,8 +9666,7 @@
       "touches": []
     },
     {
-      "id": 1102,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D000_to_D045.anim",
+      "id": 109,
       "file": "movement_dribble_angled_newangles_D000_to_D045.glb",
       "frame_count": 25,
       "metadata": {
@@ -9853,8 +9744,7 @@
       "touches": []
     },
     {
-      "id": 1104,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D000_to_D045_045.anim",
+      "id": 110,
       "file": "movement_dribble_angled_newangles_D000_to_D045_045.glb",
       "frame_count": 25,
       "metadata": {
@@ -9932,8 +9822,7 @@
       "touches": []
     },
     {
-      "id": 1106,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D000_to_D045_090_left.anim",
+      "id": 111,
       "file": "movement_dribble_angled_newangles_D000_to_D045_090_left.glb",
       "frame_count": 37,
       "metadata": {
@@ -10011,8 +9900,7 @@
       "touches": []
     },
     {
-      "id": 1108,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D000_to_D135_090.anim",
+      "id": 112,
       "file": "movement_dribble_angled_newangles_D000_to_D135_090.glb",
       "frame_count": 31,
       "metadata": {
@@ -10090,8 +9978,7 @@
       "touches": []
     },
     {
-      "id": 1110,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D000_to_D135_135.anim",
+      "id": 113,
       "file": "movement_dribble_angled_newangles_D000_to_D135_135.glb",
       "frame_count": 42,
       "metadata": {
@@ -10169,8 +10056,7 @@
       "touches": []
     },
     {
-      "id": 1112,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D045_to_D135.anim",
+      "id": 114,
       "file": "movement_dribble_angled_newangles_D045_to_D135.glb",
       "frame_count": 25,
       "metadata": {
@@ -10248,8 +10134,7 @@
       "touches": []
     },
     {
-      "id": 1114,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D135_045.anim",
+      "id": 115,
       "file": "movement_dribble_angled_newangles_D135_045.glb",
       "frame_count": 25,
       "metadata": {
@@ -10327,8 +10212,7 @@
       "touches": []
     },
     {
-      "id": 1116,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D135_to_D-135_left.anim",
+      "id": 116,
       "file": "movement_dribble_angled_newangles_D135_to_D-135_left.glb",
       "frame_count": 25,
       "metadata": {
@@ -10406,8 +10290,7 @@
       "touches": []
     },
     {
-      "id": 1118,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D135_to_D045_000.anim",
+      "id": 117,
       "file": "movement_dribble_angled_newangles_D135_to_D045_000.glb",
       "frame_count": 37,
       "metadata": {
@@ -10485,8 +10368,7 @@
       "touches": []
     },
     {
-      "id": 1120,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D135_to_D045_000_accel.anim",
+      "id": 118,
       "file": "movement_dribble_angled_newangles_D135_to_D045_000_accel.glb",
       "frame_count": 37,
       "metadata": {
@@ -10564,8 +10446,7 @@
       "touches": []
     },
     {
-      "id": 1122,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D135_to_D045_045_accel.anim",
+      "id": 119,
       "file": "movement_dribble_angled_newangles_D135_to_D045_045_accel.glb",
       "frame_count": 41,
       "metadata": {
@@ -10643,8 +10524,7 @@
       "touches": []
     },
     {
-      "id": 1124,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/dribble/angled/newangles/D135_to_D045_045_left.anim",
+      "id": 120,
       "file": "movement_dribble_angled_newangles_D135_to_D045_045_left.glb",
       "frame_count": 25,
       "metadata": {
@@ -10722,8 +10602,7 @@
       "touches": []
     },
     {
-      "id": 1126,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/idle/000_accel.anim",
+      "id": 121,
       "file": "movement_idle_000_accel.glb",
       "frame_count": 27,
       "metadata": {
@@ -10801,8 +10680,7 @@
       "touches": []
     },
     {
-      "id": 1128,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/idle/000_idlelevel1.anim",
+      "id": 122,
       "file": "movement_idle_000_idlelevel1.glb",
       "frame_count": 25,
       "metadata": {
@@ -10880,8 +10758,7 @@
       "touches": []
     },
     {
-      "id": 1130,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/idle/045_accel.anim",
+      "id": 123,
       "file": "movement_idle_045_accel.glb",
       "frame_count": 27,
       "metadata": {
@@ -10959,8 +10836,7 @@
       "touches": []
     },
     {
-      "id": 1132,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/idle/090_accel.anim",
+      "id": 124,
       "file": "movement_idle_090_accel.glb",
       "frame_count": 27,
       "metadata": {
@@ -11038,8 +10914,7 @@
       "touches": []
     },
     {
-      "id": 1134,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/idle/135_accel.anim",
+      "id": 125,
       "file": "movement_idle_135_accel.glb",
       "frame_count": 38,
       "metadata": {
@@ -11117,8 +10992,7 @@
       "touches": []
     },
     {
-      "id": 1136,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/idle/180_accel.anim",
+      "id": 126,
       "file": "movement_idle_180_accel.glb",
       "frame_count": 46,
       "metadata": {
@@ -11196,8 +11070,7 @@
       "touches": []
     },
     {
-      "id": 1138,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/idle/angled/D045_090_accel.anim",
+      "id": 127,
       "file": "movement_idle_angled_D045_090_accel.glb",
       "frame_count": 27,
       "metadata": {
@@ -11275,8 +11148,7 @@
       "touches": []
     },
     {
-      "id": 1140,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/idle/angled/D045_135_accel.anim",
+      "id": 128,
       "file": "movement_idle_angled_D045_135_accel.glb",
       "frame_count": 33,
       "metadata": {
@@ -11354,8 +11226,7 @@
       "touches": []
     },
     {
-      "id": 1142,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/idle/angled/D045_180_accel.anim",
+      "id": 129,
       "file": "movement_idle_angled_D045_180_accel.glb",
       "frame_count": 33,
       "metadata": {
@@ -11433,8 +11304,7 @@
       "touches": []
     },
     {
-      "id": 1144,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/sprint/000_decel_decel_decel_todo.anim",
+      "id": 130,
       "file": "movement_sprint_000_decel_decel_decel_todo.glb",
       "frame_count": 43,
       "metadata": {
@@ -11512,8 +11382,7 @@
       "touches": []
     },
     {
-      "id": 1146,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/sprint/000_idlelevel1.anim",
+      "id": 131,
       "file": "movement_sprint_000_idlelevel1.glb",
       "frame_count": 25,
       "metadata": {
@@ -11591,8 +11460,7 @@
       "touches": []
     },
     {
-      "id": 1148,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/sprint/135_decel_decel_decel.anim",
+      "id": 132,
       "file": "movement_sprint_135_decel_decel_decel.glb",
       "frame_count": 62,
       "metadata": {
@@ -11670,8 +11538,7 @@
       "touches": []
     },
     {
-      "id": 1150,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/sprint/newangles/D000_to_D045_045_left_decel_decel.anim",
+      "id": 133,
       "file": "movement_sprint_newangles_D000_to_D045_045_left_decel_decel.glb",
       "frame_count": 25,
       "metadata": {
@@ -11749,8 +11616,7 @@
       "touches": []
     },
     {
-      "id": 1152,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/sprint/newangles/D000_to_D045_decel.anim",
+      "id": 134,
       "file": "movement_sprint_newangles_D000_to_D045_decel.glb",
       "frame_count": 25,
       "metadata": {
@@ -11828,8 +11694,7 @@
       "touches": []
     },
     {
-      "id": 1154,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/sprint/newangles/D045_decel_left.anim",
+      "id": 135,
       "file": "movement_sprint_newangles_D045_decel_left.glb",
       "frame_count": 23,
       "metadata": {
@@ -11907,8 +11772,7 @@
       "touches": []
     },
     {
-      "id": 1156,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/000_accel.anim",
+      "id": 136,
       "file": "movement_walk_000_accel.glb",
       "frame_count": 25,
       "metadata": {
@@ -11986,8 +11850,7 @@
       "touches": []
     },
     {
-      "id": 1158,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/045.anim",
+      "id": 137,
       "file": "movement_walk_045.glb",
       "frame_count": 25,
       "metadata": {
@@ -12065,8 +11928,7 @@
       "touches": []
     },
     {
-      "id": 1160,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/045_accel.anim",
+      "id": 138,
       "file": "movement_walk_045_accel.glb",
       "frame_count": 25,
       "metadata": {
@@ -12144,8 +12006,7 @@
       "touches": []
     },
     {
-      "id": 1162,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/090_left_decel.anim",
+      "id": 139,
       "file": "movement_walk_090_left_decel.glb",
       "frame_count": 37,
       "metadata": {
@@ -12223,8 +12084,7 @@
       "touches": []
     },
     {
-      "id": 1164,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/135_decel.anim",
+      "id": 140,
       "file": "movement_walk_135_decel.glb",
       "frame_count": 42,
       "metadata": {
@@ -12302,8 +12162,7 @@
       "touches": []
     },
     {
-      "id": 1166,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/angled/D045_to_D000_accel.anim",
+      "id": 141,
       "file": "movement_walk_angled_D045_to_D000_accel.glb",
       "frame_count": 25,
       "metadata": {
@@ -12381,8 +12240,7 @@
       "touches": []
     },
     {
-      "id": 1168,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/angled/newangles/D000_to_D045.anim",
+      "id": 142,
       "file": "movement_walk_angled_newangles_D000_to_D045.glb",
       "frame_count": 25,
       "metadata": {
@@ -12460,8 +12318,7 @@
       "touches": []
     },
     {
-      "id": 1170,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/angled/newangles/D045_045.anim",
+      "id": 143,
       "file": "movement_walk_angled_newangles_D045_045.glb",
       "frame_count": 28,
       "metadata": {
@@ -12539,8 +12396,7 @@
       "touches": []
     },
     {
-      "id": 1172,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/angled/newangles/D045_to_D000.anim",
+      "id": 144,
       "file": "movement_walk_angled_newangles_D045_to_D000.glb",
       "frame_count": 25,
       "metadata": {
@@ -12618,8 +12474,7 @@
       "touches": []
     },
     {
-      "id": 1174,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/angled/newangles/D045_to_D000_045_accel.anim",
+      "id": 145,
       "file": "movement_walk_angled_newangles_D045_to_D000_045_accel.glb",
       "frame_count": 25,
       "metadata": {
@@ -12697,8 +12552,7 @@
       "touches": []
     },
     {
-      "id": 1176,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/angled/newangles/D045_to_D000_accel.anim",
+      "id": 146,
       "file": "movement_walk_angled_newangles_D045_to_D000_accel.glb",
       "frame_count": 25,
       "metadata": {
@@ -12776,8 +12630,7 @@
       "touches": []
     },
     {
-      "id": 1178,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement/walk/angled/newangles/D045_to_D135_decel.anim",
+      "id": 147,
       "file": "movement_walk_angled_newangles_D045_to_D135_decel.glb",
       "frame_count": 25,
       "metadata": {
@@ -12855,8 +12708,7 @@
       "touches": []
     },
     {
-      "id": 1180,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/dribble/angled/special/D000_to_D135_180_holdball.anim",
+      "id": 148,
       "file": "movement_special_dribble_angled_special_D000_to_D135_180_holdball.glb",
       "frame_count": 41,
       "metadata": {
@@ -12934,8 +12786,7 @@
       "touches": []
     },
     {
-      "id": 1182,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/dribble/angled/special/D135_decel_holdball.anim",
+      "id": 149,
       "file": "movement_special_dribble_angled_special_D135_decel_holdball.glb",
       "frame_count": 25,
       "metadata": {
@@ -13013,8 +12864,7 @@
       "touches": []
     },
     {
-      "id": 1184,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/dribble/angled/special/D135_holdball.anim",
+      "id": 150,
       "file": "movement_special_dribble_angled_special_D135_holdball.glb",
       "frame_count": 25,
       "metadata": {
@@ -13092,8 +12942,7 @@
       "touches": []
     },
     {
-      "id": 1186,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/dribble/angled/special/D135_left_holdball.anim",
+      "id": 151,
       "file": "movement_special_dribble_angled_special_D135_left_holdball.glb",
       "frame_count": 25,
       "metadata": {
@@ -13171,8 +13020,7 @@
       "touches": []
     },
     {
-      "id": 1188,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/dribble/angled/special/D135_to_D000_holdball.anim",
+      "id": 152,
       "file": "movement_special_dribble_angled_special_D135_to_D000_holdball.glb",
       "frame_count": 35,
       "metadata": {
@@ -13250,8 +13098,7 @@
       "touches": []
     },
     {
-      "id": 1190,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/dribble/special/000_decel_holdball.anim",
+      "id": 153,
       "file": "movement_special_dribble_special_000_decel_holdball.glb",
       "frame_count": 25,
       "metadata": {
@@ -13329,8 +13176,7 @@
       "touches": []
     },
     {
-      "id": 1192,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/dribble/special/000_holdball.anim",
+      "id": 154,
       "file": "movement_special_dribble_special_000_holdball.glb",
       "frame_count": 25,
       "metadata": {
@@ -13408,8 +13254,7 @@
       "touches": []
     },
     {
-      "id": 1194,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/dribble/special/090_decel_holdball.anim",
+      "id": 155,
       "file": "movement_special_dribble_special_090_decel_holdball.glb",
       "frame_count": 31,
       "metadata": {
@@ -13487,8 +13332,7 @@
       "touches": []
     },
     {
-      "id": 1196,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/idle/special/000_accel_holdball.anim",
+      "id": 156,
       "file": "movement_special_idle_special_000_accel_holdball.glb",
       "frame_count": 27,
       "metadata": {
@@ -13566,8 +13410,7 @@
       "touches": []
     },
     {
-      "id": 1198,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/idle/special/000_back_to_front_holdball.anim",
+      "id": 157,
       "file": "movement_special_idle_special_000_back_to_front_holdball.glb",
       "frame_count": 41,
       "metadata": {
@@ -13645,8 +13488,7 @@
       "touches": []
     },
     {
-      "id": 1200,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/idle/special/000_holdball.anim",
+      "id": 158,
       "file": "movement_special_idle_special_000_holdball.glb",
       "frame_count": 25,
       "metadata": {
@@ -13724,8 +13566,7 @@
       "touches": []
     },
     {
-      "id": 1202,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/idle/special/000_stand_up_from_back.anim",
+      "id": 159,
       "file": "movement_special_idle_special_000_stand_up_from_back.glb",
       "frame_count": 73,
       "metadata": {
@@ -13803,8 +13644,7 @@
       "touches": []
     },
     {
-      "id": 1204,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/idle/special/000_stand_up_from_front.anim",
+      "id": 160,
       "file": "movement_special_idle_special_000_stand_up_from_front.glb",
       "frame_count": 77,
       "metadata": {
@@ -13882,8 +13722,7 @@
       "touches": []
     },
     {
-      "id": 1206,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/idle/special/000_stand_up_from_front_holdball.anim",
+      "id": 161,
       "file": "movement_special_idle_special_000_stand_up_from_front_holdball.glb",
       "frame_count": 77,
       "metadata": {
@@ -13961,8 +13800,7 @@
       "touches": []
     },
     {
-      "id": 1208,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/idle/special/045_holdball.anim",
+      "id": 162,
       "file": "movement_special_idle_special_045_holdball.glb",
       "frame_count": 25,
       "metadata": {
@@ -14040,8 +13878,7 @@
       "touches": []
     },
     {
-      "id": 1210,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/movement_special/idle/special/135_accel_holdball.anim",
+      "id": 163,
       "file": "movement_special_idle_special_135_accel_holdball.glb",
       "frame_count": 46,
       "metadata": {
@@ -14119,8 +13956,7 @@
       "touches": []
     },
     {
-      "id": 1212,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/dribble/180_turn.anim",
+      "id": 164,
       "file": "pass_dribble_180_turn.glb",
       "frame_count": 77,
       "metadata": {
@@ -14211,8 +14047,7 @@
       ]
     },
     {
-      "id": 1214,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/dribble/lastditch/090_decel_ballside.anim",
+      "id": 165,
       "file": "pass_dribble_lastditch_090_decel_ballside.glb",
       "frame_count": 64,
       "metadata": {
@@ -14303,8 +14138,7 @@
       ]
     },
     {
-      "id": 1216,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/dribble/lastditch/090_decel_ballside_otherside.anim",
+      "id": 166,
       "file": "pass_dribble_lastditch_090_decel_ballside_otherside.glb",
       "frame_count": 33,
       "metadata": {
@@ -14395,8 +14229,7 @@
       ]
     },
     {
-      "id": 1218,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/dribble/nonbase/090_highball.anim",
+      "id": 167,
       "file": "pass_dribble_nonbase_090_highball.glb",
       "frame_count": 55,
       "metadata": {
@@ -14487,8 +14320,7 @@
       ]
     },
     {
-      "id": 1220,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/000.anim",
+      "id": 168,
       "file": "pass_idle_000.glb",
       "frame_count": 73,
       "metadata": {
@@ -14579,8 +14411,7 @@
       ]
     },
     {
-      "id": 1222,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/090.anim",
+      "id": 169,
       "file": "pass_idle_090.glb",
       "frame_count": 54,
       "metadata": {
@@ -14671,8 +14502,7 @@
       ]
     },
     {
-      "id": 1224,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/180.anim",
+      "id": 170,
       "file": "pass_idle_180.glb",
       "frame_count": 98,
       "metadata": {
@@ -14763,8 +14593,7 @@
       ]
     },
     {
-      "id": 1226,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/nonbase/000_header.anim",
+      "id": 171,
       "file": "pass_idle_nonbase_000_header.glb",
       "frame_count": 42,
       "metadata": {
@@ -14855,8 +14684,7 @@
       ]
     },
     {
-      "id": 1228,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/nonbase/000_header_jump_backwards.anim",
+      "id": 172,
       "file": "pass_idle_nonbase_000_header_jump_backwards.glb",
       "frame_count": 82,
       "metadata": {
@@ -14947,8 +14775,7 @@
       ]
     },
     {
-      "id": 1230,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/nonbase/000_header_jump_forwards.anim",
+      "id": 173,
       "file": "pass_idle_nonbase_000_header_jump_forwards.glb",
       "frame_count": 94,
       "metadata": {
@@ -15039,8 +14866,7 @@
       ]
     },
     {
-      "id": 1232,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/nonbase/070_header_jump.anim",
+      "id": 174,
       "file": "pass_idle_nonbase_070_header_jump.glb",
       "frame_count": 96,
       "metadata": {
@@ -15131,8 +14957,7 @@
       ]
     },
     {
-      "id": 1234,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/nonbase/090_header.anim",
+      "id": 175,
       "file": "pass_idle_nonbase_090_header.glb",
       "frame_count": 32,
       "metadata": {
@@ -15223,8 +15048,7 @@
       ]
     },
     {
-      "id": 1236,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/nonbase/090_kneeheight.anim",
+      "id": 176,
       "file": "pass_idle_nonbase_090_kneeheight.glb",
       "frame_count": 71,
       "metadata": {
@@ -15315,8 +15139,7 @@
       ]
     },
     {
-      "id": 1238,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/nonbase/135_header_jump.anim",
+      "id": 177,
       "file": "pass_idle_nonbase_135_header_jump.glb",
       "frame_count": 82,
       "metadata": {
@@ -15407,8 +15230,7 @@
       ]
     },
     {
-      "id": 1240,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/special/000_throw.anim",
+      "id": 178,
       "file": "pass_idle_special_000_throw.glb",
       "frame_count": 50,
       "metadata": {
@@ -15499,8 +15321,7 @@
       ]
     },
     {
-      "id": 1242,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/idle/special/045_throw.anim",
+      "id": 179,
       "file": "pass_idle_special_045_throw.glb",
       "frame_count": 50,
       "metadata": {
@@ -15591,8 +15412,7 @@
       ]
     },
     {
-      "id": 1244,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/sprint/000.anim",
+      "id": 180,
       "file": "pass_sprint_000.glb",
       "frame_count": 60,
       "metadata": {
@@ -15683,8 +15503,7 @@
       ]
     },
     {
-      "id": 1246,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/sprint/045.anim",
+      "id": 181,
       "file": "pass_sprint_045.glb",
       "frame_count": 53,
       "metadata": {
@@ -15775,8 +15594,7 @@
       ]
     },
     {
-      "id": 1248,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/sprint/090.anim",
+      "id": 182,
       "file": "pass_sprint_090.glb",
       "frame_count": 56,
       "metadata": {
@@ -15867,8 +15685,7 @@
       ]
     },
     {
-      "id": 1250,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/sprint/180.anim",
+      "id": 183,
       "file": "pass_sprint_180.glb",
       "frame_count": 64,
       "metadata": {
@@ -15959,8 +15776,7 @@
       ]
     },
     {
-      "id": 1252,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/sprint/lastditch/000_reach.anim",
+      "id": 184,
       "file": "pass_sprint_lastditch_000_reach.glb",
       "frame_count": 40,
       "metadata": {
@@ -16051,8 +15867,7 @@
       ]
     },
     {
-      "id": 1254,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/sprint/lastditch/090_slide.anim",
+      "id": 185,
       "file": "pass_sprint_lastditch_090_slide.glb",
       "frame_count": 35,
       "metadata": {
@@ -16143,8 +15958,7 @@
       ]
     },
     {
-      "id": 1256,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/sprint/nonbase/000_header_jump.anim",
+      "id": 186,
       "file": "pass_sprint_nonbase_000_header_jump.glb",
       "frame_count": 67,
       "metadata": {
@@ -16235,8 +16049,7 @@
       ]
     },
     {
-      "id": 1258,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/sprint/nonbase/020_ballside.anim",
+      "id": 187,
       "file": "pass_sprint_nonbase_020_ballside.glb",
       "frame_count": 51,
       "metadata": {
@@ -16327,8 +16140,7 @@
       ]
     },
     {
-      "id": 1260,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/000.anim",
+      "id": 188,
       "file": "pass_walk_000.glb",
       "frame_count": 60,
       "metadata": {
@@ -16419,8 +16231,7 @@
       ]
     },
     {
-      "id": 1262,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/000_short.anim",
+      "id": 189,
       "file": "pass_walk_000_short.glb",
       "frame_count": 29,
       "metadata": {
@@ -16511,8 +16322,7 @@
       ]
     },
     {
-      "id": 1264,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/045.anim",
+      "id": 190,
       "file": "pass_walk_045.glb",
       "frame_count": 53,
       "metadata": {
@@ -16603,8 +16413,7 @@
       ]
     },
     {
-      "id": 1266,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/090.anim",
+      "id": 191,
       "file": "pass_walk_090.glb",
       "frame_count": 56,
       "metadata": {
@@ -16695,8 +16504,7 @@
       ]
     },
     {
-      "id": 1268,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/090_short.anim",
+      "id": 192,
       "file": "pass_walk_090_short.glb",
       "frame_count": 25,
       "metadata": {
@@ -16787,8 +16595,7 @@
       ]
     },
     {
-      "id": 1270,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/135.anim",
+      "id": 193,
       "file": "pass_walk_135.glb",
       "frame_count": 58,
       "metadata": {
@@ -16879,8 +16686,7 @@
       ]
     },
     {
-      "id": 1272,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/lastditch/040_reach.anim",
+      "id": 194,
       "file": "pass_walk_lastditch_040_reach.glb",
       "frame_count": 26,
       "metadata": {
@@ -16971,8 +16777,7 @@
       ]
     },
     {
-      "id": 1274,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/lastditch/040_side_reach.anim",
+      "id": 195,
       "file": "pass_walk_lastditch_040_side_reach.glb",
       "frame_count": 28,
       "metadata": {
@@ -17063,8 +16868,7 @@
       ]
     },
     {
-      "id": 1276,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/lastditch/090_reach.anim",
+      "id": 196,
       "file": "pass_walk_lastditch_090_reach.glb",
       "frame_count": 27,
       "metadata": {
@@ -17155,8 +16959,7 @@
       ]
     },
     {
-      "id": 1278,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/nonbase/000_kneeheight.anim",
+      "id": 197,
       "file": "pass_walk_nonbase_000_kneeheight.glb",
       "frame_count": 41,
       "metadata": {
@@ -17247,8 +17050,7 @@
       ]
     },
     {
-      "id": 1280,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/nonbase/D045_pass00_header_headheight.anim",
+      "id": 198,
       "file": "pass_walk_nonbase_D045_pass00_header_headheight.glb",
       "frame_count": 33,
       "metadata": {
@@ -17339,8 +17141,7 @@
       ]
     },
     {
-      "id": 1282,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/nonbase/D045_pass90_header_headheight.anim",
+      "id": 199,
       "file": "pass_walk_nonbase_D045_pass90_header_headheight.glb",
       "frame_count": 47,
       "metadata": {
@@ -17431,8 +17232,7 @@
       ]
     },
     {
-      "id": 1284,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/pass/walk/special/000_throw.anim",
+      "id": 200,
       "file": "pass_walk_special_000_throw.glb",
       "frame_count": 50,
       "metadata": {
@@ -17523,8 +17323,7 @@
       ]
     },
     {
-      "id": 1286,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/dribble/090_zidane.anim",
+      "id": 201,
       "file": "shot_dribble_090_zidane.glb",
       "frame_count": 67,
       "metadata": {
@@ -17615,8 +17414,7 @@
       ]
     },
     {
-      "id": 1288,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/dribble/angled/D135.anim",
+      "id": 202,
       "file": "shot_dribble_angled_D135.glb",
       "frame_count": 68,
       "metadata": {
@@ -17707,8 +17505,7 @@
       ]
     },
     {
-      "id": 1290,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/idle/020.anim",
+      "id": 203,
       "file": "shot_idle_020.glb",
       "frame_count": 58,
       "metadata": {
@@ -17799,8 +17596,7 @@
       ]
     },
     {
-      "id": 1292,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/idle/090.anim",
+      "id": 204,
       "file": "shot_idle_090.glb",
       "frame_count": 62,
       "metadata": {
@@ -17891,8 +17687,7 @@
       ]
     },
     {
-      "id": 1294,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/idle/180_bicycle.anim",
+      "id": 205,
       "file": "shot_idle_180_bicycle.glb",
       "frame_count": 64,
       "metadata": {
@@ -17983,8 +17778,7 @@
       ]
     },
     {
-      "id": 1296,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/sprint/000_headerdive.anim",
+      "id": 206,
       "file": "shot_sprint_000_headerdive.glb",
       "frame_count": 79,
       "metadata": {
@@ -18075,8 +17869,7 @@
       ]
     },
     {
-      "id": 1298,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/sprint/010_close.anim",
+      "id": 207,
       "file": "shot_sprint_010_close.glb",
       "frame_count": 55,
       "metadata": {
@@ -18167,8 +17960,7 @@
       ]
     },
     {
-      "id": 1300,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/sprint/010_short_bit_longer.anim",
+      "id": 208,
       "file": "shot_sprint_010_short_bit_longer.glb",
       "frame_count": 64,
       "metadata": {
@@ -18259,8 +18051,7 @@
       ]
     },
     {
-      "id": 1302,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/sprint/020_left.anim",
+      "id": 209,
       "file": "shot_sprint_020_left.glb",
       "frame_count": 51,
       "metadata": {
@@ -18351,8 +18142,7 @@
       ]
     },
     {
-      "id": 1304,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/sprint/030.anim",
+      "id": 210,
       "file": "shot_sprint_030.glb",
       "frame_count": 55,
       "metadata": {
@@ -18443,8 +18233,7 @@
       ]
     },
     {
-      "id": 1306,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/sprint/090_2step.anim",
+      "id": 211,
       "file": "shot_sprint_090_2step.glb",
       "frame_count": 91,
       "metadata": {
@@ -18535,8 +18324,7 @@
       ]
     },
     {
-      "id": 1308,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/walk/010_short.anim",
+      "id": 212,
       "file": "shot_walk_010_short.glb",
       "frame_count": 57,
       "metadata": {
@@ -18627,8 +18415,7 @@
       ]
     },
     {
-      "id": 1310,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/walk/010_short_bit_longer.anim",
+      "id": 213,
       "file": "shot_walk_010_short_bit_longer.glb",
       "frame_count": 63,
       "metadata": {
@@ -18719,8 +18506,7 @@
       ]
     },
     {
-      "id": 1312,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/walk/090_2step.anim",
+      "id": 214,
       "file": "shot_walk_090_2step.glb",
       "frame_count": 75,
       "metadata": {
@@ -18811,8 +18597,7 @@
       ]
     },
     {
-      "id": 1314,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/walk/180_turn.anim",
+      "id": 215,
       "file": "shot_walk_180_turn.glb",
       "frame_count": 77,
       "metadata": {
@@ -18903,8 +18688,7 @@
       ]
     },
     {
-      "id": 1316,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/walk/angled/D045_20_below.anim",
+      "id": 216,
       "file": "shot_walk_angled_D045_20_below.glb",
       "frame_count": 40,
       "metadata": {
@@ -18995,8 +18779,7 @@
       ]
     },
     {
-      "id": 1318,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/shot/walk/angled/D045_20_header.anim",
+      "id": 217,
       "file": "shot_walk_angled_D045_20_header.glb",
       "frame_count": 54,
       "metadata": {
@@ -19087,8 +18870,7 @@
       ]
     },
     {
-      "id": 1320,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/sliding/dribble/angled/D135_decel.anim",
+      "id": 218,
       "file": "sliding_dribble_angled_D135_decel.glb",
       "frame_count": 53,
       "metadata": {
@@ -19179,8 +18961,7 @@
       ]
     },
     {
-      "id": 1322,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/sliding/idle/000.anim",
+      "id": 219,
       "file": "sliding_idle_000.glb",
       "frame_count": 47,
       "metadata": {
@@ -19271,8 +19052,7 @@
       ]
     },
     {
-      "id": 1324,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/sliding/idle/090.anim",
+      "id": 220,
       "file": "sliding_idle_090.glb",
       "frame_count": 48,
       "metadata": {
@@ -19363,8 +19143,7 @@
       ]
     },
     {
-      "id": 1326,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/sliding/sprint/000.anim",
+      "id": 221,
       "file": "sliding_sprint_000.glb",
       "frame_count": 63,
       "metadata": {
@@ -19455,8 +19234,7 @@
       ]
     },
     {
-      "id": 1328,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/sliding/sprint/000_ballside.anim",
+      "id": 222,
       "file": "sliding_sprint_000_ballside.glb",
       "frame_count": 90,
       "metadata": {
@@ -19547,8 +19325,7 @@
       ]
     },
     {
-      "id": 1330,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/sliding/walk/000.anim",
+      "id": 223,
       "file": "sliding_walk_000.glb",
       "frame_count": 60,
       "metadata": {
@@ -19639,8 +19416,7 @@
       ]
     },
     {
-      "id": 1332,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/special/000_showcard.anim",
+      "id": 224,
       "file": "special_000_showcard.glb",
       "frame_count": 150,
       "metadata": {
@@ -19718,8 +19494,7 @@
       "touches": []
     },
     {
-      "id": 1334,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/000_IB000.anim",
+      "id": 225,
       "file": "trap_idle_000_IB000.glb",
       "frame_count": 43,
       "metadata": {
@@ -19810,8 +19585,7 @@
       ]
     },
     {
-      "id": 1336,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/090_IB000_accel_optional.anim",
+      "id": 226,
       "file": "trap_idle_090_IB000_accel_optional.glb",
       "frame_count": 33,
       "metadata": {
@@ -19902,8 +19676,7 @@
       ]
     },
     {
-      "id": 1338,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/135_IB000.anim",
+      "id": 227,
       "file": "trap_idle_135_IB000.glb",
       "frame_count": 57,
       "metadata": {
@@ -19994,8 +19767,7 @@
       ]
     },
     {
-      "id": 1340,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/135_IB000_accel_left_shallowangle.anim",
+      "id": 228,
       "file": "trap_idle_135_IB000_accel_left_shallowangle.glb",
       "frame_count": 52,
       "metadata": {
@@ -20086,8 +19858,7 @@
       ]
     },
     {
-      "id": 1342,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/135_IB000_accel_right.anim",
+      "id": 229,
       "file": "trap_idle_135_IB000_accel_right.glb",
       "frame_count": 43,
       "metadata": {
@@ -20178,8 +19949,7 @@
       ]
     },
     {
-      "id": 1344,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/highballs/000_chest.anim",
+      "id": 230,
       "file": "trap_idle_highballs_000_chest.glb",
       "frame_count": 68,
       "metadata": {
@@ -20270,8 +20040,7 @@
       ]
     },
     {
-      "id": 1346,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/highballs/000_chest_jump.anim",
+      "id": 231,
       "file": "trap_idle_highballs_000_chest_jump.glb",
       "frame_count": 96,
       "metadata": {
@@ -20362,8 +20131,7 @@
       ]
     },
     {
-      "id": 1348,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/highballs/000_crotch.anim",
+      "id": 232,
       "file": "trap_idle_highballs_000_crotch.glb",
       "frame_count": 35,
       "metadata": {
@@ -20454,8 +20222,7 @@
       ]
     },
     {
-      "id": 1350,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/highballs/000_knee.anim",
+      "id": 233,
       "file": "trap_idle_highballs_000_knee.glb",
       "frame_count": 34,
       "metadata": {
@@ -20546,8 +20313,7 @@
       ]
     },
     {
-      "id": 1352,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/highballs/020_chest_fromabove.anim",
+      "id": 234,
       "file": "trap_idle_highballs_020_chest_fromabove.glb",
       "frame_count": 68,
       "metadata": {
@@ -20638,8 +20404,7 @@
       ]
     },
     {
-      "id": 1354,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/idle/highballs/135_chest.anim",
+      "id": 235,
       "file": "trap_idle_highballs_135_chest.glb",
       "frame_count": 54,
       "metadata": {
@@ -20730,8 +20495,7 @@
       ]
     },
     {
-      "id": 1356,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/sprint/000_D000_IB090_decel.anim",
+      "id": 236,
       "file": "trap_sprint_000_D000_IB090_decel.glb",
       "frame_count": 25,
       "metadata": {
@@ -20822,8 +20586,7 @@
       ]
     },
     {
-      "id": 1358,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/sprint/highballs/000_chest.anim",
+      "id": 237,
       "file": "trap_sprint_highballs_000_chest.glb",
       "frame_count": 56,
       "metadata": {
@@ -20914,8 +20677,7 @@
       ]
     },
     {
-      "id": 1360,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/sprint/highballs/000_fromside_kneeheight.anim",
+      "id": 238,
       "file": "trap_sprint_highballs_000_fromside_kneeheight.glb",
       "frame_count": 45,
       "metadata": {
@@ -21006,8 +20768,7 @@
       ]
     },
     {
-      "id": 1362,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/sprint/lastditch/000_decel_decel_decel_stretch.anim",
+      "id": 239,
       "file": "trap_sprint_lastditch_000_decel_decel_decel_stretch.glb",
       "frame_count": 48,
       "metadata": {
@@ -21098,8 +20859,7 @@
       ]
     },
     {
-      "id": 1364,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/sprint/lastditch/000_decel_decel_stretch.anim",
+      "id": 240,
       "file": "trap_sprint_lastditch_000_decel_decel_stretch.glb",
       "frame_count": 31,
       "metadata": {
@@ -21190,8 +20950,7 @@
       ]
     },
     {
-      "id": 1366,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/000_D000_IB000_decel_decel.anim",
+      "id": 241,
       "file": "trap_walk_000_D000_IB000_decel_decel.glb",
       "frame_count": 47,
       "metadata": {
@@ -21282,8 +21041,7 @@
       ]
     },
     {
-      "id": 1368,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/000_D000_IB000_short.anim",
+      "id": 242,
       "file": "trap_walk_000_D000_IB000_short.glb",
       "frame_count": 26,
       "metadata": {
@@ -21374,8 +21132,7 @@
       ]
     },
     {
-      "id": 1370,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/000_D000_IB090.anim",
+      "id": 243,
       "file": "trap_walk_000_D000_IB090.glb",
       "frame_count": 49,
       "metadata": {
@@ -21466,8 +21223,7 @@
       ]
     },
     {
-      "id": 1372,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/000_D000_IB090_decel_decel.anim",
+      "id": 244,
       "file": "trap_walk_000_D000_IB090_decel_decel.glb",
       "frame_count": 57,
       "metadata": {
@@ -21558,8 +21314,7 @@
       ]
     },
     {
-      "id": 1374,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/000_D045_IB090.anim",
+      "id": 245,
       "file": "trap_walk_000_D045_IB090.glb",
       "frame_count": 49,
       "metadata": {
@@ -21650,8 +21405,7 @@
       ]
     },
     {
-      "id": 1376,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/000_D045_IB090_decel_decel.anim",
+      "id": 246,
       "file": "trap_walk_000_D045_IB090_decel_decel.glb",
       "frame_count": 65,
       "metadata": {
@@ -21742,8 +21496,7 @@
       ]
     },
     {
-      "id": 1378,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/000_D045_IB135.anim",
+      "id": 247,
       "file": "trap_walk_000_D045_IB135.glb",
       "frame_count": 67,
       "metadata": {
@@ -21834,8 +21587,7 @@
       ]
     },
     {
-      "id": 1380,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/000_D135_IB135_decel_decel.anim",
+      "id": 248,
       "file": "trap_walk_000_D135_IB135_decel_decel.glb",
       "frame_count": 54,
       "metadata": {
@@ -21926,8 +21678,7 @@
       ]
     },
     {
-      "id": 1382,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/135_D000_IB000_decel_decel.anim",
+      "id": 249,
       "file": "trap_walk_135_D000_IB000_decel_decel.glb",
       "frame_count": 54,
       "metadata": {
@@ -22018,8 +21769,7 @@
       ]
     },
     {
-      "id": 1384,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/135_D045_IB090_decel_decel.anim",
+      "id": 250,
       "file": "trap_walk_135_D045_IB090_decel_decel.glb",
       "frame_count": 78,
       "metadata": {
@@ -22110,8 +21860,7 @@
       ]
     },
     {
-      "id": 1386,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/135_D045_IB135_decel_decel.anim",
+      "id": 251,
       "file": "trap_walk_135_D045_IB135_decel_decel.glb",
       "frame_count": 79,
       "metadata": {
@@ -22202,8 +21951,7 @@
       ]
     },
     {
-      "id": 1388,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/135_D135_IB135_decel_decel.anim",
+      "id": 252,
       "file": "trap_walk_135_D135_IB135_decel_decel.glb",
       "frame_count": 55,
       "metadata": {
@@ -22294,8 +22042,7 @@
       ]
     },
     {
-      "id": 1390,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/highballs/000_chest_ballfrombelow.anim",
+      "id": 253,
       "file": "trap_walk_highballs_000_chest_ballfrombelow.glb",
       "frame_count": 42,
       "metadata": {
@@ -22386,8 +22133,7 @@
       ]
     },
     {
-      "id": 1392,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/highballs/000_chest_jump_decel.anim",
+      "id": 254,
       "file": "trap_walk_highballs_000_chest_jump_decel.glb",
       "frame_count": 51,
       "metadata": {
@@ -22478,8 +22224,7 @@
       ]
     },
     {
-      "id": 1394,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/highballs/000_control_highball_decel.anim",
+      "id": 255,
       "file": "trap_walk_highballs_000_control_highball_decel.glb",
       "frame_count": 52,
       "metadata": {
@@ -22570,8 +22315,7 @@
       ]
     },
     {
-      "id": 1396,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/highballs/000_knee.anim",
+      "id": 256,
       "file": "trap_walk_highballs_000_knee.glb",
       "frame_count": 26,
       "metadata": {
@@ -22662,8 +22406,7 @@
       ]
     },
     {
-      "id": 1398,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/highballs/135_chest.anim",
+      "id": 257,
       "file": "trap_walk_highballs_135_chest.glb",
       "frame_count": 60,
       "metadata": {
@@ -22754,8 +22497,7 @@
       ]
     },
     {
-      "id": 1400,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/highballs/D045_chest.anim",
+      "id": 258,
       "file": "trap_walk_highballs_D045_chest.glb",
       "frame_count": 51,
       "metadata": {
@@ -22846,8 +22588,7 @@
       ]
     },
     {
-      "id": 1402,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/highballs/D045_to_D000_decel_chest.anim",
+      "id": 259,
       "file": "trap_walk_highballs_D045_to_D000_decel_chest.glb",
       "frame_count": 74,
       "metadata": {
@@ -22938,8 +22679,7 @@
       ]
     },
     {
-      "id": 1404,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/highballs/D135_chest_jump_180.anim",
+      "id": 260,
       "file": "trap_walk_highballs_D135_chest_jump_180.glb",
       "frame_count": 102,
       "metadata": {
@@ -23030,8 +22770,7 @@
       ]
     },
     {
-      "id": 1406,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/highballs/D135_chest_jump_decel.anim",
+      "id": 261,
       "file": "trap_walk_highballs_D135_chest_jump_decel.glb",
       "frame_count": 112,
       "metadata": {
@@ -23122,8 +22861,7 @@
       ]
     },
     {
-      "id": 1408,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/lastditch/000_D000_IB090_decel_decel_lastditch.anim",
+      "id": 262,
       "file": "trap_walk_lastditch_000_D000_IB090_decel_decel_lastditch.glb",
       "frame_count": 58,
       "metadata": {
@@ -23214,8 +22952,7 @@
       ]
     },
     {
-      "id": 1410,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/lastditch/000_D000_IB090_decel_short_lastditch.anim",
+      "id": 263,
       "file": "trap_walk_lastditch_000_D000_IB090_decel_short_lastditch.glb",
       "frame_count": 27,
       "metadata": {
@@ -23306,8 +23043,7 @@
       ]
     },
     {
-      "id": 1412,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trap/walk/lastditch/000_frombehind_decel.anim",
+      "id": 264,
       "file": "trap_walk_lastditch_000_frombehind_decel.glb",
       "frame_count": 63,
       "metadata": {
@@ -23398,8 +23134,7 @@
       ]
     },
     {
-      "id": 1414,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t1/idle/000_protectback.anim",
+      "id": 265,
       "file": "trip_trip_t1_idle_000_protectback.glb",
       "frame_count": 32,
       "metadata": {
@@ -23477,8 +23212,7 @@
       "touches": []
     },
     {
-      "id": 1416,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t1/idle/000_protectfront.anim",
+      "id": 266,
       "file": "trip_trip_t1_idle_000_protectfront.glb",
       "frame_count": 26,
       "metadata": {
@@ -23556,8 +23290,7 @@
       "touches": []
     },
     {
-      "id": 1418,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t1/idle/000_protectside.anim",
+      "id": 267,
       "file": "trip_trip_t1_idle_000_protectside.glb",
       "frame_count": 36,
       "metadata": {
@@ -23635,8 +23368,7 @@
       "touches": []
     },
     {
-      "id": 1420,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t1/sprint/000_decel.anim",
+      "id": 268,
       "file": "trip_trip_t1_sprint_000_decel.glb",
       "frame_count": 49,
       "metadata": {
@@ -23714,8 +23446,7 @@
       "touches": []
     },
     {
-      "id": 1422,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t1/sprint/000_sidebump.anim",
+      "id": 269,
       "file": "trip_trip_t1_sprint_000_sidebump.glb",
       "frame_count": 46,
       "metadata": {
@@ -23793,8 +23524,7 @@
       "touches": []
     },
     {
-      "id": 1424,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t1/sprint/045_decel.anim",
+      "id": 270,
       "file": "trip_trip_t1_sprint_045_decel.glb",
       "frame_count": 91,
       "metadata": {
@@ -23872,8 +23602,7 @@
       "touches": []
     },
     {
-      "id": 1426,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t1/walk/000_protectback.anim",
+      "id": 271,
       "file": "trip_trip_t1_walk_000_protectback.glb",
       "frame_count": 26,
       "metadata": {
@@ -23951,8 +23680,7 @@
       "touches": []
     },
     {
-      "id": 1428,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t1/walk/000_protectfront.anim",
+      "id": 272,
       "file": "trip_trip_t1_walk_000_protectfront.glb",
       "frame_count": 25,
       "metadata": {
@@ -24030,8 +23758,7 @@
       "touches": []
     },
     {
-      "id": 1430,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t1/walk/028_D045_sidebump.anim",
+      "id": 273,
       "file": "trip_trip_t1_walk_028_D045_sidebump.glb",
       "frame_count": 36,
       "metadata": {
@@ -24109,8 +23836,7 @@
       "touches": []
     },
     {
-      "id": 1432,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t2/dribble/000_accel.anim",
+      "id": 274,
       "file": "trip_trip_t2_dribble_000_accel.glb",
       "frame_count": 60,
       "metadata": {
@@ -24188,8 +23914,7 @@
       "touches": []
     },
     {
-      "id": 1434,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t2/dribble/D135_000bump.anim",
+      "id": 275,
       "file": "trip_trip_t2_dribble_D135_000bump.glb",
       "frame_count": 81,
       "metadata": {
@@ -24267,8 +23992,7 @@
       "touches": []
     },
     {
-      "id": 1436,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t2/dribble/D135_180bump.anim",
+      "id": 276,
       "file": "trip_trip_t2_dribble_D135_180bump.glb",
       "frame_count": 88,
       "metadata": {
@@ -24346,8 +24070,7 @@
       "touches": []
     },
     {
-      "id": 1438,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t2/idle/000_000.anim",
+      "id": 277,
       "file": "trip_trip_t2_idle_000_000.glb",
       "frame_count": 45,
       "metadata": {
@@ -24425,8 +24148,7 @@
       "touches": []
     },
     {
-      "id": 1440,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t2/idle/000_090.anim",
+      "id": 278,
       "file": "trip_trip_t2_idle_000_090.glb",
       "frame_count": 62,
       "metadata": {
@@ -24504,8 +24226,7 @@
       "touches": []
     },
     {
-      "id": 1442,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t2/idle/000_180.anim",
+      "id": 279,
       "file": "trip_trip_t2_idle_000_180.glb",
       "frame_count": 60,
       "metadata": {
@@ -24583,8 +24304,7 @@
       "touches": []
     },
     {
-      "id": 1444,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t2/sprint/side_behind.anim",
+      "id": 280,
       "file": "trip_trip_t2_sprint_side_behind.glb",
       "frame_count": 96,
       "metadata": {
@@ -24662,8 +24382,7 @@
       "touches": []
     },
     {
-      "id": 1446,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t3/sprint/000.anim",
+      "id": 281,
       "file": "trip_trip_t3_sprint_000.glb",
       "frame_count": 74,
       "metadata": {
@@ -24741,8 +24460,7 @@
       "touches": []
     },
     {
-      "id": 1448,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t3/sprint/045.anim",
+      "id": 282,
       "file": "trip_trip_t3_sprint_045.glb",
       "frame_count": 84,
       "metadata": {
@@ -24820,8 +24538,7 @@
       "touches": []
     },
     {
-      "id": 1450,
-      "name": "/home/asen/workspace/soccerSim-core/data/media/animations/trip/trip_t3/walk/000_000.anim",
+      "id": 283,
       "file": "trip_trip_t3_walk_000_000.glb",
       "frame_count": 87,
       "metadata": {
