@@ -92,12 +92,81 @@ C++ 已移除 `.simanim` 读写、内容哈希及资源版本校验；动画直�
 
 manifest 中 `id` 从 1 开始连续编号，顺序即 catalog 顺序，不得随意重排。
 `file` 是相对 manifest 目录的 GLB 路径，不再保存历史 `name`。
-当前 manifest 只保留 authored 条目：
+当前 manifest 只保留 authored 条目：`file` 指向 283 个 GLB。
 
-- `file` 指向 283 个 GLB；
+### 条目字段
+
+| 字段 | 含义 |
+|---|---|
+| `id` | catalog 编号，1 起连续 |
+| `file` | 相对 manifest 目录的 GLB 路径 |
+| `frame_count` | 100 Hz 采样帧数；实际时间跨度为 `frame_count - 1` 个 tick |
+| `metadata` | 动作选择、触球和运动语义 |
+| `contact_position` | 第一次触球的球位置；`null` 表示无触球 |
+| `touches` | 所有触球点 `{frame, position}`，支持一个动作多次触球 |
+
+### `metadata`
+
+| 字段 | 含义 |
+|---|---|
+| `action_type` | `e_DefString` 数字标签，不是 `e_FunctionType` |
+| `incoming_velocity` / `outgoing_velocity` | 动作开始/结束速度，m/s |
+| `incoming_body_angle` / `outgoing_body_angle` | 开始/结束时身体朝向角，弧度 |
+| `outgoing_angle` | 出向球/动作方向相对身体朝向的偏角，弧度 |
+| `difficulty` | 动作难度系数，越高越难 |
+| `touch_frame` | 第一次触球帧；`-1` 表示无触球 |
+| `quadrant` | 粗筛用「速度 + 角度」量化区间 id；0 表示不适用 |
+| `last_ditch` / `base_animation` | 兜底候选 / 同组基础动作标记 |
+| `idle_level` | 待机强度/级别，用于按目标 idle 程度排序 |
+| `special_var1` / `special_var2` | 特殊动作变体参数 |
+| `incoming_body_direction` / `outgoing_direction` | 起始/结束单位方向向量 |
+| `incoming_ball_direction` / `outgoing_ball_direction` | 来球/出球方向；不适用时为 0 |
+| `incoming_ball_direction_max_deviation` / `outgoing_ball_direction_max_deviation` | 来球/出球方向允许偏差 |
+| `trip_type` | 碰撞/绊倒分类 |
+| `current_foot` / `outgoing_foot` | 开始/结束使用的脚：0=左，1=右 |
+| `incoming_retain_state` / `outgoing_retain_state` | 开始/结束 retain 状态；空字符串表示无 |
+| `incoming_special_state` / `outgoing_special_state` | 开始/结束特殊状态标签 |
+| `forced_foot` / `touch_foot` | 强制脚 / 触球脚约束 |
+| `touch_bodypart` | 触球部位，如 `right_foot`、`left_foot`、`chest`、`head` |
+| `touch_max_power_factor` / `touch_difficulty_factor` | 触球力量/难度系数 |
+| `priority` | 候选动作选择优先级/排序权重 |
+| `bump_direction` | 身体碰撞/推挤方向 |
+| `incoming_movement` / `outgoing_movement` | 起始/结束根运动向量 |
+| `translation` | 整个动作的根位移，Stadium Frame / 米 |
+
+### `metadata.action_type`
+
+`action_type` 是 `e_DefString` 数字标签：
+
+| value | tag | meaning |
+|---:|---|---|
+| 0 | `Empty` | 无标签 |
+| 1 | `OutgoingSpecialState` | 旧 metadata 标签，不是 clip action |
+| 2 | `IncomingSpecialState` | 旧 metadata 标签，不是 clip action |
+| 3 | `SpecialVar1` | 旧 metadata 标签，不是 clip action |
+| 4 | `SpecialVar2` | 旧 metadata 标签，不是 clip action |
+| 5 | `Type` | 旧通用类型标签，不是 clip action |
+| 6 | `Trap` | 接球/停球 |
+| 7 | `Deflect` | 折射/挡球 |
+| 8 | `Interfere` | 干扰/抢断 |
+| 9 | `Trip` | 绊倒 |
+| 10 | `ShortPass` | 短传 |
+| 11 | `LongPass` | 长传 |
+| 12 | `Shot` | 射门 |
+| 13 | `Sliding` | 滑铲 |
+| 14 | `Movement` | 跑动/移动 |
+| 15 | `Special` | 特殊动作 |
+| 16 | `BallControl` | 控球 |
+| 17 | `HighPass` | 高球传球 |
+| 18 | `Catch` | 门将接球 |
+| 19 | `OutgoingRetainState` | 旧 metadata 标签，不是 clip action |
+| 20 | `IncomingRetainState` | 旧 metadata 标签，不是 clip action |
+
+`metadata.action_type` 只使用动作子集 6-18；0-5 和 19-20 是旧 metadata
+词汇中的其他 `e_DefString` 标签，不是 clip action 类型。
 
 选择参数、进出速度/方向、脚别、保留状态、触球帧与触球点都在 manifest。
-这些字段仍是足球语义的权威来源；姿态直接来自对应 GLB。
+这些字段是足球语义的权威来源；姿态直接来自对应 GLB。
 这些值使用 **C++ Z-up Stadium Frame / 米 / 弧度 / 100 Hz 帧号**，没有随 GLB
 转换为 Y-up。不要仅改动画而忘记同步受影响的动作选择/触球数据。
 
