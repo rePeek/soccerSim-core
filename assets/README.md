@@ -66,7 +66,7 @@ assets/motion_templates/*.glb + manifest.json + generation_keys.json
 
 普通构建和 C++ 运行时不需要 Python、Blender、旧 `.anim`、`player.object`
 或已移除的 baker；也不生成或读取 `animations.simanim` / `autogen.simanim`。
-283 个 authored 动作直接导入，443 个程序动作从 GLB 模板生成，再派生 726 个镜像。
+283 个 authored 动作直接导入；manifest 只保留这些 file-backed 条目。
 所有资源在初始化时准备，多个 Player 共享动作库，不在每帧或每个球员上重新导入。
 
 `generation_keys.json` 保存各骨骼的控制采样帧号，而不是另一份姿态数据。
@@ -91,14 +91,12 @@ C++ 已移除 `.simanim` 读写、内容哈希及资源版本校验；动画直�
 ## 足球元数据
 
 manifest 中 `id` 连续且按现有运行时顺序排列，不得随意重排。`name` 保留迁移前
-标识（部分含历史机器路径），它是字符串标识而非文件查找路径。条目有三类：
+标识（部分含历史机器路径），它是字符串标识而非文件查找路径。当前 manifest 只保留 authored 条目：
 
 - authored：`file` 指向 283 个 GLB；
-- procedural：`procedural: true`，在加载时从 GLB 运动模板直接生成；
-- mirror：`mirror_of`，没有 `file`/`procedural`，由源动作反射得到。
 
 选择参数、进出速度/方向、脚别、保留状态、触球帧与触球点都在 manifest。
-这些字段仍是足球语义的权威来源；镜像元数据会与反射结果校验，姿态由源动作派生。
+这些字段仍是足球语义的权威来源；姿态直接来自对应 GLB。
 这些值使用 **C++ Z-up Stadium Frame / 米 / 弧度 / 100 Hz 帧号**，没有随 GLB
 转换为 Y-up。不要仅改动画而忘记同步受影响的动作选择/触球数据。
 
