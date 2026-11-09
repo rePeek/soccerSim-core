@@ -1,0 +1,798 @@
+{
+  "schema": "football_animation_catalog_v1",
+  "rig_version": "football_player_v1",
+  "fps": 100,
+  "skeleton": "../skeletons/player.json",
+  "clips": [
+    {
+      "id": 0,
+      "name": "dribbleD000",
+      "file": "00_dribbleD000.glb",
+      "frame_count": 25,
+      "metadata": {
+        "action_type": 14,
+        "incoming_velocity": 3.5,
+        "outgoing_velocity": 3.4999999999999996,
+        "incoming_body_angle": 0.0,
+        "outgoing_body_angle": 0.0,
+        "outgoing_angle": 0.0,
+        "difficulty": 0.0,
+        "touch_frame": -1,
+        "quadrant": 0,
+        "last_ditch": false,
+        "base_animation": false,
+        "idle_level": 0.0,
+        "special_var1": 0.0,
+        "special_var2": 0.0,
+        "incoming_body_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "outgoing_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "incoming_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_ball_direction_max_deviation": 0.0,
+        "outgoing_ball_direction_max_deviation": 0.0,
+        "trip_type": 0,
+        "current_foot": 1,
+        "incoming_retain_state": "",
+        "outgoing_retain_state": "",
+        "incoming_special_state": "",
+        "forced_foot": "",
+        "touch_foot": "",
+        "outgoing_special_state": "",
+        "touch_bodypart": "",
+        "touch_max_power_factor": 0.0,
+        "touch_difficulty_factor": 0.0,
+        "priority": 1.0,
+        "bump_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_movement": [
+          0.0,
+          -3.5,
+          0.0
+        ],
+        "outgoing_movement": [
+          0.0,
+          -3.4999999999999996,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          -0.8399989999999999,
+          0.0
+        ],
+        "outgoing_foot": 0
+      },
+      "contact_position": null,
+      "touches": []
+    },
+    {
+      "id": 1,
+      "name": "dribbleD045",
+      "file": "01_dribbleD045.glb",
+      "frame_count": 25,
+      "metadata": {
+        "action_type": 14,
+        "incoming_velocity": 3.5453333333333332,
+        "outgoing_velocity": 3.5453333333333337,
+        "incoming_body_angle": 0.0,
+        "outgoing_body_angle": 0.0,
+        "outgoing_angle": 0.0,
+        "difficulty": 0.0,
+        "touch_frame": -1,
+        "quadrant": 0,
+        "last_ditch": false,
+        "base_animation": false,
+        "idle_level": 0.0,
+        "special_var1": 0.0,
+        "special_var2": 0.0,
+        "incoming_body_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "outgoing_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "incoming_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_ball_direction_max_deviation": 0.0,
+        "outgoing_ball_direction_max_deviation": 0.0,
+        "trip_type": 0,
+        "current_foot": 1,
+        "incoming_retain_state": "",
+        "outgoing_retain_state": "",
+        "incoming_special_state": "",
+        "forced_foot": "",
+        "touch_foot": "",
+        "outgoing_special_state": "",
+        "touch_bodypart": "",
+        "touch_max_power_factor": 0.0,
+        "touch_difficulty_factor": 0.0,
+        "priority": 1.0,
+        "bump_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_movement": [
+          0.0,
+          -3.5453333333333332,
+          0.0
+        ],
+        "outgoing_movement": [
+          0.0,
+          -3.5453333333333337,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          -0.85088,
+          0.0
+        ],
+        "outgoing_foot": 0
+      },
+      "contact_position": null,
+      "touches": []
+    },
+    {
+      "id": 2,
+      "name": "dribbleD045_left",
+      "file": "02_dribbleD045_left.glb",
+      "frame_count": 25,
+      "metadata": {
+        "action_type": 14,
+        "incoming_velocity": 3.5453333333333332,
+        "outgoing_velocity": 3.5453333333333337,
+        "incoming_body_angle": 0.0,
+        "outgoing_body_angle": 0.0,
+        "outgoing_angle": 0.0,
+        "difficulty": 0.0,
+        "touch_frame": -1,
+        "quadrant": 0,
+        "last_ditch": false,
+        "base_animation": false,
+        "idle_level": 0.0,
+        "special_var1": 0.0,
+        "special_var2": 0.0,
+        "incoming_body_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "outgoing_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "incoming_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_ball_direction_max_deviation": 0.0,
+        "outgoing_ball_direction_max_deviation": 0.0,
+        "trip_type": 0,
+        "current_foot": 1,
+        "incoming_retain_state": "",
+        "outgoing_retain_state": "",
+        "incoming_special_state": "",
+        "forced_foot": "",
+        "touch_foot": "",
+        "outgoing_special_state": "",
+        "touch_bodypart": "",
+        "touch_max_power_factor": 0.0,
+        "touch_difficulty_factor": 0.0,
+        "priority": 1.0,
+        "bump_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_movement": [
+          0.0,
+          -3.5453333333333332,
+          0.0
+        ],
+        "outgoing_movement": [
+          0.0,
+          -3.5453333333333337,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          -0.85088,
+          0.0
+        ],
+        "outgoing_foot": 0
+      },
+      "contact_position": null,
+      "touches": []
+    },
+    {
+      "id": 3,
+      "name": "dribbleD135",
+      "file": "03_dribbleD135.glb",
+      "frame_count": 25,
+      "metadata": {
+        "action_type": 14,
+        "incoming_velocity": 3.5,
+        "outgoing_velocity": 3.4999999999999996,
+        "incoming_body_angle": 0.0,
+        "outgoing_body_angle": 0.0,
+        "outgoing_angle": 0.0,
+        "difficulty": 0.0,
+        "touch_frame": -1,
+        "quadrant": 0,
+        "last_ditch": false,
+        "base_animation": false,
+        "idle_level": 0.0,
+        "special_var1": 0.0,
+        "special_var2": 0.0,
+        "incoming_body_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "outgoing_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "incoming_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_ball_direction_max_deviation": 0.0,
+        "outgoing_ball_direction_max_deviation": 0.0,
+        "trip_type": 0,
+        "current_foot": 1,
+        "incoming_retain_state": "",
+        "outgoing_retain_state": "",
+        "incoming_special_state": "",
+        "forced_foot": "",
+        "touch_foot": "",
+        "outgoing_special_state": "",
+        "touch_bodypart": "",
+        "touch_max_power_factor": 0.0,
+        "touch_difficulty_factor": 0.0,
+        "priority": 1.0,
+        "bump_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_movement": [
+          0.0,
+          -3.5,
+          0.0
+        ],
+        "outgoing_movement": [
+          0.0,
+          -3.4999999999999996,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          -0.84,
+          0.0
+        ],
+        "outgoing_foot": 0
+      },
+      "contact_position": null,
+      "touches": []
+    },
+    {
+      "id": 4,
+      "name": "dribbleD135_left",
+      "file": "04_dribbleD135_left.glb",
+      "frame_count": 25,
+      "metadata": {
+        "action_type": 14,
+        "incoming_velocity": 3.5,
+        "outgoing_velocity": 3.4999999999999996,
+        "incoming_body_angle": 0.0,
+        "outgoing_body_angle": 0.0,
+        "outgoing_angle": 0.0,
+        "difficulty": 0.0,
+        "touch_frame": -1,
+        "quadrant": 0,
+        "last_ditch": false,
+        "base_animation": false,
+        "idle_level": 0.0,
+        "special_var1": 0.0,
+        "special_var2": 0.0,
+        "incoming_body_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "outgoing_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "incoming_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_ball_direction_max_deviation": 0.0,
+        "outgoing_ball_direction_max_deviation": 0.0,
+        "trip_type": 0,
+        "current_foot": 1,
+        "incoming_retain_state": "",
+        "outgoing_retain_state": "",
+        "incoming_special_state": "",
+        "forced_foot": "",
+        "touch_foot": "",
+        "outgoing_special_state": "",
+        "touch_bodypart": "",
+        "touch_max_power_factor": 0.0,
+        "touch_difficulty_factor": 0.0,
+        "priority": 1.0,
+        "bump_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_movement": [
+          0.0,
+          -3.5,
+          0.0
+        ],
+        "outgoing_movement": [
+          0.0,
+          -3.4999999999999996,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          -0.84,
+          0.0
+        ],
+        "outgoing_foot": 0
+      },
+      "contact_position": null,
+      "touches": []
+    },
+    {
+      "id": 5,
+      "name": "idleD000",
+      "file": "05_idleD000.glb",
+      "frame_count": 25,
+      "metadata": {
+        "action_type": 14,
+        "incoming_velocity": 0.0,
+        "outgoing_velocity": 0.0,
+        "incoming_body_angle": 0.0,
+        "outgoing_body_angle": 0.0,
+        "outgoing_angle": 0.0,
+        "difficulty": 0.0,
+        "touch_frame": -1,
+        "quadrant": 0,
+        "last_ditch": false,
+        "base_animation": false,
+        "idle_level": 0.0,
+        "special_var1": 0.0,
+        "special_var2": 0.0,
+        "incoming_body_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "outgoing_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "incoming_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_ball_direction_max_deviation": 0.0,
+        "outgoing_ball_direction_max_deviation": 0.0,
+        "trip_type": 0,
+        "current_foot": 1,
+        "incoming_retain_state": "",
+        "outgoing_retain_state": "",
+        "incoming_special_state": "",
+        "forced_foot": "",
+        "touch_foot": "",
+        "outgoing_special_state": "",
+        "touch_bodypart": "",
+        "touch_max_power_factor": 0.0,
+        "touch_difficulty_factor": 0.0,
+        "priority": 1.0,
+        "bump_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_movement": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_movement": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_foot": 0
+      },
+      "contact_position": null,
+      "touches": []
+    },
+    {
+      "id": 6,
+      "name": "sprintD000",
+      "file": "06_sprintD000.glb",
+      "frame_count": 25,
+      "metadata": {
+        "action_type": 14,
+        "incoming_velocity": 7.0,
+        "outgoing_velocity": 6.999999999999999,
+        "incoming_body_angle": 0.0,
+        "outgoing_body_angle": 0.0,
+        "outgoing_angle": 0.0,
+        "difficulty": 0.0,
+        "touch_frame": -1,
+        "quadrant": 0,
+        "last_ditch": false,
+        "base_animation": false,
+        "idle_level": 0.0,
+        "special_var1": 0.0,
+        "special_var2": 0.0,
+        "incoming_body_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "outgoing_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "incoming_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_ball_direction_max_deviation": 0.0,
+        "outgoing_ball_direction_max_deviation": 0.0,
+        "trip_type": 0,
+        "current_foot": 1,
+        "incoming_retain_state": "",
+        "outgoing_retain_state": "",
+        "incoming_special_state": "",
+        "forced_foot": "",
+        "touch_foot": "",
+        "outgoing_special_state": "",
+        "touch_bodypart": "",
+        "touch_max_power_factor": 0.0,
+        "touch_difficulty_factor": 0.0,
+        "priority": 1.0,
+        "bump_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_movement": [
+          0.0,
+          -7.0,
+          0.0
+        ],
+        "outgoing_movement": [
+          0.0,
+          -6.999999999999999,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          -1.679999,
+          0.0
+        ],
+        "outgoing_foot": 0
+      },
+      "contact_position": null,
+      "touches": []
+    },
+    {
+      "id": 7,
+      "name": "walkD000",
+      "file": "07_walkD000.glb",
+      "frame_count": 25,
+      "metadata": {
+        "action_type": 14,
+        "incoming_velocity": 5.083333333333333,
+        "outgoing_velocity": 5.083333333333337,
+        "incoming_body_angle": 0.0,
+        "outgoing_body_angle": 0.0,
+        "outgoing_angle": 0.0,
+        "difficulty": 0.0,
+        "touch_frame": -1,
+        "quadrant": 0,
+        "last_ditch": false,
+        "base_animation": false,
+        "idle_level": 0.0,
+        "special_var1": 0.0,
+        "special_var2": 0.0,
+        "incoming_body_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "outgoing_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "incoming_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_ball_direction_max_deviation": 0.0,
+        "outgoing_ball_direction_max_deviation": 0.0,
+        "trip_type": 0,
+        "current_foot": 1,
+        "incoming_retain_state": "",
+        "outgoing_retain_state": "",
+        "incoming_special_state": "",
+        "forced_foot": "",
+        "touch_foot": "",
+        "outgoing_special_state": "",
+        "touch_bodypart": "",
+        "touch_max_power_factor": 0.0,
+        "touch_difficulty_factor": 0.0,
+        "priority": 1.0,
+        "bump_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_movement": [
+          0.0,
+          -5.083333333333333,
+          0.0
+        ],
+        "outgoing_movement": [
+          0.0,
+          -5.083333333333337,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          -1.259999,
+          0.0
+        ],
+        "outgoing_foot": 0
+      },
+      "contact_position": null,
+      "touches": []
+    },
+    {
+      "id": 8,
+      "name": "walkD045",
+      "file": "08_walkD045.glb",
+      "frame_count": 25,
+      "metadata": {
+        "action_type": 14,
+        "incoming_velocity": 5.045333333333334,
+        "outgoing_velocity": 5.045333333333332,
+        "incoming_body_angle": 0.0,
+        "outgoing_body_angle": 0.0,
+        "outgoing_angle": 0.0,
+        "difficulty": 0.0,
+        "touch_frame": -1,
+        "quadrant": 0,
+        "last_ditch": false,
+        "base_animation": false,
+        "idle_level": 0.0,
+        "special_var1": 0.0,
+        "special_var2": 0.0,
+        "incoming_body_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "outgoing_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "incoming_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_ball_direction_max_deviation": 0.0,
+        "outgoing_ball_direction_max_deviation": 0.0,
+        "trip_type": 0,
+        "current_foot": 1,
+        "incoming_retain_state": "",
+        "outgoing_retain_state": "",
+        "incoming_special_state": "",
+        "forced_foot": "",
+        "touch_foot": "",
+        "outgoing_special_state": "",
+        "touch_bodypart": "",
+        "touch_max_power_factor": 0.0,
+        "touch_difficulty_factor": 0.0,
+        "priority": 1.0,
+        "bump_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_movement": [
+          0.0,
+          -5.045333333333334,
+          0.0
+        ],
+        "outgoing_movement": [
+          0.0,
+          -5.045333333333332,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          -1.21088,
+          0.0
+        ],
+        "outgoing_foot": 0
+      },
+      "contact_position": null,
+      "touches": []
+    },
+    {
+      "id": 9,
+      "name": "walkD045_left",
+      "file": "09_walkD045_left.glb",
+      "frame_count": 25,
+      "metadata": {
+        "action_type": 14,
+        "incoming_velocity": 5.045333333333334,
+        "outgoing_velocity": 5.045333333333332,
+        "incoming_body_angle": 0.0,
+        "outgoing_body_angle": 0.0,
+        "outgoing_angle": 0.0,
+        "difficulty": 0.0,
+        "touch_frame": -1,
+        "quadrant": 0,
+        "last_ditch": false,
+        "base_animation": false,
+        "idle_level": 0.0,
+        "special_var1": 0.0,
+        "special_var2": 0.0,
+        "incoming_body_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "outgoing_direction": [
+          0.0,
+          -1.0,
+          0.0
+        ],
+        "incoming_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "outgoing_ball_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_ball_direction_max_deviation": 0.0,
+        "outgoing_ball_direction_max_deviation": 0.0,
+        "trip_type": 0,
+        "current_foot": 1,
+        "incoming_retain_state": "",
+        "outgoing_retain_state": "",
+        "incoming_special_state": "",
+        "forced_foot": "",
+        "touch_foot": "",
+        "outgoing_special_state": "",
+        "touch_bodypart": "",
+        "touch_max_power_factor": 0.0,
+        "touch_difficulty_factor": 0.0,
+        "priority": 1.0,
+        "bump_direction": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "incoming_movement": [
+          0.0,
+          -5.045333333333334,
+          0.0
+        ],
+        "outgoing_movement": [
+          0.0,
+          -5.045333333333332,
+          0.0
+        ],
+        "translation": [
+          0.0,
+          -1.21088,
+          0.0
+        ],
+        "outgoing_foot": 0
+      },
+      "contact_position": null,
+      "touches": []
+    }
+  ]
+}

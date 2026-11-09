@@ -1,0 +1,151 @@
+{
+  "schema": "football_character_parts_v1",
+  "rig_version": "football_player_v1",
+  "skeleton": "../skeletons/player.json",
+  "units": "metres",
+  "up_axis": "Y",
+  "base": {
+    "file": "base/base.glb",
+    "slot": "skin",
+    "meshes": [
+      "head",
+      "arm_left",
+      "arm_right",
+      "knee_left",
+      "knee_right"
+    ]
+  },
+  "shoes": {
+    "file": "shoes/default.glb",
+    "slot": "shoes",
+    "meshes": [
+      "shoe_left",
+      "shoe_right",
+      "sole_left",
+      "sole_right"
+    ]
+  },
+  "kits": {
+    "home": {
+      "file": "kit/home.glb",
+      "slot": "kit",
+      "description": "Primera Division home kit",
+      "meshes": [
+        "body",
+        "sock_left",
+        "sock_right"
+      ],
+      "texture": "kit/textures/home.png",
+      "mesh_parts": 3
+    },
+    "away": {
+      "file": "kit/away.glb",
+      "slot": "kit",
+      "description": "Primera Division away kit",
+      "meshes": [
+        "body",
+        "sock_left",
+        "sock_right"
+      ],
+      "texture": "kit/textures/away.png",
+      "mesh_parts": 3
+    },
+    "goalkeeper": {
+      "file": "kit/goalkeeper.glb",
+      "slot": "kit",
+      "description": "Goalkeeper kit",
+      "meshes": [
+        "body",
+        "sock_left",
+        "sock_right"
+      ],
+      "texture": "kit/textures/goalkeeper.png",
+      "mesh_parts": 3
+    },
+    "referee": {
+      "file": "kit/referee.glb",
+      "slot": "kit",
+      "description": "Referee kit",
+      "meshes": [
+        "body",
+        "sock_left",
+        "sock_right"
+      ],
+      "texture": "kit/textures/referee.png",
+      "mesh_parts": 3
+    }
+  },
+  "hair": {
+    "short01": {
+      "file": "hair/short01.glb",
+      "slot": "hair",
+      "attachment_bone": "neck",
+      "texture": "hair/textures/black.png",
+      "mesh_parts": 1
+    },
+    "short02": {
+      "file": "hair/short02.glb",
+      "slot": "hair",
+      "attachment_bone": "neck",
+      "texture": "hair/textures/black.png",
+      "mesh_parts": 1
+    },
+    "medium01": {
+      "file": "hair/medium01.glb",
+      "slot": "hair",
+      "attachment_bone": "neck",
+      "texture": "hair/textures/black.png",
+      "mesh_parts": 1
+    },
+    "medium02": {
+      "file": "hair/medium02.glb",
+      "slot": "hair",
+      "attachment_bone": "neck",
+      "texture": "hair/textures/black.png",
+      "mesh_parts": 1
+    },
+    "long01": {
+      "file": "hair/long01.glb",
+      "slot": "hair",
+      "attachment_bone": "neck",
+      "texture": "hair/textures/black.png",
+      "mesh_parts": 1
+    },
+    "long02": {
+      "file": "hair/long02.glb",
+      "slot": "hair",
+      "attachment_bone": "neck",
+      "texture": "hair/textures/black.png",
+      "mesh_parts": 1
+    }
+  },
+  "assembly": "Load one package per slot, keep a single 14-joint skeleton, and map by bone name. Packages embed the same rest skin transforms.",
+  "textures": "Embedded PNG; loose PNG copies are provided for texture mods and do not update a GLB automatically.",
+  "limitations": [
+    "Shirt, shorts, torso and socks share one kit mesh/material; they are not independently separable parts.",
+    "Hair is rigid geometry attached to neck; no hair simulation.",
+    "Base contains head, arms and knees only; torso and socks come from a kit package.",
+    "No normal maps, facial features or finger/toe geometry."
+  ],
+  "source_sha256": {
+    "/home/asen/project/football-core/build/player-smooth/default_14_smooth.blend": "f92d0ab27065e8a7277581bb7b5de42f7b036c8dc0b7ce38dd204241e7711f79",
+    "/home/asen/project/football-core/assets/skeletons/player.json": "7e25a713579dbafb380e7583763af5197373e0845c5798da9b11caab6713ac47",
+    "/home/asen/project/football-core/data/databases/default/images_teams/primeradivision/fcbarcelona_kit_02.bmp": "db924d990800ea6da38dda0e061fc728ae46a8053e8ce3eb07e1f062aed73c02",
+    "/home/asen/project/football-core/data/databases/default/images_teams/primeradivision/realmadrid_kit_02.bmp": "fa9d85d9dc24594ff0226cccb1f29bbab1ef972c1672570c0cf4184ac748dca6",
+    "/home/asen/project/football-core/data/media/objects/players/textures/goalie_kit.bmp": "9e6f02b4c7c0edd2d83aaa322d220b7fea669a636d7f82d32d1a4f23b9e0a9b1",
+    "/home/asen/project/football-core/data/media/objects/players/textures/referee_kit.bmp": "b7bbed0fac111c02bcf77fe714533937a3f092c6e5ed337b60a54edf7dc77369",
+    "/home/asen/project/football-core/data/media/objects/players/textures/shoe.bmp": "aca128cf761698f7d9994078ba32b8cc2934b7ac61a98ccfa54904bc18c5484b",
+    "/home/asen/project/football-core/data/media/objects/players/textures/shoe_sole.bmp": "08d10426644ff7dad076f957eee03a0bced79aad78bcc841210b94c2eb8fe96a",
+    "/home/asen/project/football-core/data/media/objects/players/hairstyles/short01.ase": "3156fb789897c4e0df6ac0502f0ad9552db957304080d8cdd79b4e82f3ab4c21",
+    "/home/asen/project/football-core/data/media/objects/players/hairstyles/short02.ase": "b1f3a47ca98311c8370157856c3068c84b6f6454cfe79096eec69c1e00a0dbfb",
+    "/home/asen/project/football-core/data/media/objects/players/hairstyles/medium01.ase": "a2592a6a55c11fb4ae0e4392419eebd016f07453ccdd5cac6ba67c61f040bc36",
+    "/home/asen/project/football-core/data/media/objects/players/hairstyles/medium02.ase": "c5858b7bc99b6b01585a75fcba50a4d5af8b6de18040585cea5ac365a00b43a7",
+    "/home/asen/project/football-core/data/media/objects/players/hairstyles/long01.ase": "be5b0ec9f0f0eda65780c61bbe0b45c5f24f27bb091241d261b08069fa870d94",
+    "/home/asen/project/football-core/data/media/objects/players/hairstyles/long02.ase": "cac7c281af79714122c231034a895b81918b5bad38a98a09f1de78078a117342",
+    "/home/asen/project/football-core/data/media/objects/players/textures/hair/black.bmp": "39cdbf508db71bede9bb2ac47189cb2828dee5c0072ea17c7feab2d9447c7857",
+    "/home/asen/project/football-core/data/media/objects/players/textures/hair/brown.bmp": "9762d959528c975d5a1800d4c5163b4e0e78a6915af63b249d3b224f89566b86",
+    "/home/asen/project/football-core/data/media/objects/players/textures/hair/blonde.bmp": "5e67fb2ca18e1f429bd77d6d7ea16aad2650740d90e2350bb794f0b1f7da409e",
+    "/home/asen/project/football-core/data/media/objects/players/textures/hair/darkblonde.bmp": "d253c95eb3ccbb54d56199aec73d6ecf23ff96d5dced404d386a6a3e8e4577f5",
+    "/home/asen/project/football-core/data/media/objects/players/textures/hair/red.bmp": "9362668b72353f55ae6255ecd13c441af499672af060c3408cb70320a0b7a050"
+  }
+}
