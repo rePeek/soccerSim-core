@@ -1,545 +1,80 @@
 # AGENT.md
 
-Guidance for AI agents working in this repository. This file is a development
-specification, not a changelog: it describes the rules that are true *now*.
-Individual migrations do not add their history here.
+Guidance for AI agents working in this repository. This file describes the
+rules that are true *now*.
 
-## Project and working rules
+## Project
 
-`soccerSim-core` is a deterministic, headless football simulation in C++23,
-originally forked from GameplayFootball / Google Research Football / blunted2.
-Remote: `git@github.com:rePeek/soccerSim-core.git`. License: Apache-2.0; the
-blunted foundation boilerplate is public domain.
+`soccerSim-core` is now a minimal deterministic C++23 ball-physics core:
 
-- `main` is the primary development branch. Treat the checked-out files and the
-  history as the source of truth.
-- Do not create `src/core/` or `src/legacy/`.
-- Structural changes must update this file's layout and target/path references.
-- Finish changes with a local git commit. Never push; the maintainer does that.
-- Do not casually edit `data/` or the canonical animation GLBs/metadata under
-  `assets/`: they are inputs to physics/animation acceptance tests. Runtime
-  `.simanim` files are generated build caches, never checked-in authorities.
-- Do not run full matches to validate a module change. Unit suites are the
-  gate; a full match is not.
+- `foundation` — math, time, geometry and generic collision primitives
+- `pitch` — pitch description and static physics scene
+- `ball` — authoritative ball model, physics and contact response
+- `env.cpp` / `include/football/env.hpp` — minimal `GameEnv` facade over one
+  Ball on one Pitch
+
+There is no match clock, team, player, referee, event, observation, AI or
+Runtime layer in this build.
 
 ## Build and test
 
-CMake >= 3.24, Ninja, C++23, Python >= 3.10; use the `flake.nix` dev shell.
+CMake >= 3.24, Ninja, C++23; use the `flake.nix` dev shell.
 
 ```sh
-# Debug build + unit/interface suites (the normal gate)
+# Debug build + pitch/ball suites
 nix develop --command bash -c 'cmake --preset debug && cmake --build --preset debug -j $(nproc) && ctest --preset debug'
-# Core-only build, no tests
-nix develop --command bash -c 'cmake -S . -B build/core -DBUILD_TESTING=OFF && cmake --build build/core -j $(nproc)'
-# Runtime-free domain gate: proves Runtime can be deleted.
-nix develop --command bash -c 'cmake -S . -B build/domain -DFOOTBALL_BUILD_RUNTIME=OFF -DBUILD_TESTING=ON && cmake --build build/domain -j $(nproc) && ctest --test-dir build/domain --output-on-failure'
+
+# Release
+nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j $(nproc) && ctest --preset release'
 ```
 
-BqLog (pinned) and nlohmann/json v3.11.3 (pinned, the animation import JSON
-boundary) are fetched in every build mode through `cmake/CPM.cmake`; Catch2
-v3.7.1 is fetched only with `BUILD_TESTING=ON`. All use `.cache/CPM`.
+The only test suites are `pitch_unit` and `ball_unit`. They link only their
+module and its declared dependencies, never `simcore`.
 
-The C++ runtime loads the canonical GLB catalog directly through `cgltf`:
-`assets/animations/{manifest.json,*.glb}`, `assets/motion_templates/` and
-`assets/skeletons/player.json` are the only animation source authority.
-`AnimationLibrary::Load` imports authored clips, derives mirrors and
-generates movement variants in memory; there is no build-time cache and no
-legacy `.anim` baker. Normal builds need neither Blender nor Python. GLBs use
-Y-up logical joint axes; physics metadata stays Z-up. Do not copy Blender
-display-bone preview exports over canonical sources. See `assets/README.md`
-for the format contract and authoring/validation commands.
+## Coordinate and physics conventions
 
-### Module testing policy
-
-Tests are scoped to the module being developed. Each layer proves a different
-thing, and its cost is paid only when relevant.
-
-- **Level 1 — module unit tests** (`unittests/<module>/`, label `unit`). A
-  module proves its own physics, geometry, rules, actions, data and ownership in
-  isolation, without a running match. This is the routine gate: a module is
-  complete when its own unit tests pass.
-- **Level 2 — interface and bounded integration** (the Player link smokes and
-  the Team domain suite; labels `interface`/`team`). Independent linking,
-  object lifetime, data passing and ownership across a real boundary. Run when
-  a public interface or cross-module boundary changes.
-
-Current test scope is `ball`, `pitch`, `player`, `team`, `animation` and the
-bounded `runtime` harness: `animation` (including `animation_link_smoke`),
-`pitch`, `ball`, `team`, `team_domain_unit`, `team_link`, `player`,
-`player_decision`, `player_link`, `player_animation`, `locomotion`,
-`loco_animation`, `referee_unit` and `sim_runtime`. The remaining foundation,
-ai, collision, contact, event and public-header suites remain out of scope.
-The runtime harness is the match-level gate: a deterministic public-API
-TickTrace replay and a full-time lifecycle. `FOOTBALL_BUILD_RUNTIME=OFF` must
-still configure, build and run every domain-only suite.
-
-Rules:
-
-- A module change must not require a full-match simulation.
-- Long-running tests must be explicitly selected and bounded by a CTest
-  timeout; they are never part of routine validation.
-- There is no golden/fingerprint tier and no per-tick numerical digest. Tests
-  assert physical correctness, state invariants and module contracts, not
-  equality with a previous build's trajectory.
-- Animation's whole-archive link smoke uses only exported include paths and no
-  actors/assets. Every exported Animation header also compiles independently.
-  CMake rejects Animation includes of Player, Runtime, Team or Ball headers.
-  See `docs/animation_boundary.md` for ownership and root sampling contracts.
-  Root-driven execution uses `SampleAnimationStep`; the single-wrap Player
-  compatibility wrapper shares `SampleRootPosition` without changing its seam
-  arithmetic. MotionClip remains a distinct tested discrete trajectory contract.
-
-## Coordinate frame policy
-
-There is exactly one physical coordinate system, the **Stadium Frame**:
-
-- x is pitch length; y is pitch width; z is up. The centre spot is the origin.
-- Axes never mirror. Home's goal is at -X and Away's at +X in the first half;
-  the half-time change of ends only flips which end each team defends.
-- `PlayerKinematicState`, `BallState`, colliders, `MentalImage`, `Snapshot`,
-  `WorldState` and `PlayerControl` all use this one frame.
-
-Consequences and rules:
-
-- A team's orientation is `TeamOrientation { defending_direction }`
-  (`team/team_state.hpp`). The attacking direction is the negation of the
-  defending direction; never store it separately.
-- `Pitch` owns geometry and the static physics scene only. It does not know
-  Home/Away, half, or any per-tick coordinate conversion.
-- Runtime is the only owner of team orientation and of the tick schedule.
-  `SwitchTeamEnds` is the only permanent change; it flips a direction, not
-  stored positions.
-- Observation, rules and AI all read and emit the Stadium Frame. Any
-  team-relative interpretation is an explicit `attack_direction`/
-  `defending_direction` value, never an implicit mirrored frame.
-
-There is no per-tick execution frame and no coordinate transform: the
-observation, controls and stored physics are all the Stadium Frame.
-
-## Authority and invariants
-
-- **Physics is deterministic and RNG-free.** There is no random number
-  generator in the simulation core. Behaviour that would otherwise be random
-  must be derived from explainable state (skill, contact geometry, body
-  orientation, ball velocity, fatigue). Do not replace RNG with a
-  `PlayerId + Tick` pseudo-random sequence; that is the same thing renamed.
-- **One authority per fact.** Ball state, player state, match state and team
-  state each have exactly one owner (Ball, Player, Simulation,
-  TeamOrientation/TeamMatchState). Derived projections (Snapshot, WorldState,
-  MentalImage, TeamView, `PlayerTeamView`) are read-only and must be
-  re-derivable from the authority, never a second source of truth.
-  Team facts reach the Player through the per-tick `PlayerTeamView` borrow
-  (direction, possession weights, designated player, goalkeeper). The Player
-  caches none of them, so a same-tick Runtime write is visible to every later
-  consumer without a publication step. `PlayerTeamView` is live Runtime fact;
-  `PlayerObservation` is lagged perception - never merge the two.
-- **Module dependency direction is one-way**: foundation/geometry/collision
-  underpin Pitch, Ball and Animation; Contact depends on Player State, Ball
-  and geometry, never Player Execution. Player Execution may use Contact;
-  Team owns Players; Runtime composes all of them. AI, Model, Referee, Event
-  and Observation consume value contracts; no lower module includes an upper one.
-- `WorldState` contains no actor pointers, animation/command queues, mutable
-  runtime or AI objects.
-- `Team` owns its `Player` objects and no live match state; Runtime owns the
-  match execution state around it.
-- `Referee` consumes value facts and emits `RefereeRuling`; it does not write
-  actors or runtime state directly. Runtime owns restart execution and event
-  publication. Its rule state is value-only: an `OffsideSnapshot` captured at
-  the last attacking touch, a `Foul` sanction, and an explicit advantage state.
-  Run-time samples the physical evidence (`BallPlayKind`, the ball radius and
-  previous centre, `denied_goal_opportunity`); the referee interprets it. The
-  ruling path is atomic: Runtime validates the whole batch before any
-  mutation, then commits each verdict exactly once.
-- Offside follows Law 11: a defender's `DeliberatePlay` resets the offside
-  position, a `Deflection` or `DeliberateSave` preserves it, and a goal kick,
-  corner or throw-in cannot create an offence. Fouls are classified
-  deterministically as careless/reckless/excessive (no probability, no RNG);
-  DOGSO and the Law 12 penalty double-jeopardy are explicit rules.
-- AI is a producer of `PlayerControl`; it owns no actor, match state or RNG.
-- There is no player heuristic and no default player policy. Without an
-  explicit intent (the Tactical Planner / Intent Runtime), AI emits no control
-  and Player executes the neutral idle state. A failure never falls back to a
-  renamed heuristic.
-- Execution never selects a target. A pass requires an explicit
-  `target_player` or `target_position` and is rejected otherwise; shot aim is
-  the explicit direction/target, never an automatic goal-centre solve. Player
-  also owns no periodic tactical-space rating: spatial queries belong to a
-  separate SpaceAnalyzer, not a Player tick.
-- `PlayerControl` is the one Command value. Continuous movement is
-  `move_direction` + `desired_speed` (no Move/Accelerate/Decelerate action
-  verb); discrete verbs are `ControlAction`. `Play()` accepts the same verbs, so
-  the controller and one-shot request paths share one action enum and one
-  command-build boundary.
-- Command and animation are not one-to-one. `ThroughPass` resolves to a
-  short/long pass from its target distance, `Beat` to the ball-control family,
-  `Tackle` to `Interfere`, `SlideTackle` to `Sliding`; `Pull` is a defined but
-  Unsupported Command. `Player::ActionFeedback()` reports the source Command,
-  installed `e_FunctionType`, completion and the build status.
-- A `Play` request is only executed when the command build returns
-  `CommandBuildStatus::Accepted`. `Rejected`, `Unsupported` and
-  `FallbackMovement` are reported in `ActionFeedback::command_status` and never
-  counted as consumed action input, even though arbitration accepted the
-  request.
-- Touch feedback distinguishes `contact_due` (animation frame reached),
-  `touch_prepared` (Player proposed a touch) and `touch_accepted` (Runtime
-  committed it). Only the last confirms a real touch.
-- PlayerExecution::RunActionTick is an orchestrator: its named phase methods
-  preserve the original order. The committed `PlayerKinematicState` and the
-  executor's `ActionState()` are the movement and action-clock authorities;
-  `legacy_anim_state_` and `legacy_spatial_state_` are compatibility
-  projections, never a second authority.
-- The tick tail order is a contract: motion commit -> action resolve ->
-  `ApplyMovementOffsets` (the last in-tick root mutations) -> `ComposePose` ->
-  `PrepareActionContacts` -> `SelectActionForFrame`. Selection is last so an
-  action accepted during this tick contributes its root and pose from the next
-  tick; the tick that just ran keeps one clip for motion, pose and contact.
-  Contacts are last of the execution half so the touch geometry, the pose and
-  the root belong to the same tick, and the pose is classified with the retainer
-  state the motion was committed with. A touch only proposes; it never moves the
-  root. A root corrected after the tick (`Player::OffsetPosition`) marks the
-  sample collision-limited and re-derives the pose from the adapted reference
-  sample through `PlayerExecution::ResettleFinalPose` - bounded, no clip time
-  consumed, `final_delta` measured from the real start/end. With no runtime
-  foot solve, an external push may slide a support foot: that is the explicit
-  passive-displacement model, not a hidden IK correction.
-- Root motion is the ordinary locomotion authority when the source clip passes
-  the strict IK-free gate. `PlayerActionAdapter::Evaluate` samples the clip's
-  root delta and its pose on the same interval (`SampleAnimationStep`), so the
-  committed displacement and the skeleton are one decision. The control target
-  and `PlayerMotionProfile` select a bounded playback rate; they accept or
-  reject a candidate, they do not integrate a second displacement. A sample
-  that cannot be performed (`feasible == false`, `Status::NeedAnotherClip` or
-  `CapabilityLimited`) is never stretched or silently re-rooted. The
-  `playable_speed` instead of chasing an unreachable control speed. The root
-  and fallback paths share one unwrapped cursor
-  (`AdvanceContinuousLocomotionTime`); a fallback tick advances it even though
-  it owns the displacement, so a later root tick cannot resume a stale phase.
-  A root sample also checks the heading change against
-  `PlayerMotionProfile::turn_rate`; an illegal turn returns `NeedAnotherClip`
-  with `turn_limited`. A rejected root sample asks the selector for one
-  replacement (`RequestLocomotionRequeue`, 10-tick cooldown); the fallback
-  still supplies this tick's legal displacement and the replacement installs
-  on the next tick.
-  `CommitActionMotionState` still installs the whole state the solver
-  produced, so fields the compatibility projection does not carry cannot be
-  dropped by a round trip. A position correction is an instantaneous passive
-  displacement, not new velocity; `AdaptedMotionSample` diagnostics decompose
-  `final_delta` into active root plus `passive_correction`.
-- `PlayerActionAdapter` is the one pure adaptation entry between a reference
-  clip and one Player. For ordinary locomotion it derives root and pose from
-  the clip's own track at a profile-bounded playback rate; for one-shot
-  actions it validates the plan's trajectory. One-shot actions pass their
-  plan's trajectory as `PlayerActionControl::reference_delta` with
-  `has_reference_delta = true`; a supplied zero is a real zero (a planted
-  touch or a stop) and is never replaced by the clip's first-frame root. The
-  adapter validates the value but never advances the action clock, so a touch
-  frame cannot move. The sample is a value: it never writes kinematics, reads
-  no world state and publishes no event. `Predict` is the same loop for a
-  constant control horizon, so short-horizon forecasts reuse execution's own
-  phase evolution.
-  `AnimationClip::motion_quality` is derived once at load from the clip's own
-  root and support tracks (mean/worst stance slip, stance/root direction
-  alignment, loop seam root/pose step). `stance_calibrated` means the support
-  track is readable, loops, has a usable stance speed and that foot travels
-  opposite the clip's root direction. `ik_free_usable` is the strict source
-  gate (the root track agrees with the foot). Runtime root-driven execution
-  is gated on `ik_free_usable` plus `looping`. A straight half-cycle and its
-  catalog mirror are repaired at import time (concatenated into a full cycle,
-  root derived from the stance foot, retimed to constant stance travel); the
-  repaired cycle itself passes the strict gate. A repaired cycle also revalidates
-  selection metadata: declared in/out velocities and movement vectors are
-  clamped to the repaired root's reachable range and `metadata.translation` is
-  rewritten from the repaired track. Never widen the gate to make a test pass
-  - a rejected repair leaves the authored root track and the compatibility
-  fallback.
-- Module boundary: Animation owns the shared clip resource and the pure algorithms
-  that turn a clip into data (`SamplePose`, `BlendPose`, `SelectEntryFrame`,
-  `PoseDistance`, segment projection). Foot-support analysis belongs to Import only.
-  Touch reach/scoring (`player_touch_geometry`), sprint capability mapping and
-  fast-cornering preference (`player_movement_math`) belong to Player Execution;
-  their value-only public headers live under `football/player/execution/`.
-  Decisions about which clip to perform belong to the Player: the crude filter,
-  refinement, the movement pick, `Match`, `MatchTouch` and the trip/reaction match
-  live under `src/player/execution/player_*_filter|_candidates|_resolver`.
-  Animation must never regain a decision path, and the Player must not
-  re-implement pose sampling. `Quadrant` remains an Animation value type because
-  the offline baker's legacy import assigns it.
-- Animation is a shared immutable resource: one `AnimationLibrary` per process,
-  its clips read-only (root/pose, contacts and scalar motion facts). Per-player
-  animation behaviour lives in `PlayerAnimationConfig`, built once in the Player
-  constructor from `PlayerDefinition::animation_style` and held `const` by the
-  execution, so no tick, reset, action switch or fall can change or lose it.
-  A style is a style, not an ability: cadence preference can never change the
-  world displacement, a bone length, a touch frame or a contact impulse, and a
-  neutral style must reproduce the shipped gait exactly. Stride preference is a
-  pre-baked variant/asset concern; the IK-free runtime path does not shorten a
-  stride by solving the leg.
-- The gait speed a player sees is `LocomotionEffectiveGaitSpeed(clip, height_scale)`
-  and it is computed once and passed to both the adapter and the playback rate.
-  Never derive it twice; a scale mismatch biases the cadence for every player
-  who is not the reference build. `ClipTuning::max_stride_scale` bounds any
-  pre-baked stride variant, not a runtime IK correction.
-- Ordinary locomotion is IK-free. On a clip that passes `ik_free_usable` the
-  root track supplies the world displacement and its pose is sampled at the
-  same interval; the only runtime scaling is a bounded playback rate derived
-  from the profile's next speed. The gait's playable speed
-  (`root_speed * kLocomotionMaxPlaybackRate`) bounds that rate: a body already
-  faster brakes in the compatibility path at the profile's rate instead of
-  snapping to the cap in one tick. A movement clip that fails
-  `ik_free_usable` is rejected (`feasible == false`) so the caller falls back
-  explicitly. There is no runtime `SettleMovementPose`, plant anchor,
-  `PlayerFootIk`, two-bone leg solve or foot-target write-back in the Player
-  execution path; those headers and their tests were removed. `ik_free_pose` is
-  the strict source gate; `calibrated_ik_free` states that the stance-speed
-  calibration is what makes the IK-free root possible.
-- A clip's native speed is measured over the intervals its samples actually
-  span (`N` root samples = `N-1` ticks). `frame_count` is not that span, and
-  using it biases every playback rate by `N/(N-1)`.
-- A Final Pose is the skeleton the colliders read. `ComposeFinalPose` produces
-  it as Warp -> bounded Realize. The IK-free acceptance drives that same
-  `SampleAnimationStep -> Warp -> Realize` chain and measures the final world
-  ankle, not only the adapter sample. Steady stance uses the tight budget; a
-  support handover has an explicit transient budget because the knee/ankle may
-  legitimately turn fast while the other foot takes over. In steady locomotion
-  the adapted sample's pose
-  is the source pose (it is the pose the sample's clip time selected); playback
-  still owns the cross-clip blend, so only an active transition re-samples. In
-  both cases `Pose()`, `BakedPoseSample()`, `Geometry()`, `ContactRegions()` and
-  the runtime body tape read the one value without re-solving. Never re-solve a
-  second pose for geometry: `Geometry()` / `ContactRegions()` are a pure
-  forward-kinematics pass over the Final Pose. The bounded rotation-rate
-  realization belongs to the Player; Runtime may only fold the base yaw for its
-  physics tape, never rate-limit a committed pose. A clip switch blends from
-  the published Final Pose (`PlaybackState::SetBlendSource`), not from the raw
-  animation sample.
-- Support analysis is private to `src/animation/import/foot_support.hpp`.
-  `ImportedAnimationClip` holds phases, per-phase speeds and duty/run diagnostics
-  during loading and gait repair; the library publishes only `AnimationClip`.
-  `motion_quality.support_trusted` preserves the import verdict, and
-  `motion_quality.stance_speed` is the compatibility cadence reference.
-  Unreadable support must not drive cadence; the Player uses the root-track
-  speed instead. Never widen the quality gate to make a test pass.
-  Player samples contain no support frame. Acceptance tests derive a private
-  verification track from the published poses, without feeding it to execution.
-- The 14-bone declaration (`kPlayerBindJoints`) lives in
-  `football/animation/skeleton.hpp` and is shared by import support analysis
-  and the Player's forward kinematics and colliders.
-- `PlayerExecutionState::final_pose_` is the one Final Pose channel:
-  `ComposeFinalPose` produces it once per tick as blend -> Warp -> Realize, and
-  `Pose()`, `BakedPoseSample()`, `Geometry()`, `ContactRegions()` and the runtime
-  body tape read it without re-solving.
-
-## Player and Contact libraries
-
-`src/player/` owns two STATIC libraries (State and Execution), the header-only
-Command INTERFACE target and the `football::player` INTERFACE aggregate.
-`src/contact/` owns the independent `football_contact` STATIC library
-(`football::contact`), its sources and public FILE_SET. Execution's declared
-Contact dependency supplies the aggregate's link closure.
-Player's model and Command targets are declared in `src/player/CMakeLists.txt`;
-there are no state/command CMake subdirectories. Model/parser/private spatial
-and observation files live beside player.hpp. Only execution has a subdirectory.
-
-Player is the entity: identity, definition/body profile, capability, personal
-match state (`PlayerMatchState`: touch record, fatigue, cards, desired
-interception time), the authoritative `PlayerKinematicState`/
-`PlayerGroundCollider` and the lifecycle. Everything
-between an accepted Control/Play/React input and the drawn pose is the
-execution process, owned by the internal `PlayerExecution` component
-(`execution/player_execution.*`) that `Player` composes privately:
-
-```text
-Player
-  ├── identity, definition, capability
-  ├── PlayerMatchState        touch record, fatigue, cards, desired ETA
-  ├── authoritative kinematics + ground collider
-  ├── PlayerExecutionDiagnostics()   one snapshot, not per-counter API
-  └── PlayerExecution
-        ├── PlayerExecutionState  pending inputs, action timeline, playback,
-        │                         scheduling/epochs, compat projection, audit
-        ├── action tick phases    (PlayerExecution::RunActionTick)
-        └── PlayerExecutionPort   the narrow per-call view of the Player
-
-Runtime, beside the players (not inside them)
-  ├── TeamOrientation       the only direction authority
-  ├── TeamMatchState        the only team-state authority
-  ├── PlayerBallTable       per-actor ETA / possession relation + staggering
-  └── formations_           role / placement / lazy / controllable
-```
-
-Rules for that composition:
-
-- `PlayerExecutionState` is the single copy of every execution field. There is
-  never a second action timeline or motion state; `legacy_anim_state_` and
-  `legacy_spatial_state_` are projections of the committed kinematics.
-- Execution reads capability/match facts and submits authoritative changes
-  through `PlayerExecutionPort`, bound for one call
-  (`PlayerExecution::PortScope`) and released before returning. Execution
-  never stores the port or a `Player*`, so it cannot reach back into the entity
-  outside a call it was given. `PlayerExecutionPort::Actor()` exists only for
-  the pointer-keyed pass solver and the Runtime rule port.
-- `Player` remains the only writer of the kinematic state: execution computes
-  the locomotion proposal and calls `CommitKinematics`, `CommitLocomotion`,
-  `CommitActionMotionState`, `CommitLegacyActionMotion` or
-  `ApplyPositionCorrection`. `CommitActionMotionState` is the one entry for a
-  state an action-motion solver computed and constrained;
-  `CommitLegacyActionMotion` is the reset/factual-state adoption path and is
-  never a second motion authority for a locomotion tick.
-- Team formation and team match facts are not Player state either: Runtime owns
-  the formation table and `TeamMatchState`, and hands only the per-tick
-  `PlayerTeamView` to execution and the `TeamView` to rules/observation.
-- Runtime, Contact and Observation never see `PlayerExecution`: they drive
-  `Player` (SetControl/Play/React/PrepareTick/CommitTick and the read-only
-  observation accessors), which forwards. `PlayerExecution` stays inside the
-  execution library.
-- Execution diagnostics (locomotion re-entry/publication audits, query
-  opportunity census) live in `execution/player_execution_diagnostics.*`, not
-  in the Player header. Migration counters reach tests as one value,
-  `Player::Diagnostics()`, never one accessor per counter.
-- Reachability/possession is a relation, not Player state: Runtime owns the
-  per-actor ETA and possession facts plus their 100 ms staggering phases in
-  `PlayerBallTable`, and hands the actor its own `PlayerBallRelation` through
-  the tick context. The Player stores no ETA, no possession flags and no
-  schedule phase.
-- `football::player_state`: definitions, kinematics, action state, body profile,
-  command status. Header-only value contracts; no Command, Contact or
-  Execution dependency.
-- `football::player_command`: Control/ControlSet, active requests, passive
-  reaction inputs and input-parameter validation. Header-only protocol over
-  State, never Ball, Contact, Animation runtime or Execution. It does not
-  dispatch actions; Execution consumes these values.
-- `football::player_execution`: the concrete Player entity, its internal
-  `PlayerExecution` component (control/request consumption, action tick phases,
-  action timeline and playback, scheduling/epochs, compatibility projection) and
-  command realization: action arbitration/mapping, cadence schedulers,
-  continuous locomotion/body facing, reachability and pass solving, animation
-  matching and touch preparation.
-  May depend on Command, State, Contact, Ball and Animation. Pure motion and
-  prediction APIs remain value-only and usable without a concrete Player.
-- `football::contact`: value-only pair-contact and active/passive touch models,
-  impulse arbitration, contact evidence and body/action geometry. May depend
-  on Player State, Ball and foundation geometry/collision. Never depends on
-  concrete Player, Player Command/Execution, Runtime or rule implementations.
-
-Rules:
-
-1. No circular static-library linking or linker-group workaround.
-2. Cross-actor adapters live in `src/contact/actor/` (player-aware execution of
-   the pure Contact kernel) and `src/runtime/simulation_prepared_tick.cpp`
-   (the prepared player/ball interaction transaction): read live Player inputs,
-   call Contact, apply corrections/reactions and publish facts. Contact never
-   writes actors.
-3. No Player library may depend on Runtime, Referee, AI, Event, Observation or
-   Team implementation headers.
-4. Preserve the two contact chains: prepared action proposals are arbitrated
-   before the sole Ball::Step and Player::CommitTick; player-pair contacts run
-   afterwards, following possession refresh. Pairs read post-correction live
-   states and submit reactions immediately; movement sharing follows the loop.
-5. Contact evidence is not a foul verdict. Runtime freezes actor evidence and
-   adds match context (including DOGSO); Referee adjudicates. A touch proposal
-   is not acceptance: Player feedback confirms the committed fact later.
-6. `unittests/player_link` whole-archives State/Execution and Contact, links the
-   Command protocol alone, and tests Execution's public prediction API without
-   actors, assets or Runtime. Protocol headers compile separately using only
-   exported includes. Contact's independent link proof is not part of the
-   current test scope (see the testing policy above).
-7. Player model and input headers are flat in `include/football/player/`;
-   execution contracts live in its execution/ subdirectory. Contact contracts
-   live in `include/football/contact/`. Nested state/command/contact Player
-   include paths are not supported. Flat motion/body/pass forwarding headers
-   remain owned by Execution; their consumers link Execution, not Command.
-   Model/Command/Contact boundary guards check exact FILE_SET ownership rather
-   than inferring dependencies from directory names.
-8. `src/` is never a PUBLIC include directory. Lower-library consumers compile
-   from `include/` alone.
-9. PlayerActionState is State. Input request/reaction values are Command; their
-   arbitration is Execution. Continuous motion, capability profiles, prediction,
-   pass solving, action scheduling, feedback, baked action motion, pose-to-body
-   conversion and diagnostic shadows are Execution. Contact owns contact
-   geometry and impulse models. Preserve algorithms and tick/publication timing.
-
-## Physics and numerical conventions
-
+- One physical coordinate system: x is pitch length, y is pitch width, z is up;
+  the centre spot is the origin.
 - SI units: metres, seconds, kilograms, radians. The native tick is 100 Hz
-  (10 ms); simulation never scales time.
-- Ground physics keeps the empirical friction/deceleration values in `Pitch`,
-  not standard Coulomb coefficients.
-- Deterministic systems have no hidden mutable state, read no global/singleton
-  and mutate only the state they are handed.
+  (10 ms).
+- Physics is deterministic and RNG-free. Behaviour must be derived from
+  explainable state (skill, contact geometry, body orientation, ball velocity).
 - Keep floating-point expressions explicit and ordered; do not reorder
   arithmetic in a way that changes results without an intentional, tested
   semantic change.
-- Invalid inputs (non-finite geometry, non-positive dimensions/radii, bad
-  intervals) are rejected at the owning module boundary (constructor or
-  validator), not silently clamped downstream.
-- Cross-module value contracts are plain values; no `Player*`, `Team*` or
-  animation objects cross a public value boundary.
+- Invalid inputs are rejected at the owning module boundary, not silently
+  clamped downstream.
+- Ground physics keeps the empirical friction values in `Pitch`.
 
 ## Source layout
 
 ```text
-include/football/    public headers, one directory per module
-├── foundation/      math/ (Vector3, quaternion, scalar), time/ (Tick),
-│                    geometry/ (shapes, collider), collision/ (sweep, hits)
-├── animation/       clip schema/library, motion facts, playback, pose, touch geometry
-├── ball/            Ball, BallModel, BallState, contact/impulse integration
-├── pitch/           Pitch description and the static ground/post/crossbar scene
-├── contact/         value-only contact models, colliders, impulses and evidence
-├── player/          flat model/input contracts + execution/ capability APIs
-├── team/            TeamDefinition, formation templates, Player-owning Team
-├── match/           neutral shared values (TeamSide, GameMode)
-├── observation/     WorldState, Snapshot, MentalImage and their builders
-├── event/           MatchEvent, EventLog, touch/rule-touch values
-├── referee/         rule values, rulings and the referee
-├── ai/              tactical board/plan/interpreter, coach commands and loop
-└── env.hpp          public autonomous-match facade
+include/football/
+├── foundation/   math/, time/, geometry/, collision/
+├── pitch/        Pitch description and static scene
+├── ball/         Ball, BallModel, BallState, impulse/contact/response
+└── env.hpp       minimal GameEnv facade
 
-src/                 implementations; public headers live in include/football/
-├── foundation/      football::foundation, football::geometry, football::collision
-├── animation/       football::animation_base (resource/import) + football::animation
-│                      import/: catalog, GLB, metadata, mirror, procedural generation,
-│                      gait repair and motion quality; root/pose runtime files stay flat
-├── pitch/           football::pitch (pitch.cpp)
-├── ball/            football::ball
-├── contact/         football::contact (pure kernel) + football::contact_actor
-│                      (Player-aware execution adapter)
-├── player/          State/Execution static libs + Command protocol + aggregate
-│                      flat model/parser + actor files; execution/ implementation
-├── team/            football::team (validation, presets, team_players.cpp),
-│                      formation/setup adapters, ActiveLineup slots and
-│                      TeamOrientation/TeamView/team match facts
-├── possession/      per-actor ball relations, staggered refresh and cross-team
-│                      arbitration (Runtime owns the instances)
-├── restart/         restart context/controller/planner/placement and the
-│                      rule command port (Referee awards, Restart executes)
-├── contracts/       football::sim_contracts: public match, observation and
-│                      event value headers, declared before every consumer
-├── runtime/         football_sim_domain: Simulation/clock/phase/score,
-│                      prepared-tick interaction and diagnostic adapters,
-│                      WorldState builder
-├── observation/     mental image, snapshot history, temporal graph, slots
-├── event/           event recognizer/log, touch state
-├── referee/         football::referee (rules over value facts)
-├── ai/              tactical_*, coach/
-└── env.cpp          public facade implementation
+src/
+├── foundation/   football::foundation, football::geometry, football::collision
+├── pitch/        football::pitch
+├── ball/         football::ball
+└── env.cpp       minimal GameEnv implementation
 
-assets/              canonical distributable assets (see assets/README.md)
-├── animations/            100 Hz GLBs + football metadata manifest
-├── characters/            default body, plus base/kit/shoes/hair slots + manifest
-└── skeletons/player.json  shared logical bone contract
-tools/               playerAssets (legacy recovery and Blender preview tools);
-                     no standalone match executable or CLI fixtures
-unittests/           one directory per active module (ball/pitch/player/team/
-                     animation), plus the bounded runtime harness; including
-                     player_link and loco_animation
+unittests/
+├── pitch/        pitch_unit
+└── ball/         ball_unit
 ```
 
 ## Coding conventions
 
 - Prefer explicit values and narrow interfaces over comments that restate code.
-- A public header includes only what it uses; keep the module boundary clean.
-- New cross-module data belongs in a value header under `include/football/`.
-- Do not add `src/` expectations to a public header; `include/football/env.hpp`
-  must compile with `-Iinclude` alone.
-- Keep transitional adapters clearly named and remove them when the last caller
-  is ported; do not leave dead compatibility state or write-only fields.
+- A public header includes only what it uses.
+- `src/` is never a PUBLIC include directory.
+- Do not add a dependency from a leaf module back to `env`/`simcore`.
+- Keep `Pitch` free of match/rules/actor concepts; it owns geometry and the
+  static physics scene only.
+- `Ball` is the only authority for ball state; `GameEnv` only owns the
+  composition and lifecycle.
+- Do not reintroduce animation, player, team, referee, event, observation or AI
+  code without a deliberate architecture decision.

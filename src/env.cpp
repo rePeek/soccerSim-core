@@ -1,129 +1,18 @@
 #include "football/env.hpp"
-#include "football/pitch/pitch.hpp"
 
-#include <stdexcept>
 #include <utility>
-#include <bq_log/bq_log.h>
 
-#include "ai/ai_engine.hpp"
-#include "runtime/simulation.hpp"
+GameEnv::GameEnv(football::pitch::Pitch pitch,
+                 football::ball::BallModel ball_model)
+    : pitch_(std::move(pitch)), ball_(ball_model, pitch_) {}
 
-namespace {
+GameEnv::~GameEnv() = default;
 
-void InitLogging() {
-  const auto logger = bq::log::create_log("football", R"(
-    appenders_config.console.type=console
-    appenders_config.console.levels=[warning,error,fatal]
-    log.thread_mode=async
-    log.buffer_size=65536
-    log.reliable_level=normal
-  )");
-  if (!logger.is_valid()) {
-    throw std::runtime_error("Unable to initialize football logger");
-  }
-}
+void GameEnv::Reset(const football::ball::BallState& state) { ball_.Reset(state); }
 
-void FlushLogging() {
-  auto logger = bq::log::get_log_by_name("football");
-  if (logger.is_valid()) logger.force_flush();
-}
+football::ball::BallStepResult GameEnv::Step() { return ball_.Step({}); }
 
-}  // namespace
-
-GameEnv::GameEnv(football::sim::TeamSetup home, football::sim::TeamSetup away,
-                 football::pitch::Pitch pitch, football::ball::BallModel ball_config,
-                 MatchOptions match_options,
-                 football::ai::AIConfig ai_config)
-    : home_team_(std::move(home)), away_team_(std::move(away)),
-      pitch_(std::move(pitch)), ball_config_(std::move(ball_config)),
-      match_options_(match_options),
-      ai_config_(std::move(ai_config)) {}
-
-GameEnv::~GameEnv() { Stop(); }
-
-void GameEnv::Start() {
-  if (simulation_) throw std::logic_error("match runner already started");
-  InitLogging();
-  try {
-    auto simulation = std::make_unique<Simulation>();
-    simulation->Init(home_team_, away_team_, pitch_, match_options_, ball_config_);
-    auto ai = std::make_unique<football::ai::AIEngine>(
-        home_team_, away_team_, pitch_, ai_config_);
-    simulation_ = std::move(simulation);
-    ai_ = std::move(ai);
-  } catch (...) {
-    FlushLogging();
-    throw;
-  }
-}
-
-void GameEnv::Step() {
-  if (!simulation_) throw std::logic_error("match runner is stopped");
-  if (simulation_->Finished()) return;
-  const WorldState world = simulation_->Observe();
-  // Consume the events Runtime confirmed during the previous Step; the coach
-  // loop reads them at the next Update. The order never re-enters the referee.
-  const std::vector<football::sim::event::MatchEventRecord> events =
-      simulation_->ReadEvents(event_cursor_);
-  ai_->ConsumeMatchEvents(events);
-  PlayerControlSet controls;
-  ai_->Update(world, controls);
-  simulation_->Step(controls);
-}
-
-bool GameEnv::Finished() const {
-  return simulation_ && simulation_->Finished();
-}
-
-MatchResult GameEnv::Result() const {
-  if (!simulation_) throw std::logic_error("match runner has no final result");
-  return simulation_->Result();
-}
-
-WorldState GameEnv::Observe() const {
-  if (!simulation_) throw std::logic_error("match runner is stopped");
-  return simulation_->Observe();
-}
-
-void GameEnv::CopyLatestSnapshot(football::sim::observation::SnapshotRecord& output) const {
-  if (!simulation_) throw std::logic_error("match runner is stopped");
-  output = *simulation_->Snapshots().Latest();
-}
-
-football::sim::observation::SnapshotMetadata GameEnv::SnapshotMetadata() const {
-  if (!simulation_) throw std::logic_error("match runner is stopped");
-  return simulation_->SnapshotMetadata();
-}
-
-bool GameEnv::CopySnapshotWindow(std::size_t count,
-    std::vector<football::sim::observation::SnapshotRecord>& output) const {
-  if (!simulation_) throw std::logic_error("match runner is stopped");
-  return simulation_->Snapshots().CopyLatest(count, output);
-}
-
-std::vector<football::sim::event::EventTrajectory> GameEnv::EventTrajectories() const {
-  if (!simulation_) throw std::logic_error("match runner is stopped");
-  return simulation_->EventTrajectories();
-}
-
-std::vector<football::sim::event::MatchEventRecord> GameEnv::ReadEvents(
-    football::sim::event::MatchEventCursor& cursor) const {
-  if (!simulation_) throw std::logic_error("match runner is stopped");
-  return simulation_->ReadEvents(cursor);
-}
-
-const std::vector<football::ai::CoachCommandRecord>& GameEnv::CoachLog() const {
-  if (!ai_) throw std::logic_error("match runner is stopped");
-  return ai_->CoachLog();
-}
-
-int GameEnv::CoachCalls(football::sim::TeamSide side) const {
-  if (!ai_) throw std::logic_error("match runner is stopped");
-  return ai_->CoachCalls(side);
-}
-
-void GameEnv::Stop() {
-  ai_.reset();
-  simulation_.reset();
-  FlushLogging();
+football::ball::BallStepResult GameEnv::Step(
+    const football::ball::BallTickInput& input) {
+  return ball_.Step(input);
 }

@@ -1,80 +1,40 @@
 #ifndef FOOTBALL_ENV_HPP
 #define FOOTBALL_ENV_HPP
 
-#include <cstddef>
-#include <memory>
-#include <vector>
-
-#include "football/ai/ai_config.hpp"
-#include "football/ai/coach_command.hpp"
-#include "football/pitch/pitch.hpp"
+#include "football/ball/ball.hpp"
 #include "football/ball/ball_model.hpp"
-#include "football/match/match_config.hpp"
-#include "football/match/simulation_config.hpp"
-#include "football/match/result.hpp"
-#include "football/observation/world_state.hpp"
-#include "football/observation/snapshot.hpp"
-#include "football/event/event_trajectory.hpp"
-#include "football/event/match_event.hpp"
+#include "football/ball/ball_state.hpp"
+#include "football/pitch/pitch.hpp"
 
-class Simulation;
-namespace football::ai { class AIEngine; }
-
-// Runs one autonomous match. Rules/results belong to sim; decisions belong to AI.
-// No live control/tactics/request channel on the headless orchestration boundary.
+// Minimal environment facade: one authoritative Ball on one Pitch. There is no
+// match clock, team, player, referee or AI layer in this build.
 class GameEnv {
  public:
-  GameEnv(football::sim::TeamSetup home, football::sim::TeamSetup away,
-          football::pitch::Pitch pitch, football::ball::BallModel ball_config,
-          MatchOptions match_options,
-          football::ai::AIConfig ai_config);
+  GameEnv(football::pitch::Pitch pitch, football::ball::BallModel ball_model);
   ~GameEnv();
+
   GameEnv(const GameEnv&) = delete;
   GameEnv& operator=(const GameEnv&) = delete;
   GameEnv(GameEnv&&) = delete;
   GameEnv& operator=(GameEnv&&) = delete;
 
-  // Start requires a stopped runner. Failed startup publishes no partial owners.
-  void Start();
-  // Exactly one simulation step; no-op after full time. Throws while stopped.
-  void Step();
-  // False while stopped; stopping is not a completed football match.
-  bool Finished() const;
-  // Final result only. Throws before full time or after Stop(). Copy before stopping.
-  MatchResult Result() const;
-  // Secondary, owning telemetry/replay/debug value; throws while stopped.
-  WorldState Observe() const;
-  // Owning copies of the already committed sample; no resampling or disk I/O.
-  // Reuses output's player allocation across calls, suitable for app recording.
-  void CopyLatestSnapshot(football::sim::observation::SnapshotRecord& output) const;
-  football::sim::observation::SnapshotMetadata SnapshotMetadata() const;
-  // Retained oldest-to-newest window for graph consumers. False means missing
-  // RAM history; never falls back to disk. Output is unchanged on false.
-  bool CopySnapshotWindow(std::size_t count,
-      std::vector<football::sim::observation::SnapshotRecord>& output) const;
-  std::vector<football::sim::event::EventTrajectory> EventTrajectories() const;
-  // Incremental, owning read of confirmed MatchEvents after `cursor`. The
-  // cursor is advanced in place; a cursor from an earlier match is rebased to
-  // the first event of this one. Never mutates the match.
-  std::vector<football::sim::event::MatchEventRecord> ReadEvents(
-      football::sim::event::MatchEventCursor& cursor) const;
-  // Coach diagnostics: the applied command log and the bounded turn count.
-  const std::vector<football::ai::CoachCommandRecord>& CoachLog() const;
-  int CoachCalls(football::sim::TeamSide side) const;
-  // Idempotent; releases AI and simulation. Start again uses initial declarations.
-  void Stop();
+  // Reset the authoritative ball state without changing the pitch or model.
+  void Reset(const football::ball::BallState& state);
+
+  // One native 10 ms physics tick with no dynamic colliders or impulse.
+  football::ball::BallStepResult Step();
+  // Same tick with explicit dynamic colliders / active impulse inputs.
+  football::ball::BallStepResult Step(const football::ball::BallTickInput& input);
+
+  const football::ball::BallState& Observe() const { return ball_.state(); }
+  football::ball::Ball& ball() { return ball_; }
+  const football::ball::Ball& ball() const { return ball_; }
+  const football::pitch::Pitch& pitch() const { return pitch_; }
+  const football::ball::BallModel& ball_model() const { return ball_.config(); }
 
  private:
-  const football::sim::TeamSetup home_team_;
-  const football::sim::TeamSetup away_team_;
-  const football::pitch::Pitch pitch_;
-  const football::ball::BallModel ball_config_;
-  const MatchOptions match_options_;
-  const football::ai::AIConfig ai_config_;
-  std::unique_ptr<Simulation> simulation_;
-  std::unique_ptr<football::ai::AIEngine> ai_;
-  // Owns the incremental confirmed-event read across the whole match.
-  football::sim::event::MatchEventCursor event_cursor_;
+  football::pitch::Pitch pitch_;
+  football::ball::Ball ball_;
 };
 
 #endif  // FOOTBALL_ENV_HPP
