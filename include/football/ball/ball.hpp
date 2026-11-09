@@ -18,7 +18,6 @@ namespace football::ball {
 struct BallTickInput {
   std::span<const football::geometry::ColliderMotion> dynamic_colliders;
   std::optional<BallImpulse> active_impulse;
-  std::optional<BallEndpointConstraint> endpoint_constraint;
 };
 
 class Ball {
@@ -35,6 +34,10 @@ class Ball {
   BallStepResult Predict(const BallTickInput& input) const;
 
   void Reset(const BallState& state);
+
+  // Authoritative ground placement: z is forced to the ball radius and
+  // velocity/spin are cleared. Airborne states still use Reset(BallState).
+  void PlaceOnGround(float x, float y);
 
  private:
   BallStepResult AdvanceState(

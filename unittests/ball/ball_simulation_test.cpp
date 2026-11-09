@@ -26,7 +26,6 @@
 using football::math::Vector3;
 using football::ball::AdvanceBallTick;
 using football::ball::Ball;
-using football::ball::BallEndpointConstraint;
 using football::ball::BallImpulse;
 using football::ball::BallModel;
 using football::ball::BallState;
@@ -244,23 +243,20 @@ TEST_CASE("Active impulse changes velocity and spin only at the tick endpoint",
         Approx(passive_preview.state.velocity.coords[0] + 1.0f / config.mass()).margin(1e-4f));
 }
 
-TEST_CASE("Endpoint constraint sets position/velocity and clears spin",
+TEST_CASE("PlaceOnGround sets ground position and clears motion",
           "[unit][ball][simulation]") {
   const BallModel config;
   const Pitch pitch;
   Ball ball(config, pitch);
-  ball.Reset(BallAt({0.0f, 0.0f, 10.0f}, {1.0f, 0.0f, 0.0f}));
+  ball.Reset(BallAt({1.0f, 2.0f, 10.0f}, {3.0f, 4.0f, 5.0f}));
 
-  BallTickInput input;
-  input.endpoint_constraint =
-      BallEndpointConstraint{Vector3(1.0f, 2.0f, 3.0f), Vector3(4.0f, 5.0f, 6.0f)};
-  const auto result = ball.Step(input);
-
-  CHECK(result.endpoint_constraint.has_value());
-  CHECK(result.state.position.coords[0] == Approx(1.0f));
-  CHECK(result.state.position.coords[2] == Approx(3.0f));
-  CHECK(result.state.velocity.coords[2] == Approx(6.0f));
-  CHECK(result.state.angular_velocity.GetLength() == Approx(0.0f));
+  ball.PlaceOnGround(7.0f, 8.0f);
+  BallState state = ball.state();
+  CHECK(state.position.coords[0] == Approx(7.0f));
+  CHECK(state.position.coords[1] == Approx(8.0f));
+  CHECK(state.position.coords[2] == Approx(config.radius()));
+  CHECK(state.velocity.GetLength() == Approx(0.0f));
+  CHECK(state.angular_velocity.GetLength() == Approx(0.0f));
 }
 
 TEST_CASE("Ball rejects illegal dynamic collider ids", "[unit][ball][simulation]") {
@@ -295,18 +291,6 @@ TEST_CASE("Ball rejects illegal dynamic collider ids", "[unit][ball][simulation]
     input.dynamic_colliders = colliders;
     REQUIRE_THROWS_AS(ball.Predict(input), std::invalid_argument);
   }
-}
-
-TEST_CASE("Ball rejects simultaneous impulse and endpoint constraint",
-          "[unit][ball][simulation]") {
-  const BallModel config;
-  const Pitch pitch;
-  Ball ball(config, pitch);
-  BallTickInput input;
-  input.active_impulse = BallImpulse{Vector3(1.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f)};
-  input.endpoint_constraint =
-      BallEndpointConstraint{Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 0.0f)};
-  REQUIRE_THROWS_AS(ball.Predict(input), std::invalid_argument);
 }
 
 TEST_CASE("Ball flies freely through former goal net regions",

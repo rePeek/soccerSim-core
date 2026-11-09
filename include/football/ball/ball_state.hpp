@@ -12,9 +12,4 @@ struct BallState {
   football::math::Quaternion orientation;
 };
 
-struct BallEndpointConstraint {
-  football::math::Vector3 position;
-  football::math::Vector3 velocity;
-};
-
 }

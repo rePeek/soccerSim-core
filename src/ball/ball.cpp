@@ -40,8 +40,6 @@ BallStepResult Ball::AdvanceState(const BallState& current,
 
 BallStepResult Ball::EvaluateTick(const BallTickInput& input,
                                   std::vector<ColliderMotion>& scratch) const {
-  if (input.active_impulse && input.endpoint_constraint)
-    throw std::invalid_argument("active impulse and endpoint constraint conflict");
   for (std::size_t i = 0; i < input.dynamic_colliders.size(); ++i) {
     const auto id = input.dynamic_colliders[i].id;
     if (id == 0 || std::any_of(pitch_.colliders().begin(), pitch_.colliders().end(),
@@ -66,12 +64,6 @@ BallStepResult Ball::EvaluateTick(const BallTickInput& input,
         result.state, input.active_impulse->impulse,
         input.active_impulse->contact_point, config_);
     result.active_impulse = input.active_impulse;
-  }
-  if (input.endpoint_constraint) {
-    result.state.position = input.endpoint_constraint->position;
-    result.state.velocity = input.endpoint_constraint->velocity;
-    result.state.angular_velocity = Vector3(0);
-    result.endpoint_constraint = input.endpoint_constraint;
   }
   return result;
 }
@@ -98,5 +90,12 @@ BallState Ball::Predict(football::sim::TickSpan ahead) const {
 
 void Ball::Reset(const BallState& state) {
   state_ = state;
+}
+
+
+void Ball::PlaceOnGround(float x, float y) {
+  BallState state;
+  state.position = football::math::Vector3(x, y, config_.radius());
+  Reset(state);
 }
 }

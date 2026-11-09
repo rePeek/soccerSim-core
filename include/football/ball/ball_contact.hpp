@@ -29,7 +29,6 @@ struct BallStepResult {
   BallState state;
   std::vector<BallContact> contacts;
   std::optional<BallImpulse> active_impulse;
-  std::optional<BallEndpointConstraint> endpoint_constraint;
 };
 
 BallStepResult AdvanceBallTick(const BallState& initial,
