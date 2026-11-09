@@ -10,7 +10,6 @@
 #include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/math/vector3.hpp"
 #include "football/foundation/time/tick.hpp"
-#include "football/foundation/time/tick_boundary.hpp"
 
 namespace football::pitch { class Pitch; }
 
@@ -96,8 +95,3 @@ class Ball {
 };
 
 }  // namespace football::ball
-
-namespace football::sim::ball_timing {
-inline constexpr auto kPredictionHorizon = Seconds(3);
-inline constexpr TickSpan kPredictionCache{100};
-}  // namespace football::sim::ball_timing

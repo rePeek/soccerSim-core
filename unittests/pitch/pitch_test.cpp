@@ -102,10 +102,9 @@ TEST_CASE("Pitch rejects invalid configuration", "[unit][pitch]") {
   CHECK_THROWS_AS(Pitch(nan), std::invalid_argument);
   CHECK_THROWS_AS(Pitch(105.0f, 68.0f, -0.1f), std::invalid_argument);
   CHECK_THROWS_AS(Pitch(105.0f, 68.0f, 0.04f, -1.0f), std::invalid_argument);
-  CHECK_THROWS_AS(Pitch(105.0f, 68.0f, 0.04f, 1.6f, 0.0f), std::invalid_argument);
-  CHECK_THROWS_AS(Pitch(105.0f, 68.0f, 0.04f, 1.6f, 0.025f, -0.1f),
+  CHECK_THROWS_AS(Pitch(105.0f, 68.0f, 0.04f, 1.6f, -0.1f),
                   std::invalid_argument);
-  CHECK_THROWS_AS(Pitch(105.0f, 68.0f, 0.04f, 1.6f, 0.025f, nan),
+  CHECK_THROWS_AS(Pitch(105.0f, 68.0f, 0.04f, 1.6f, nan),
                   std::invalid_argument);
 }
 
@@ -119,7 +118,7 @@ TEST_CASE("Pitch equality compares configuration, not the collider cache",
   CHECK(a != other);
   CHECK(other == Pitch(100.0f, 68.0f));
 
-  const Pitch more_air(105.0f, 68.0f, 0.04f, 1.6f, 0.025f, 0.02f);
+  const Pitch more_air(105.0f, 68.0f, 0.04f, 1.6f, 0.02f);
   CHECK(a != more_air);
   CHECK(a.air_drag() == Approx(0.015f));
   CHECK(more_air.air_drag() == Approx(0.02f));

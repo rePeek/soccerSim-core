@@ -48,7 +48,7 @@ BallState BallAt(const Vector3& position, const Vector3& velocity) {
 BallModel BallWithoutAero() { return BallModel(0.43f, 0.11f, 0.0f); }
 
 // A pitch whose ground does not slow the ball, so gravity/spin tests are pure.
-Pitch FrictionlessPitch() { return Pitch(105.0f, 68.0f, 0.0f, 0.0f, 0.025f, 0.0f); }
+Pitch FrictionlessPitch() { return Pitch(105.0f, 68.0f, 0.0f, 0.0f, 0.0f); }
 
 ColliderMotion GroundPlane(float restitution) {
   const HalfSpace plane{Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f)};
@@ -85,7 +85,7 @@ TEST_CASE("Horizontal flight without drag keeps horizontal velocity",
 
 TEST_CASE("Air drag removes kinetic energy", "[unit][ball][simulation]") {
   const BallModel config(0.43f, 0.11f, 0.0f);
-  const Pitch pitch = Pitch(105.0f, 68.0f, 0.0f, 0.0f, 0.025f, 0.02f);
+  const Pitch pitch = Pitch(105.0f, 68.0f, 0.0f, 0.0f, 0.02f);
   const auto initial = BallAt({0.0f, 0.0f, 10.0f}, {10.0f, 0.0f, 0.0f});
 
   const auto result = AdvanceBallTick(initial, {}, kDt, config, pitch);

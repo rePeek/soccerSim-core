@@ -33,7 +33,6 @@ struct Dynamics {
   float quadratic_resistance = 0.04f;
   float ground_deceleration = 1.6f;
   float quadratic_ground_resistance = 0.0f;
-  float grass_height = 0.025f;
   float spin_decay = 0.0f;
   float magnus_coefficient = 0.0f;
 };
@@ -44,7 +43,6 @@ Dynamics MakeDynamics(const football::ball::BallModel& config,
   dynamics.quadratic_resistance = pitch.air_drag();
   dynamics.ground_deceleration = pitch.ground_deceleration();
   dynamics.quadratic_ground_resistance = pitch.quadratic_resistance();
-  dynamics.grass_height = pitch.grass_height();
   dynamics.spin_decay = 0.0f;
   dynamics.magnus_coefficient = config.magnus_coefficient();
   return dynamics;
@@ -176,9 +174,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
   const std::size_t correction_cap = colliders.size() + 2;
 
   const float resting_z = ball_radius;
-  const float grass_zone = resting_z + dynamics.grass_height;
   const bool on_ground = initial.position.coords[2] <= resting_z + eps;
-  const bool in_grass_zone = initial.position.coords[2] <= grass_zone + eps;
   const bool not_descending = initial.velocity.coords[2] >= -eps;
   const bool vertically_resting = std::fabs(initial.velocity.coords[2]) <= eps;
 
@@ -198,7 +194,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
   };
 
   football::math::Vector3 grass_v = initial.velocity;
-  if (in_grass_zone && not_descending) grass_v = grass_drag(initial.velocity, dt);
+  if (on_ground && not_descending) grass_v = grass_drag(initial.velocity, dt);
 
   const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
   const football::math::Vector3 omega1 = initial.angular_velocity * spin_scale;
@@ -242,7 +238,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
 
   const football::math::Vector3 gravity{0.0f, 0.0f, pitch.gravity()};
   const auto launch_velocity = [&](const BallState& s) {
-    if (s.position.coords[2] <= grass_zone + eps && s.velocity.coords[2] >= -eps)
+    if (s.position.coords[2] <= resting_z + eps && s.velocity.coords[2] >= -eps)
       return grass_drag(s.velocity, dt);
     return s.velocity;
   };
