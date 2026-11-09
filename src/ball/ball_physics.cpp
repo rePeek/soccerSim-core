@@ -242,7 +242,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
     }
   }
 
-  const football::math::Vector3 gravity = pitch.gravity();
+  const football::math::Vector3 gravity{0.0f, 0.0f, pitch.gravity()};
   const auto launch_velocity = [&](const BallState& s) {
     if (s.position.coords[2] <= grass_zone + eps && s.velocity.coords[2] >= -eps)
       return grass_drag(s.velocity, dt);
@@ -318,7 +318,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     float duration = dt - elapsed;
     const auto& v = result.state.velocity;
     const auto& w = result.state.angular_velocity;
-    const float az = pitch.gravity().coords[2] -
+    const float az = pitch.gravity() -
         config.drag() * v.GetLength() * v.coords[2] +
         config.magnus_coefficient() *
             (w.coords[0] * v.coords[1] - w.coords[1] * v.coords[0]);

@@ -1,8 +1,7 @@
 #pragma once
 
-
 // football::pitch owns the pitch physics scene: the read-only description, the
-// fixed environment (gravity, wind, ground) and the static colliders generated
+// fixed environment (gravity, ground) and the static colliders generated
 // once at construction.
 //
 // The dependency points one way: ball/player read this scene; pitch never knows
@@ -12,7 +11,6 @@
 #include <span>
 #include <vector>
 
-#include "football/foundation/math/vector3.hpp"
 #include "football/foundation/geometry/collider.hpp"
 
 namespace football::pitch {
@@ -46,9 +44,8 @@ class Pitch {
   constexpr float penalty_mark_distance() const { return penalty_mark_distance_; }
 
   // ---- Fixed environment the bodies move in (not per-tick input) ----
-  const football::math::Vector3& gravity() const { return gravity_; }
-  // Reserved: wind is not consumed by the current physics.
-  const football::math::Vector3& wind_velocity() const { return wind_velocity_; }
+  // Vertical gravity acceleration along -Z, in m/s^2.
+  constexpr float gravity() const { return gravity_; }
   constexpr float quadratic_resistance() const { return quadratic_resistance_; }
   constexpr float ground_deceleration() const { return ground_deceleration_; }
   constexpr float grass_height() const { return grass_height_; }
@@ -89,9 +86,8 @@ private:
   float goal_depth_ = 2.55f;
   float penalty_area_depth_ = 16.5f;
   float penalty_mark_distance_ = 11.0f;
+  float gravity_ = -9.81f;
 
-  football::math::Vector3 gravity_{0.0f, 0.0f, -9.81f};
-  football::math::Vector3 wind_velocity_{0.0f, 0.0f, 0.0f};
   football::geometry::ContactMaterial ground_material_{0.62f, 0.0f};
   football::geometry::ContactMaterial post_material_{0.8f, 0.0f};
   std::vector<football::geometry::ColliderMotion> colliders_;

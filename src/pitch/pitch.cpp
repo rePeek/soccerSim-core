@@ -70,7 +70,7 @@ bool Pitch::operator==(const Pitch& other) const {
          goal_depth_ == other.goal_depth_ &&
          penalty_area_depth_ == other.penalty_area_depth_ &&
          penalty_mark_distance_ == other.penalty_mark_distance_ &&
-         gravity_ == other.gravity_ && wind_velocity_ == other.wind_velocity_ &&
+         gravity_ == other.gravity_ &&
          ground_material_ == other.ground_material_ &&
          post_material_ == other.post_material_;
 }
