@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_SIM_TICK_BOUNDARY_HPP
-#define FOOTBALL_SIM_TICK_BOUNDARY_HPP
+#pragma once
+
 
 #include "football/foundation/time/tick.hpp"
 
@@ -25,5 +25,3 @@ constexpr std::uint64_t ToMilliseconds(Tick time) {
 }
 
 }  // namespace football::sim
-
-#endif

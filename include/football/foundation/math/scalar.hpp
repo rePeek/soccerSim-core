@@ -15,8 +15,8 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef FOOTBALL_FOUNDATION_MATH_SCALAR_HPP
-#define FOOTBALL_FOUNDATION_MATH_SCALAR_HPP
+#pragma once
+
 
 #include <cassert>
 #include <cmath>
@@ -86,5 +86,3 @@ namespace football::math {
 
   radian ModulateIntoRange(real min, real max, radian value);
 }
-
-#endif  // FOOTBALL_FOUNDATION_MATH_SCALAR_HPP

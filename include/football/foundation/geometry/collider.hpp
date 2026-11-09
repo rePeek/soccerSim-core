@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_GEOMETRY_COLLIDER_HPP
-#define FOOTBALL_GEOMETRY_COLLIDER_HPP
+#pragma once
+
 
 // Collision-geometry contract: shapes tagged for deterministic ordering, plus
 // their per-tick motion and contact material. Owned by no single domain: ball,
@@ -56,5 +56,3 @@ struct ColliderMotion {
 };
 
 }  // namespace football::geometry
-
-#endif  // FOOTBALL_GEOMETRY_COLLIDER_HPP

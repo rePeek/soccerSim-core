@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_COLLISION_PENETRATION2D_HPP
-#define FOOTBALL_COLLISION_PENETRATION2D_HPP
+#pragma once
+
 
 #include "football/foundation/math/vector3.hpp"
 
@@ -37,5 +37,3 @@ inline bool PenetratesCapsuleCircle2D(const football::math::Vector3& origin,
 }
 
 }  // namespace football::collision
-
-#endif  // FOOTBALL_COLLISION_PENETRATION2D_HPP

@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_COLLISION_SWEEP_HPP
-#define FOOTBALL_COLLISION_SWEEP_HPP
+#pragma once
+
 
 // Generic continuous collision queries. Depends only on geometry + foundation;
 // knows nothing about ball, pitch, player or any material/response model.
@@ -58,5 +58,3 @@ std::optional<CollisionHit> FirstHit(
     std::span<const football::geometry::ColliderMotion> colliders, float dt);
 
 }  // namespace football::collision
-
-#endif  // FOOTBALL_COLLISION_SWEEP_HPP

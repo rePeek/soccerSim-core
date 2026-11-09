@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_SIM_TICK_HPP
-#define FOOTBALL_SIM_TICK_HPP
+#pragma once
+
 
 #include <compare>
 #include <cstdint>
@@ -75,5 +75,3 @@ constexpr float ToSeconds(TickSpan duration) {
 }
 
 }  // namespace football::sim
-
-#endif

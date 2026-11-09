@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_PITCH_PITCH_HPP
-#define FOOTBALL_PITCH_PITCH_HPP
+#pragma once
+
 
 // football::pitch owns the pitch physics scene: the read-only description, the
 // fixed environment (gravity, wind, ground) and the static colliders generated
@@ -98,5 +98,3 @@ private:
 };
 
 }  // namespace football::pitch
-
-#endif  // FOOTBALL_PITCH_PITCH_HPP

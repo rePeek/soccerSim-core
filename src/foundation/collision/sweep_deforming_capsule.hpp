@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_COLLISION_SWEEP_DEFORMING_CAPSULE_HPP
-#define FOOTBALL_COLLISION_SWEEP_DEFORMING_CAPSULE_HPP
+#pragma once
+
 
 #include <optional>
 
@@ -16,5 +16,3 @@ std::optional<CollisionHit> SweepDeformingCapsule(
     float dt);
 
 }  // namespace football::collision::detail
-
-#endif  // FOOTBALL_COLLISION_SWEEP_DEFORMING_CAPSULE_HPP

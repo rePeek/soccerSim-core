@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_GEOMETRY_SHAPES_HPP
-#define FOOTBALL_GEOMETRY_SHAPES_HPP
+#pragma once
+
 
 // Shared shape primitives. geometry owns what things look like; collision
 // (football/foundation/collision) owns whether two shapes touch. No physics
@@ -41,5 +41,3 @@ struct Capsule {
 };
 
 }  // namespace football::geometry
-
-#endif  // FOOTBALL_GEOMETRY_SHAPES_HPP

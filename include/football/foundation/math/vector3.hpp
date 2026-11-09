@@ -15,8 +15,8 @@
 // this work is public domain. the code is undocumented, scruffy, untested, and should generally not be used for anything important.
 // i do not offer support, so don't ask. to be used for inspiration :)
 
-#ifndef FOOTBALL_FOUNDATION_MATH_VECTOR3_HPP
-#define FOOTBALL_FOUNDATION_MATH_VECTOR3_HPP
+#pragma once
+
 
 #include <cmath>
 #include <iostream>
@@ -337,5 +337,3 @@ namespace football::math {
   }
 
 }
-
-#endif

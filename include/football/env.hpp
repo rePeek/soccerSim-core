@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_ENV_HPP
-#define FOOTBALL_ENV_HPP
+#pragma once
+
 
 #include "football/ball/ball.hpp"
 #include "football/ball/ball_model.hpp"
@@ -36,5 +36,3 @@ class GameEnv {
   football::pitch::Pitch pitch_;
   football::ball::Ball ball_;
 };
-
-#endif  // FOOTBALL_ENV_HPP

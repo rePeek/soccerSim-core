@@ -1,5 +1,5 @@
-#ifndef FOOTBALL_COLLISION_COLLISION_HIT_HPP
-#define FOOTBALL_COLLISION_COLLISION_HIT_HPP
+#pragma once
+
 
 // Query result and query input for football::collision.
 //
@@ -36,5 +36,3 @@ struct CollisionHit {
 };
 
 }  // namespace football::collision
-
-#endif  // FOOTBALL_COLLISION_COLLISION_HIT_HPP
