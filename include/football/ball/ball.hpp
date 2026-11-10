@@ -53,23 +53,22 @@ class Ball {
   Ball(const football::ball::BallModel& model,
        const football::pitch::Pitch& pitch);
 
-  BallState state() const;
-  const football::ball::BallModel& config() const { return config_; }
+  BallState get_state() const { return state_; }
+  void set_state(const BallState& state) { state_ = state; }
+  const football::ball::BallModel& model() const { return model_; }
 
   BallStepResult Step();
   BallStepResult Predict() const;
   BallState Predict(football::sim::TickSpan ahead) const;
 
-  void Reset(const BallState& state);
-
   // Authoritative ground placement: z is forced to the ball radius and
-  // velocity/spin are cleared. Airborne states still use Reset(BallState).
+  // velocity/spin are cleared. Airborne states still use set_state(BallState).
   void PlaceOnGround(float x, float y);
 
  private:
   BallStepResult EvaluateTick() const;
 
-  football::ball::BallModel config_;
+  football::ball::BallModel model_;
   const football::pitch::Pitch& pitch_;
   BallState state_;
 };

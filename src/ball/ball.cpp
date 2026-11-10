@@ -10,17 +10,15 @@ using namespace football::math;
 
 namespace football::ball {
 
-Ball::Ball(const football::ball::BallModel& config,
+Ball::Ball(const football::ball::BallModel& model,
            const football::pitch::Pitch& pitch)
-    : config_(config),
+    : model_(model),
       pitch_(pitch),
       state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()} {}
 
-BallState Ball::state() const { return state_; }
-
 BallStepResult Ball::EvaluateTick() const {
   return AdvanceBallTick(
-      state_, pitch_.colliders(), football::sim::kTickSeconds, config_, pitch_);
+      state_, pitch_.colliders(), football::sim::kTickSeconds, model_, pitch_);
 }
 
 BallStepResult Ball::Predict() const { return EvaluateTick(); }
@@ -35,17 +33,15 @@ BallState Ball::Predict(football::sim::TickSpan ahead) const {
   BallState predicted = state_;
   for (football::sim::TickSpan i{0}; i < ahead; i += football::sim::TickSpan{1}) {
     predicted = AdvanceBallTick(
-        predicted, pitch_.colliders(), football::sim::kTickSeconds, config_, pitch_).state;
+        predicted, pitch_.colliders(), football::sim::kTickSeconds, model_, pitch_).state;
   }
   return predicted;
 }
 
-void Ball::Reset(const BallState& state) { state_ = state; }
-
 void Ball::PlaceOnGround(float x, float y) {
   BallState state;
-  state.position = football::math::Vector3(x, y, config_.radius());
-  Reset(state);
+  state.position = football::math::Vector3(x, y, model_.radius());
+  set_state(state);
 }
 
 }  // namespace football::ball

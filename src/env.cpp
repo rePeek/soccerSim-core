@@ -8,6 +8,6 @@ GameEnv::GameEnv(football::pitch::Pitch pitch,
 
 GameEnv::~GameEnv() = default;
 
-void GameEnv::Reset(const football::ball::BallState& state) { ball_.Reset(state); }
+void GameEnv::Reset(const football::ball::BallState& state) { ball_.set_state(state); }
 
 football::ball::BallStepResult GameEnv::Step() { return ball_.Step(); }

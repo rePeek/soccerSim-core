@@ -23,11 +23,11 @@ class GameEnv {
   // One native 10 ms physics tick against the pitch's static scene.
   football::ball::BallStepResult Step();
 
-  const football::ball::BallState& Observe() const { return ball_.state(); }
+  const football::ball::BallState& Observe() const { return ball_.get_state(); }
   football::ball::Ball& ball() { return ball_; }
   const football::ball::Ball& ball() const { return ball_; }
   const football::pitch::Pitch& pitch() const { return pitch_; }
-  const football::ball::BallModel& ball_model() const { return ball_.config(); }
+  const football::ball::BallModel& ball_model() const { return ball_.model(); }
 
  private:
   football::pitch::Pitch pitch_;
