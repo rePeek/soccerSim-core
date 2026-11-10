@@ -50,26 +50,27 @@ struct BallStepResult;
 
 class Ball {
  public:
-  Ball(const football::ball::BallModel& model,
-       const football::pitch::Pitch& pitch);
+  explicit Ball(const football::ball::BallModel& model = {});
 
   BallState get_state() const { return state_; }
   void set_state(const BallState& state) { state_ = state; }
   const football::ball::BallModel& model() const { return model_; }
 
-  BallStepResult Step();
-  BallStepResult Predict() const;
-  BallState Predict(football::sim::TickSpan ahead) const;
+  // The pitch is the scene a tick resolves against, so it is a per-call
+  // argument: Ball owns no reference to it and outlives no owner.
+  BallStepResult Step(const football::pitch::Pitch& pitch);
+  BallStepResult Predict(const football::pitch::Pitch& pitch) const;
+  BallState Predict(const football::pitch::Pitch& pitch,
+                    football::sim::TickSpan ahead) const;
 
   // Authoritative ground placement: z is forced to the ball radius and
   // velocity/spin are cleared. Airborne states still use set_state(BallState).
   void PlaceOnGround(float x, float y);
 
  private:
-  BallStepResult EvaluateTick() const;
+  BallStepResult EvaluateTick(const football::pitch::Pitch& pitch) const;
 
   football::ball::BallModel model_;
-  const football::pitch::Pitch& pitch_;
   BallState state_;
 };
 

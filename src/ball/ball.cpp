@@ -10,30 +10,30 @@ using namespace football::math;
 
 namespace football::ball {
 
-Ball::Ball(const football::ball::BallModel& model,
-           const football::pitch::Pitch& pitch)
-    : model_(model),
-      pitch_(pitch),
-      state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()} {}
+Ball::Ball(const football::ball::BallModel& model)
+    : model_(model), state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()} {}
 
-BallStepResult Ball::EvaluateTick() const {
+BallStepResult Ball::EvaluateTick(const football::pitch::Pitch& pitch) const {
   return AdvanceBallTick(
-      state_, pitch_.colliders(), football::sim::kTickSeconds, model_, pitch_);
+      state_, pitch.colliders(), football::sim::kTickSeconds, model_, pitch);
 }
 
-BallStepResult Ball::Predict() const { return EvaluateTick(); }
+BallStepResult Ball::Predict(const football::pitch::Pitch& pitch) const {
+  return EvaluateTick(pitch);
+}
 
-BallStepResult Ball::Step() {
-  auto result = EvaluateTick();
+BallStepResult Ball::Step(const football::pitch::Pitch& pitch) {
+  auto result = EvaluateTick(pitch);
   state_ = result.state;
   return result;
 }
 
-BallState Ball::Predict(football::sim::TickSpan ahead) const {
+BallState Ball::Predict(const football::pitch::Pitch& pitch,
+                        football::sim::TickSpan ahead) const {
   BallState predicted = state_;
   for (football::sim::TickSpan i{0}; i < ahead; i += football::sim::TickSpan{1}) {
     predicted = AdvanceBallTick(
-        predicted, pitch_.colliders(), football::sim::kTickSeconds, model_, pitch_).state;
+        predicted, pitch.colliders(), football::sim::kTickSeconds, model_, pitch).state;
   }
   return predicted;
 }

@@ -9,7 +9,8 @@
 // match clock, team, player, referee or AI layer in this build.
 class GameEnv {
  public:
-  GameEnv(football::pitch::Pitch pitch, football::ball::BallModel ball_model);
+  explicit GameEnv(football::pitch::Pitch pitch,
+                   football::ball::BallModel ball_model = {});
   ~GameEnv();
 
   GameEnv(const GameEnv&) = delete;

@@ -150,11 +150,11 @@ TEST_CASE("Ball Predict previews without mutating state",
           "[unit][ball][simulation]") {
   const BallModel config;
   const Pitch pitch;
-  Ball ball(config, pitch);
+  Ball ball(config);
   ball.set_state(BallAt({0.0f, 0.0f, 5.0f}, {1.0f, 0.0f, 0.0f}));
   const BallState before = ball.get_state();
 
-  const auto preview = ball.Predict();
+  const auto preview = ball.Predict(pitch);
 
   CHECK(ball.get_state().position.coords[0] == Approx(before.position.coords[0]));
   CHECK(ball.get_state().velocity.coords[2] == Approx(before.velocity.coords[2]));
@@ -165,14 +165,14 @@ TEST_CASE("Ball Step commits exactly what Predict previewed",
           "[unit][ball][simulation]") {
   const BallModel config;
   const Pitch pitch;
-  Ball preview_ball(config, pitch);
-  Ball commit_ball(config, pitch);
+  Ball preview_ball(config);
+  Ball commit_ball(config);
   const auto initial = BallAt({0.0f, 0.0f, 5.0f}, {2.0f, 0.0f, 0.0f});
   preview_ball.set_state(initial);
   commit_ball.set_state(initial);
 
-  const auto preview = preview_ball.Predict();
-  const auto committed = commit_ball.Step();
+  const auto preview = preview_ball.Predict(pitch);
+  const auto committed = commit_ball.Step(pitch);
 
   CHECK(preview.state.position.coords[0] == Approx(committed.state.position.coords[0]));
   CHECK(preview.state.position.coords[2] == Approx(committed.state.position.coords[2]));
@@ -185,7 +185,7 @@ TEST_CASE("Ball Step equals one tick over the pitch colliders",
           "[unit][ball][simulation]") {
   const BallModel config = BallWithoutAero();
   const Pitch pitch = FrictionlessPitch();
-  Ball ball(config, pitch);
+  Ball ball(config);
   const auto initial = BallAt(
       {pitch.half_length() - 0.5f, -pitch.goal_half_width(), 1.0f},
       {40.0f, 0.0f, 0.0f});
@@ -193,7 +193,7 @@ TEST_CASE("Ball Step equals one tick over the pitch colliders",
 
   const auto expected =
       AdvanceBallTick(initial, pitch.colliders(), kDt, config, pitch);
-  const auto actual = ball.Step();
+  const auto actual = ball.Step(pitch);
 
   REQUIRE(!actual.contacts.empty());
   REQUIRE(actual.contacts.size() == expected.contacts.size());
@@ -213,20 +213,19 @@ TEST_CASE("Ball Predict over a horizon does not mutate state",
           "[unit][ball][simulation]") {
   const BallModel config;
   const Pitch pitch;
-  Ball ball(config, pitch);
+  Ball ball(config);
   ball.set_state(BallAt({0.0f, 0.0f, 5.0f}, {1.0f, 0.0f, 0.0f}));
   const BallState before = ball.get_state();
 
-  const BallState future = ball.Predict(football::sim::TickSpan{10});
+  const BallState future = ball.Predict(pitch, football::sim::TickSpan{10});
 
   CHECK(ball.get_state().position.coords[0] == Approx(before.position.coords[0]));
   CHECK(future.position.coords[2] < before.position.coords[2]);
 }
 
-TEST_CASE("Ball Reset restores the exact state", "[unit][ball][simulation]") {
+TEST_CASE("set_state restores the exact state", "[unit][ball][simulation]") {
   const BallModel config;
-  const Pitch pitch;
-  Ball ball(config, pitch);
+  Ball ball(config);
   BallState state = BallAt({1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f});
   state.angular_velocity = Vector3(7.0f, 8.0f, 9.0f);
 
@@ -241,8 +240,7 @@ TEST_CASE("Ball Reset restores the exact state", "[unit][ball][simulation]") {
 TEST_CASE("PlaceOnGround sets ground position and clears motion",
           "[unit][ball][simulation]") {
   const BallModel config;
-  const Pitch pitch;
-  Ball ball(config, pitch);
+  Ball ball(config);
   ball.set_state(BallAt({1.0f, 2.0f, 10.0f}, {3.0f, 4.0f, 5.0f}));
 
   ball.PlaceOnGround(7.0f, 8.0f);
@@ -276,11 +274,11 @@ TEST_CASE("Ball flies freely through former goal net regions",
     auto initial = BallAt(position, velocity);
     initial.position.coords[0] *= side;
     initial.velocity.coords[0] *= side;
-    Ball ball(config, pitch);
+    Ball ball(config);
     ball.set_state(initial);
-    const auto preview = ball.Predict();
-    const auto future = ball.Predict(football::sim::TickSpan{10});
-    const auto result = ball.Step();
+    const auto preview = ball.Predict(pitch);
+    const auto future = ball.Predict(pitch, football::sim::TickSpan{10});
+    const auto result = ball.Step(pitch);
     REQUIRE(result.contacts.empty());
     for (int axis = 0; axis < 3; ++axis) {
       const float gravity = axis == 2 ? -9.81f : 0.0f;
@@ -300,10 +298,10 @@ TEST_CASE("Ball flies freely through former goal net regions",
 TEST_CASE("Ground kick launches on subsequent ticks", "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
-  Ball ball(config, pitch);
+  Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius()}, {0, 0, 10}));
   REQUIRE(ball.get_state().velocity.coords[2] == Approx(10.0f));
-  for (int i = 0; i < 100; ++i) ball.Step();
+  for (int i = 0; i < 100; ++i) ball.Step(pitch);
   CHECK(ball.get_state().position.coords[2] ==
         Approx(config.radius() + 10.0f - 0.5f * 9.81f).margin(0.001f));
   CHECK(ball.get_state().velocity.coords[2] == Approx(10.0f - 9.81f).margin(0.001f));
@@ -421,4 +419,3 @@ TEST_CASE("Impact cap holds the last safe pose rather than tunnelling",
   CHECK(result.state.position.coords[0] <= 0.09001f);
   CHECK(result.contacts.back().toi < 1.0f);
 }
-
