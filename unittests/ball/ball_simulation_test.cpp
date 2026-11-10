@@ -2,15 +2,14 @@
 // the Ball::Step/Predict lifecycle.
 //
 // Long-lived parameters are supplied at construction through BallModel (the
-// ball) and Pitch (gravity, ground, static colliders); each call only adds the
-// colliders and interactions new in this tick.
+// ball) and Pitch (gravity, ground, static colliders); a tick advances the ball
+// inside that fixed scene only.
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
-#include <stdexcept>
-#include <variant>
+#include <cstddef>
 #include <vector>
 
 #include "football/ball/ball.hpp"
@@ -23,10 +22,8 @@
 using football::math::Vector3;
 using football::ball::AdvanceBallTick;
 using football::ball::Ball;
-using football::ball::BallImpulse;
 using football::ball::BallModel;
 using football::ball::BallState;
-using football::ball::BallTickInput;
 using football::geometry::ColliderMotion;
 using football::geometry::ContactMaterial;
 using football::geometry::HalfSpace;
@@ -157,8 +154,7 @@ TEST_CASE("Ball Predict previews without mutating state",
   ball.Reset(BallAt({0.0f, 0.0f, 5.0f}, {1.0f, 0.0f, 0.0f}));
   const BallState before = ball.state();
 
-  const BallTickInput input;
-  const auto preview = ball.Predict(input);
+  const auto preview = ball.Predict();
 
   CHECK(ball.state().position.coords[0] == Approx(before.position.coords[0]));
   CHECK(ball.state().velocity.coords[2] == Approx(before.velocity.coords[2]));
@@ -175,15 +171,42 @@ TEST_CASE("Ball Step commits exactly what Predict previewed",
   preview_ball.Reset(initial);
   commit_ball.Reset(initial);
 
-  const BallTickInput input;
-  const auto preview = preview_ball.Predict(input);
-  const auto committed = commit_ball.Step(input);
+  const auto preview = preview_ball.Predict();
+  const auto committed = commit_ball.Step();
 
   CHECK(preview.state.position.coords[0] == Approx(committed.state.position.coords[0]));
   CHECK(preview.state.position.coords[2] == Approx(committed.state.position.coords[2]));
   CHECK(preview.state.velocity.coords[2] == Approx(committed.state.velocity.coords[2]));
   CHECK(commit_ball.state().position.coords[0] ==
         Approx(committed.state.position.coords[0]));
+}
+
+TEST_CASE("Ball Step equals one tick over the pitch colliders",
+          "[unit][ball][simulation]") {
+  const BallModel config = BallWithoutAero();
+  const Pitch pitch = FrictionlessPitch();
+  Ball ball(config, pitch);
+  const auto initial = BallAt(
+      {pitch.half_length() - 0.5f, -pitch.goal_half_width(), 1.0f},
+      {40.0f, 0.0f, 0.0f});
+  ball.Reset(initial);
+
+  const auto expected =
+      AdvanceBallTick(initial, pitch.colliders(), kDt, config, pitch);
+  const auto actual = ball.Step();
+
+  REQUIRE(!actual.contacts.empty());
+  REQUIRE(actual.contacts.size() == expected.contacts.size());
+  for (std::size_t i = 0; i < actual.contacts.size(); ++i) {
+    CHECK(actual.contacts[i].collider == expected.contacts[i].collider);
+    CHECK(actual.contacts[i].toi == Approx(expected.contacts[i].toi));
+  }
+  for (int axis = 0; axis < 3; ++axis) {
+    CHECK(actual.state.position.coords[axis] ==
+          Approx(expected.state.position.coords[axis]));
+    CHECK(actual.state.velocity.coords[axis] ==
+          Approx(expected.state.velocity.coords[axis]));
+  }
 }
 
 TEST_CASE("Ball Predict over a horizon does not mutate state",
@@ -215,31 +238,6 @@ TEST_CASE("Ball Reset restores the exact state", "[unit][ball][simulation]") {
   CHECK(ball.state().angular_velocity.coords[2] == Approx(9.0f));
 }
 
-
-TEST_CASE("Active impulse changes velocity and spin only at the tick endpoint",
-          "[unit][ball][simulation]") {
-  const BallModel config;
-  const Pitch pitch;
-  Ball ball(config, pitch);
-  ball.Reset(BallAt({0.0f, 0.0f, 10.0f}, {1.0f, 0.0f, 0.0f}));
-
-  BallTickInput passive;
-  const auto passive_preview = ball.Predict(passive);
-
-  BallTickInput with_impulse;
-  with_impulse.active_impulse =
-      BallImpulse{Vector3(1.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 10.0f)};
-  const auto impulse_preview = ball.Predict(with_impulse);
-
-  CHECK(impulse_preview.active_impulse.has_value());
-  CHECK(impulse_preview.state.position.coords[0] ==
-        Approx(passive_preview.state.position.coords[0]).margin(1e-6f));
-  CHECK(impulse_preview.state.position.coords[2] ==
-        Approx(passive_preview.state.position.coords[2]).margin(1e-6f));
-  CHECK(impulse_preview.state.velocity.coords[0] ==
-        Approx(passive_preview.state.velocity.coords[0] + 1.0f / config.mass()).margin(1e-4f));
-}
-
 TEST_CASE("PlaceOnGround sets ground position and clears motion",
           "[unit][ball][simulation]") {
   const BallModel config;
@@ -254,40 +252,6 @@ TEST_CASE("PlaceOnGround sets ground position and clears motion",
   CHECK(state.position.coords[2] == Approx(config.radius()));
   CHECK(state.velocity.GetLength() == Approx(0.0f));
   CHECK(state.angular_velocity.GetLength() == Approx(0.0f));
-}
-
-TEST_CASE("Ball rejects illegal dynamic collider ids", "[unit][ball][simulation]") {
-  const BallModel config;
-  const Pitch pitch;
-  const HalfSpace plane{Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f)};
-
-  SECTION("zero id") {
-    Ball ball(config, pitch);
-    const std::vector<ColliderMotion> colliders{
-        ColliderMotion{0, plane, plane, ContactMaterial{0.5f, 0.0f}}};
-    BallTickInput input;
-    input.dynamic_colliders = colliders;
-    REQUIRE_THROWS_AS(ball.Predict(input), std::invalid_argument);
-  }
-
-  SECTION("conflict with a pitch collider id") {
-    Ball ball(config, pitch);
-    const std::vector<ColliderMotion> colliders{
-        ColliderMotion{pitch.colliders().front().id, plane, plane,
-                       ContactMaterial{0.5f, 0.0f}}};
-    BallTickInput input;
-    input.dynamic_colliders = colliders;
-    REQUIRE_THROWS_AS(ball.Predict(input), std::invalid_argument);
-  }
-
-  SECTION("duplicate dynamic ids") {
-    Ball ball(config, pitch);
-    const ColliderMotion other{100, plane, plane, ContactMaterial{0.5f, 0.0f}};
-    const std::vector<ColliderMotion> colliders{other, other};
-    BallTickInput input;
-    input.dynamic_colliders = colliders;
-    REQUIRE_THROWS_AS(ball.Predict(input), std::invalid_argument);
-  }
 }
 
 TEST_CASE("Ball flies freely through former goal net regions",
@@ -314,9 +278,9 @@ TEST_CASE("Ball flies freely through former goal net regions",
     initial.velocity.coords[0] *= side;
     Ball ball(config, pitch);
     ball.Reset(initial);
-    const auto preview = ball.Predict(BallTickInput{});
+    const auto preview = ball.Predict();
     const auto future = ball.Predict(football::sim::TickSpan{10});
-    const auto result = ball.Step(BallTickInput{});
+    const auto result = ball.Step();
     REQUIRE(result.contacts.empty());
     for (int axis = 0; axis < 3; ++axis) {
       const float gravity = axis == 2 ? -9.81f : 0.0f;
@@ -333,17 +297,13 @@ TEST_CASE("Ball flies freely through former goal net regions",
   }
 }
 
-TEST_CASE("Ground endpoint kick launches on subsequent ticks", "[unit][ball][simulation]") {
+TEST_CASE("Ground kick launches on subsequent ticks", "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
   Ball ball(config, pitch);
-  ball.Reset(BallAt({0, 0, config.radius()}, {0, 0, 0}));
-  BallTickInput kick;
-  kick.active_impulse = BallImpulse{{0, 0, 10 * config.mass()},
-                                    {0, 0, config.radius()}};
-  ball.Step(kick);
+  ball.Reset(BallAt({0, 0, config.radius()}, {0, 0, 10}));
   REQUIRE(ball.state().velocity.coords[2] == Approx(10.0f));
-  for (int i = 0; i < 100; ++i) ball.Step({});
+  for (int i = 0; i < 100; ++i) ball.Step();
   CHECK(ball.state().position.coords[2] ==
         Approx(config.radius() + 10.0f - 0.5f * 9.81f).margin(0.001f));
   CHECK(ball.state().velocity.coords[2] == Approx(10.0f - 9.81f).margin(0.001f));

@@ -10,9 +10,4 @@ GameEnv::~GameEnv() = default;
 
 void GameEnv::Reset(const football::ball::BallState& state) { ball_.Reset(state); }
 
-football::ball::BallStepResult GameEnv::Step() { return ball_.Step({}); }
-
-football::ball::BallStepResult GameEnv::Step(
-    const football::ball::BallTickInput& input) {
-  return ball_.Step(input);
-}
+football::ball::BallStepResult GameEnv::Step() { return ball_.Step(); }

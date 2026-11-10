@@ -20,10 +20,8 @@ class GameEnv {
   // Reset the authoritative ball state without changing the pitch or model.
   void Reset(const football::ball::BallState& state);
 
-  // One native 10 ms physics tick with no dynamic colliders or impulse.
+  // One native 10 ms physics tick against the pitch's static scene.
   football::ball::BallStepResult Step();
-  // Same tick with explicit dynamic colliders / active impulse inputs.
-  football::ball::BallStepResult Step(const football::ball::BallTickInput& input);
 
   const football::ball::BallState& Observe() const { return ball_.state(); }
   football::ball::Ball& ball() { return ball_; }

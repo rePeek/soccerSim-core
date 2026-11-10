@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <span>
 #include <vector>
 
@@ -27,7 +26,6 @@ struct BallContact {
 struct BallStepResult {
   BallState state;
   std::vector<BallContact> contacts;
-  std::optional<BallImpulse> active_impulse;
 };
 
 BallStepResult AdvanceBallTick(const BallState& initial,
