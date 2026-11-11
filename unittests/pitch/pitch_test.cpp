@@ -22,6 +22,7 @@ using football::geometry::ColliderMotion;
 using football::geometry::HalfSpace;
 using football::math::Vector3;
 using football::pitch::Pitch;
+using football::pitch::PitchModel;
 using Catch::Approx;
 
 TEST_CASE("Default pitch builds seven ordered static colliders", "[unit][pitch]") {
@@ -79,7 +80,8 @@ TEST_CASE("Goal colliders follow the pitch geometry", "[unit][pitch]") {
 }
 
 TEST_CASE("Configuration drives the derived geometry", "[unit][pitch]") {
-  const Pitch small(90.0f, 60.0f);
+  const Pitch small(PitchModel(90.0f, 60.0f));
+  CHECK(small.model() == PitchModel(90.0f, 60.0f));
   CHECK(small.length() == Approx(90.0f));
   CHECK(small.width() == Approx(60.0f));
   CHECK(small.half_length() == Approx(45.0f));
@@ -94,17 +96,19 @@ TEST_CASE("Configuration drives the derived geometry", "[unit][pitch]") {
   CHECK(post.a.coords[0] == Approx(-45.0f));
 }
 
-TEST_CASE("Pitch rejects invalid configuration", "[unit][pitch]") {
+TEST_CASE("PitchModel rejects invalid configuration", "[unit][pitch]") {
   const float nan = std::numeric_limits<float>::quiet_NaN();
-  CHECK_THROWS_AS(Pitch(0.0f), std::invalid_argument);
-  CHECK_THROWS_AS(Pitch(-105.0f), std::invalid_argument);
-  CHECK_THROWS_AS(Pitch(105.0f, 0.0f), std::invalid_argument);
-  CHECK_THROWS_AS(Pitch(nan), std::invalid_argument);
-  CHECK_THROWS_AS(Pitch(105.0f, 68.0f, -0.1f), std::invalid_argument);
-  CHECK_THROWS_AS(Pitch(105.0f, 68.0f, 0.04f, -1.0f), std::invalid_argument);
-  CHECK_THROWS_AS(Pitch(105.0f, 68.0f, 0.04f, 1.6f, -0.1f),
+  const float inf = std::numeric_limits<float>::infinity();
+  CHECK_THROWS_AS(PitchModel(0.0f), std::invalid_argument);
+  CHECK_THROWS_AS(PitchModel(-105.0f), std::invalid_argument);
+  CHECK_THROWS_AS(PitchModel(105.0f, 0.0f), std::invalid_argument);
+  CHECK_THROWS_AS(PitchModel(nan), std::invalid_argument);
+  CHECK_THROWS_AS(PitchModel(inf), std::invalid_argument);
+  CHECK_THROWS_AS(PitchModel(105.0f, 68.0f, -0.1f), std::invalid_argument);
+  CHECK_THROWS_AS(PitchModel(105.0f, 68.0f, 0.04f, -1.0f), std::invalid_argument);
+  CHECK_THROWS_AS(PitchModel(105.0f, 68.0f, 0.04f, 1.6f, -0.1f),
                   std::invalid_argument);
-  CHECK_THROWS_AS(Pitch(105.0f, 68.0f, 0.04f, 1.6f, nan),
+  CHECK_THROWS_AS(PitchModel(105.0f, 68.0f, 0.04f, 1.6f, nan),
                   std::invalid_argument);
 }
 
@@ -114,12 +118,22 @@ TEST_CASE("Pitch equality compares configuration, not the collider cache",
   const Pitch b;
   CHECK(a == b);
 
-  const Pitch other(100.0f, 68.0f);
+  const Pitch other(PitchModel(100.0f, 68.0f));
   CHECK(a != other);
-  CHECK(other == Pitch(100.0f, 68.0f));
+  CHECK(other == Pitch(PitchModel(100.0f, 68.0f)));
 
-  const Pitch more_air(105.0f, 68.0f, 0.04f, 1.6f, 0.02f);
+  const Pitch more_air(PitchModel(105.0f, 68.0f, 0.04f, 1.6f, 0.02f));
   CHECK(a != more_air);
   CHECK(a.air_drag() == Approx(0.015f));
   CHECK(more_air.air_drag() == Approx(0.02f));
+}
+
+TEST_CASE("PitchModel defaults preserve the pitch configuration", "[unit][pitch]") {
+  const PitchModel model;
+  CHECK(model.length() == Approx(105.0f));
+  CHECK(model.width() == Approx(68.0f));
+  CHECK(model.quadratic_resistance() == Approx(0.04f));
+  CHECK(model.ground_deceleration() == Approx(1.6f));
+  CHECK(model.air_drag() == Approx(0.015f));
+  CHECK(Pitch(model).model() == model);
 }

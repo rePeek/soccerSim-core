@@ -1,13 +1,7 @@
 #include "football/env.hpp"
 
-#include <utility>
+Env::Env(football::pitch::PitchModel pitch_model,
+         football::ball::BallModel ball_model)
+    : pitch_(pitch_model), ball_(ball_model) {}
 
-GameEnv::GameEnv(football::pitch::Pitch pitch,
-                 football::ball::BallModel ball_model)
-    : pitch_(std::move(pitch)), ball_(ball_model) {}
-
-GameEnv::~GameEnv() = default;
-
-void GameEnv::Reset(const football::ball::BallState& state) { ball_.set_state(state); }
-
-football::ball::BallStepResult GameEnv::Step() { return ball_.Step(pitch_); }
+Env::~Env() = default;

@@ -39,8 +39,8 @@ football::geometry::ColliderMotion StaticCollider(
 
 }  // namespace
 
-Pitch::Pitch(float length, float width, float quadratic_resistance,
-             float ground_deceleration, float air_drag)
+PitchModel::PitchModel(float length, float width, float quadratic_resistance,
+                       float ground_deceleration, float air_drag)
     : length_(length),
       width_(width),
       quadratic_resistance_(quadratic_resistance),
@@ -53,19 +53,17 @@ Pitch::Pitch(float length, float width, float quadratic_resistance,
       quadratic_resistance < 0.0f || ground_deceleration < 0.0f ||
       air_drag < 0.0f) {
     throw std::invalid_argument(
-        "football::pitch::Pitch: invalid geometry or ground parameters");
+        "football::pitch::PitchModel: invalid geometry or ground parameters");
   }
-  BuildColliders();
 }
+
+Pitch::Pitch(const PitchModel& model) : model_(model) { BuildColliders(); }
 
 // Equality compares the configuration only. The collider list is derived data
 // rebuilt from the configuration in the constructor, so it is not part of a
 // pitch's identity.
 bool Pitch::operator==(const Pitch& other) const {
-  return length_ == other.length_ && width_ == other.width_ &&
-         quadratic_resistance_ == other.quadratic_resistance_ &&
-         ground_deceleration_ == other.ground_deceleration_ &&
-         air_drag_ == other.air_drag_ &&
+  return model_ == other.model_ &&
          line_width_ == other.line_width_ &&
          goal_width_ == other.goal_width_ && goal_height_ == other.goal_height_ &&
          goal_depth_ == other.goal_depth_ &&

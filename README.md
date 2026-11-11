@@ -4,7 +4,7 @@ A minimal deterministic C++23 football **ball-physics core**:
 
 - `Pitch` owns the pitch description and static physics scene.
 - `Ball` owns the authoritative ball state, integration and contact response.
-- `GameEnv` is a minimal facade over one Ball on one Pitch.
+- `Env` is a minimal facade over one Ball on one Pitch.
 
 There is no match clock, team, player, referee, event, observation, AI or
 Runtime layer in this build.
@@ -26,13 +26,13 @@ include/football/
 ├── foundation/   math/, time/, geometry/, collision/
 ├── pitch/        Pitch description and static scene
 ├── ball/         Ball, BallModel, BallState and contact/response
-└── env.hpp       minimal GameEnv facade
+└── env.hpp       minimal Env facade
 
 src/
 ├── foundation/   football::foundation, football::geometry, football::collision
 ├── pitch/        football::pitch
 ├── ball/         football::ball
-└── env.cpp       minimal GameEnv implementation
+└── env.cpp       minimal Env implementation
 
 unittests/
 ├── pitch/        pitch_unit

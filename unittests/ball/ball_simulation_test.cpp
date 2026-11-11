@@ -28,6 +28,7 @@ using football::geometry::ColliderMotion;
 using football::geometry::ContactMaterial;
 using football::geometry::HalfSpace;
 using football::pitch::Pitch;
+using football::pitch::PitchModel;
 using Catch::Approx;
 
 namespace {
@@ -45,7 +46,9 @@ BallState BallAt(const Vector3& position, const Vector3& velocity) {
 BallModel BallWithoutAero() { return BallModel(0.43f, 0.11f, 0.0f); }
 
 // A pitch whose ground does not slow the ball, so gravity/spin tests are pure.
-Pitch FrictionlessPitch() { return Pitch(105.0f, 68.0f, 0.0f, 0.0f, 0.0f); }
+Pitch FrictionlessPitch() {
+  return Pitch(PitchModel(105.0f, 68.0f, 0.0f, 0.0f, 0.0f));
+}
 
 ColliderMotion GroundPlane(float restitution) {
   const HalfSpace plane{Vector3(0.0f, 0.0f, 0.0f), Vector3(0.0f, 0.0f, 1.0f)};
@@ -82,7 +85,7 @@ TEST_CASE("Horizontal flight without drag keeps horizontal velocity",
 
 TEST_CASE("Air drag removes kinetic energy", "[unit][ball][simulation]") {
   const BallModel config(0.43f, 0.11f, 0.0f);
-  const Pitch pitch = Pitch(105.0f, 68.0f, 0.0f, 0.0f, 0.02f);
+  const Pitch pitch(PitchModel(105.0f, 68.0f, 0.0f, 0.0f, 0.02f));
   const auto initial = BallAt({0.0f, 0.0f, 10.0f}, {10.0f, 0.0f, 0.0f});
 
   const auto result = AdvanceBallTick(initial, {}, kDt, config, pitch);
@@ -394,7 +397,7 @@ TEST_CASE("Small ground launch crosses its apex without a zero-time loop",
 TEST_CASE("Ground resistance consumes only elapsed time before an impact",
           "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
-  const Pitch pitch(105, 68, 0, 1, 0.025f);
+  const Pitch pitch(PitchModel(105, 68, 0, 1, 0.025f));
   const HalfSpace wall{{0.2f, 0, 0}, {-1, 0, 0}};
   const std::array<ColliderMotion, 1> colliders{{{101, wall, wall, {1, 0}}}};
   const auto result = AdvanceBallTick(

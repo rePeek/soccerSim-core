@@ -10,7 +10,7 @@ rules that are true *now*.
 - `foundation` — math, time, geometry and generic collision primitives
 - `pitch` — pitch description and static physics scene
 - `ball` — authoritative ball model, physics and contact response
-- `env.cpp` / `include/football/env.hpp` — minimal `GameEnv` facade over one
+- `env.cpp` / `include/football/env.hpp` — minimal `Env` facade over one
   Ball on one Pitch
 
 There is no match clock, team, player, referee, event, observation, AI or
@@ -53,13 +53,13 @@ include/football/
 ├── foundation/   math/, time/, geometry/, collision/
 ├── pitch/        Pitch description and static scene
 ├── ball/         Ball, BallModel, BallState, impulse/contact/response
-└── env.hpp       minimal GameEnv facade
+└── env.hpp       minimal Env facade
 
 src/
 ├── foundation/   football::foundation, football::geometry, football::collision
 ├── pitch/        football::pitch
 ├── ball/         football::ball
-└── env.cpp       minimal GameEnv implementation
+└── env.cpp       minimal Env implementation
 
 unittests/
 ├── pitch/        pitch_unit
@@ -74,7 +74,7 @@ unittests/
 - Do not add a dependency from a leaf module back to `env`/`simcore`.
 - Keep `Pitch` free of match/rules/actor concepts; it owns geometry and the
   static physics scene only.
-- `Ball` is the only authority for ball state; `GameEnv` only owns the
+- `Ball` is the only authority for ball state; `Env` only owns the
   composition and lifecycle.
 - Do not reintroduce animation, player, team, referee, event, observation or AI
   code without a deliberate architecture decision.
