@@ -25,6 +25,7 @@ endfunction()
 set(CPM_SOURCE_CACHE "${PROJECT_SOURCE_DIR}/.cache/CPM"
   CACHE PATH "CPM dependency source cache")
 include(cmake/CPM.cmake)
+include(cmake/dependencies.cmake)
 
 # Single-source C model values, usable without any simulation implementation.
 add_library(football_models INTERFACE)
@@ -34,6 +35,7 @@ target_sources(football_models INTERFACE FILE_SET HEADERS
   FILES
     ${PROJECT_SOURCE_DIR}/include/football/models.h)
 
+add_subdirectory(src/log)
 add_subdirectory(src/foundation)
 add_subdirectory(src/pitch)
 add_subdirectory(src/ball)
@@ -47,11 +49,11 @@ target_sources(simcore PUBLIC FILE_SET HEADERS
     ${PROJECT_SOURCE_DIR}/include/football/env.hpp
     ${PROJECT_SOURCE_DIR}/include/football/capi.h)
 target_compile_definitions(simcore PRIVATE FOOTBALL_CAPI_BUILD)
-target_link_libraries(simcore PUBLIC football::ball football::pitch)
+target_link_libraries(simcore
+  PUBLIC football::ball football::pitch
+  PRIVATE football::log)
 football_configure_target(simcore)
 
 if(BUILD_TESTING)
-  CPMAddPackage(NAME Catch2 GITHUB_REPOSITORY catchorg/Catch2 GIT_TAG v3.7.1
-    OPTIONS "CATCH_BUILD_TESTING OFF")
   add_subdirectory(unittests)
 endif()

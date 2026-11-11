@@ -3,6 +3,12 @@
 
 #include "football/pitch/pitch.hpp"
 
+#include <format>
+
+#include "football/log/log.hpp"
+
+using namespace football::log;
+
 namespace football::pitch {
 
 namespace {
@@ -32,7 +38,11 @@ football::geometry::ColliderMotion StaticCollider(
 
 }  // namespace
 
-Pitch::Pitch(const PitchModel& model) : model_(model) { BuildColliders(); }
+Pitch::Pitch(const PitchModel& model) : model_(model) {
+  BuildColliders();
+  Info(Channel::pitch, std::format("scene built: {}x{} m, {} colliders", model_.length,
+                                  model_.width, colliders_.size()));
+}
 
 // Equality compares the configuration only. The collider list is derived data
 // rebuilt from the configuration in the constructor, so it is not part of a

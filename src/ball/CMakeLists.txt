@@ -34,7 +34,6 @@ target_link_libraries(football_ball
   PUBLIC
     football::models football::foundation football::geometry football::pitch
   PRIVATE
-    football::collision
-)
+    football::collision football::log)
 
 football_configure_target(football_ball)

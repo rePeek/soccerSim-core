@@ -4,10 +4,12 @@
 #include "football/ball/ball_contact.hpp"
 #include "football/pitch/pitch.hpp"
 
+using namespace football::ball;
+using namespace football::pitch;
+
 class Env {
  public:
-  explicit Env(football::pitch::PitchModel pitch_model,
-               football::ball::BallModel ball_model);
+  explicit Env(PitchModel pitch_model, BallModel ball_model);
   ~Env();
 
   Env(const Env&) = delete;
@@ -16,6 +18,6 @@ class Env {
   Env& operator=(Env&&) = delete;
 
  private:
-  football::pitch::Pitch pitch_;
-  football::ball::Ball ball_;
+  Pitch pitch_;
+  Ball ball_;
 };
