@@ -3,7 +3,7 @@
 
 #include "football/foundation/time/tick.hpp"
 
-namespace football::sim {
+namespace football::time {
 
 // Millisecond input/output adapters, not a second simulation time domain.
 // Exact conversion is intentional: rounding needs an explicit caller policy.
@@ -24,4 +24,4 @@ constexpr std::uint64_t ToMilliseconds(Tick time) {
   return ToMilliseconds(TickSpan{time.value});
 }
 
-}  // namespace football::sim
+}  // namespace football::time

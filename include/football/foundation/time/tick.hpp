@@ -4,7 +4,7 @@
 #include <limits>
 #include <stdexcept>
 
-namespace football::sim {
+namespace football::time {
 
 // One simulation tick is the discrete time quantum: 1/100 s physical time.
 // New simulation timestamps, deadlines, durations and cadences use Tick or
@@ -72,4 +72,4 @@ constexpr float ToSeconds(TickSpan duration) {
   return static_cast<float>(duration.value) * kTickSeconds;
 }
 
-}  // namespace football::sim
+}  // namespace football::time

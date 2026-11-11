@@ -23,7 +23,7 @@ Ball::Ball(const BallModel& model)
 
 BallStepResult Ball::EvaluateTick(const Pitch& pitch) const {
   return AdvanceBallTick(
-      state_, pitch.colliders(), sim::kTickSeconds, model_, pitch);
+      state_, pitch.colliders(), time::kTickSeconds, model_, pitch);
 }
 
 BallStepResult Ball::Predict(const Pitch& pitch) const {
@@ -42,11 +42,11 @@ BallStepResult Ball::Step(const Pitch& pitch) {
 }
 
 BallState Ball::Predict(const Pitch& pitch,
-                        sim::TickSpan ahead) const {
+                        time::TickSpan ahead) const {
   BallState predicted = state_;
-  for (sim::TickSpan i{0}; i < ahead; i += sim::TickSpan{1}) {
+  for (time::TickSpan i{0}; i < ahead; i += time::TickSpan{1}) {
     predicted = AdvanceBallTick(
-        predicted, pitch.colliders(), sim::kTickSeconds, model_, pitch).state;
+        predicted, pitch.colliders(), time::kTickSeconds, model_, pitch).state;
   }
   return predicted;
 }

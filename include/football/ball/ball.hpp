@@ -35,7 +35,7 @@ class Ball {
   BallStepResult Step(const Pitch& pitch);
   BallStepResult Predict(const Pitch& pitch) const;
   BallState Predict(const Pitch& pitch,
-                    sim::TickSpan ahead) const;
+                    time::TickSpan ahead) const;
 
   // Authoritative ground placement: z is forced to the ball radius and
   // velocity/spin are cleared. Airborne states still use set_state(BallState).

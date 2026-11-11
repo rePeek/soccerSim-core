@@ -32,7 +32,7 @@ using Catch::Approx;
 
 namespace {
 
-constexpr float kDt = football::sim::kTickSeconds;
+constexpr float kDt = football::time::kTickSeconds;
 
 BallState BallAt(const Vector3& position, const Vector3& velocity) {
   BallState state;
@@ -219,7 +219,7 @@ TEST_CASE("Ball Predict over a horizon does not mutate state",
   ball.set_state(BallAt({0.0f, 0.0f, 5.0f}, {1.0f, 0.0f, 0.0f}));
   const BallState before = ball.get_state();
 
-  const BallState future = ball.Predict(pitch, football::sim::TickSpan{10});
+  const BallState future = ball.Predict(pitch, football::time::TickSpan{10});
 
   CHECK(ball.get_state().position.coords[0] == Approx(before.position.coords[0]));
   CHECK(future.position.coords[2] < before.position.coords[2]);
@@ -279,7 +279,7 @@ TEST_CASE("Ball flies freely through former goal net regions",
     Ball ball(config);
     ball.set_state(initial);
     const auto preview = ball.Predict(pitch);
-    const auto future = ball.Predict(pitch, football::sim::TickSpan{10});
+    const auto future = ball.Predict(pitch, football::time::TickSpan{10});
     const auto result = ball.Step(pitch);
     REQUIRE(result.contacts.empty());
     for (int axis = 0; axis < 3; ++axis) {
