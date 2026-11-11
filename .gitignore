@@ -5,7 +5,5 @@ build/
 # In-progress refactoring worklog (process doc, not part of the codebase)
 REFACTOR_PLAN.md
 
-# BqLog runtime output. Both are relative to the process working directory
-# because the appender uses base_dir_type=0; bqlog_mmap backs log.recovery.
+# BqLog output, relative to the process working directory (base_dir_type=0).
 logs/
-bqlog_mmap/

@@ -24,7 +24,6 @@ constexpr const char* kLogConfig = R"(
 
   log.thread_mode=async
   log.buffer_size=65536
-  log.recovery=true
 )";
 
 // A function-local trivial static: created once, no destructor to run at exit.
