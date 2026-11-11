@@ -32,7 +32,7 @@ target_compile_features(football_ball PUBLIC cxx_std_23)
 
 target_link_libraries(football_ball
   PUBLIC
-    football::foundation football::geometry football::pitch
+    football::models football::foundation football::geometry football::pitch
   PRIVATE
     football::collision
 )

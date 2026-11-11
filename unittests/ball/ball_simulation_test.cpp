@@ -28,7 +28,6 @@ using football::geometry::ColliderMotion;
 using football::geometry::ContactMaterial;
 using football::geometry::HalfSpace;
 using football::pitch::Pitch;
-using football::pitch::PitchModel;
 using Catch::Approx;
 
 namespace {
@@ -43,11 +42,11 @@ BallState BallAt(const Vector3& position, const Vector3& velocity) {
 }
 
 // A ball with no air drag and no Magnus coupling.
-BallModel BallWithoutAero() { return BallModel(0.43f, 0.11f, 0.0f); }
+BallModel BallWithoutAero() { return BallModel{0.43f, 0.11f, 0.0f}; }
 
 // A pitch whose ground does not slow the ball, so gravity/spin tests are pure.
 Pitch FrictionlessPitch() {
-  return Pitch(PitchModel(105.0f, 68.0f, 0.0f, 0.0f, 0.0f));
+  return Pitch(football_pitch_model{105.0f, 68.0f, 0.0f, 0.0f, 0.0f});
 }
 
 ColliderMotion GroundPlane(float restitution) {
@@ -84,8 +83,8 @@ TEST_CASE("Horizontal flight without drag keeps horizontal velocity",
 }
 
 TEST_CASE("Air drag removes kinetic energy", "[unit][ball][simulation]") {
-  const BallModel config(0.43f, 0.11f, 0.0f);
-  const Pitch pitch(PitchModel(105.0f, 68.0f, 0.0f, 0.0f, 0.02f));
+  const BallModel config = BallWithoutAero();
+  const Pitch pitch(football_pitch_model{105.0f, 68.0f, 0.0f, 0.0f, 0.02f});
   const auto initial = BallAt({0.0f, 0.0f, 10.0f}, {10.0f, 0.0f, 0.0f});
 
   const auto result = AdvanceBallTick(initial, {}, kDt, config, pitch);
@@ -95,7 +94,7 @@ TEST_CASE("Air drag removes kinetic energy", "[unit][ball][simulation]") {
 }
 
 TEST_CASE("Spin bends a moving ball sideways (Magnus)", "[unit][ball][simulation]") {
-  const BallModel config(0.43f, 0.11f, 0.05f);
+  const BallModel config{0.43f, 0.11f, 0.05f};
   const Pitch pitch = FrictionlessPitch();
   BallState initial = BallAt({0.0f, 0.0f, 10.0f}, {5.0f, 0.0f, 0.0f});
   initial.angular_velocity = Vector3(0.0f, 0.0f, 10.0f);
@@ -109,11 +108,11 @@ TEST_CASE("Spin bends a moving ball sideways (Magnus)", "[unit][ball][simulation
 TEST_CASE("Grass rolling decelerates horizontal speed", "[unit][ball][simulation]") {
   const BallModel config = BallWithoutAero();
   const Pitch pitch;  // default ground deceleration (1.6 m/s^2)
-  const auto initial = BallAt({0.0f, 0.0f, config.radius()}, {5.0f, 0.0f, 0.0f});
+  const auto initial = BallAt({0.0f, 0.0f, config.radius}, {5.0f, 0.0f, 0.0f});
 
   const auto result = AdvanceBallTick(initial, {}, kDt, config, pitch);
 
-  CHECK(result.state.position.coords[2] == Approx(config.radius()));
+  CHECK(result.state.position.coords[2] == Approx(config.radius));
   CHECK(result.state.velocity.coords[0] < 5.0f);
   CHECK(result.state.velocity.coords[0] > 0.0f);
 }
@@ -129,7 +128,7 @@ TEST_CASE("Landing on the ground reflects by the contact restitution",
 
   REQUIRE(!result.contacts.empty());
   CHECK(result.state.velocity.coords[2] > 0.0f);
-  CHECK(result.state.position.coords[2] > config.radius() + 0.001f);
+  CHECK(result.state.position.coords[2] > config.radius + 0.001f);
   const auto next = AdvanceBallTick(result.state, colliders, kDt, config, pitch);
   CHECK(next.state.position.coords[2] > result.state.position.coords[2]);
 }
@@ -143,7 +142,7 @@ TEST_CASE("Initial penetration is repaired without an impulse",
 
   const auto result = AdvanceBallTick(initial, colliders, kDt, config, pitch);
 
-  CHECK(result.state.position.coords[2] == Approx(config.radius()).margin(1e-4f));
+  CHECK(result.state.position.coords[2] == Approx(config.radius).margin(1e-4f));
   for (const auto& contact : result.contacts) {
     CHECK(contact.normal_impulse == Approx(0.0f));
   }
@@ -151,7 +150,7 @@ TEST_CASE("Initial penetration is repaired without an impulse",
 
 TEST_CASE("Ball Predict previews without mutating state",
           "[unit][ball][simulation]") {
-  const BallModel config;
+  const BallModel config{0.43f, 0.11f, 0.02f};
   const Pitch pitch;
   Ball ball(config);
   ball.set_state(BallAt({0.0f, 0.0f, 5.0f}, {1.0f, 0.0f, 0.0f}));
@@ -166,7 +165,7 @@ TEST_CASE("Ball Predict previews without mutating state",
 
 TEST_CASE("Ball Step commits exactly what Predict previewed",
           "[unit][ball][simulation]") {
-  const BallModel config;
+  const BallModel config{0.43f, 0.11f, 0.02f};
   const Pitch pitch;
   Ball preview_ball(config);
   Ball commit_ball(config);
@@ -214,7 +213,7 @@ TEST_CASE("Ball Step equals one tick over the pitch colliders",
 
 TEST_CASE("Ball Predict over a horizon does not mutate state",
           "[unit][ball][simulation]") {
-  const BallModel config;
+  const BallModel config{0.43f, 0.11f, 0.02f};
   const Pitch pitch;
   Ball ball(config);
   ball.set_state(BallAt({0.0f, 0.0f, 5.0f}, {1.0f, 0.0f, 0.0f}));
@@ -227,7 +226,7 @@ TEST_CASE("Ball Predict over a horizon does not mutate state",
 }
 
 TEST_CASE("set_state restores the exact state", "[unit][ball][simulation]") {
-  const BallModel config;
+  const BallModel config{0.43f, 0.11f, 0.02f};
   Ball ball(config);
   BallState state = BallAt({1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f});
   state.angular_velocity = Vector3(7.0f, 8.0f, 9.0f);
@@ -242,7 +241,7 @@ TEST_CASE("set_state restores the exact state", "[unit][ball][simulation]") {
 
 TEST_CASE("PlaceOnGround sets ground position and clears motion",
           "[unit][ball][simulation]") {
-  const BallModel config;
+  const BallModel config{0.43f, 0.11f, 0.02f};
   Ball ball(config);
   ball.set_state(BallAt({1.0f, 2.0f, 10.0f}, {3.0f, 4.0f, 5.0f}));
 
@@ -250,7 +249,7 @@ TEST_CASE("PlaceOnGround sets ground position and clears motion",
   BallState state = ball.get_state();
   CHECK(state.position.coords[0] == Approx(7.0f));
   CHECK(state.position.coords[1] == Approx(8.0f));
-  CHECK(state.position.coords[2] == Approx(config.radius()));
+  CHECK(state.position.coords[2] == Approx(config.radius));
   CHECK(state.velocity.GetLength() == Approx(0.0f));
   CHECK(state.angular_velocity.GetLength() == Approx(0.0f));
 }
@@ -302,11 +301,11 @@ TEST_CASE("Ground kick launches on subsequent ticks", "[unit][ball][simulation]"
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
   Ball ball(config);
-  ball.set_state(BallAt({0, 0, config.radius()}, {0, 0, 10}));
+  ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 10}));
   REQUIRE(ball.get_state().velocity.coords[2] == Approx(10.0f));
   for (int i = 0; i < 100; ++i) ball.Step(pitch);
   CHECK(ball.get_state().position.coords[2] ==
-        Approx(config.radius() + 10.0f - 0.5f * 9.81f).margin(0.001f));
+        Approx(config.radius + 10.0f - 0.5f * 9.81f).margin(0.001f));
   CHECK(ball.get_state().velocity.coords[2] == Approx(10.0f - 9.81f).margin(0.001f));
 }
 
@@ -327,7 +326,7 @@ TEST_CASE("Successive ground bounces retain their restitution", "[unit][ball][si
   for (const float restitution : {0.0f, 0.5f, 1.0f}) {
     INFO("restitution=" << restitution);
     const std::array colliders{GroundPlane(restitution)};
-    auto state = BallAt({0, 0, config.radius()}, {0, 0, -2});
+    auto state = BallAt({0, 0, config.radius}, {0, 0, -2});
     int bounces = 0;
     for (int i = 0; i < 300; ++i) {
       const auto result = AdvanceBallTick(state, colliders, kDt, config, pitch);
@@ -335,10 +334,10 @@ TEST_CASE("Successive ground bounces retain their restitution", "[unit][ball][si
         if (contact.normal_impulse <= 0) continue;
         ++bounces;
         const float incoming = contact.relative_velocity.coords[2];
-        const float outgoing = incoming + contact.normal_impulse / config.mass();
+        const float outgoing = incoming + contact.normal_impulse / config.mass;
         CHECK(outgoing == Approx(-restitution * incoming).margin(1e-5f));
       }
-      CHECK(result.state.position.coords[2] >= config.radius() - 1e-5f);
+      CHECK(result.state.position.coords[2] >= config.radius - 1e-5f);
       state = result.state;
     }
     if (restitution == 0) {
@@ -359,7 +358,7 @@ TEST_CASE("CCD integrates two impacts and the remaining tick", "[unit][ball][sim
       {101, right, right, {1, 0}}, {102, left, left, {1, 0}}};
   SECTION("static walls") {
     const auto result = AdvanceBallTick(
-        BallAt({0, 0, config.radius()}, {30, 0, 0}), colliders, kDt, config, pitch);
+        BallAt({0, 0, config.radius}, {30, 0, 0}), colliders, kDt, config, pitch);
     REQUIRE(result.contacts.size() == 2);
     CHECK(result.contacts[0].toi == Approx(0.3f).margin(1e-5f));
     CHECK(result.contacts[1].toi == Approx(0.9f).margin(1e-5f));
@@ -368,10 +367,10 @@ TEST_CASE("CCD integrates two impacts and the remaining tick", "[unit][ball][sim
   }
   SECTION("moving sphere uses only its remaining motion interval") {
     using football::geometry::Sphere;
-    colliders[1] = {102, Sphere{{-0.35f, 0, config.radius()}, 0.1f},
-                         Sphere{{-0.25f, 0, config.radius()}, 0.1f}, {1, 0}};
+    colliders[1] = {102, Sphere{{-0.35f, 0, config.radius}, 0.1f},
+                         Sphere{{-0.25f, 0, config.radius}, 0.1f}, {1, 0}};
     const auto result = AdvanceBallTick(
-        BallAt({0, 0, config.radius()}, {30, 0, 0}), colliders, kDt, config, pitch);
+        BallAt({0, 0, config.radius}, {30, 0, 0}), colliders, kDt, config, pitch);
     std::vector<football::ball::BallContact> impacts;
     for (const auto& c : result.contacts) if (c.normal_impulse > 0) impacts.push_back(c);
     REQUIRE(impacts.size() == 2);
@@ -388,20 +387,20 @@ TEST_CASE("Small ground launch crosses its apex without a zero-time loop",
   const auto pitch = FrictionlessPitch();
   const std::array colliders{GroundPlane(1.0f)};
   const auto result = AdvanceBallTick(
-      BallAt({0, 0, config.radius()}, {0, 0, 0.045f}),
+      BallAt({0, 0, config.radius}, {0, 0, 0.045f}),
       colliders, kDt, config, pitch);
-  CHECK(result.state.position.coords[2] >= config.radius());
+  CHECK(result.state.position.coords[2] >= config.radius);
   CHECK(result.state.velocity.coords[2] != Approx(0.045f).margin(0.001f));
 }
 
 TEST_CASE("Ground resistance consumes only elapsed time before an impact",
           "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
-  const Pitch pitch(PitchModel(105, 68, 0, 1, 0.025f));
+  const Pitch pitch(football_pitch_model{105.0f, 68.0f, 0.0f, 1.0f, 0.025f});
   const HalfSpace wall{{0.2f, 0, 0}, {-1, 0, 0}};
   const std::array<ColliderMotion, 1> colliders{{{101, wall, wall, {1, 0}}}};
   const auto result = AdvanceBallTick(
-      BallAt({0, 0, config.radius()}, {30, 0, 0}),
+      BallAt({0, 0, config.radius}, {30, 0, 0}),
       colliders, kDt, config, pitch);
   CHECK(result.state.velocity.coords[0] == Approx(-29.99f).margin(1e-4f));
 }
@@ -415,7 +414,7 @@ TEST_CASE("Impact cap holds the last safe pose rather than tunnelling",
   const std::array<ColliderMotion, 2> colliders{{
       {101, right, right, {1, 0}}, {102, left, left, {1, 0}}}};
   const auto result = AdvanceBallTick(
-      BallAt({0, 0, config.radius()}, {10000, 0, 0}),
+      BallAt({0, 0, config.radius}, {10000, 0, 0}),
       colliders, kDt, config, pitch);
   REQUIRE(result.contacts.size() == 16);
   CHECK(result.state.position.coords[0] >= -0.09001f);

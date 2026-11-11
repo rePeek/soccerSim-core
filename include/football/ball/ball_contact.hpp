@@ -7,7 +7,6 @@
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/vector3.hpp"
 
-namespace football::ball { class BallModel; }
 namespace football::pitch { class Pitch; }
 
 namespace football::ball {

@@ -9,8 +9,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstddef>
-#include <limits>
 #include <variant>
+#include <type_traits>
 
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/geometry/shapes.hpp"
@@ -24,6 +24,11 @@ using football::math::Vector3;
 using football::pitch::Pitch;
 using football::pitch::PitchModel;
 using Catch::Approx;
+
+static_assert(std::is_aggregate_v<PitchModel>);
+static_assert(std::is_standard_layout_v<PitchModel>);
+static_assert(std::is_trivially_copyable_v<PitchModel>);
+static_assert(std::is_same_v<PitchModel, football_pitch_model>);
 
 TEST_CASE("Default pitch builds seven ordered static colliders", "[unit][pitch]") {
   const Pitch pitch;
@@ -80,8 +85,13 @@ TEST_CASE("Goal colliders follow the pitch geometry", "[unit][pitch]") {
 }
 
 TEST_CASE("Configuration drives the derived geometry", "[unit][pitch]") {
-  const Pitch small(PitchModel(90.0f, 60.0f));
-  CHECK(small.model() == PitchModel(90.0f, 60.0f));
+  PitchModel model{90.0f, 60.0f, 0.04f, 1.6f, 0.015f};
+  const Pitch small(model);
+  CHECK(small.model().length == model.length);
+  CHECK(small.model().width == model.width);
+  CHECK(small.model().quadratic_resistance == model.quadratic_resistance);
+  CHECK(small.model().ground_deceleration == model.ground_deceleration);
+  CHECK(small.model().air_drag == model.air_drag);
   CHECK(small.length() == Approx(90.0f));
   CHECK(small.width() == Approx(60.0f));
   CHECK(small.half_length() == Approx(45.0f));
@@ -96,44 +106,65 @@ TEST_CASE("Configuration drives the derived geometry", "[unit][pitch]") {
   CHECK(post.a.coords[0] == Approx(-45.0f));
 }
 
-TEST_CASE("PitchModel rejects invalid configuration", "[unit][pitch]") {
-  const float nan = std::numeric_limits<float>::quiet_NaN();
-  const float inf = std::numeric_limits<float>::infinity();
-  CHECK_THROWS_AS(PitchModel(0.0f), std::invalid_argument);
-  CHECK_THROWS_AS(PitchModel(-105.0f), std::invalid_argument);
-  CHECK_THROWS_AS(PitchModel(105.0f, 0.0f), std::invalid_argument);
-  CHECK_THROWS_AS(PitchModel(nan), std::invalid_argument);
-  CHECK_THROWS_AS(PitchModel(inf), std::invalid_argument);
-  CHECK_THROWS_AS(PitchModel(105.0f, 68.0f, -0.1f), std::invalid_argument);
-  CHECK_THROWS_AS(PitchModel(105.0f, 68.0f, 0.04f, -1.0f), std::invalid_argument);
-  CHECK_THROWS_AS(PitchModel(105.0f, 68.0f, 0.04f, 1.6f, -0.1f),
-                  std::invalid_argument);
-  CHECK_THROWS_AS(PitchModel(105.0f, 68.0f, 0.04f, 1.6f, nan),
-                  std::invalid_argument);
-}
-
 TEST_CASE("Pitch equality compares configuration, not the collider cache",
           "[unit][pitch]") {
   const Pitch a;
   const Pitch b;
   CHECK(a == b);
 
-  const Pitch other(PitchModel(100.0f, 68.0f));
+  PitchModel model{100.0f, 68.0f, 0.04f, 1.6f, 0.015f};
+  const Pitch other(model);
   CHECK(a != other);
-  CHECK(other == Pitch(PitchModel(100.0f, 68.0f)));
+  CHECK(other == Pitch(model));
 
-  const Pitch more_air(PitchModel(105.0f, 68.0f, 0.04f, 1.6f, 0.02f));
+  model = PitchModel{105.0f, 68.0f, 0.04f, 1.6f, 0.02f};
+  const Pitch more_air(model);
   CHECK(a != more_air);
   CHECK(a.air_drag() == Approx(0.015f));
   CHECK(more_air.air_drag() == Approx(0.02f));
 }
 
 TEST_CASE("PitchModel defaults preserve the pitch configuration", "[unit][pitch]") {
-  const PitchModel model;
-  CHECK(model.length() == Approx(105.0f));
-  CHECK(model.width() == Approx(68.0f));
-  CHECK(model.quadratic_resistance() == Approx(0.04f));
-  CHECK(model.ground_deceleration() == Approx(1.6f));
-  CHECK(model.air_drag() == Approx(0.015f));
-  CHECK(Pitch(model).model() == model);
+  const PitchModel model{105.0f, 68.0f, 0.04f, 1.6f, 0.015f};
+  CHECK(model.length == Approx(105.0f));
+  CHECK(model.width == Approx(68.0f));
+  CHECK(model.quadratic_resistance == Approx(0.04f));
+  CHECK(model.ground_deceleration == Approx(1.6f));
+  CHECK(model.air_drag == Approx(0.015f));
+  const PitchModel copied = Pitch(model).model();
+  CHECK(copied.length == model.length);
+  CHECK(copied.width == model.width);
+  CHECK(copied.quadratic_resistance == model.quadratic_resistance);
+  CHECK(copied.ground_deceleration == model.ground_deceleration);
+  CHECK(copied.air_drag == model.air_drag);
+  const PitchModel def = Pitch{}.model();
+  CHECK(def.length == model.length);
+  CHECK(def.width == model.width);
+  CHECK(def.quadratic_resistance == model.quadratic_resistance);
+  CHECK(def.ground_deceleration == model.ground_deceleration);
+  CHECK(def.air_drag == model.air_drag);
+}
+
+TEST_CASE("Pitch owns a copy of editable model values", "[unit][pitch]") {
+  PitchModel model{90.0f, 60.0f, 0.04f, 1.6f, 0.0f};
+  const Pitch pitch(model);
+  const PitchModel held = pitch.model();
+  CHECK(held.length == model.length);
+  CHECK(held.width == model.width);
+  CHECK(held.quadratic_resistance == model.quadratic_resistance);
+  CHECK(held.ground_deceleration == model.ground_deceleration);
+  CHECK(held.air_drag == model.air_drag);
+  model.length = 0.0f;
+  model.air_drag = -1.0f;
+  CHECK(pitch.length() == Approx(90.0f));
+  CHECK(pitch.air_drag() == Approx(0.0f));
+}
+
+TEST_CASE("Shared pitch model has no hidden defaults", "[unit][pitch]") {
+  const PitchModel zero{};
+  CHECK(zero.length == 0.0f);
+  CHECK(zero.width == 0.0f);
+  CHECK(zero.quadratic_resistance == 0.0f);
+  CHECK(zero.ground_deceleration == 0.0f);
+  CHECK(zero.air_drag == 0.0f);
 }

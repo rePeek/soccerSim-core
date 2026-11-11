@@ -12,13 +12,15 @@ rules that are true *now*.
 - `ball` — authoritative ball model, physics and contact response
 - `env.cpp` / `include/football/env.hpp` — minimal `Env` facade over one
   Ball on one Pitch
+- `capi.h` / `capi.cpp` — C ABI adapter for C and C#; see `docs/capi.md`
+- `models.h` — single C header: model layouts/defaults plus C++ aliases
 
 There is no match clock, team, player, referee, event, observation, AI or
 Runtime layer in this build.
 
 ## Build and test
 
-CMake >= 3.24, Ninja, C++23; use the `flake.nix` dev shell.
+CMake >= 3.24, Ninja, C11 and C++23; use the `flake.nix` dev shell.
 
 ```sh
 # Debug build + pitch/ball suites
@@ -28,8 +30,9 @@ nix develop --command bash -c 'cmake --preset debug && cmake --build --preset de
 nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j $(nproc) && ctest --preset release'
 ```
 
-The only test suites are `pitch_unit` and `ball_unit`. They link only their
-module and its declared dependencies, never `simcore`.
+The domain suites `pitch_unit` and `ball_unit` link only their modules and
+declared dependencies, never `simcore`. The C11 `capi_unit` consumer links
+`simcore` to exercise the exported C ABI.
 
 ## Coordinate and physics conventions
 
@@ -42,8 +45,8 @@ module and its declared dependencies, never `simcore`.
 - Keep floating-point expressions explicit and ordered; do not reorder
   arithmetic in a way that changes results without an intentional, tested
   semantic change.
-- Invalid inputs are rejected at the owning module boundary, not silently
-  clamped downstream.
+- Model values are caller-owned, unchecked configuration. Do not add implicit
+  range/finiteness validation or clamping for `PitchModel` / `BallModel`.
 - Ground physics keeps the empirical friction values in `Pitch`.
 
 ## Source layout
@@ -53,17 +56,21 @@ include/football/
 ├── foundation/   math/, time/, geometry/, collision/
 ├── pitch/        Pitch description and static scene
 ├── ball/         Ball, BallModel, BallState, impulse/contact/response
-└── env.hpp       minimal Env facade
+├── models.h      shared C model definitions, defaults, C++ aliases
+├── env.hpp       minimal Env facade
+└── capi.h        pure C ABI
 
 src/
 ├── foundation/   football::foundation, football::geometry, football::collision
 ├── pitch/        football::pitch
 ├── ball/         football::ball
-└── env.cpp       minimal Env implementation
+├── env.cpp       minimal Env implementation
+└── capi.cpp      C ABI adapter
 
 unittests/
 ├── pitch/        pitch_unit
-└── ball/         ball_unit
+├── ball/         ball_unit
+└── capi/         capi_unit (compiled as C)
 ```
 
 ## Coding conventions
@@ -76,5 +83,12 @@ unittests/
   static physics scene only.
 - `Ball` is the only authority for ball state; `Env` only owns the
   composition and lifecycle.
+- `PitchModel` / `BallModel` alias the C structs defined once in `models.h`;
+  never duplicate model layouts. Initialize every field explicitly: `{}`
+  produces zeros in C++ too, not physical defaults.
+- Models are copied without validation by `Pitch` / `Ball`. C ABI NULL checks
+  and exception translation remain.
+- C ABI headers must compile as C; keep C++ types and exceptions behind the
+  adapter. Model structs are caller-owned values; the adapter owns a single Env.
 - Do not reintroduce animation, player, team, referee, event, observation or AI
   code without a deliberate architecture decision.

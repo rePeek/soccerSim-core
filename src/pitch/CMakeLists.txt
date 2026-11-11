@@ -8,5 +8,5 @@ target_sources(football_pitch PUBLIC FILE_SET HEADERS
   FILES
     ${PROJECT_SOURCE_DIR}/include/football/pitch/pitch.hpp)
 target_link_libraries(football_pitch
-  PUBLIC football::foundation football::geometry)
+  PUBLIC football::models football::foundation football::geometry)
 football_configure_target(football_pitch)

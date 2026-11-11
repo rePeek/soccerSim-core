@@ -1,14 +1,7 @@
-// football::pitch::Pitch implementation: configuration validation and the
-// one-time generation of the static physics scene.
-//
-// These are the historical values and expressions. Keep the validation order,
-// the collider ids/order, the material coefficients and the float arithmetic
-// verbatim: the simulation's determinism depends on them.
+// football::pitch::Pitch implementation: one-time generation of the static scene.
+// Keep collider ids/order, material coefficients and float arithmetic stable.
 
 #include "football/pitch/pitch.hpp"
-
-#include <cmath>
-#include <stdexcept>
 
 namespace football::pitch {
 
@@ -39,31 +32,17 @@ football::geometry::ColliderMotion StaticCollider(
 
 }  // namespace
 
-PitchModel::PitchModel(float length, float width, float quadratic_resistance,
-                       float ground_deceleration, float air_drag)
-    : length_(length),
-      width_(width),
-      quadratic_resistance_(quadratic_resistance),
-      ground_deceleration_(ground_deceleration),
-      air_drag_(air_drag) {
-  if (!std::isfinite(length) || !std::isfinite(width) ||
-      !std::isfinite(quadratic_resistance) || !std::isfinite(ground_deceleration) ||
-      !std::isfinite(air_drag) ||
-      length <= 0.0f || width <= 0.0f ||
-      quadratic_resistance < 0.0f || ground_deceleration < 0.0f ||
-      air_drag < 0.0f) {
-    throw std::invalid_argument(
-        "football::pitch::PitchModel: invalid geometry or ground parameters");
-  }
-}
-
 Pitch::Pitch(const PitchModel& model) : model_(model) { BuildColliders(); }
 
 // Equality compares the configuration only. The collider list is derived data
 // rebuilt from the configuration in the constructor, so it is not part of a
 // pitch's identity.
 bool Pitch::operator==(const Pitch& other) const {
-  return model_ == other.model_ &&
+  return model_.length == other.model_.length &&
+         model_.width == other.model_.width &&
+         model_.quadratic_resistance == other.model_.quadratic_resistance &&
+         model_.ground_deceleration == other.model_.ground_deceleration &&
+         model_.air_drag == other.model_.air_drag &&
          line_width_ == other.line_width_ &&
          goal_width_ == other.goal_width_ && goal_height_ == other.goal_height_ &&
          goal_depth_ == other.goal_depth_ &&

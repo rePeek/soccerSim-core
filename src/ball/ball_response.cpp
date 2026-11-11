@@ -8,14 +8,14 @@ namespace football::ball {
 using football::geometry::ContactMaterial;
 
 float BallInertia(const football::ball::BallModel& config) {
-  return kBallInertiaFactor * config.mass() * config.radius() * config.radius();
+  return kBallInertiaFactor * config.mass * config.radius * config.radius;
 }
 
 BallState ApplyImpulseAtPoint(const BallState& ball, const football::math::Vector3& impulse,
                               const football::math::Vector3& world_point,
                               const football::ball::BallModel& config) {
   BallState next = ball;
-  next.velocity = next.velocity + impulse * (1.0f / config.mass());
+  next.velocity = next.velocity + impulse * (1.0f / config.mass);
 
   const football::math::Vector3 r = world_point - ball.position;
   const football::math::Vector3 torque(
@@ -32,7 +32,7 @@ BallContactResponse ResolveContactResponse(const BallState& ball, const BallCont
                                             const football::ball::BallModel& config) {
   const football::math::Vector3 n = contact.normal.GetNormalized({0, 0, 1});
   const football::math::Vector3 center = ball.position;
-  const football::math::Vector3 surface_point = center - n * config.radius();
+  const football::math::Vector3 surface_point = center - n * config.radius;
   const football::math::Vector3 r = surface_point - center;
 
   const football::math::Vector3& omega = ball.angular_velocity;
@@ -45,12 +45,12 @@ BallContactResponse ResolveContactResponse(const BallState& ball, const BallCont
   const float un = u.GetDotProduct(n);
   if (un >= 0.0f) return {ball};
 
-  const float mass = config.mass();
+  const float mass = config.mass;
   const float jn = -mass * (1.0f + material.restitution) * un;
 
   const football::math::Vector3 ut = u - n * un;
   const float inverse =
-      1.0f / mass + (config.radius() * config.radius()) / BallInertia(config);
+      1.0f / mass + (config.radius * config.radius) / BallInertia(config);
   football::math::Vector3 jt = ut * (-1.0f / inverse);
 
   const float jt_len = jt.GetLength();

@@ -40,7 +40,7 @@ BallState Ball::Predict(const football::pitch::Pitch& pitch,
 
 void Ball::PlaceOnGround(float x, float y) {
   BallState state;
-  state.position = football::math::Vector3(x, y, model_.radius());
+  state.position = football::math::Vector3(x, y, model_.radius);
   set_state(state);
 }
 

@@ -21,15 +21,19 @@ using football::ball::ResolveContactResponse;
 using football::geometry::ContactMaterial;
 using Catch::Approx;
 
+namespace {
+BallModel TestBallModel() { return BallModel{0.5f, 0.11f, 0.02f}; }
+}  // namespace
+
 TEST_CASE("BallInertia uses the thin-shell sphere factor", "[unit][ball][response]") {
-  const BallModel config(0.5f, 0.11f);
+  const BallModel config = TestBallModel();
   const float expected = (2.0f / 3.0f) * 0.5f * 0.11f * 0.11f;
   CHECK(BallInertia(config) == Approx(expected).margin(1e-9f));
 }
 
 TEST_CASE("Central impulse changes linear velocity by J/m only",
           "[unit][ball][response]") {
-  const BallModel config(0.5f, 0.11f);
+  const BallModel config = TestBallModel();
   BallState ball;
   ball.position = Vector3(0.0f, 0.0f, 0.0f);
 
@@ -47,7 +51,7 @@ TEST_CASE("Central impulse changes linear velocity by J/m only",
 
 TEST_CASE("Offset impulse produces the expected spin direction",
           "[unit][ball][response]") {
-  const BallModel config(0.5f, 0.11f);
+  const BallModel config = TestBallModel();
   BallState ball;
   ball.position = Vector3(0.0f, 0.0f, 0.0f);
 
@@ -83,7 +87,7 @@ BallContact ContactWithNormal(const Vector3& normal) {
 
 TEST_CASE("Frictionless contact reflects the normal velocity by restitution",
           "[unit][ball][response]") {
-  const BallModel config(0.5f, 0.11f);
+  const BallModel config = TestBallModel();
   const BallState ball = BallAt({0.0f, 0.0f, 0.11f}, {0.0f, 0.0f, -2.0f});
   const auto response = ResolveContactResponse(
       ball, ContactWithNormal({0.0f, 0.0f, 1.0f}), ContactMaterial{0.5f, 0.0f},
@@ -97,7 +101,7 @@ TEST_CASE("Frictionless contact reflects the normal velocity by restitution",
 
 TEST_CASE("Separating contact produces no new normal impulse",
           "[unit][ball][response]") {
-  const BallModel config(0.5f, 0.11f);
+  const BallModel config = TestBallModel();
   const BallState ball = BallAt({0.0f, 0.0f, 0.11f}, {0.0f, 0.0f, 2.0f});
   const auto response = ResolveContactResponse(
       ball, ContactWithNormal({0.0f, 0.0f, 1.0f}), ContactMaterial{0.5f, 0.0f},
@@ -110,7 +114,7 @@ TEST_CASE("Separating contact produces no new normal impulse",
 
 TEST_CASE("Tangential impulse is Coulomb-capped by friction",
           "[unit][ball][response]") {
-  const BallModel config(0.5f, 0.11f);
+  const BallModel config = TestBallModel();
   const BallState ball = BallAt({0.0f, 0.0f, 0.11f}, {3.0f, 0.0f, -2.0f});
   const ContactMaterial material{0.5f, 0.2f};
   const auto response = ResolveContactResponse(
@@ -124,7 +128,7 @@ TEST_CASE("Tangential impulse is Coulomb-capped by friction",
 
 TEST_CASE("Friction slows tangential velocity and produces spin",
           "[unit][ball][response]") {
-  const BallModel config(0.5f, 0.11f);
+  const BallModel config = TestBallModel();
   const BallState ball = BallAt({0.0f, 0.0f, 0.11f}, {3.0f, 0.0f, -2.0f});
   const auto response = ResolveContactResponse(
       ball, ContactWithNormal({0.0f, 0.0f, 1.0f}), ContactMaterial{0.5f, 0.5f},
@@ -137,7 +141,7 @@ TEST_CASE("Friction slows tangential velocity and produces spin",
 
 TEST_CASE("Moving collider velocity enters the relative contact velocity",
           "[unit][ball][response]") {
-  const BallModel config(0.5f, 0.11f);
+  const BallModel config = TestBallModel();
   // Ball already moving away (+z) from a static surface: no impulse.
   const BallState ball = BallAt({0.0f, 0.0f, 0.11f}, {0.0f, 0.0f, 1.0f});
   const auto static_response = ResolveContactResponse(

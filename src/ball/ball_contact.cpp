@@ -44,7 +44,7 @@ Dynamics MakeDynamics(const football::ball::BallModel& config,
   dynamics.ground_deceleration = pitch.ground_deceleration();
   dynamics.quadratic_ground_resistance = pitch.quadratic_resistance();
   dynamics.spin_decay = 0.0f;
-  dynamics.magnus_coefficient = config.magnus_coefficient();
+  dynamics.magnus_coefficient = config.magnus_coefficient;
   return dynamics;
 }
 
@@ -72,7 +72,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
   BallStepResult result;
   result.state = initial;
   const float eps = 1e-4f;
-  const float ball_radius = config.radius();
+  const float ball_radius = config.radius;
 
   std::vector<football::geometry::ColliderId> tangent_contacts;
   const auto sweep_from = [&](const BallState& state) {
@@ -314,7 +314,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
     const auto& w = result.state.angular_velocity;
     const float az = pitch.gravity() -
         pitch.air_drag() * v.GetLength() * v.coords[2] +
-        config.magnus_coefficient() *
+        config.magnus_coefficient *
             (w.coords[0] * v.coords[1] - w.coords[1] * v.coords[0]);
     if (v.coords[2] > 1e-4f && az < 0.0f)
       duration = std::min(duration, -v.coords[2] / az);

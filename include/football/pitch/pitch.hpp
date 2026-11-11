@@ -12,31 +12,9 @@
 #include <vector>
 
 #include "football/foundation/geometry/collider.hpp"
+#include "football/models.h"
 
 namespace football::pitch {
-
-class PitchModel {
- public:
-  constexpr PitchModel() = default;
-  explicit PitchModel(float length, float width = 68.0f,
-                      float quadratic_resistance = 0.04f,
-                      float ground_deceleration = 1.6f, float air_drag = 0.015f);
-
-  constexpr float length() const { return length_; }
-  constexpr float width() const { return width_; }
-  constexpr float quadratic_resistance() const { return quadratic_resistance_; }
-  constexpr float ground_deceleration() const { return ground_deceleration_; }
-  constexpr float air_drag() const { return air_drag_; }
-
-  bool operator==(const PitchModel&) const = default;
-
- private:
-  float length_ = 105.0f;
-  float width_ = 68.0f;
-  float quadratic_resistance_ = 0.04f;
-  float ground_deceleration_ = 1.6f;
-  float air_drag_ = 0.015f;
-};
 
 // Read-only pitch description in metres: x is length, y is width, and the
 // centre spot is the origin.
@@ -46,13 +24,14 @@ class PitchModel {
 // behaviour exactly.
 class Pitch {
  public:
-  explicit Pitch(const PitchModel& model = {});
+  explicit Pitch(const PitchModel& model =
+      ::football_pitch_model{105.0f, 68.0f, 0.04f, 1.6f, 0.015f});
   const PitchModel& model() const { return model_; }
 
-  constexpr float length() const { return model_.length(); }
-  constexpr float width() const { return model_.width(); }
-  constexpr float half_length() const { return model_.length() * 0.5f; }
-  constexpr float half_width() const { return model_.width() * 0.5f; }
+  constexpr float length() const { return model_.length; }
+  constexpr float width() const { return model_.width; }
+  constexpr float half_length() const { return model_.length * 0.5f; }
+  constexpr float half_width() const { return model_.width * 0.5f; }
   constexpr float line_half_width() const { return line_width_ * 0.5f; }
   constexpr float goal_half_width() const { return goal_width_ * 0.5f; }
   constexpr float goal_height() const { return goal_height_; }
@@ -64,10 +43,10 @@ class Pitch {
   // ---- Fixed environment the bodies move in (not per-tick input) ----
   // Vertical gravity acceleration along -Z, in m/s^2.
   constexpr float gravity() const { return gravity_; }
-  constexpr float quadratic_resistance() const { return model_.quadratic_resistance(); }
-  constexpr float ground_deceleration() const { return model_.ground_deceleration(); }
+  constexpr float quadratic_resistance() const { return model_.quadratic_resistance; }
+  constexpr float ground_deceleration() const { return model_.ground_deceleration; }
   // Quadratic air-drag coefficient: a = -air_drag * |v| * v.
-  constexpr float air_drag() const { return model_.air_drag(); }
+  constexpr float air_drag() const { return model_.air_drag; }
 
   // ---- Physics scene: ground, posts and crossbars, generated once ----
   // Stable ids (also the deterministic CCD tie-break order) and a fixed order.

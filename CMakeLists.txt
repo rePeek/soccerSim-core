@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(gameplayfootball LANGUAGES CXX)
+project(gameplayfootball LANGUAGES C CXX)
 include(CTest)
 
 # Optional local build acceleration: use ccache whenever the dev shell
@@ -26,16 +26,27 @@ set(CPM_SOURCE_CACHE "${PROJECT_SOURCE_DIR}/.cache/CPM"
   CACHE PATH "CPM dependency source cache")
 include(cmake/CPM.cmake)
 
+# Single-source C model values, usable without any simulation implementation.
+add_library(football_models INTERFACE)
+add_library(football::models ALIAS football_models)
+target_sources(football_models INTERFACE FILE_SET HEADERS
+  BASE_DIRS ${PROJECT_SOURCE_DIR}/include
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/models.h)
+
 add_subdirectory(src/foundation)
 add_subdirectory(src/pitch)
 add_subdirectory(src/ball)
 
 # Minimal public environment: Ball physics on a Pitch, no match or actor layer.
-add_library(simcore SHARED src/env.cpp)
+add_library(simcore SHARED src/env.cpp src/capi.cpp)
 add_library(football::simcore ALIAS simcore)
 target_sources(simcore PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
-  FILES ${PROJECT_SOURCE_DIR}/include/football/env.hpp)
+  FILES
+    ${PROJECT_SOURCE_DIR}/include/football/env.hpp
+    ${PROJECT_SOURCE_DIR}/include/football/capi.h)
+target_compile_definitions(simcore PRIVATE FOOTBALL_CAPI_BUILD)
 target_link_libraries(simcore PUBLIC football::ball football::pitch)
 football_configure_target(simcore)
 
