@@ -9,6 +9,8 @@ namespace football::pitch { class Pitch; }
 
 namespace football::ball {
 
+using namespace football::pitch;
+
 struct BallState {
   football::math::Vector3 position;
   football::math::Vector3 velocity;
@@ -21,18 +23,18 @@ struct BallStepResult;
 
 class Ball {
  public:
-  explicit Ball(const football::ball::BallModel& model =
+  explicit Ball(const BallModel& model =
       ::football_ball_model{0.43f, 0.11f, 0.02f});
 
   BallState get_state() const { return state_; }
   void set_state(const BallState& state) { state_ = state; }
-  const football::ball::BallModel& model() const { return model_; }
+  const BallModel& model() const { return model_; }
 
   // The pitch is the scene a tick resolves against, so it is a per-call
   // argument: Ball owns no reference to it and outlives no owner.
-  BallStepResult Step(const football::pitch::Pitch& pitch);
-  BallStepResult Predict(const football::pitch::Pitch& pitch) const;
-  BallState Predict(const football::pitch::Pitch& pitch,
+  BallStepResult Step(const Pitch& pitch);
+  BallStepResult Predict(const Pitch& pitch) const;
+  BallState Predict(const Pitch& pitch,
                     football::sim::TickSpan ahead) const;
 
   // Authoritative ground placement: z is forced to the ball radius and
@@ -40,9 +42,9 @@ class Ball {
   void PlaceOnGround(float x, float y);
 
  private:
-  BallStepResult EvaluateTick(const football::pitch::Pitch& pitch) const;
+  BallStepResult EvaluateTick(const Pitch& pitch) const;
 
-  football::ball::BallModel model_;
+  BallModel model_;
   BallState state_;
 };
 

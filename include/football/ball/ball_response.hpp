@@ -8,17 +8,17 @@ namespace football::ball {
 
 inline constexpr float kBallInertiaFactor = 2.0f / 3.0f;
 
-float BallInertia(const football::ball::BallModel& config);
+float BallInertia(const BallModel& config);
 
 BallState ApplyImpulseAtPoint(const BallState& ball,
                               const football::math::Vector3& impulse,
                               const football::math::Vector3& world_point,
-                              const football::ball::BallModel& config);
+                              const BallModel& config);
 
 BallState ResolveContact(const BallState& ball, const BallContact& contact,
                          const football::geometry::ContactMaterial& material,
                          const football::math::Vector3& collider_velocity,
-                         const football::ball::BallModel& config);
+                         const BallModel& config);
 
 struct BallContactResponse {
   BallState state;
@@ -28,6 +28,6 @@ struct BallContactResponse {
 BallContactResponse ResolveContactResponse(
     const BallState& ball, const BallContact& contact,
     const football::geometry::ContactMaterial& material, const football::math::Vector3& collider_velocity,
-    const football::ball::BallModel& config);
+    const BallModel& config);
 
 }

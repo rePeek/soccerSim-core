@@ -37,8 +37,8 @@ struct Dynamics {
   float magnus_coefficient = 0.0f;
 };
 
-Dynamics MakeDynamics(const football::ball::BallModel& config,
-                      const football::pitch::Pitch& pitch) {
+Dynamics MakeDynamics(const BallModel& config,
+                      const Pitch& pitch) {
   Dynamics dynamics;
   dynamics.quadratic_resistance = pitch.air_drag();
   dynamics.ground_deceleration = pitch.ground_deceleration();
@@ -63,8 +63,8 @@ BallContact ToBallContact(const football::collision::CollisionHit& hit,
 BallStepResult AdvanceBallSegment(const BallState& initial,
                                std::span<const ColliderMotion> colliders,
                                float dt,
-                               const football::ball::BallModel& config,
-                               const football::pitch::Pitch& pitch) {
+                               const BallModel& config,
+                               const Pitch& pitch) {
   using football::collision::FirstHit;
   using football::collision::MovingSphere;
 
@@ -297,7 +297,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
 BallStepResult AdvanceBallTick(const BallState& initial,
                                std::span<const ColliderMotion> colliders,
                                float dt, const BallModel& config,
-                               const football::pitch::Pitch& pitch) {
+                               const Pitch& pitch) {
   BallStepResult result;
   result.state = initial;
   if (dt <= 0.0f) return result;

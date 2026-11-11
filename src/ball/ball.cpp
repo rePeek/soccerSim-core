@@ -14,23 +14,23 @@ using namespace football::math;
 
 namespace football::ball {
 
-Ball::Ball(const football::ball::BallModel& model)
+Ball::Ball(const BallModel& model)
     : model_(model), state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()} {
   Info(Channel::ball,
        std::format("ball created: mass={} radius={} magnus={}", model_.mass,
                    model_.radius, model_.magnus_coefficient));
 }
 
-BallStepResult Ball::EvaluateTick(const football::pitch::Pitch& pitch) const {
+BallStepResult Ball::EvaluateTick(const Pitch& pitch) const {
   return AdvanceBallTick(
       state_, pitch.colliders(), football::sim::kTickSeconds, model_, pitch);
 }
 
-BallStepResult Ball::Predict(const football::pitch::Pitch& pitch) const {
+BallStepResult Ball::Predict(const Pitch& pitch) const {
   return EvaluateTick(pitch);
 }
 
-BallStepResult Ball::Step(const football::pitch::Pitch& pitch) {
+BallStepResult Ball::Step(const Pitch& pitch) {
   auto result = EvaluateTick(pitch);
   state_ = result.state;
   if (!result.contacts.empty()) {
@@ -41,7 +41,7 @@ BallStepResult Ball::Step(const football::pitch::Pitch& pitch) {
   return result;
 }
 
-BallState Ball::Predict(const football::pitch::Pitch& pitch,
+BallState Ball::Predict(const Pitch& pitch,
                         football::sim::TickSpan ahead) const {
   BallState predicted = state_;
   for (football::sim::TickSpan i{0}; i < ahead; i += football::sim::TickSpan{1}) {

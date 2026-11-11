@@ -11,6 +11,8 @@ namespace football::pitch { class Pitch; }
 
 namespace football::ball {
 
+using namespace football::pitch;
+
 struct BallContact {
   football::geometry::ColliderId collider = 0;
   float toi = 0.0f;
@@ -30,7 +32,7 @@ struct BallStepResult {
 BallStepResult AdvanceBallTick(const BallState& initial,
                                std::span<const football::geometry::ColliderMotion> colliders,
                                float dt,
-                               const football::ball::BallModel& config,
-                               const football::pitch::Pitch& pitch);
+                               const BallModel& config,
+                               const Pitch& pitch);
 
 }
