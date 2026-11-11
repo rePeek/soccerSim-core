@@ -18,12 +18,12 @@
 
 namespace football::ball {
 
-using football::geometry::Capsule;
-using football::geometry::ColliderMotion;
-using football::geometry::ContactMaterial;
-using football::geometry::HalfSpace;
-using football::geometry::Plane;
-using football::geometry::Sphere;
+using geometry::Capsule;
+using geometry::ColliderMotion;
+using geometry::ContactMaterial;
+using geometry::HalfSpace;
+using geometry::Plane;
+using geometry::Sphere;
 
 namespace {
 
@@ -48,8 +48,8 @@ Dynamics MakeDynamics(const BallModel& config,
   return dynamics;
 }
 
-BallContact ToBallContact(const football::collision::CollisionHit& hit,
-                          const football::math::Vector3& velocity) {
+BallContact ToBallContact(const collision::CollisionHit& hit,
+                          const math::Vector3& velocity) {
   BallContact contact;
   contact.collider = hit.collider;
   contact.toi = hit.toi;
@@ -65,8 +65,8 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
                                float dt,
                                const BallModel& config,
                                const Pitch& pitch) {
-  using football::collision::FirstHit;
-  using football::collision::MovingSphere;
+  using collision::FirstHit;
+  using collision::MovingSphere;
 
   const Dynamics dynamics = MakeDynamics(config, pitch);
   BallStepResult result;
@@ -74,7 +74,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
   const float eps = 1e-4f;
   const float ball_radius = config.radius;
 
-  std::vector<football::geometry::ColliderId> tangent_contacts;
+  std::vector<geometry::ColliderId> tangent_contacts;
   const auto sweep_from = [&](const BallState& state) {
     // Common case: no repaired tangent yet, so the earliest hit over the whole
     // span is exact and one sweep is enough. Only after an overlap projection
@@ -84,7 +84,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
       return FirstHit(MovingSphere{{state.position, ball_radius}, state.velocity},
                       colliders, dt);
     }
-    std::optional<football::collision::CollisionHit> best;
+    std::optional<collision::CollisionHit> best;
     for (const auto& collider : colliders) {
       const auto hit = FirstHit(
           MovingSphere{{state.position, ball_radius}, state.velocity},
@@ -101,9 +101,9 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
     return best;
   };
 
-  const auto integrate_orientation = [](const football::math::Quaternion& q,
-                                        const football::math::Vector3& omega, float dt) {
-    const football::math::Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
+  const auto integrate_orientation = [](const math::Quaternion& q,
+                                        const math::Vector3& omega, float dt) {
+    const math::Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
     return (q + omega_q * q * (0.5f * dt)).GetNormalized();
   };
 
@@ -111,8 +111,8 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
     if (contact.toi > eps) return;
     for (const ColliderMotion& c : colliders) {
       if (c.id != contact.collider) continue;
-      const football::math::Vector3 surface = std::visit(
-          [&](const auto& shape) -> football::math::Vector3 {
+      const math::Vector3 surface = std::visit(
+          [&](const auto& shape) -> math::Vector3 {
             using T = std::decay_t<decltype(shape)>;
             if constexpr (std::is_same_v<T, Plane> ||
                           std::is_same_v<T, HalfSpace>) {
@@ -129,7 +129,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
               const auto a = end ? shape.a + (end->a-shape.a)*contact.toi : shape.a;
               const auto b = end ? shape.b + (end->b-shape.b)*contact.toi : shape.b;
               const float radius = end ? shape.radius + (end->radius-shape.radius)*contact.toi : shape.radius;
-              const auto closest = football::collision::ClosestPointOnSegment(s.position-a, {0,0,0}, b-a);
+              const auto closest = collision::ClosestPointOnSegment(s.position-a, {0,0,0}, b-a);
               return a + closest + contact.normal * radius;
             }
           },
@@ -178,8 +178,8 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
   const bool not_descending = initial.velocity.coords[2] >= -eps;
   const bool vertically_resting = std::fabs(initial.velocity.coords[2]) <= eps;
 
-  const auto grass_drag = [&](const football::math::Vector3& velocity, float time) {
-    football::math::Vector3 v = velocity;
+  const auto grass_drag = [&](const math::Vector3& velocity, float time) {
+    math::Vector3 v = velocity;
     const float hs =
         std::sqrt(v.coords[0] * v.coords[0] + v.coords[1] * v.coords[1]);
     if (hs > 0.0f) {
@@ -193,14 +193,14 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
     return v;
   };
 
-  football::math::Vector3 grass_v = initial.velocity;
+  math::Vector3 grass_v = initial.velocity;
   if (on_ground && not_descending) grass_v = grass_drag(initial.velocity, dt);
 
   const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
-  const football::math::Vector3 omega1 = initial.angular_velocity * spin_scale;
+  const math::Vector3 omega1 = initial.angular_velocity * spin_scale;
 
   if (on_ground && vertically_resting) {
-    const football::math::Vector3 v{grass_v.coords[0], grass_v.coords[1], 0.0f};
+    const math::Vector3 v{grass_v.coords[0], grass_v.coords[1], 0.0f};
     BallState cursor = initial;
     cursor.velocity = v;
     cursor.position.coords[2] = resting_z;
@@ -236,20 +236,20 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
     }
   }
 
-  const football::math::Vector3 gravity{0.0f, 0.0f, pitch.gravity()};
+  const math::Vector3 gravity{0.0f, 0.0f, pitch.gravity()};
   const auto launch_velocity = [&](const BallState& s) {
     if (s.position.coords[2] <= resting_z + eps && s.velocity.coords[2] >= -eps)
       return grass_drag(s.velocity, dt);
     return s.velocity;
   };
-  const auto acceleration = [&](const football::math::Vector3& v0) {
+  const auto acceleration = [&](const math::Vector3& v0) {
     const float speed = v0.GetLength();
-    football::math::Vector3 accel = gravity;
+    math::Vector3 accel = gravity;
     if (speed > 0.0f)
       accel = accel - v0 * (dynamics.quadratic_resistance * speed);
     if (dynamics.magnus_coefficient != 0.0f) {
-      const football::math::Vector3& o = initial.angular_velocity;
-      accel = accel + football::math::Vector3(
+      const math::Vector3& o = initial.angular_velocity;
+      accel = accel + math::Vector3(
           o.coords[1] * v0.coords[2] - o.coords[2] * v0.coords[1],
           o.coords[2] * v0.coords[0] - o.coords[0] * v0.coords[2],
           o.coords[0] * v0.coords[1] - o.coords[1] * v0.coords[0]) *
@@ -260,9 +260,9 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
 
   BallState cursor = initial;
   for (std::size_t guard = 0;; ++guard) {
-    const football::math::Vector3 v0 = launch_velocity(cursor);
-    const football::math::Vector3 accel = acceleration(v0);
-    const football::math::Vector3 vavg = v0 + accel * (0.5f * dt);
+    const math::Vector3 v0 = launch_velocity(cursor);
+    const math::Vector3 accel = acceleration(v0);
+    const math::Vector3 vavg = v0 + accel * (0.5f * dt);
     BallState probe = cursor;
     probe.velocity = vavg;
     const auto hit = sweep_from(probe);
@@ -278,7 +278,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
     BallContact first = ToBallContact(*hit,
         v0 + accel * (hit->toi * dt));
     if (!correction_only(first) || guard >= correction_cap) {
-      const football::math::Vector3 vc = v0 + accel * (first.toi * dt);
+      const math::Vector3 vc = v0 + accel * (first.toi * dt);
       result.state = cursor;
       result.state.position = first.point;
       result.state.velocity = vc;
@@ -327,7 +327,7 @@ BallStepResult AdvanceBallTick(const BallState& initial,
       for (std::size_t i = 0; i < colliders.size(); ++i) {
         const auto pose_at = [&](float fraction) {
           return std::visit([&](const auto& start)
-              -> football::geometry::ColliderShape {
+              -> geometry::ColliderShape {
             using T = std::decay_t<decltype(start)>;
             const auto* end = std::get_if<T>(&colliders[i].end);
             if (!end) return start;

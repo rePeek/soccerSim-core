@@ -12,10 +12,10 @@ namespace football::ball {
 using namespace football::pitch;
 
 struct BallState {
-  football::math::Vector3 position;
-  football::math::Vector3 velocity;
-  football::math::Vector3 angular_velocity;
-  football::math::Quaternion orientation;
+  math::Vector3 position;
+  math::Vector3 velocity;
+  math::Vector3 angular_velocity;
+  math::Quaternion orientation;
 };
 
 // Defined in ball_contact.hpp together with BallContact and AdvanceBallTick.
@@ -35,7 +35,7 @@ class Ball {
   BallStepResult Step(const Pitch& pitch);
   BallStepResult Predict(const Pitch& pitch) const;
   BallState Predict(const Pitch& pitch,
-                    football::sim::TickSpan ahead) const;
+                    sim::TickSpan ahead) const;
 
   // Authoritative ground placement: z is forced to the ball radius and
   // velocity/spin are cleared. Airborne states still use set_state(BallState).

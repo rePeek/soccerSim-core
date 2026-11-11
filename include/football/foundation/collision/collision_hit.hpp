@@ -17,8 +17,8 @@ namespace football::collision {
 // carries no mass, spin, material or match identity, only the geometry and the
 // velocity needed to sweep it.
 struct MovingSphere {
-  football::geometry::Sphere shape;
-  football::math::Vector3 velocity;
+  geometry::Sphere shape;
+  math::Vector3 velocity;
 };
 
 // Result of one continuous collision query.
@@ -28,11 +28,11 @@ struct MovingSphere {
 //   surface_velocity  collider contact-surface velocity at TOI (zero if static)
 // Response (normal impulse, restitution, friction) is deliberately absent.
 struct CollisionHit {
-  football::geometry::ColliderId collider = 0;
+  geometry::ColliderId collider = 0;
   float toi = 0.0f;
-  football::math::Vector3 center;
-  football::math::Vector3 normal;
-  football::math::Vector3 surface_velocity;
+  math::Vector3 center;
+  math::Vector3 normal;
+  math::Vector3 surface_velocity;
 };
 
 }  // namespace football::collision

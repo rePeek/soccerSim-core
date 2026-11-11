@@ -15,20 +15,20 @@ namespace {
 
 // Stable ids and geometry frozen because the CCD uses ColliderId for
 // deterministic contact sorting.
-constexpr football::geometry::ColliderId kGroundColliderId = 1;
-constexpr football::geometry::ColliderId kLeftPostLowColliderId = 2;
-constexpr football::geometry::ColliderId kLeftPostHighColliderId = 3;
-constexpr football::geometry::ColliderId kRightPostLowColliderId = 4;
-constexpr football::geometry::ColliderId kRightPostHighColliderId = 5;
-constexpr football::geometry::ColliderId kLeftBarColliderId = 6;
-constexpr football::geometry::ColliderId kRightBarColliderId = 7;
+constexpr geometry::ColliderId kGroundColliderId = 1;
+constexpr geometry::ColliderId kLeftPostLowColliderId = 2;
+constexpr geometry::ColliderId kLeftPostHighColliderId = 3;
+constexpr geometry::ColliderId kRightPostLowColliderId = 4;
+constexpr geometry::ColliderId kRightPostHighColliderId = 5;
+constexpr geometry::ColliderId kLeftBarColliderId = 6;
+constexpr geometry::ColliderId kRightBarColliderId = 7;
 constexpr float kPostRadius = 0.06f;
 
 // Deterministic static collider: same shape at start and end (no motion).
-football::geometry::ColliderMotion StaticCollider(
-    football::geometry::ColliderId id, football::geometry::ColliderShape shape,
-    football::geometry::ContactMaterial material) {
-  football::geometry::ColliderMotion motion;
+geometry::ColliderMotion StaticCollider(
+    geometry::ColliderId id, geometry::ColliderShape shape,
+    geometry::ContactMaterial material) {
+  geometry::ColliderMotion motion;
   motion.id = id;
   motion.start = shape;
   motion.end = shape;
@@ -75,42 +75,42 @@ void Pitch::BuildColliders() {
 // height are the ground_* fields, not properties of the HalfSpace geometry;
 // the effective ball-ground restitution is the ground contact material.
 void Pitch::BuildGrass() {
-  using football::geometry::HalfSpace;
+  using geometry::HalfSpace;
   colliders_.push_back(StaticCollider(
       kGroundColliderId,
-      HalfSpace{football::math::Vector3(0, 0, 0), football::math::Vector3(0, 0, 1)},
+      HalfSpace{math::Vector3(0, 0, 0), math::Vector3(0, 0, 1)},
       ground_material_));
 }
 
 // Goal: four posts plus two crossbars, all steel.
 void Pitch::BuildGoal() {
-  using football::geometry::Capsule;
+  using geometry::Capsule;
   const float x = half_length();
   const float y = goal_half_width();
   const float z = goal_height();
   colliders_.push_back(StaticCollider(
       kLeftPostLowColliderId,
-      Capsule{football::math::Vector3(-x, -y, 0), football::math::Vector3(-x, -y, z), kPostRadius},
+      Capsule{math::Vector3(-x, -y, 0), math::Vector3(-x, -y, z), kPostRadius},
       post_material_));
   colliders_.push_back(StaticCollider(
       kLeftPostHighColliderId,
-      Capsule{football::math::Vector3(-x, y, 0), football::math::Vector3(-x, y, z), kPostRadius},
+      Capsule{math::Vector3(-x, y, 0), math::Vector3(-x, y, z), kPostRadius},
       post_material_));
   colliders_.push_back(StaticCollider(
       kRightPostLowColliderId,
-      Capsule{football::math::Vector3(x, -y, 0), football::math::Vector3(x, -y, z), kPostRadius},
+      Capsule{math::Vector3(x, -y, 0), math::Vector3(x, -y, z), kPostRadius},
       post_material_));
   colliders_.push_back(StaticCollider(
       kRightPostHighColliderId,
-      Capsule{football::math::Vector3(x, y, 0), football::math::Vector3(x, y, z), kPostRadius},
+      Capsule{math::Vector3(x, y, 0), math::Vector3(x, y, z), kPostRadius},
       post_material_));
   colliders_.push_back(StaticCollider(
       kLeftBarColliderId,
-      Capsule{football::math::Vector3(-x, -y, z), football::math::Vector3(-x, y, z), kPostRadius},
+      Capsule{math::Vector3(-x, -y, z), math::Vector3(-x, y, z), kPostRadius},
       post_material_));
   colliders_.push_back(StaticCollider(
       kRightBarColliderId,
-      Capsule{football::math::Vector3(x, -y, z), football::math::Vector3(x, y, z), kPostRadius},
+      Capsule{math::Vector3(x, -y, z), math::Vector3(x, y, z), kPostRadius},
       post_material_));
 }
 

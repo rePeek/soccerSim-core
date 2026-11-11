@@ -13,8 +13,8 @@ namespace football::geometry {
 // solid side. Overlap/CCD against it treat a sphere as touching when its
 // centre is within one radius of the surface, on either side.
 struct Plane {
-  football::math::Vector3 point;
-  football::math::Vector3 normal;
+  math::Vector3 point;
+  math::Vector3 normal;
   bool operator==(const Plane&) const = default;
 };
 
@@ -22,20 +22,20 @@ struct Plane {
 // The valid (non-penetrating) side is (p - point)*normal >= 0, so the ground
 // is HalfSpace{{0,0,0},{0,0,1}} and bodies must stay above z = 0.
 struct HalfSpace {
-  football::math::Vector3 point;
-  football::math::Vector3 normal;
+  math::Vector3 point;
+  math::Vector3 normal;
   bool operator==(const HalfSpace&) const = default;
 };
 
 struct Sphere {
-  football::math::Vector3 center;
+  math::Vector3 center;
   float radius = 0.0f;
   bool operator==(const Sphere&) const = default;
 };
 
 struct Capsule {
-  football::math::Vector3 a;
-  football::math::Vector3 b;
+  math::Vector3 a;
+  math::Vector3 b;
   float radius = 0.0f;
   bool operator==(const Capsule&) const = default;
 };

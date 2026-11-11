@@ -7,8 +7,8 @@
 
 namespace football::collision::detail {
 
-using football::geometry::Capsule;
-using football::geometry::ColliderMotion;
+using geometry::Capsule;
+using geometry::ColliderMotion;
 
 namespace {
 
@@ -24,8 +24,8 @@ struct V {
   double length() const { return std::sqrt(dot(*this)); }
 };
 
-V Vec(const football::math::Vector3& v) { return {v.coords[0], v.coords[1], v.coords[2]}; }
-football::math::Vector3 Float(V v) { return {float(v.x), float(v.y), float(v.z)}; }
+V Vec(const math::Vector3& v) { return {v.coords[0], v.coords[1], v.coords[2]}; }
+math::Vector3 Float(V v) { return {float(v.x), float(v.y), float(v.z)}; }
 
 using Polynomial = std::array<double, 5>;  // ascending powers
 
@@ -96,8 +96,8 @@ std::optional<CollisionHit> SweepDeformingCapsule(const MovingSphere& sphere,
                                                   const ColliderMotion& collider,
                                                   const Capsule& start,
                                                   const Capsule& end, float dt) {
-  const football::math::Vector3 ball_position = sphere.shape.center;
-  const football::math::Vector3 ball_velocity = sphere.velocity;
+  const math::Vector3 ball_position = sphere.shape.center;
+  const math::Vector3 ball_velocity = sphere.velocity;
   const float ball_radius = sphere.shape.radius;
 
   const V p = Vec(ball_position), velocity = Vec(ball_velocity);
