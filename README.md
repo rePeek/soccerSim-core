@@ -25,22 +25,16 @@ nix develop --command bash -c '
 `models.h` defines the model structs and the C++ aliases in one header for
 both C and C++. Callers construct plain model values themselves; the C API owns
 one `Env` internally: `football_init` copies the models and constructs it,
-`football_shutdown` destroys it. Models are validated by neither layer and no
-handle crosses the boundary.
+`football_shutdown` destroys it. There is no error channel or handle.
 
 ```c
 #include "football/capi.h"
-#include <stdio.h>
 
 int main(void) {
   football_pitch_model pitch = {105.0f, 68.0f, 0.04f, 1.6f, 0.015f};
   football_ball_model ball = {0.43f, 0.11f, 0.02f};
   pitch.length = 100.0f;
-
-  if (football_init(&pitch, &ball) != FOOTBALL_OK) {
-    fprintf(stderr, "%s\n", football_last_error());
-    return 1;
-  }
+  football_init(&pitch, &ball);
   football_shutdown();
   return 0;
 }
