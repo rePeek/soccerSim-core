@@ -25,7 +25,7 @@ endfunction()
 set(CPM_SOURCE_CACHE "${PROJECT_SOURCE_DIR}/.cache/CPM"
   CACHE PATH "CPM dependency source cache")
 include(cmake/CPM.cmake)
-include(cmake/dependencies.cmake)
+include(cmake/bqlog.cmake)
 
 # Single-source C model values, usable without any simulation implementation.
 add_library(football_models INTERFACE)
@@ -55,5 +55,6 @@ target_link_libraries(simcore
 football_configure_target(simcore)
 
 if(BUILD_TESTING)
+  include(cmake/catch2.cmake)
   add_subdirectory(unittests)
 endif()
