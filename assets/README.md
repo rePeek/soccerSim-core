@@ -9,15 +9,6 @@ assets/
 │   ├── manifest.json       10 个 canonical 运动模板
 │   ├── generation_keys.json 非线性过渡生成所用的控制采样帧号
 │   └── *.glb               14 骨骼模板，C++ 直接读取
-├── characters/
-│   ├── manifest.json       可替换外观包及各插槽 (skin/kit/shoes/hair)
-│   ├── default/body.glb    完整默认外观（平滑人物 + 黑色短发）
-│   ├── default/body_smooth.glb / body_low.glb  无头发平滑版 / 原版
-│   ├── base/base.glb       头、双臂、双膝（皮肤）
-│   ├── kit/{home,away,goalkeeper,referee}.glb  球衣/球裤/袜子
-│   ├── shoes/default.glb   球鞋与鞋底
-│   ├── hair/{short,medium,long}*.glb  六种发型
-│   └── */textures/*.png    贴图副本，可直接替换试色
 └── skeletons/player.json   骨骼名称、层级、逻辑参考偏移和运行时数组顺序
 ```
 
@@ -29,7 +20,13 @@ assets/
 
 ## 可替换外观插槽
 
-`characters/manifest.json` 把外观拆成四个插槽；每包都带完整 14 骨骼骨架和
+外观资源已迁移至宿主项目的 `assets/broadcast3d/player/characters/`，
+不再由本子模块保存；下文外观包路径均相对于该目录。动画、运动模板和
+计算用骨架仍保留在本子模块。宿主项目另存一份
+`assets/broadcast3d/player/skeletons/player.json`，人物 manifest 仅引用宿主
+本地骨架，不依赖本子模块的资源路径。
+
+`manifest.json` 把外观拆成四个插槽；每包都带完整 14 骨骼骨架和
 相同逆绑定矩阵，因此可以只保留一套 Skeleton、按骨骼名称映射后叠加：
 
 | 插槽 | 包 | 内容 |
