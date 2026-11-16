@@ -1,7 +1,6 @@
 #pragma once
 
 #include "football/ball/ball.hpp"
-#include "football/ball/ball_contact.hpp"
 #include "football/pitch/pitch.hpp"
 
 using namespace football::ball;

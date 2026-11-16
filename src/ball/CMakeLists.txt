@@ -6,9 +6,6 @@ add_library(football::ball ALIAS football_ball)
 target_sources(football_ball
   PRIVATE
     ball.cpp
-    ball_contact.cpp
-
-    ball_response.cpp
 )
 
 target_sources(football_ball
@@ -17,8 +14,6 @@ target_sources(football_ball
     BASE_DIRS ${PROJECT_SOURCE_DIR}/include
     FILES
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball.hpp
-      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_contact.hpp
-      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_response.hpp
 )
 
 target_include_directories(football_ball
