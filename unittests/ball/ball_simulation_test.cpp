@@ -337,7 +337,10 @@ TEST_CASE("Successive ground bounces retain their restitution", "[unit][ball][si
         const float outgoing = incoming + contact.normal_impulse / config.mass;
         CHECK(outgoing == Approx(-restitution * incoming).margin(1e-5f));
       }
-      CHECK(result.state.position.coords[2] >= config.radius - 1e-5f);
+      // A bounce can apex and fall again inside the collision-free tail of one
+      // tick, so a tick may end at most g/2*tick^2 (0.5 mm) under the grass;
+      // the next tick repairs it.
+      CHECK(result.state.position.coords[2] >= config.radius - 5e-4f);
       state = result.state;
     }
     if (restitution == 0) {
@@ -349,35 +352,43 @@ TEST_CASE("Successive ground bounces retain their restitution", "[unit][ball][si
   }
 }
 
-TEST_CASE("CCD integrates two impacts and the remaining tick", "[unit][ball][simulation]") {
+TEST_CASE("A tick resolves one impact and flies the rest collision-free",
+          "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
   const HalfSpace right{{0.2f, 0, 0}, {-1, 0, 0}};
   const HalfSpace left{{-0.2f, 0, 0}, {1, 0, 0}};
   std::vector<ColliderMotion> colliders{
       {101, right, right, {1, 0}}, {102, left, left, {1, 0}}};
-  SECTION("static walls") {
+  SECTION("the second wall is left to the next tick") {
     const auto result = AdvanceBallTick(
         BallAt({0, 0, config.radius}, {30, 0, 0}), colliders, kDt, config, pitch);
-    REQUIRE(result.contacts.size() == 2);
+    REQUIRE(result.contacts.size() == 1);
+    CHECK(result.contacts[0].collider == 101);
     CHECK(result.contacts[0].toi == Approx(0.3f).margin(1e-5f));
-    CHECK(result.contacts[1].toi == Approx(0.9f).margin(1e-5f));
-    CHECK(result.state.position.coords[0] == Approx(-0.06f).margin(1e-5f));
-    CHECK(result.state.velocity.coords[0] == Approx(30));
+    // 0.09 m to the wall, then 0.7 tick of collision-free rolling.
+    CHECK(result.state.position.coords[0] ==
+          Approx(0.09f - 30.0f * 0.007f).margin(1e-5f));
+    CHECK(result.state.velocity.coords[0] == Approx(-30));
+    const auto next = AdvanceBallTick(result.state, colliders, kDt, config, pitch);
+    REQUIRE(next.contacts.size() == 1);
+    CHECK(next.contacts[0].collider == 102);
   }
-  SECTION("moving sphere uses only its remaining motion interval") {
+  SECTION("a kinematic surface velocity is applied when it is the first hit") {
     using football::geometry::Sphere;
-    colliders[1] = {102, Sphere{{-0.35f, 0, config.radius}, 0.1f},
-                         Sphere{{-0.25f, 0, config.radius}, 0.1f}, {1, 0}};
+    const std::array<ColliderMotion, 1> moving{{
+        102,
+        Sphere{{-0.35f, 0, config.radius}, 0.1f},
+        Sphere{{-0.25f, 0, config.radius}, 0.1f},
+        {1, 0}}};
     const auto result = AdvanceBallTick(
-        BallAt({0, 0, config.radius}, {30, 0, 0}), colliders, kDt, config, pitch);
-    std::vector<football::ball::BallContact> impacts;
-    for (const auto& c : result.contacts) if (c.normal_impulse > 0) impacts.push_back(c);
-    REQUIRE(impacts.size() == 2);
-    CHECK(impacts[1].toi == Approx(0.8f).margin(1e-5f));
-    CHECK(impacts[1].surface_velocity.coords[0] == Approx(10).margin(1e-4f));
-    CHECK(result.state.position.coords[0] == Approx(0.04f).margin(1e-4f));
+        BallAt({0, 0, config.radius}, {-30, 0, 0}), moving, kDt, config, pitch);
+    REQUIRE(result.contacts.size() == 1);
+    CHECK(result.contacts[0].toi == Approx(0.35f).margin(1e-4f));
+    CHECK(result.contacts[0].surface_velocity.coords[0] == Approx(10).margin(1e-4f));
+    // Contact at x=-0.105 with the sphere closing at 10 m/s, then 0.65 tick.
     CHECK(result.state.velocity.coords[0] == Approx(50).margin(1e-4f));
+    CHECK(result.state.position.coords[0] == Approx(0.22f).margin(1e-4f));
   }
 }
 
@@ -405,7 +416,7 @@ TEST_CASE("Ground resistance consumes only elapsed time before an impact",
   CHECK(result.state.velocity.coords[0] == Approx(-29.99f).margin(1e-4f));
 }
 
-TEST_CASE("Impact cap holds the last safe pose rather than tunnelling",
+TEST_CASE("A single impact per tick hands a fast ball to the next tick",
           "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
@@ -414,10 +425,17 @@ TEST_CASE("Impact cap holds the last safe pose rather than tunnelling",
   const std::array<ColliderMotion, 2> colliders{{
       {101, right, right, {1, 0}}, {102, left, left, {1, 0}}}};
   const auto result = AdvanceBallTick(
-      BallAt({0, 0, config.radius}, {10000, 0, 0}),
-      colliders, kDt, config, pitch);
-  REQUIRE(result.contacts.size() == 16);
-  CHECK(result.state.position.coords[0] >= -0.09001f);
-  CHECK(result.state.position.coords[0] <= 0.09001f);
-  CHECK(result.contacts.back().toi < 1.0f);
+      BallAt({0, 0, config.radius}, {10000, 0, 0}), colliders, kDt, config, pitch);
+  REQUIRE(result.contacts.size() == 1);
+  CHECK(result.contacts[0].collider == 101);
+  CHECK(result.contacts[0].toi == Approx(0.0009f).margin(1e-6f));
+  // The rest of the tick is collision-free, so the ball ends up past the far
+  // wall; the next tick repairs that overlap instead of holding the pose.
+  CHECK(result.state.position.coords[0] ==
+        Approx(0.09f - 10000.0f * kDt * (1.0f - 0.0009f)).margin(0.05f));
+  const auto next = AdvanceBallTick(result.state, colliders, kDt, config, pitch);
+  REQUIRE(next.contacts.size() == 1);
+  CHECK(next.contacts[0].collider == 102);
+  CHECK(next.contacts[0].toi == Approx(0.0f));
+  CHECK(next.state.velocity.coords[0] > 0.0f);
 }

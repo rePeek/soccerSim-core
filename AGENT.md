@@ -42,6 +42,9 @@ declared dependencies, never `simcore`. The C11 `capi_unit` consumer links
   (10 ms).
 - Physics is deterministic and RNG-free. Behaviour must be derived from
   explainable state (skill, contact geometry, body orientation, ball velocity).
+- One tick resolves at most one ball impact (one non-zero normal impulse). The
+  rest of the tick integrates collision-free, so a second surface reached
+  inside the same tick is resolved on the next one.
 - Keep floating-point expressions explicit and ordered; do not reorder
   arithmetic in a way that changes results without an intentional, tested
   semantic change.

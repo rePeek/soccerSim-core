@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "football/ball/ball_response.hpp"
+#include "football/foundation/collision/collision_hit.hpp"
 #include "football/foundation/collision/sweep.hpp"
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/quaternion.hpp"
@@ -28,6 +29,9 @@ using geometry::Sphere;
 namespace {
 
 constexpr float kEpsilon = 1e-6f;
+// Touching distance to the interval start and to the grass: closer than this is
+// "already in contact", not a new impact.
+constexpr float kTouchEpsilon = 1e-4f;
 
 struct Dynamics {
   float quadratic_resistance = 0.04f;
@@ -48,6 +52,100 @@ Dynamics MakeDynamics(const BallModel& config,
   return dynamics;
 }
 
+math::Quaternion IntegrateOrientation(const math::Quaternion& q,
+                                      const math::Vector3& omega, float dt) {
+  const math::Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
+  return (q + omega_q * q * (0.5f * dt)).GetNormalized();
+}
+
+// Collision-free kinematics for one interval of a tick. The same rules drive a
+// contact-free tick and the tail of a tick whose single impact is resolved.
+struct Flight {
+  Dynamics dynamics;
+  math::Vector3 gravity;
+  float ball_radius = 0.0f;
+  float magnus_coefficient = 0.0f;
+
+  bool OnGround(const BallState& state) const {
+    return state.position.coords[2] <= ball_radius + kTouchEpsilon;
+  }
+
+  bool VerticallyResting(const BallState& state) const {
+    return std::fabs(state.velocity.coords[2]) <= kTouchEpsilon;
+  }
+
+  // Grass resists horizontal motion only: a constant deceleration plus an
+  // optional quadratic term, clamping at rest instead of flipping the sign.
+  math::Vector3 GrassDrag(const math::Vector3& velocity, float span) const {
+    math::Vector3 v = velocity;
+    const float hs =
+        std::sqrt(v.coords[0] * v.coords[0] + v.coords[1] * v.coords[1]);
+    if (hs > 0.0f) {
+      const float resistance = dynamics.ground_deceleration +
+                               dynamics.quadratic_ground_resistance * hs * hs;
+      const float scale = std::max(0.0f, hs - resistance * span) / hs;
+      v.coords[0] *= scale;
+      v.coords[1] *= scale;
+    }
+    return v;
+  }
+
+  // Ground resistance applies only while the ball rests on the grass and is not
+  // climbing; a descended interval keeps the velocity it has.
+  math::Vector3 LaunchVelocity(const BallState& state, float span) const {
+    if (OnGround(state) && state.velocity.coords[2] >= -kTouchEpsilon)
+      return GrassDrag(state.velocity, span);
+    return state.velocity;
+  }
+
+  math::Vector3 Acceleration(const math::Vector3& v0,
+                             const math::Vector3& omega) const {
+    const float speed = v0.GetLength();
+    math::Vector3 accel = gravity;
+    if (speed > 0.0f)
+      accel = accel - v0 * (dynamics.quadratic_resistance * speed);
+    if (magnus_coefficient != 0.0f) {
+      accel = accel + math::Vector3(
+                          omega.coords[1] * v0.coords[2] - omega.coords[2] * v0.coords[1],
+                          omega.coords[2] * v0.coords[0] - omega.coords[0] * v0.coords[2],
+                          omega.coords[0] * v0.coords[1] - omega.coords[1] * v0.coords[0]) *
+                          magnus_coefficient;
+    }
+    return accel;
+  }
+
+  // One interval with no collision query: rolling when the ball rests on the
+  // grass, ballistic (half-step velocity) otherwise.
+  BallState Advance(const BallState& state, float span) const {
+    if (span <= 0.0f) return state;
+    BallState next = state;
+    next.angular_velocity =
+        state.angular_velocity * std::max(0.0f, 1.0f - dynamics.spin_decay * span);
+    if (OnGround(state) && VerticallyResting(state)) {
+      next.velocity = GrassDrag(state.velocity, span);
+      next.velocity.coords[2] = 0.0f;
+      next.position = state.position + next.velocity * span;
+      next.position.coords[2] = ball_radius;
+    } else {
+      const math::Vector3 v0 = LaunchVelocity(state, span);
+      const math::Vector3 accel = Acceleration(v0, state.angular_velocity);
+      next.position = state.position + (v0 + accel * (0.5f * span)) * span;
+      next.velocity = v0 + accel * span;
+    }
+    next.orientation = IntegrateOrientation(state.orientation, next.angular_velocity, span);
+    return next;
+  }
+};
+
+Flight MakeFlight(const BallModel& config, const Pitch& pitch) {
+  Flight flight;
+  flight.dynamics = MakeDynamics(config, pitch);
+  flight.gravity = math::Vector3(0.0f, 0.0f, pitch.gravity());
+  flight.ball_radius = config.radius;
+  flight.magnus_coefficient = config.magnus_coefficient;
+  return flight;
+}
+
 BallContact ToBallContact(const collision::CollisionHit& hit,
                           const math::Vector3& velocity) {
   BallContact contact;
@@ -60,6 +158,8 @@ BallContact ToBallContact(const collision::CollisionHit& hit,
   return contact;
 }
 
+// One interval [0, dt]: resolve at most one contact, leaving the caller to fly
+// the rest of the tick collision-free.
 BallStepResult AdvanceBallSegment(const BallState& initial,
                                std::span<const ColliderMotion> colliders,
                                float dt,
@@ -68,11 +168,12 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
   using collision::FirstHit;
   using collision::MovingSphere;
 
-  const Dynamics dynamics = MakeDynamics(config, pitch);
+  const Flight flight = MakeFlight(config, pitch);
+  const float eps = kTouchEpsilon;
+  const float ball_radius = config.radius;
+
   BallStepResult result;
   result.state = initial;
-  const float eps = 1e-4f;
-  const float ball_radius = config.radius;
 
   std::vector<geometry::ColliderId> tangent_contacts;
   const auto sweep_from = [&](const BallState& state) {
@@ -99,12 +200,6 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
           (hit->toi == best->toi && hit->collider < best->collider)) best = hit;
     }
     return best;
-  };
-
-  const auto integrate_orientation = [](const math::Quaternion& q,
-                                        const math::Vector3& omega, float dt) {
-    const math::Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
-    return (q + omega_q * q * (0.5f * dt)).GetNormalized();
   };
 
   const auto depenetrate = [&](BallState& s, const BallContact& contact) {
@@ -173,61 +268,29 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
   };
   const std::size_t correction_cap = colliders.size() + 2;
 
-  const float resting_z = ball_radius;
-  const bool on_ground = initial.position.coords[2] <= resting_z + eps;
-  const bool not_descending = initial.velocity.coords[2] >= -eps;
-  const bool vertically_resting = std::fabs(initial.velocity.coords[2]) <= eps;
-
-  const auto grass_drag = [&](const math::Vector3& velocity, float time) {
-    math::Vector3 v = velocity;
-    const float hs =
-        std::sqrt(v.coords[0] * v.coords[0] + v.coords[1] * v.coords[1]);
-    if (hs > 0.0f) {
-      const float resistance = dynamics.ground_deceleration +
-                               dynamics.quadratic_ground_resistance * hs * hs;
-      const float slowed = std::max(0.0f, hs - resistance * time);
-      const float scale = slowed / hs;
-      v.coords[0] *= scale;
-      v.coords[1] *= scale;
-    }
-    return v;
-  };
-
-  math::Vector3 grass_v = initial.velocity;
-  if (on_ground && not_descending) grass_v = grass_drag(initial.velocity, dt);
-
-  const float spin_scale = std::max(0.0f, 1.0f - dynamics.spin_decay * dt);
-  const math::Vector3 omega1 = initial.angular_velocity * spin_scale;
-
-  if (on_ground && vertically_resting) {
-    const math::Vector3 v{grass_v.coords[0], grass_v.coords[1], 0.0f};
+  // Rolling: the ball rests on the grass, so the tick is two-dimensional. The
+  // sweep follows the dragged roll instead of the raw velocity.
+  if (flight.OnGround(initial) && flight.VerticallyResting(initial)) {
     BallState cursor = initial;
-    cursor.velocity = v;
-    cursor.position.coords[2] = resting_z;
-    cursor.angular_velocity = omega1;
-    const auto roll_free = [&] {
-      result.state = cursor;
-      result.state.velocity = v;
-      result.state.position = cursor.position + v * dt;
-      result.state.position.coords[2] = resting_z;
-      result.state.angular_velocity = omega1;
-      result.state.orientation =
-          integrate_orientation(cursor.orientation, omega1, dt);
-    };
+    cursor.position.coords[2] = ball_radius;
+    cursor.velocity.coords[2] = 0.0f;
+    const math::Vector3 roll_velocity = flight.GrassDrag(cursor.velocity, dt);
     for (std::size_t guard = 0;; ++guard) {
-      const auto hit = sweep_from(cursor);
+      BallState probe = cursor;
+      probe.velocity = roll_velocity;
+      const auto hit = sweep_from(probe);
       if (!hit.has_value()) {
-        roll_free();
+        result.state = flight.Advance(cursor, dt);
         return result;
       }
-      auto impact_velocity = grass_drag(initial.velocity, hit->toi * dt);
+      auto impact_velocity = flight.GrassDrag(initial.velocity, hit->toi * dt);
       impact_velocity.coords[2] = 0.0f;
       const BallContact first = ToBallContact(*hit, impact_velocity);
       if (!correction_only(first) || guard >= correction_cap) {
         result.state = cursor;
         result.state.position = first.point;
         result.state.velocity = impact_velocity;
-        result.state.orientation = integrate_orientation(
+        result.state.orientation = IntegrateOrientation(
             cursor.orientation, cursor.angular_velocity, first.toi * dt);
         resolve(first);
         return result;
@@ -236,54 +299,24 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
     }
   }
 
-  const math::Vector3 gravity{0.0f, 0.0f, pitch.gravity()};
-  const auto launch_velocity = [&](const BallState& s) {
-    if (s.position.coords[2] <= resting_z + eps && s.velocity.coords[2] >= -eps)
-      return grass_drag(s.velocity, dt);
-    return s.velocity;
-  };
-  const auto acceleration = [&](const math::Vector3& v0) {
-    const float speed = v0.GetLength();
-    math::Vector3 accel = gravity;
-    if (speed > 0.0f)
-      accel = accel - v0 * (dynamics.quadratic_resistance * speed);
-    if (dynamics.magnus_coefficient != 0.0f) {
-      const math::Vector3& o = initial.angular_velocity;
-      accel = accel + math::Vector3(
-          o.coords[1] * v0.coords[2] - o.coords[2] * v0.coords[1],
-          o.coords[2] * v0.coords[0] - o.coords[0] * v0.coords[2],
-          o.coords[0] * v0.coords[1] - o.coords[1] * v0.coords[0]) *
-              dynamics.magnus_coefficient;
-    }
-    return accel;
-  };
-
   BallState cursor = initial;
   for (std::size_t guard = 0;; ++guard) {
-    const math::Vector3 v0 = launch_velocity(cursor);
-    const math::Vector3 accel = acceleration(v0);
-    const math::Vector3 vavg = v0 + accel * (0.5f * dt);
+    const math::Vector3 v0 = flight.LaunchVelocity(cursor, dt);
+    const math::Vector3 accel = flight.Acceleration(v0, cursor.angular_velocity);
     BallState probe = cursor;
-    probe.velocity = vavg;
+    probe.velocity = v0 + accel * (0.5f * dt);
     const auto hit = sweep_from(probe);
     if (!hit.has_value()) {
-      result.state = cursor;
-      result.state.position = cursor.position + vavg * dt;
-      result.state.velocity = v0 + accel * dt;
-      result.state.angular_velocity = omega1;
-      result.state.orientation =
-          integrate_orientation(cursor.orientation, omega1, dt);
+      result.state = flight.Advance(cursor, dt);
       return result;
     }
-    BallContact first = ToBallContact(*hit,
-        v0 + accel * (hit->toi * dt));
+    const math::Vector3 vc = v0 + accel * (hit->toi * dt);
+    BallContact first = ToBallContact(*hit, vc);
     if (!correction_only(first) || guard >= correction_cap) {
-      const math::Vector3 vc = v0 + accel * (first.toi * dt);
       result.state = cursor;
       result.state.position = first.point;
       result.state.velocity = vc;
-      result.state.angular_velocity = omega1;
-      result.state.orientation = integrate_orientation(cursor.orientation,
+      result.state.orientation = IntegrateOrientation(cursor.orientation,
           cursor.angular_velocity, first.toi * dt);
       resolve(first);
       return result;
@@ -292,7 +325,7 @@ BallStepResult AdvanceBallSegment(const BallState& initial,
   }
 }
 
-}
+}  // namespace
 
 BallStepResult AdvanceBallTick(const BallState& initial,
                                std::span<const ColliderMotion> colliders,
@@ -302,13 +335,14 @@ BallStepResult AdvanceBallTick(const BallState& initial,
   result.state = initial;
   if (dt <= 0.0f) return result;
 
-  constexpr int kMaxImpacts = 16;
+  // Safety bound on the splits before the tick's impact: the apex clip below
+  // needs at most one, and each overlap projection spends one more.
   constexpr int kMaxSegments = 32;
-  int impacts = 0;
+  const Flight flight = MakeFlight(config, pitch);
+
   float elapsed = 0.0f;
   std::vector<ColliderMotion> interval;
-  for (int step = 0;
-       step < kMaxSegments && impacts < kMaxImpacts && elapsed < dt; ++step) {
+  for (int step = 0; step < kMaxSegments && elapsed < dt; ++step) {
     float duration = dt - elapsed;
     const auto& v = result.state.velocity;
     const auto& w = result.state.angular_velocity;
@@ -360,10 +394,16 @@ BallStepResult AdvanceBallTick(const BallState& initial,
       contact.toi = (elapsed + duration * contact.toi) / dt;
       result.contacts.push_back(contact);
     }
-    if (collided) ++impacts;
     elapsed += consumed;
+    if (!collided) continue;
+    // One impact per tick: the rest of the tick is collision-free, so a surface
+    // reached afterwards is left to the next tick. A thin collider entered only
+    // during this tail is therefore not seen now; the next tick starts inside
+    // it and repairs the overlap instead of accepting a tunnel.
+    result.state = flight.Advance(result.state, dt - elapsed);
+    break;
   }
   return result;
 }
 
-}
+}  // namespace football::ball

@@ -26,6 +26,9 @@ struct BallContact {
 
 struct BallStepResult {
   BallState state;
+  // At most one entry carries a non-zero normal impulse: a tick resolves one
+  // impact and integrates the rest of itself collision-free. Any further
+  // entries are zero-impulse overlap repairs recorded before that impact.
   std::vector<BallContact> contacts;
 };
 
