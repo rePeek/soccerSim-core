@@ -274,7 +274,7 @@ TEST_CASE("A collision tick stops at the first post, not the second",
   const auto pitch = FrictionlessPitch();
   // Scene order: ground, left posts (low, high), right posts (low, high), bars.
   const auto& high = pitch.colliders()[4];
-  const auto& post = std::get<Capsule>(high.start);
+  const auto& post = std::get<Capsule>(high.shape);
   const float touching_y = pitch.goal_half_width() - post.radius - config.radius;
   Ball ball(config);
   ball.set_state(BallAt({pitch.half_length(), 0, config.radius}, {0, 1000, 0}));
@@ -308,7 +308,7 @@ TEST_CASE("Ground resistance is predicted for the full tick before a post impact
   const auto config = BallWithoutAero();
   const Pitch pitch(football_pitch_model{105, 68, 0, 1, 0.025f});
   const auto& collider = pitch.colliders()[3];
-  const auto& post = std::get<Capsule>(collider.start);
+  const auto& post = std::get<Capsule>(collider.shape);
   const float touching_x = pitch.half_length() - post.radius - config.radius;
   Ball ball(config);
   ball.set_state(BallAt({touching_x - 0.09f, -pitch.goal_half_width(), config.radius},
@@ -360,7 +360,7 @@ TEST_CASE("Ground and post overlap repairs stay internal without hiding an impac
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
   const auto& high = pitch.colliders()[4];
-  const auto& post = std::get<Capsule>(high.start);
+  const auto& post = std::get<Capsule>(high.shape);
   const float radius_sum = config.radius + post.radius;
   Ball ball(config);
 
@@ -449,7 +449,7 @@ TEST_CASE("A fast path is swept even when both endpoints are outside a post",
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
   const auto& collider = pitch.colliders()[3];
-  const auto& post = std::get<Capsule>(collider.start);
+  const auto& post = std::get<Capsule>(collider.shape);
   const float touching_x = pitch.half_length() - post.radius - config.radius;
   Ball ball(config);
   ball.set_state(BallAt({pitch.half_length() - 1, -pitch.goal_half_width(), config.radius},

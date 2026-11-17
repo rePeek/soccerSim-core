@@ -50,7 +50,7 @@ class Pitch {
 
   // ---- Physics scene: ground, posts and crossbars, generated once ----
   // Stable ids (also the deterministic CCD tie-break order) and a fixed order.
-  std::span<const geometry::ColliderMotion> colliders() const {
+  std::span<const geometry::Collider> colliders() const {
     return colliders_;
   }
 
@@ -84,7 +84,7 @@ private:
 
   geometry::ContactMaterial ground_material_{0.62f, 0.0f};
   geometry::ContactMaterial post_material_{0.8f, 0.0f};
-  std::vector<geometry::ColliderMotion> colliders_;
+  std::vector<geometry::Collider> colliders_;
 };
 
 }  // namespace football::pitch

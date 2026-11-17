@@ -18,7 +18,7 @@
 #include "football/pitch/pitch.hpp"
 
 using football::geometry::Capsule;
-using football::geometry::ColliderMotion;
+using football::geometry::Collider;
 using football::geometry::HalfSpace;
 using football::math::Vector3;
 using football::pitch::Pitch;
@@ -40,20 +40,18 @@ TEST_CASE("Default pitch builds seven ordered static colliders", "[unit][pitch]"
     for (std::size_t j = i + 1; j < pitch.colliders().size(); ++j) {
       CHECK(pitch.colliders()[i].id != pitch.colliders()[j].id);
     }
-    // Static: start and end hold the same shape.
-    CHECK(pitch.colliders()[i].start == pitch.colliders()[i].end);
   }
 
   // Ground first: a solid half-space at z = 0 facing up.
-  const ColliderMotion& ground = pitch.colliders().front();
-  REQUIRE(std::holds_alternative<HalfSpace>(ground.start));
-  const auto& half_space = std::get<HalfSpace>(ground.start);
+  const Collider& ground = pitch.colliders().front();
+  REQUIRE(std::holds_alternative<HalfSpace>(ground.shape));
+  const auto& half_space = std::get<HalfSpace>(ground.shape);
   CHECK(half_space.point == Vector3(0.0f, 0.0f, 0.0f));
   CHECK(half_space.normal == Vector3(0.0f, 0.0f, 1.0f));
 
   // Goal furniture is capsules (four posts + two crossbars).
   for (std::size_t i = 1; i < pitch.colliders().size(); ++i) {
-    CHECK(std::holds_alternative<Capsule>(pitch.colliders()[i].start));
+    CHECK(std::holds_alternative<Capsule>(pitch.colliders()[i].shape));
   }
 }
 
@@ -64,7 +62,7 @@ TEST_CASE("Goal colliders follow the pitch geometry", "[unit][pitch]") {
   const float z = pitch.goal_height();
 
   const auto capsule = [&](std::size_t i) {
-    return std::get<Capsule>(pitch.colliders()[i].start);
+    return std::get<Capsule>(pitch.colliders()[i].shape);
   };
 
   // Posts: ids 2..5, vertical bars from the ground to the crossbar height.
@@ -102,7 +100,7 @@ TEST_CASE("Configuration drives the derived geometry", "[unit][pitch]") {
   CHECK_FALSE(small.contains(0.0f, 30.1f));
 
   // The goal posts move with the custom length.
-  const auto post = std::get<Capsule>(small.colliders()[1].start);
+  const auto post = std::get<Capsule>(small.colliders()[1].shape);
   CHECK(post.a.coords[0] == Approx(-45.0f));
 }
 

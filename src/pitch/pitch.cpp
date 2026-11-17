@@ -24,16 +24,15 @@ constexpr geometry::ColliderId kLeftBarColliderId = 6;
 constexpr geometry::ColliderId kRightBarColliderId = 7;
 constexpr float kPostRadius = 0.06f;
 
-// Deterministic static collider: same shape at start and end (no motion).
-geometry::ColliderMotion StaticCollider(
+// Deterministic static collider: one pose, stable id.
+geometry::Collider StaticCollider(
     geometry::ColliderId id, geometry::ColliderShape shape,
     geometry::ContactMaterial material) {
-  geometry::ColliderMotion motion;
-  motion.id = id;
-  motion.start = shape;
-  motion.end = shape;
-  motion.material = material;
-  return motion;
+  geometry::Collider collider;
+  collider.id = id;
+  collider.shape = shape;
+  collider.material = material;
+  return collider;
 }
 
 }  // namespace

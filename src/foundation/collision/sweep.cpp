@@ -8,12 +8,11 @@
 
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/scalar.hpp"
-#include "sweep_deforming_capsule.hpp"
 
 namespace football::collision {
 
 using geometry::Capsule;
-using geometry::ColliderMotion;
+using geometry::Collider;
 using geometry::ColliderShape;
 using geometry::HalfSpace;
 using geometry::Plane;
@@ -90,7 +89,7 @@ void ValidateShape(const ColliderShape& shape) {
 
 // Rejects malformed sweeps. A valid query with no contact returns nullopt; bad
 // input is a caller bug, so it throws instead of being reported as "no hit".
-void ValidateSweep(const MovingSphere& sphere, const ColliderMotion& collider,
+void ValidateSweep(const MovingSphere& sphere, const Collider& collider,
                    float dt) {
   if (!std::isfinite(dt) || dt <= 0.0f)
     throw std::invalid_argument(
@@ -99,18 +98,14 @@ void ValidateSweep(const MovingSphere& sphere, const ColliderMotion& collider,
       !IsFiniteVector(sphere.shape.center) || !IsFiniteVector(sphere.velocity))
     throw std::invalid_argument(
         "collision::Sweep: invalid moving sphere");
-  if (collider.start.index() != collider.end.index())
-    throw std::invalid_argument(
-        "collision::Sweep: collider start/end shape kinds differ");
-  ValidateShape(collider.start);
-  ValidateShape(collider.end);
+  ValidateShape(collider.shape);
 }
 
 // Two-sided plane: a thin surface. The sphere touches when its centre is one
 // radius away, on either side, and the normal points back to the side it
 // arrived from.
 std::optional<CollisionHit> SweepPlane(const MovingSphere& sphere,
-                                       const ColliderMotion& collider,
+                                       const Collider& collider,
                                        const Plane& plane, float dt) {
   const math::Vector3 ball_position = sphere.shape.center;
   const math::Vector3 disp = sphere.velocity * dt;
@@ -141,7 +136,7 @@ std::optional<CollisionHit> SweepPlane(const MovingSphere& sphere,
 // One-sided solid: the -normal side is solid, so a sphere already inside it
 // reports toi == 0 and otherwise contacts when its surface reaches the plane.
 std::optional<CollisionHit> SweepHalfSpace(const MovingSphere& sphere,
-                                           const ColliderMotion& collider,
+                                           const Collider& collider,
                                            const HalfSpace& half_space,
                                            float dt) {
   const math::Vector3 ball_position = sphere.shape.center;
@@ -171,72 +166,60 @@ std::optional<CollisionHit> SweepHalfSpace(const MovingSphere& sphere,
 }
 
 std::optional<CollisionHit> SweepSphere(const MovingSphere& sphere,
-                                        const ColliderMotion& collider,
-                                        const Sphere& start, const Sphere& end,
-                                        float dt) {
+                                        const Collider& collider,
+                                        const Sphere& other, float dt) {
   const math::Vector3 ball_position = sphere.shape.center;
-  const math::Vector3 ball_velocity = sphere.velocity;
+  const math::Vector3 disp = sphere.velocity * dt;
   const float ball_radius = sphere.shape.radius;
 
-  const math::Vector3 disp = ball_velocity * dt;
-  const math::Vector3 col_disp = end.center - start.center;
-  const math::Vector3 r0 = ball_position - start.center;
-  const math::Vector3 rv = disp - col_disp;
-  const float radius_sum = ball_radius + start.radius;
+  const math::Vector3 r0 = ball_position - other.center;
+  const float radius_sum = ball_radius + other.radius;
 
-  const float dist0 = r0.GetLength();
   CollisionHit hit;
   hit.collider = collider.id;
-  hit.surface_velocity = col_disp * (1.0f / dt);
 
-  if (dist0 < radius_sum - kEpsilon) {
+  if (r0.GetLength() < radius_sum - kEpsilon) {
     hit.toi = 0.0f;
     hit.center = ball_position;
     hit.normal = NormalizedSafe(r0, {0, 0, 1});
     return hit;
   }
   // Outside/tangent and non-approaching: reject the quadratic exit root.
-  // Convex distance cannot later decrease along this straight relative sweep.
-  if (r0.GetDotProduct(rv) >= 0.0f) return std::nullopt;
+  // Convex distance cannot later decrease along this straight sweep.
+  if (r0.GetDotProduct(disp) >= 0.0f) return std::nullopt;
 
-  const float a = rv.GetDotProduct(rv);
-  const float b = 2.0f * r0.GetDotProduct(rv);
+  const float a = disp.GetDotProduct(disp);
+  const float b = 2.0f * r0.GetDotProduct(disp);
   const float c = r0.GetDotProduct(r0) - radius_sum * radius_sum;
   float t0, t1;
   const int roots = SolveQuadratic(a, b, c, t0, t1);
   if (roots == 0) return std::nullopt;
   const float t = (t0 >= 0.0f) ? t0 : t1;
   if (t < 0.0f || t > 1.0f) return std::nullopt;
-  const math::Vector3 center = start.center + col_disp * t;
   const math::Vector3 center_ball = ball_position + disp * t;
   hit.toi = t;
   hit.center = center_ball;
-  hit.normal = NormalizedSafe(center_ball - center, {0, 0, 1});
+  hit.normal = NormalizedSafe(center_ball - other.center, {0, 0, 1});
   return hit;
 }
 
 std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
-                                         const ColliderMotion& collider,
-                                         const Capsule& start, const Capsule& end,
-                                         float dt) {
+                                         const Collider& collider,
+                                         const Capsule& capsule, float dt) {
   const math::Vector3 ball_position = sphere.shape.center;
-  const math::Vector3 ball_velocity = sphere.velocity;
+  const math::Vector3 disp = sphere.velocity * dt;
   const float ball_radius = sphere.shape.radius;
 
-  const math::Vector3 disp = ball_velocity * dt;
-  const math::Vector3 col_disp = end.a - start.a;
-  const math::Vector3 r0 = ball_position - start.a;
-  const math::Vector3 rv = disp - col_disp;
+  const math::Vector3 r0 = ball_position - capsule.a;
   const math::Vector3 seg_a{0, 0, 0};
-  const math::Vector3 seg_b = start.b - start.a;
-  const float radius_sum = ball_radius + start.radius;
+  const math::Vector3 seg_b = capsule.b - capsule.a;
+  const float radius_sum = ball_radius + capsule.radius;
 
   const math::Vector3 closest0 = ClosestPointOnSegment(r0, seg_a, seg_b);
   const float dist0 = (r0 - closest0).GetLength();
 
   CollisionHit hit;
   hit.collider = collider.id;
-  hit.surface_velocity = col_disp * (1.0f / dt);
 
   if (dist0 < radius_sum - kEpsilon) {
     hit.toi = 0.0f;
@@ -244,13 +227,13 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
     hit.normal = NormalizedSafe(r0 - closest0, {0, 0, 1});
     return hit;
   }
-  if ((r0 - closest0).GetDotProduct(rv) >= 0.0f) return std::nullopt;
+  if ((r0 - closest0).GetDotProduct(disp) >= 0.0f) return std::nullopt;
 
   float best = std::numeric_limits<float>::max();
   for (const math::Vector3& center : {seg_a, seg_b}) {
     const math::Vector3 rr0 = r0 - center;
-    const float a = rv.GetDotProduct(rv);
-    const float b = 2.0f * rr0.GetDotProduct(rv);
+    const float a = disp.GetDotProduct(disp);
+    const float b = 2.0f * rr0.GetDotProduct(disp);
     const float c = rr0.GetDotProduct(rr0) - radius_sum * radius_sum;
     float t0, t1;
     const int roots = SolveQuadratic(a, b, c, t0, t1);
@@ -264,15 +247,15 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
   const float dir_len2 = dir_v.GetDotProduct(dir_v);
   if (dir_len2 > kEpsilon) {
     const math::Vector3 d = dir_v * (1.0f / std::sqrt(dir_len2));
-    const float ca = rv.GetDotProduct(rv) - std::pow(rv.GetDotProduct(d), 2.0f);
-    const float cb = 2.0f * (r0.GetDotProduct(rv) - r0.GetDotProduct(d) * rv.GetDotProduct(d));
+    const float ca = disp.GetDotProduct(disp) - std::pow(disp.GetDotProduct(d), 2.0f);
+    const float cb = 2.0f * (r0.GetDotProduct(disp) - r0.GetDotProduct(d) * disp.GetDotProduct(d));
     const float cc = r0.GetDotProduct(r0) - std::pow(r0.GetDotProduct(d), 2.0f) - radius_sum * radius_sum;
     float t0, t1;
     const int roots = SolveQuadratic(ca, cb, cc, t0, t1);
     if (roots > 0) {
       const float t = (t0 >= 0.0f) ? t0 : t1;
       if (t >= 0.0f && t <= 1.0f) {
-        const math::Vector3 at = r0 + rv * t;
+        const math::Vector3 at = r0 + disp * t;
         const float s = at.GetDotProduct(d);
         if (s >= -kEpsilon && s <= std::sqrt(dir_len2) + kEpsilon) {
           best = std::min(best, t);
@@ -283,7 +266,7 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
 
   if (best > 1.0f) return std::nullopt;
   const math::Vector3 center_ball = ball_position + disp * best;
-  const math::Vector3 r_at = r0 + rv * best;
+  const math::Vector3 r_at = r0 + disp * best;
   const math::Vector3 closest = ClosestPointOnSegment(r_at, seg_a, seg_b);
   hit.toi = best;
   hit.center = center_ball;
@@ -294,38 +277,29 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
 }  // namespace
 
 std::optional<CollisionHit> Sweep(const MovingSphere& sphere,
-                                  const ColliderMotion& collider, float dt) {
+                                  const Collider& collider, float dt) {
   ValidateSweep(sphere, collider, dt);
   return std::visit(
-      [&](const auto& start_shape) -> std::optional<CollisionHit> {
-        using T = std::decay_t<decltype(start_shape)>;
+      [&](const auto& shape) -> std::optional<CollisionHit> {
+        using T = std::decay_t<decltype(shape)>;
         if constexpr (std::is_same_v<T, Plane>) {
-          return SweepPlane(sphere, collider, start_shape, dt);
+          return SweepPlane(sphere, collider, shape, dt);
         } else if constexpr (std::is_same_v<T, HalfSpace>) {
-          return SweepHalfSpace(sphere, collider, start_shape, dt);
+          return SweepHalfSpace(sphere, collider, shape, dt);
         } else if constexpr (std::is_same_v<T, Sphere>) {
-          const auto* end = std::get_if<Sphere>(&collider.end);
-          if (start_shape.radius != end->radius)
-            return detail::SweepDeformingCapsule(sphere, collider,
-                Capsule{start_shape.center, start_shape.center, start_shape.radius},
-                Capsule{end->center, end->center, end->radius}, dt);
-          return SweepSphere(sphere, collider, start_shape, *end, dt);
-        } else if constexpr (std::is_same_v<T, Capsule>) {
-          const auto* end = std::get_if<Capsule>(&collider.end);
-          if (end->a - start_shape.a != end->b - start_shape.b || start_shape.radius != end->radius)
-            return detail::SweepDeformingCapsule(sphere, collider, start_shape, *end, dt);
-          return SweepCapsule(sphere, collider, start_shape, *end, dt);
+          return SweepSphere(sphere, collider, shape, dt);
+        } else {
+          return SweepCapsule(sphere, collider, shape, dt);
         }
-        return std::nullopt;
       },
-      collider.start);
+      collider.shape);
 }
 
 std::optional<CollisionHit> FirstHit(
     const MovingSphere& sphere,
-    std::span<const ColliderMotion> colliders, float dt) {
+    std::span<const Collider> colliders, float dt) {
   std::optional<CollisionHit> best;
-  for (const ColliderMotion& collider : colliders) {
+  for (const Collider& collider : colliders) {
     const std::optional<CollisionHit> hit = Sweep(sphere, collider, dt);
     if (!hit.has_value()) continue;
     if (!best.has_value() ||
