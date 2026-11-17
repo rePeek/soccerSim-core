@@ -66,7 +66,7 @@ TEST_CASE("Free fall follows gravity", "[unit][ball][simulation]") {
   CHECK(result.state.velocity.coords[2] == Approx(-9.81f * kDt).margin(1e-4f));
   CHECK(result.state.position.coords[2] ==
         Approx(10.0f - 0.5f * 9.81f * kDt * kDt).margin(1e-4f));
-  CHECK(result.contacts.empty());
+  CHECK_FALSE(result.contact.has_value());
 }
 
 TEST_CASE("Horizontal flight without drag keeps horizontal velocity",
@@ -136,11 +136,13 @@ TEST_CASE("Landing on the ground reflects by the contact restitution",
   ball.set_state(initial);
   const auto result = ball.AdvanceBallTick(colliders, kDt, pitch);
 
-  REQUIRE(!result.contacts.empty());
+  REQUIRE(result.contact.has_value());
+  CHECK(result.contact->normal_impulse > 0.0f);
   CHECK(result.state.velocity.coords[2] > 0.0f);
   CHECK(result.state.position.coords[2] > config.radius + 0.001f);
   const auto next = ball.AdvanceBallTick(colliders, kDt, pitch);
   CHECK(next.state.position.coords[2] > result.state.position.coords[2]);
+  CHECK_FALSE(next.contact.has_value());
 }
 
 TEST_CASE("Initial penetration is repaired without an impulse",
@@ -155,9 +157,7 @@ TEST_CASE("Initial penetration is repaired without an impulse",
   const auto result = ball.AdvanceBallTick(colliders, kDt, pitch);
 
   CHECK(result.state.position.coords[2] == Approx(config.radius).margin(1e-4f));
-  for (const auto& contact : result.contacts) {
-    CHECK(contact.normal_impulse == Approx(0.0f));
-  }
+  CHECK_FALSE(result.contact.has_value());
 }
 
 TEST_CASE("Ball Predict previews without mutating state",
@@ -209,12 +209,10 @@ TEST_CASE("Ball Step equals one tick over the pitch colliders",
   const auto expected = reference.AdvanceBallTick(pitch.colliders(), kDt, pitch);
   const auto actual = ball.Step(pitch);
 
-  REQUIRE(!actual.contacts.empty());
-  REQUIRE(actual.contacts.size() == expected.contacts.size());
-  for (std::size_t i = 0; i < actual.contacts.size(); ++i) {
-    CHECK(actual.contacts[i].collider == expected.contacts[i].collider);
-    CHECK(actual.contacts[i].toi == Approx(expected.contacts[i].toi));
-  }
+  REQUIRE(actual.contact.has_value());
+  REQUIRE(expected.contact.has_value());
+  CHECK(actual.contact->collider == expected.contact->collider);
+  CHECK(actual.contact->toi == Approx(expected.contact->toi));
   for (int axis = 0; axis < 3; ++axis) {
     CHECK(actual.state.position.coords[axis] ==
           Approx(expected.state.position.coords[axis]));
@@ -331,7 +329,7 @@ TEST_CASE("Ball flies freely through former goal net regions",
     const auto preview = ball.Predict(pitch);
     const auto future = ball.Predict(pitch, football::time::TickSpan{10});
     const auto result = ball.Step(pitch);
-    REQUIRE(result.contacts.empty());
+    REQUIRE_FALSE(result.contact.has_value());
     for (int axis = 0; axis < 3; ++axis) {
       const float gravity = axis == 2 ? -9.81f : 0.0f;
       CHECK(result.state.velocity.coords[axis] ==
@@ -383,8 +381,9 @@ TEST_CASE("Successive ground bounces retain their restitution", "[unit][ball][si
     int bounces = 0;
     for (int i = 0; i < 300; ++i) {
       const auto result = ball.AdvanceBallTick(colliders, kDt, pitch);
-      for (const auto& contact : result.contacts) {
-        if (contact.normal_impulse <= 0) continue;
+      if (result.contact) {
+        const auto& contact = *result.contact;
+        CHECK(contact.normal_impulse > 0.0f);
         ++bounces;
         const float incoming = contact.relative_velocity.coords[2];
         const float outgoing = incoming + contact.normal_impulse / config.mass;
@@ -416,16 +415,16 @@ TEST_CASE("A tick resolves one impact and flies the rest collision-free",
     Ball ball(config);
     ball.set_state(BallAt({0, 0, config.radius}, {30, 0, 0}));
     const auto result = ball.AdvanceBallTick(colliders, kDt, pitch);
-    REQUIRE(result.contacts.size() == 1);
-    CHECK(result.contacts[0].collider == 101);
-    CHECK(result.contacts[0].toi == Approx(0.3f).margin(1e-5f));
+    REQUIRE(result.contact.has_value());
+    CHECK(result.contact->collider == 101);
+    CHECK(result.contact->toi == Approx(0.3f).margin(1e-5f));
     // 0.09 m to the wall, then 0.7 tick of collision-free rolling.
     CHECK(result.state.position.coords[0] ==
           Approx(0.09f - 30.0f * 0.007f).margin(1e-5f));
     CHECK(result.state.velocity.coords[0] == Approx(-30));
     const auto next = ball.AdvanceBallTick(colliders, kDt, pitch);
-    REQUIRE(next.contacts.size() == 1);
-    CHECK(next.contacts[0].collider == 102);
+    REQUIRE(next.contact.has_value());
+    CHECK(next.contact->collider == 102);
   }
   SECTION("a kinematic surface velocity is applied when it is the first hit") {
     using football::geometry::Sphere;
@@ -437,9 +436,9 @@ TEST_CASE("A tick resolves one impact and flies the rest collision-free",
     Ball ball(config);
     ball.set_state(BallAt({0, 0, config.radius}, {-30, 0, 0}));
     const auto result = ball.AdvanceBallTick(moving, kDt, pitch);
-    REQUIRE(result.contacts.size() == 1);
-    CHECK(result.contacts[0].toi == Approx(0.35f).margin(1e-4f));
-    CHECK(result.contacts[0].surface_velocity.coords[0] == Approx(10).margin(1e-4f));
+    REQUIRE(result.contact.has_value());
+    CHECK(result.contact->toi == Approx(0.35f).margin(1e-4f));
+    CHECK(result.contact->surface_velocity.coords[0] == Approx(10).margin(1e-4f));
     // Contact at x=-0.105 with the sphere closing at 10 m/s, then 0.65 tick.
     CHECK(result.state.velocity.coords[0] == Approx(50).margin(1e-4f));
     CHECK(result.state.position.coords[0] == Approx(0.22f).margin(1e-4f));
@@ -481,17 +480,17 @@ TEST_CASE("A single impact per tick hands a fast ball to the next tick",
   Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius}, {10000, 0, 0}));
   const auto result = ball.AdvanceBallTick(colliders, kDt, pitch);
-  REQUIRE(result.contacts.size() == 1);
-  CHECK(result.contacts[0].collider == 101);
-  CHECK(result.contacts[0].toi == Approx(0.0009f).margin(1e-6f));
+  REQUIRE(result.contact.has_value());
+  CHECK(result.contact->collider == 101);
+  CHECK(result.contact->toi == Approx(0.0009f).margin(1e-6f));
   // The rest of the tick is collision-free, so the ball ends up past the far
   // wall; the next tick repairs that overlap instead of holding the pose.
   CHECK(result.state.position.coords[0] ==
         Approx(0.09f - 10000.0f * kDt * (1.0f - 0.0009f)).margin(0.05f));
   const auto next = ball.AdvanceBallTick(colliders, kDt, pitch);
-  REQUIRE(next.contacts.size() == 1);
-  CHECK(next.contacts[0].collider == 102);
-  CHECK(next.contacts[0].toi == Approx(0.0f));
+  REQUIRE(next.contact.has_value());
+  CHECK(next.contact->collider == 102);
+  CHECK(next.contact->toi == Approx(0.0f));
   CHECK(next.state.velocity.coords[0] > 0.0f);
 }
 
@@ -507,7 +506,7 @@ TEST_CASE("Collision predictions leave every state component untouched",
   ball.set_state(initial);
 
   const auto preview = ball.Predict(pitch);
-  REQUIRE(!preview.contacts.empty());
+  REQUIRE(preview.contact.has_value());
   const auto future = ball.Predict(pitch, football::time::TickSpan{10});
   const auto now = ball.get_state();
   CHECK(now.position == initial.position);
@@ -516,7 +515,10 @@ TEST_CASE("Collision predictions leave every state component untouched",
   CHECK_FALSE(now.orientation != initial.orientation);
 
   const auto actual = ball.Step(pitch);
-  REQUIRE(actual.contacts.size() == preview.contacts.size());
+  REQUIRE(actual.contact.has_value());
+  CHECK(actual.contact->collider == preview.contact->collider);
+  CHECK(actual.contact->toi == Approx(preview.contact->toi));
+  CHECK(actual.contact->normal_impulse == Approx(preview.contact->normal_impulse));
   CHECK(actual.state.position == preview.state.position);
   CHECK(actual.state.velocity == preview.state.velocity);
   CHECK(actual.state.angular_velocity == preview.state.angular_velocity);
@@ -541,8 +543,42 @@ TEST_CASE("AdvanceBallTick commits its returned state and ignores zero duration"
   CHECK(now.angular_velocity == result.state.angular_velocity);
   CHECK_FALSE(now.orientation != result.state.orientation);
   const auto zero = ball.AdvanceBallTick({}, 0.0f, pitch);
-  CHECK(zero.contacts.empty());
+  CHECK_FALSE(zero.contact.has_value());
   CHECK(ball.get_state().position == now.position);
   CHECK(ball.get_state().velocity == now.velocity);
   CHECK_FALSE(ball.get_state().orientation != now.orientation);
+}
+
+TEST_CASE("Overlap repairs stay internal and do not hide the single impact",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutAero();
+  const auto pitch = FrictionlessPitch();
+  const HalfSpace left{{0, 0, 0}, {1, 0, 0}};
+  const HalfSpace back{{0, 0, 0}, {0, 1, 0}};
+  const HalfSpace right{{0.25f, 0, 0}, {-1, 0, 0}};
+  const std::array<ColliderMotion, 3> colliders{{
+      {101, left, left, {1, 0}},
+      {102, back, back, {1, 0}},
+      {103, right, right, {1, 0}}}};
+  Ball ball(config);
+
+  SECTION("separating overlaps are repaired without reporting an impact") {
+    ball.set_state(BallAt({-0.01f, -0.01f, 1}, {1, 1, 0}));
+    const auto result = ball.AdvanceBallTick(colliders, kDt, pitch);
+    CHECK_FALSE(result.contact.has_value());
+    CHECK(result.state.position.coords[0] == Approx(config.radius + kDt));
+    CHECK(result.state.position.coords[1] == Approx(config.radius + kDt));
+    CHECK(ball.get_state().position == result.state.position);
+  }
+  SECTION("an impact after two repairs is the only returned contact") {
+    ball.set_state(BallAt({-0.01f, -0.01f, 1}, {30, 30, 0}));
+    const auto result = ball.AdvanceBallTick(colliders, kDt, pitch);
+    REQUIRE(result.contact.has_value());
+    CHECK(result.contact->collider == 103);
+    CHECK(result.contact->normal_impulse > 0.0f);
+    CHECK(result.contact->toi == Approx(0.1f).margin(1e-5f));
+    CHECK(result.contact->point.coords[0] == Approx(0.25f).margin(1e-5f));
+    CHECK(result.state.velocity.coords[0] == Approx(-30));
+    CHECK(ball.get_state().velocity == result.state.velocity);
+  }
 }

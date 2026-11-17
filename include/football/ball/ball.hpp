@@ -1,7 +1,7 @@
 #pragma once
 
+#include <optional>
 #include <span>
-#include <vector>
 
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/quaternion.hpp"
@@ -37,8 +37,8 @@ struct BallContact {
 
 struct BallStepResult {
   BallState state;
-  // At most one impact; other entries are zero-impulse overlap repairs.
-  std::vector<BallContact> contacts;
+  // The tick's single impact, or nullopt if none. Overlap repairs stay internal.
+  std::optional<BallContact> contact;
 };
 
 class Ball {
@@ -100,7 +100,7 @@ class Ball {
                               const Pitch& pitch) const;
   BallContact ToBallContact(const collision::CollisionHit& hit,
                             const math::Vector3& velocity) const;
-  std::vector<BallContact> AdvanceBallSegment(
+  std::optional<BallContact> AdvanceBallSegment(
       std::span<const geometry::ColliderMotion> colliders,
       float dt, const Pitch& pitch);
 

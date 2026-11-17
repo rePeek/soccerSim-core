@@ -127,19 +127,14 @@ BallStepResult Ball::AdvanceBallTick(std::span<const ColliderMotion> colliders,
       }
       segment_colliders = interval;
     }
-    const auto contacts = AdvanceBallSegment(segment_colliders, duration, pitch);
-    bool collided = false;
-    float consumed = duration;
-    for (auto contact : contacts) {
-      if (contact.normal_impulse > 0.0f) {
-        collided = true;
-        consumed = duration * contact.toi;
-      }
-      contact.toi = (elapsed + duration * contact.toi) / dt;
-      result.contacts.push_back(contact);
+    auto contact = AdvanceBallSegment(segment_colliders, duration, pitch);
+    if (!contact) {
+      elapsed += duration;
+      continue;
     }
-    elapsed += consumed;
-    if (!collided) continue;
+    elapsed += duration * contact->toi;
+    contact->toi = elapsed / dt;
+    result.contact = contact;
     set_state(AdvanceFreeFlight(state_, dt - elapsed, pitch));
     break;
   }
@@ -149,9 +144,9 @@ BallStepResult Ball::AdvanceBallTick(std::span<const ColliderMotion> colliders,
 
 BallStepResult Ball::Step(const Pitch& pitch) {
   auto result = AdvanceBallTick(pitch.colliders(), time::kTickSeconds, pitch);
-  if (!result.contacts.empty()) {
-    Debug(Channel::ball, std::format("tick resolved {} contact(s); position=({}, {}, {})",
-                                     result.contacts.size(), state_.position.coords[0],
+  if (result.contact) {
+    Debug(Channel::ball, std::format("tick resolved contact with {}; position=({}, {}, {})",
+                                     result.contact->collider, state_.position.coords[0],
                                      state_.position.coords[1], state_.position.coords[2]));
   }
   return result;
@@ -267,7 +262,7 @@ BallContact Ball::ToBallContact(const collision::CollisionHit& hit,
   return contact;
 }
 
-std::vector<BallContact> Ball::AdvanceBallSegment(
+std::optional<BallContact> Ball::AdvanceBallSegment(
     std::span<const ColliderMotion> colliders, float dt, const Pitch& pitch) {
   using collision::FirstHit;
   using collision::MovingSphere;
@@ -275,7 +270,6 @@ std::vector<BallContact> Ball::AdvanceBallSegment(
   const BallState initial = state_;
   const float eps = kTouchEpsilon;
   const float ball_radius = model_.radius;
-  std::vector<BallContact> contacts;
   std::vector<geometry::ColliderId> tangent_contacts;
   const auto sweep_from = [&](const BallState& state) {
     // A repaired, separating tangent must not hide another collider's hit.
@@ -332,7 +326,7 @@ std::vector<BallContact> Ball::AdvanceBallSegment(
     }
   };
 
-  const auto resolve = [&](BallContact contact) {
+  const auto resolve = [&](BallContact contact) -> std::optional<BallContact> {
     const ContactMaterial* material = nullptr;
     for (const ColliderMotion& c : colliders) {
       if (c.id == contact.collider) { material = &c.material; break; }
@@ -345,24 +339,19 @@ std::vector<BallContact> Ball::AdvanceBallSegment(
     contact.point = next.position - contact.normal * ball_radius;
     set_state(next);
     const ContactImpulse solved = SolveContactImpulse(contact, m);
+    if (solved.normal_impulse <= 0.0f) return std::nullopt;
     contact.normal_impulse = solved.normal_impulse;
-    if (solved.normal_impulse > 0.0f)
-      ApplyImpulseAtPoint(solved.impulse, contact.point);
-    contacts.push_back(contact);
+    ApplyImpulseAtPoint(solved.impulse, contact.point);
+    return contact;
   };
 
   const auto correction_only = [&](const BallContact& contact) {
     return contact.toi <= eps &&
            contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f;
   };
-  const auto project_out = [&](BallState& s, BallContact contact) {
-    const auto original_center = s.position;
+  const auto project_out = [&](BallState& s, const BallContact& contact) {
     depenetrate(s, contact);
-    contact.position_corrected = s.position != original_center;
     tangent_contacts.push_back(contact.collider);
-    contact.point = s.position - contact.normal * ball_radius;
-    contact.normal_impulse = 0.0f;
-    contacts.push_back(contact);
   };
   const std::size_t correction_cap = colliders.size() + 2;
 
@@ -377,7 +366,7 @@ std::vector<BallContact> Ball::AdvanceBallSegment(
       const auto hit = sweep_from(probe);
       if (!hit.has_value()) {
         set_state(AdvanceFreeFlight(cursor, dt, pitch));
-        return contacts;
+        return std::nullopt;
       }
       auto impact_velocity = GrassDrag(initial.velocity, hit->toi * dt, pitch);
       impact_velocity.coords[2] = 0.0f;
@@ -389,8 +378,7 @@ std::vector<BallContact> Ball::AdvanceBallSegment(
         next.orientation = IntegrateOrientation(
             cursor.orientation, cursor.angular_velocity, first.toi * dt);
         set_state(next);
-        resolve(first);
-        return contacts;
+        return resolve(first);
       }
       project_out(cursor, first);
     }
@@ -405,7 +393,7 @@ std::vector<BallContact> Ball::AdvanceBallSegment(
     const auto hit = sweep_from(probe);
     if (!hit.has_value()) {
       set_state(AdvanceFreeFlight(cursor, dt, pitch));
-      return contacts;
+      return std::nullopt;
     }
     const math::Vector3 vc = v0 + accel * (hit->toi * dt);
     BallContact first = ToBallContact(*hit, vc);
@@ -416,8 +404,7 @@ std::vector<BallContact> Ball::AdvanceBallSegment(
       next.orientation = IntegrateOrientation(cursor.orientation,
           cursor.angular_velocity, first.toi * dt);
       set_state(next);
-      resolve(first);
-      return contacts;
+      return resolve(first);
     }
     project_out(cursor, first);
   }
