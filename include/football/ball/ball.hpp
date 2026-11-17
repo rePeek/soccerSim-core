@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/quaternion.hpp"
@@ -7,7 +8,6 @@
 #include "football/models.h"
 
 namespace football::pitch { class Pitch; }
-namespace football::collision { struct CollisionHit; }
 
 namespace football::ball {
 
@@ -32,6 +32,7 @@ struct BallContact {
   bool position_corrected = false;
   math::Vector3 surface_velocity = math::Vector3(0);
 };
+
 class Ball {
  public:
   explicit Ball(const BallModel& model =
@@ -61,15 +62,6 @@ class Ball {
   void PlaceOnGround(float x, float y);
 
  private:
-  BallContact ToBallContact(const collision::CollisionHit& hit,
-                            const math::Vector3& velocity) const;
-  std::optional<collision::CollisionHit> FindContact(
-      const BallState& start, const BallState& next,
-      std::span<const geometry::ColliderMotion> colliders, float dt,
-      std::span<const geometry::ColliderId> repaired) const;
-  void Depenetrate(BallState& state, const BallContact& contact,
-                   std::span<const geometry::ColliderMotion> colliders) const;
-
   BallModel model_;
   BallState state_;
 };

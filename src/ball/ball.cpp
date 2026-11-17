@@ -39,6 +39,8 @@ constexpr float kTouchEpsilon = 1e-4f;
 // normalized in float, so the distance is only radius-accurate to a few ulps.
 constexpr float kSurfaceTolerance = 1e-3f;
 
+// ---- Motion ----
+
 // Thin-shell sphere inertia, I = 2/3 * mass * radius^2.
 float Inertia(const BallModel& model) {
   return (2.0f / 3.0f) * model.mass * model.radius * model.radius;
@@ -129,6 +131,80 @@ BallState IntegrateMotion(const BallModel& model, const BallState& state,
   return next;
 }
 
+// ---- Contact geometry ----
+
+BallContact ToBallContact(const collision::CollisionHit& hit,
+                          const math::Vector3& velocity, float ball_radius) {
+  BallContact contact;
+  contact.collider = hit.collider;
+  contact.toi = hit.toi;
+  contact.point = hit.center - hit.normal * ball_radius;
+  contact.normal = hit.normal;
+  contact.surface_velocity = hit.surface_velocity;
+  contact.relative_velocity = velocity - hit.surface_velocity;
+  return contact;
+}
+
+// Sweeps the path from start to the predicted next state, so a fast ball cannot
+// pass through a collider whose endpoints both lie outside it.
+std::optional<collision::CollisionHit> FindContact(
+    float ball_radius, const BallState& start, const BallState& next,
+    std::span<const ColliderMotion> colliders, float dt,
+    std::span<const geometry::ColliderId> repaired) {
+  const collision::MovingSphere sphere{
+      {start.position, ball_radius}, (next.position - start.position) * (1.0f / dt)};
+  if (repaired.empty()) return collision::FirstHit(sphere, colliders, dt);
+
+  // An initial, separating overlap must not hide another collider's impact.
+  std::optional<collision::CollisionHit> best;
+  for (const auto& collider : colliders) {
+    const auto hit = collision::FirstHit(
+        sphere, std::span<const ColliderMotion>(&collider, 1), dt);
+    if (!hit) continue;
+    if (hit->toi <= kTouchEpsilon &&
+        std::find(repaired.begin(), repaired.end(), collider.id) != repaired.end() &&
+        (next.velocity - hit->surface_velocity).GetDotProduct(hit->normal) >= 0.0f)
+      continue;
+    if (!best || hit->toi < best->toi ||
+        (hit->toi == best->toi && hit->collider < best->collider)) best = hit;
+  }
+  return best;
+}
+
+// Moves the centre back onto the surface of the collider it overlaps. Only the
+// position changes; the contact is not an impact by itself.
+void Depenetrate(BallState& state, const BallContact& contact,
+                 std::span<const ColliderMotion> colliders, float ball_radius) {
+  if (contact.toi > kTouchEpsilon) return;
+  for (const auto& collider : colliders) {
+    if (collider.id != contact.collider) continue;
+    const math::Vector3 surface = std::visit(
+        [&](const auto& shape) -> math::Vector3 {
+          using T = std::decay_t<decltype(shape)>;
+          if constexpr (std::is_same_v<T, Plane> || std::is_same_v<T, HalfSpace>) {
+            const auto normal = shape.normal.GetNormalized({0, 0, 1});
+            return state.position - normal *
+                (state.position - shape.point).GetDotProduct(normal);
+          } else if constexpr (std::is_same_v<T, Sphere>) {
+            const auto& end = std::get<Sphere>(collider.end);
+            const auto center = shape.center + (end.center - shape.center) * contact.toi;
+            const float radius = shape.radius + (end.radius - shape.radius) * contact.toi;
+            return center + contact.normal * radius;
+          } else {
+            const auto& end = std::get<Capsule>(collider.end);
+            const auto a = shape.a + (end.a - shape.a) * contact.toi;
+            const auto b = shape.b + (end.b - shape.b) * contact.toi;
+            const float radius = shape.radius + (end.radius - shape.radius) * contact.toi;
+            const auto closest =
+                collision::ClosestPointOnSegment(state.position - a, {0, 0, 0}, b - a);
+            return a + closest + contact.normal * radius;
+          }
+        }, collider.start);
+    state.position = surface + contact.normal * ball_radius;
+    break;
+  }
+}
+
 }  // namespace
 
 // ---- Public interface ----
@@ -143,6 +219,7 @@ Ball::Ball(const BallModel& model)
 void Ball::Step(const Pitch& pitch) {
   constexpr float dt = time::kTickSeconds;
   const auto colliders = pitch.colliders();
+  const float ball_radius = model_.radius;
   BallState start = state_;
   std::vector<geometry::ColliderId> repaired;
   const std::size_t repair_cap = colliders.size() + 2;
@@ -153,17 +230,17 @@ void Ball::Step(const Pitch& pitch) {
 
     // 2. Sweep the path to that predicted position, not just its endpoint.
     // TOI locates the contact geometrically; it never scales the integration.
-    const auto hit = FindContact(start, next, colliders, dt, repaired);
+    const auto hit = FindContact(ball_radius, start, next, colliders, dt, repaired);
     if (!hit) {
       set_state(next);
       return;
     }
 
-    BallContact contact = ToBallContact(*hit, next.velocity);
+    BallContact contact = ToBallContact(*hit, next.velocity, ball_radius);
     if (contact.toi <= kTouchEpsilon &&
         contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f &&
         guard < repair_cap) {
-      Depenetrate(start, contact, colliders);
+      Depenetrate(start, contact, colliders, ball_radius);
       repaired.push_back(contact.collider);
       continue;
     }
@@ -172,9 +249,9 @@ void Ball::Step(const Pitch& pitch) {
     // at first contact. Resolve just one passive impulse, with no tail motion.
     next.position = hit->center;
     const auto original_center = next.position;
-    Depenetrate(next, contact, colliders);
+    Depenetrate(next, contact, colliders, ball_radius);
     contact.position_corrected = next.position != original_center;
-    contact.point = next.position - contact.normal * model_.radius;
+    contact.point = next.position - contact.normal * ball_radius;
     // Commit the predicted state before solving: the solver reads position and
     // velocity off the ball, and the lever arm is only -normal * radius once the
     // centre sits on the surface. A separating contact leaves this state as is.
@@ -247,73 +324,6 @@ void Ball::PlaceOnGround(float x, float y) {
   state.position = math::Vector3(x, y, model_.radius);
   set_state(state);
   Info(Channel::ball, std::format("placed on ground at ({}, {})", x, y));
-}
-
-BallContact Ball::ToBallContact(const collision::CollisionHit& hit,
-                                const math::Vector3& velocity) const {
-  BallContact contact;
-  contact.collider = hit.collider;
-  contact.toi = hit.toi;
-  contact.point = hit.center - hit.normal * model_.radius;
-  contact.normal = hit.normal;
-  contact.surface_velocity = hit.surface_velocity;
-  contact.relative_velocity = velocity - hit.surface_velocity;
-  return contact;
-}
-
-std::optional<collision::CollisionHit> Ball::FindContact(
-    const BallState& start, const BallState& next,
-    std::span<const ColliderMotion> colliders, float dt,
-    std::span<const geometry::ColliderId> repaired) const {
-  const collision::MovingSphere sphere{
-      {start.position, model_.radius}, (next.position - start.position) * (1.0f / dt)};
-  if (repaired.empty()) return collision::FirstHit(sphere, colliders, dt);
-
-  // An initial, separating overlap must not hide another collider's impact.
-  std::optional<collision::CollisionHit> best;
-  for (const auto& collider : colliders) {
-    const auto hit = collision::FirstHit(
-        sphere, std::span<const ColliderMotion>(&collider, 1), dt);
-    if (!hit) continue;
-    if (hit->toi <= kTouchEpsilon &&
-        std::find(repaired.begin(), repaired.end(), collider.id) != repaired.end() &&
-        (next.velocity - hit->surface_velocity).GetDotProduct(hit->normal) >= 0.0f)
-      continue;
-    if (!best || hit->toi < best->toi ||
-        (hit->toi == best->toi && hit->collider < best->collider)) best = hit;
-  }
-  return best;
-}
-
-void Ball::Depenetrate(BallState& state, const BallContact& contact,
-                       std::span<const ColliderMotion> colliders) const {
-  if (contact.toi > kTouchEpsilon) return;
-  for (const auto& collider : colliders) {
-    if (collider.id != contact.collider) continue;
-    const math::Vector3 surface = std::visit(
-        [&](const auto& shape) -> math::Vector3 {
-          using T = std::decay_t<decltype(shape)>;
-          if constexpr (std::is_same_v<T, Plane> || std::is_same_v<T, HalfSpace>) {
-            const auto normal = shape.normal.GetNormalized({0, 0, 1});
-            return state.position - normal *
-                (state.position - shape.point).GetDotProduct(normal);
-          } else if constexpr (std::is_same_v<T, Sphere>) {
-            const auto& end = std::get<Sphere>(collider.end);
-            const auto center = shape.center + (end.center - shape.center) * contact.toi;
-            const float radius = shape.radius + (end.radius - shape.radius) * contact.toi;
-            return center + contact.normal * radius;
-          } else {
-            const auto& end = std::get<Capsule>(collider.end);
-            const auto a = shape.a + (end.a - shape.a) * contact.toi;
-            const auto b = shape.b + (end.b - shape.b) * contact.toi;
-            const float radius = shape.radius + (end.radius - shape.radius) * contact.toi;
-            const auto closest = collision::ClosestPointOnSegment(state.position - a, {0, 0, 0}, b - a);
-            return a + closest + contact.normal * radius;
-          }
-        }, collider.start);
-    state.position = surface + contact.normal * model_.radius;
-    break;
-  }
 }
 
 }  // namespace football::ball
