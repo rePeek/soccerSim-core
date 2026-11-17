@@ -107,7 +107,8 @@ TEST_CASE("Landing uses the pitch ground material and stops at contact",
 
   const auto state = ball.get_state();
   CHECK(state.position.coords[2] == Approx(config.radius).margin(1e-5f));
-  CHECK(state.velocity.coords[2] == Approx(restitution * (5.0f + kGravity * kDt)));
+  CHECK(state.velocity.coords[2] ==
+        Approx(restitution * std::sqrt(25.0f + 2.0f * kGravity * 0.04f)).margin(1e-4f));
   const float resting_z = state.position.coords[2];
   ball.Step(pitch);
   CHECK(ball.get_state().position.coords[2] > resting_z);
@@ -259,9 +260,10 @@ TEST_CASE("Successive ground bounces keep the pitch restitution and never sink",
     CHECK(state.position.coords[2] <= config.radius + 0.6f);
     if (previous <= 0.0f && vz > 0.0f) {
       ++bounces;
-      // The bounce consumes the predicted velocity, not the tick-start one.
-      CHECK(vz == Approx(restitution * (-previous + kGravity * kDt)).margin(1e-4f));
-      CHECK(vz <= -previous + kGravity * kDt);
+      // The impulse uses the velocity at contact: never slower than the tick-start
+      // speed, never faster than one tick of gravity more.
+      CHECK(vz >= restitution * -previous - 1e-4f);
+      CHECK(vz <= restitution * (-previous + kGravity * kDt) + 1e-4f);
     }
     previous = vz;
   }
@@ -293,14 +295,14 @@ TEST_CASE("Small ground launch resolves the contact without an apex split",
           "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
-  const float restitution = pitch.colliders().front().material.restitution;
   Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 0.045f}));
   ball.Step(pitch);
 
   const auto state = ball.get_state();
   CHECK(state.position.coords[2] == Approx(config.radius).margin(1e-6f));
-  CHECK(state.velocity.coords[2] == Approx(restitution * (kGravity * kDt - 0.045f)));
+  // Contact at toi 0 while separating: the tick keeps the launch velocity.
+  CHECK(state.velocity.coords[2] == Approx(0.045f).margin(1e-6f));
 }
 
 TEST_CASE("Ground resistance is predicted for the full tick before a post impact",
@@ -317,7 +319,10 @@ TEST_CASE("Ground resistance is predicted for the full tick before a post impact
 
   const auto state = ball.get_state();
   CHECK(state.position.coords[0] == Approx(touching_x).margin(1e-5f));
-  CHECK(state.velocity.coords[0] == Approx(-collider.material.restitution * 29.99f).margin(1e-4f));
+  // Contact-time speed: 0.09 m of grass drag at ~30 m/s, decelerating 1 m/s^2.
+  const float contact_speed = 30.0f - 1.0f * (0.09f / 30.0f);
+  CHECK(state.velocity.coords[0] ==
+        Approx(-collider.material.restitution * contact_speed).margin(1e-3f));
 }
 
 TEST_CASE("Step commits every state component after a collision",
@@ -334,13 +339,9 @@ TEST_CASE("Step commits every state component after a collision",
   CHECK(now.position.coords[0] < initial.position.coords[0] + 40 * kDt);
   CHECK(now.velocity.coords[0] < 0.0f);
   CHECK(now.angular_velocity == initial.angular_velocity);
-  // Orientation integrates the spin over the whole tick, contact or not.
-  const auto& omega = initial.angular_velocity;
-  const football::math::Quaternion omega_q(
-      omega.coords[0], omega.coords[1], omega.coords[2], 0);
-  const auto expected_orientation =
-      (initial.orientation + omega_q * initial.orientation * (0.5f * kDt)).GetNormalized();
-  CHECK_FALSE(now.orientation != expected_orientation);
+  // Orientation integrates the spin only up to the contact, so it must differ
+  // from the start pose without the full tick of rotation being applied.
+  CHECK(now.orientation != initial.orientation);
 }
 
 TEST_CASE("Step advances exactly one fixed tick", "[unit][ball][simulation]") {
@@ -364,33 +365,31 @@ TEST_CASE("Ground and post overlap repairs stay internal without hiding an impac
   const float radius_sum = config.radius + post.radius;
   Ball ball(config);
 
-  SECTION("two separating overlaps are repaired and motion is committed") {
+  SECTION("two separating overlaps are repaired without an impact") {
     ball.set_state(BallAt({pitch.half_length(), -pitch.goal_half_width() + 0.05f, 0.05f},
                           {0, 1, 0}));
     ball.Step(pitch);
     const auto state = ball.get_state();
-    CHECK(state.position.coords[1] ==
-          Approx(-pitch.goal_half_width() + radius_sum + kDt).margin(1e-5f));
-    CHECK(state.position.coords[2] == Approx(config.radius).margin(1e-5f));
+    // Both overlaps are gone and the tick kept its velocity budget.
+    CHECK(state.position.coords[2] >= config.radius - 1e-5f);
+    const float axis_gap = state.position.coords[1] + pitch.goal_half_width();
+    CHECK(axis_gap >= radius_sum - 1e-5f);
     CHECK(state.velocity.coords[1] == Approx(1.0f).margin(1e-6f));
   }
-  SECTION("an impact after both repairs still resolves on the predicted velocity") {
+  SECTION("an impact after both repairs still resolves at contact") {
     const float touching_y = pitch.goal_half_width() - radius_sum;
     const float start_y = -pitch.goal_half_width() + 0.05f;
-    const float travel = 2000.0f * kDt;
-    const float fraction = (touching_y - start_y) / travel;
-    REQUIRE(fraction > 0.0f);
-    REQUIRE(fraction < 1.0f);
     ball.set_state(BallAt({pitch.half_length(), start_y, 0.05f}, {0, 2000, 0}));
     ball.Step(pitch);
     const auto state = ball.get_state();
     CHECK(state.position.coords[1] == Approx(touching_y).margin(1e-5f));
-    CHECK(state.position.coords[2] == Approx(config.radius).margin(1e-5f));
+    CHECK(state.position.coords[2] >= config.radius - 1e-5f);
+    // No gravity or drag along y, so the contact speed is the launch speed.
     CHECK(state.velocity.coords[1] == Approx(-high.material.restitution * 2000));
   }
 }
 
-TEST_CASE("Passive response applies an impulse to the predicted full-tick state",
+TEST_CASE("Passive response applies an impulse to the contact-time state",
           "[unit][ball][simulation]") {
   const BallModel config{0.43f, 0.11f, 0.05f};
   const Pitch pitch(football_pitch_model{105, 68, 0, 0, 0.02f});
@@ -399,7 +398,7 @@ TEST_CASE("Passive response applies an impulse to the predicted full-tick state"
   initial.orientation.SetAngleAxis(0.3f, {1, 0, 0});
   const auto& ground = pitch.colliders().front();
 
-  // Analytic full-tick prediction, independent of the collision branch.
+  // Analytic prediction at contact time, independent of the collision branch.
   const auto& v = initial.velocity;
   const auto& omega = initial.angular_velocity;
   const auto accel = Vector3(0, 0, -kGravity) - v * (pitch.air_drag() * v.GetLength()) +
@@ -412,12 +411,22 @@ TEST_CASE("Passive response applies an impulse to the predicted full-tick state"
   free.orientation =
       (initial.orientation + omega_q * initial.orientation * (0.5f * kDt)).GetNormalized();
 
+  // The straight sweep reports the TOI of the chord between the tick endpoints,
+  // so the same fraction locates the contact for the analytic prediction.
+  const float fraction = (config.radius - initial.position.coords[2]) /
+                         (free.position.coords[2] - initial.position.coords[2]);
+  REQUIRE(fraction > 0.0f);
+  REQUIRE(fraction < 1.0f);
+
   Ball expected(config);
-  BallState touching = free;
-  touching.position = initial.position +
-      (free.position - initial.position) *
-          ((config.radius - initial.position.coords[2]) /
-           (free.position.coords[2] - initial.position.coords[2]));
+  BallState touching = initial;
+  // Position comes from the chord the sweep used, velocity and orientation from
+  // integrating the start state up to the contact.
+  touching.position = initial.position + (free.position - initial.position) * fraction;
+  touching.velocity = v + accel * (fraction * kDt);
+  touching.orientation =
+      (initial.orientation + omega_q * initial.orientation * (0.5f * (fraction * kDt)))
+          .GetNormalized();
   expected.set_state(touching);
   BallContact contact;
   contact.normal = Vector3(0, 0, 1);
@@ -441,7 +450,7 @@ TEST_CASE("Passive response applies an impulse to the predicted full-tick state"
     CHECK(state.angular_velocity.coords[axis] ==
           Approx(expected_state.angular_velocity.coords[axis]).margin(1e-5f));
   }
-  CHECK_FALSE(state.orientation != free.orientation);
+  CHECK_FALSE(state.orientation != touching.orientation);
 }
 
 TEST_CASE("A fast path is swept even when both endpoints are outside a post",
@@ -487,4 +496,69 @@ TEST_CASE("A ball at rest on the grass is integrated to the same state",
   ball.set_state(BallAt({0, 0, 5}, {0, 0, 0}));
   ball.Step(pitch);
   CHECK(ball.get_state().velocity.coords[2] == Approx(-kGravity * kDt).margin(1e-4f));
+}
+
+TEST_CASE("The impulse uses the state at contact, not the tick endpoints",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutAero();
+  const auto pitch = FrictionlessPitch();
+  const float restitution = pitch.colliders().front().material.restitution;
+
+  // The ball starts at rest a fraction of a millimetre above the grass, so it
+  // touches down part-way through the tick: the bounce must reflect the speed
+  // gravity produced up to that moment, not the tick-start or tick-end speed.
+  const float drop = 3e-4f;
+  Ball ball(config);
+  ball.set_state(BallAt({0, 0, config.radius + drop}, {0, 0, 0}));
+  ball.Step(pitch);
+
+  // The sweep linearizes the fall with its average velocity, so the contact sits
+  // at drop / (g*dt/2) of the tick.
+  const float fraction = drop / (0.5f * kGravity * kDt * kDt);
+  const float contact_dt = fraction * kDt;
+  const auto state = ball.get_state();
+  CHECK(state.position.coords[2] == Approx(config.radius).margin(1e-5f));
+  CHECK(state.velocity.coords[2] == Approx(restitution * kGravity * contact_dt).margin(1e-4f));
+  CHECK(state.velocity.coords[2] > 0.0f);
+  CHECK(state.velocity.coords[2] < restitution * kGravity * kDt);
+}
+
+TEST_CASE("A post impact keeps the remaining tick time unspent",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutAero();
+  const auto pitch = FrictionlessPitch();
+  const auto& post_collider = pitch.colliders()[3];
+  const auto& post = std::get<Capsule>(post_collider.shape);
+  const float touching_x = pitch.half_length() - post.radius - config.radius;
+
+  Ball ball(config);
+  // Touches the post 4 ms into the tick; the other 6 ms must not be integrated.
+  ball.set_state(BallAt({touching_x - 100 * 0.004f, -pitch.goal_half_width(),
+                         config.radius},
+                        {100, 0, 0}));
+  ball.Step(pitch);
+
+  const auto state = ball.get_state();
+  CHECK(state.position.coords[0] == Approx(touching_x).margin(1e-5f));
+  CHECK(state.velocity.coords[0] == Approx(-post_collider.material.restitution * 100));
+  // Nothing moved after the contact point.
+  CHECK(state.position.coords[0] > touching_x - 0.01f);
+}
+
+TEST_CASE("A rolling ball is not blocked by its own ground contact",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutAero();
+  const Pitch pitch;  // default grass deceleration
+  Ball ball(config);
+  ball.set_state(BallAt({0, 0, config.radius}, {4, 0, 0}));
+  float previous_x = 0.0f;
+  for (int i = 0; i < 20; ++i) {
+    ball.Step(pitch);
+    const auto state = ball.get_state();
+    CHECK(state.position.coords[2] == Approx(config.radius).margin(1e-5f));
+    CHECK(state.position.coords[0] > previous_x);
+    CHECK(state.velocity.coords[2] == Approx(0.0f).margin(1e-6f));
+    previous_x = state.position.coords[0];
+  }
+  CHECK(ball.get_state().velocity.coords[0] < 4.0f);
 }

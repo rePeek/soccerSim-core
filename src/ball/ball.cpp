@@ -160,8 +160,11 @@ std::optional<collision::ColliderHit> FindContact(
     if (!hit) continue;
     const bool was_repaired =
         std::find(repaired.begin(), repaired.end(), &collider) != repaired.end();
+    // Judge separation on the predicted outcome, not the tick-start velocity: a
+    // ball that starts on the surface with a small upward speed looks separating at
+    // the start, yet its apex falls back inside this tick.
     const float normal_velocity =
-        (start.velocity - hit->surface_velocity).GetDotProduct(hit->normal);
+        (next.velocity - hit->surface_velocity).GetDotProduct(hit->normal);
     if (was_repaired && hit->toi <= kTouchEpsilon && normal_velocity >= 0.0f)
       continue;
     if (!best || hit->toi < best->hit.toi)
@@ -227,7 +230,16 @@ void Ball::Step(const Pitch& pitch) {
     const auto& hit = found->hit;
     const geometry::Collider& collider = *found->collider;
 
-    BallContact contact = ToBallContact(hit, next.velocity, ball_radius);
+    // 3. Evaluate the ball at the moment of contact: only the geometry comes from
+    // the straight sweep, position and velocity are integrated up to `toi`.
+    const float contact_dt = dt * hit.toi;
+    BallState at_contact = IntegrateMotion(model_, start, contact_dt, pitch);
+    at_contact.position = hit.center;
+
+    BallContact contact = ToBallContact(hit, at_contact.velocity, ball_radius);
+
+    // Initial overlap: repair the start and sweep again. This is not an impact,
+    // so it does not spend the tick's single impulse.
     if (contact.toi <= kTouchEpsilon &&
         contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f &&
         guard < repair_cap) {
@@ -236,23 +248,19 @@ void Ball::Step(const Pitch& pitch) {
       continue;
     }
 
-    // 3. Keep the predicted velocity, spin and orientation, but stop the centre
-    // at first contact. Resolve just one passive impulse, with no tail motion.
-    next.position = hit.center;
-    const auto original_center = next.position;
-    Depenetrate(next, contact, collider, ball_radius);
-    contact.position_corrected = next.position != original_center;
-    contact.point = next.position - contact.normal * ball_radius;
-    // Commit the predicted state before solving: the solver reads position and
-    // velocity off the ball, and the lever arm is only -normal * radius once the
-    // centre sits on the surface. A separating contact leaves this state as is.
-    set_state(next);
+    const auto original_center = at_contact.position;
+    Depenetrate(at_contact, contact, collider, ball_radius);
+    contact.position_corrected = at_contact.position != original_center;
+    contact.point = at_contact.position - contact.normal * ball_radius;
+    // Commit before solving: the solver reads position and velocity off the ball,
+    // and the lever arm is only -normal * radius once the centre sits on the
+    // surface. A separating contact leaves this state as is.
+    set_state(at_contact);
 
     const auto impulse = SolveContactImpulse(contact, collider.material);
-    if (!impulse) return;
-
-    ApplyImpulseAtPoint(*impulse, contact.point);
+    if (impulse) ApplyImpulseAtPoint(*impulse, contact.point);
     Debug(Channel::ball, std::format("ball contact: name={}, toi={}", collider.name, hit.toi));
+    // The rest of the tick is deliberately discarded: one impact per tick.
     return;
   }
 }
