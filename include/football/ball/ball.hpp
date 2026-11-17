@@ -82,8 +82,10 @@ class Ball {
   static math::Quaternion IntegrateOrientation(const math::Quaternion& q,
                                               const math::Vector3& omega,
                                               float dt);
-  BallState AdvanceFreeFlight(const BallState& state, float span,
-                              const Pitch& pitch) const;
+  // Integrate one span of contact-free motion: ballistic flight in the air,
+  // rolling on grass while resting on the ground.
+  BallState IntegrateMotion(const BallState& state, float span,
+                            const Pitch& pitch) const;
   BallContact ToBallContact(const collision::CollisionHit& hit,
                             const math::Vector3& velocity) const;
   std::optional<collision::CollisionHit> FindContact(

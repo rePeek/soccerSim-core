@@ -46,7 +46,7 @@ void Ball::Step(const Pitch& pitch) {
   for (std::size_t guard = 0;; ++guard) {
     // 1. Predict the entire tick without collisions. Repairs below only adjust
     // an initially overlapping start; they do not subdivide simulation time.
-    BallState next = AdvanceFreeFlight(start, dt, pitch);
+    BallState next = IntegrateMotion(start, dt, pitch);
 
     // 2. Sweep the path to that predicted position, not just its endpoint.
     // TOI locates the contact geometrically; it never scales the integration.
@@ -198,8 +198,8 @@ math::Quaternion Ball::IntegrateOrientation(const math::Quaternion& q,
   return (q + omega_q * q * (0.5f * dt)).GetNormalized();
 }
 
-BallState Ball::AdvanceFreeFlight(const BallState& state, float span,
-                                  const Pitch& pitch) const {
+BallState Ball::IntegrateMotion(const BallState& state, float span,
+                                const Pitch& pitch) const {
   if (span <= 0.0f) return state;
   BallState next = state;
   if (OnGround(state) && VerticallyResting(state)) {
