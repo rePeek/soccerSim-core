@@ -6,7 +6,6 @@
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/math/vector3.hpp"
-#include "football/foundation/time/tick.hpp"
 #include "football/models.h"
 
 namespace football::pitch { class Pitch; }
@@ -50,6 +49,8 @@ class Ball {
   void set_state(const BallState& state) { state_ = state; }
   const BallModel& model() const { return model_; }
 
+  BallStepResult Step(const Pitch& pitch);
+
   // Apply impulse [N*s] at a world-space point to this ball immediately.
   // Changes velocity and spin, not position or orientation.
   void ApplyImpulseAtPoint(const math::Vector3& impulse,
@@ -69,11 +70,6 @@ class Ball {
   BallStepResult AdvanceBallTick(
       std::span<const geometry::ColliderMotion> colliders,
       float dt, const Pitch& pitch);
-
-  BallStepResult Step(const Pitch& pitch);
-  // Predictions advance a copy, leaving this ball unchanged.
-  BallStepResult Predict(const Pitch& pitch) const;
-  BallState Predict(const Pitch& pitch, time::TickSpan ahead) const;
 
   // z is forced to the radius; velocity/spin are cleared.
   void PlaceOnGround(float x, float y);

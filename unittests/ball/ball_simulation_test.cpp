@@ -1,5 +1,5 @@
 // Ball one-tick physics: free motion, drag, spin, grass rolling, landing and
-// the Ball::Step/Predict lifecycle.
+// the Ball::Step lifecycle.
 //
 // Long-lived parameters are supplied at construction through BallModel (the
 // ball) and Pitch (gravity, ground, static colliders); a tick advances the ball
@@ -160,41 +160,6 @@ TEST_CASE("Initial penetration is repaired without an impulse",
   CHECK_FALSE(result.contact.has_value());
 }
 
-TEST_CASE("Ball Predict previews without mutating state",
-          "[unit][ball][simulation]") {
-  const BallModel config{0.43f, 0.11f, 0.02f};
-  const Pitch pitch;
-  Ball ball(config);
-  ball.set_state(BallAt({0.0f, 0.0f, 5.0f}, {1.0f, 0.0f, 0.0f}));
-  const BallState before = ball.get_state();
-
-  const auto preview = ball.Predict(pitch);
-
-  CHECK(ball.get_state().position.coords[0] == Approx(before.position.coords[0]));
-  CHECK(ball.get_state().velocity.coords[2] == Approx(before.velocity.coords[2]));
-  CHECK(preview.state.position.coords[0] != Approx(before.position.coords[0]));
-}
-
-TEST_CASE("Ball Step commits exactly what Predict previewed",
-          "[unit][ball][simulation]") {
-  const BallModel config{0.43f, 0.11f, 0.02f};
-  const Pitch pitch;
-  Ball preview_ball(config);
-  Ball commit_ball(config);
-  const auto initial = BallAt({0.0f, 0.0f, 5.0f}, {2.0f, 0.0f, 0.0f});
-  preview_ball.set_state(initial);
-  commit_ball.set_state(initial);
-
-  const auto preview = preview_ball.Predict(pitch);
-  const auto committed = commit_ball.Step(pitch);
-
-  CHECK(preview.state.position.coords[0] == Approx(committed.state.position.coords[0]));
-  CHECK(preview.state.position.coords[2] == Approx(committed.state.position.coords[2]));
-  CHECK(preview.state.velocity.coords[2] == Approx(committed.state.velocity.coords[2]));
-  CHECK(commit_ball.get_state().position.coords[0] ==
-        Approx(committed.state.position.coords[0]));
-}
-
 TEST_CASE("Ball Step equals one tick over the pitch colliders",
           "[unit][ball][simulation]") {
   const BallModel config = BallWithoutAero();
@@ -219,20 +184,6 @@ TEST_CASE("Ball Step equals one tick over the pitch colliders",
     CHECK(actual.state.velocity.coords[axis] ==
           Approx(expected.state.velocity.coords[axis]));
   }
-}
-
-TEST_CASE("Ball Predict over a horizon does not mutate state",
-          "[unit][ball][simulation]") {
-  const BallModel config{0.43f, 0.11f, 0.02f};
-  const Pitch pitch;
-  Ball ball(config);
-  ball.set_state(BallAt({0.0f, 0.0f, 5.0f}, {1.0f, 0.0f, 0.0f}));
-  const BallState before = ball.get_state();
-
-  const BallState future = ball.Predict(pitch, football::time::TickSpan{10});
-
-  CHECK(ball.get_state().position.coords[0] == Approx(before.position.coords[0]));
-  CHECK(future.position.coords[2] < before.position.coords[2]);
 }
 
 TEST_CASE("set_state restores the exact state", "[unit][ball][simulation]") {
@@ -326,8 +277,6 @@ TEST_CASE("Ball flies freely through former goal net regions",
     initial.velocity.coords[0] *= side;
     Ball ball(config);
     ball.set_state(initial);
-    const auto preview = ball.Predict(pitch);
-    const auto future = ball.Predict(pitch, football::time::TickSpan{10});
     const auto result = ball.Step(pitch);
     REQUIRE_FALSE(result.contact.has_value());
     for (int axis = 0; axis < 3; ++axis) {
@@ -337,10 +286,6 @@ TEST_CASE("Ball flies freely through former goal net regions",
       CHECK(result.state.position.coords[axis] ==
             Approx(initial.position.coords[axis] + initial.velocity.coords[axis] * kDt +
                    0.5f * gravity * kDt * kDt).margin(1e-5f));
-      CHECK(preview.state.velocity.coords[axis] == result.state.velocity.coords[axis]);
-      CHECK(preview.state.position.coords[axis] == result.state.position.coords[axis]);
-      CHECK(future.velocity.coords[axis] ==
-            Approx(initial.velocity.coords[axis] + gravity * 10 * kDt).margin(1e-5f));
     }
   }
 }
@@ -494,7 +439,7 @@ TEST_CASE("A single impact per tick hands a fast ball to the next tick",
   CHECK(next.state.velocity.coords[0] > 0.0f);
 }
 
-TEST_CASE("Collision predictions leave every state component untouched",
+TEST_CASE("Ball Step commits every state component after a collision",
           "[unit][ball][simulation]") {
   Ball ball(BallWithoutAero());
   const auto pitch = FrictionlessPitch();
@@ -505,30 +450,15 @@ TEST_CASE("Collision predictions leave every state component untouched",
   initial.orientation.SetAngleAxis(0.3f, {1, 0, 0});
   ball.set_state(initial);
 
-  const auto preview = ball.Predict(pitch);
-  REQUIRE(preview.contact.has_value());
-  const auto future = ball.Predict(pitch, football::time::TickSpan{10});
+  const auto result = ball.Step(pitch);
+  REQUIRE(result.contact.has_value());
   const auto now = ball.get_state();
-  CHECK(now.position == initial.position);
-  CHECK(now.velocity == initial.velocity);
-  CHECK(now.angular_velocity == initial.angular_velocity);
-  CHECK_FALSE(now.orientation != initial.orientation);
-
-  const auto actual = ball.Step(pitch);
-  REQUIRE(actual.contact.has_value());
-  CHECK(actual.contact->collider == preview.contact->collider);
-  CHECK(actual.contact->toi == Approx(preview.contact->toi));
-  CHECK(actual.contact->normal_impulse == Approx(preview.contact->normal_impulse));
-  CHECK(actual.state.position == preview.state.position);
-  CHECK(actual.state.velocity == preview.state.velocity);
-  CHECK(actual.state.angular_velocity == preview.state.angular_velocity);
-  CHECK_FALSE(actual.state.orientation != preview.state.orientation);
-  for (int i = 1; i < 10; ++i) ball.Step(pitch);
-  const auto after = ball.get_state();
-  CHECK(after.position == future.position);
-  CHECK(after.velocity == future.velocity);
-  CHECK(after.angular_velocity == future.angular_velocity);
-  CHECK_FALSE(after.orientation != future.orientation);
+  CHECK(now.position == result.state.position);
+  CHECK(now.velocity == result.state.velocity);
+  CHECK(now.angular_velocity == result.state.angular_velocity);
+  CHECK_FALSE(now.orientation != result.state.orientation);
+  CHECK(now.position.coords[0] != Approx(initial.position.coords[0]));
+  CHECK(now.velocity.coords[0] != Approx(initial.velocity.coords[0]));
 }
 
 TEST_CASE("AdvanceBallTick commits its returned state and ignores zero duration",

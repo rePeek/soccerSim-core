@@ -12,6 +12,7 @@
 
 #include "football/foundation/collision/collision_hit.hpp"
 #include "football/foundation/collision/sweep.hpp"
+#include "football/foundation/time/tick.hpp"
 #include "football/log/log.hpp"
 #include "football/pitch/pitch.hpp"
 
@@ -34,6 +35,16 @@ Ball::Ball(const BallModel& model)
   Info(Channel::ball,
        std::format("ball created: mass={} radius={} magnus={}", model_.mass,
                    model_.radius, model_.magnus_coefficient));
+}
+
+BallStepResult Ball::Step(const Pitch& pitch) {
+  auto result = AdvanceBallTick(pitch.colliders(), time::kTickSeconds, pitch);
+  if (result.contact) {
+    Debug(Channel::ball, std::format("tick resolved contact with {}; position=({}, {}, {})",
+                                     result.contact->collider, state_.position.coords[0],
+                                     state_.position.coords[1], state_.position.coords[2]));
+  }
+  return result;
 }
 
 void Ball::ApplyImpulseAtPoint(const math::Vector3& impulse,
@@ -140,29 +151,6 @@ BallStepResult Ball::AdvanceBallTick(std::span<const ColliderMotion> colliders,
   }
   result.state = state_;
   return result;
-}
-
-BallStepResult Ball::Step(const Pitch& pitch) {
-  auto result = AdvanceBallTick(pitch.colliders(), time::kTickSeconds, pitch);
-  if (result.contact) {
-    Debug(Channel::ball, std::format("tick resolved contact with {}; position=({}, {}, {})",
-                                     result.contact->collider, state_.position.coords[0],
-                                     state_.position.coords[1], state_.position.coords[2]));
-  }
-  return result;
-}
-
-BallStepResult Ball::Predict(const Pitch& pitch) const {
-  Ball predicted = *this;
-  return predicted.AdvanceBallTick(pitch.colliders(), time::kTickSeconds, pitch);
-}
-
-BallState Ball::Predict(const Pitch& pitch, time::TickSpan ahead) const {
-  Ball predicted = *this;
-  for (time::TickSpan i{0}; i < ahead; i += time::TickSpan{1}) {
-    predicted.AdvanceBallTick(pitch.colliders(), time::kTickSeconds, pitch);
-  }
-  return predicted.state_;
 }
 
 void Ball::PlaceOnGround(float x, float y) {
