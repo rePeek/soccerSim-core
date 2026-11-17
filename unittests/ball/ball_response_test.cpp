@@ -63,16 +63,18 @@ TEST_CASE("Impulse response uses thin-shell sphere inertia", "[unit][ball][respo
   CHECK(inferred == Approx(expected).margin(1e-9f));
 }
 
-TEST_CASE("Central impulse changes linear velocity by J/m only",
+TEST_CASE("A radial impulse changes linear velocity by J/m only",
           "[unit][ball][response]") {
   Ball ball(TestBallModel());
   const auto before = ball.get_state();
-  ball.ApplyImpulseAtPoint({1, 0, 0}, before.position);
+  // Striking the bottom straight down: the lever arm is parallel to the impulse,
+  // so the change is torque-free translation.
+  ball.ApplyImpulseAtPoint({0, 0, -1}, {0, 0, -ball.model().radius});
   const auto next = ball.get_state();
 
-  CHECK(next.velocity.coords[0] == Approx(2.0f).margin(1e-5f));
-  CHECK(next.velocity.coords[1] == Approx(0.0f));
-  CHECK(next.velocity.coords[2] == Approx(0.0f));
+  CHECK(next.velocity.coords[0] == Approx(0.0f).margin(1e-6f));
+  CHECK(next.velocity.coords[1] == Approx(0.0f).margin(1e-6f));
+  CHECK(next.velocity.coords[2] == Approx(-2.0f).margin(1e-5f));
   CHECK(next.angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
   CHECK(next.position == before.position);
   CHECK_FALSE(next.orientation != before.orientation);
@@ -93,19 +95,26 @@ TEST_CASE("Offset impulse produces the expected spin direction",
   CHECK(next.angular_velocity.coords[2] == Approx(0.0f).margin(1e-6f));
 }
 
-TEST_CASE("The lever arm comes from the applied point, not from the radius",
+TEST_CASE("The lever arm direction comes from the point on the shell",
           "[unit][ball][response]") {
-  Ball ball(TestBallModel());
-  const auto initial = ball.get_state();
-  ball.ApplyImpulseAtPoint({1, 0, 0}, {0, 0, -ball.model().radius});
-  const auto surface = ball.get_state();
-  ball.set_state(initial);
-  ball.ApplyImpulseAtPoint({1, 0, 0}, {0, 0, -0.5f * ball.model().radius});
-  const auto buried = ball.get_state();
+  const Ball ball_model(TestBallModel());
+  const float radius = ball_model.model().radius;
 
-  CHECK(buried.velocity.coords[0] == Approx(surface.velocity.coords[0]));
-  CHECK(buried.angular_velocity.GetLength() ==
-        Approx(0.5f * surface.angular_velocity.GetLength()).margin(1e-6f));
+  // Same impulse magnitude, two surface points: the lever arm points along the
+  // line from the centre to the strike point, so the spin axis follows it.
+  Ball bottom(TestBallModel());
+  bottom.ApplyImpulseAtPoint({1, 0, 0}, {0, 0, -radius});
+  const auto from_bottom = bottom.get_state();
+
+  Ball side(TestBallModel());
+  side.ApplyImpulseAtPoint({1, 0, 0}, {radius, 0, 0});
+  const auto from_side = side.get_state();
+
+  CHECK(from_bottom.velocity.coords[0] == Approx(from_side.velocity.coords[0]));
+  // Striking the bottom spins about -y; striking the +x side produces no torque
+  // at all because there the lever arm is parallel to the impulse.
+  CHECK(from_bottom.angular_velocity.coords[1] < 0.0f);
+  CHECK(from_side.angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
 }
 
 TEST_CASE("Frictionless contact reflects the normal velocity by restitution",
@@ -176,12 +185,15 @@ TEST_CASE("Contact resolution takes its lever arm from the contact point",
   CHECK(ball.get_state().angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
 
   ball.set_state(initial);
+  // Same normal and velocity, but the recorded point sits on the +x flank:
+  // the lever arm therefore follows the point, not the -normal * radius rule.
   auto offset = SurfaceContact(ball, normal);
-  offset.point = initial.position + Vector3(0.05f, 0, -ball.model().radius);
+  offset.point = initial.position + Vector3(ball.model().radius, 0, 0);
   const Vector3 impulse = SolveAndApply(ball, offset, frictionless);
   const float expected_inertia = (2.0f / 3.0f) * 0.5f * 0.11f * 0.11f;
   CHECK(ball.get_state().angular_velocity.coords[1] ==
-        Approx(-0.05f * NormalShare(impulse, normal) / expected_inertia).margin(1e-5f));
+        Approx(-ball.model().radius * NormalShare(impulse, normal) / expected_inertia)
+            .margin(1e-5f));
 }
 
 TEST_CASE("Moving collider velocity enters the relative contact velocity",

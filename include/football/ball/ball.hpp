@@ -45,8 +45,9 @@ class Ball {
   // An impact uses the predicted velocity/spin, with no post-impact motion.
   void Step(const Pitch& pitch);
 
-  // Apply impulse [N*s] at a world-space point to this ball immediately.
-  // Changes velocity and spin, not position or orientation.
+  // Apply impulse [N*s] at a world-space point on the ball surface. Changes
+  // velocity and spin, not position or orientation; the point must be one
+  // radius from the centre (asserted), since only the shell can be struck.
   void ApplyImpulseAtPoint(const math::Vector3& impulse,
                            const math::Vector3& world_point);
 

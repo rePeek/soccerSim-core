@@ -1,6 +1,7 @@
 #include "football/ball/ball.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <format>
@@ -33,6 +34,10 @@ namespace {
 // Touching distance to the grass and to the interval start: closer than this is
 // "already in contact", not a new impact.
 constexpr float kTouchEpsilon = 1e-4f;
+
+// Relative slack for "the point lies on the shell": the contact normal is
+// normalized in float, so the distance is only radius-accurate to a few ulps.
+constexpr float kSurfaceTolerance = 1e-3f;
 
 // The ball rolls while it rests on the grass, and flies otherwise. This is the
 // single definition of "on the ground and neither climbing nor falling", and it
@@ -75,13 +80,8 @@ math::Vector3 Acceleration(const BallModel& model, const math::Vector3& v0,
   math::Vector3 accel{0.0f, 0.0f, pitch.gravity()};
   if (speed > 0.0f)
     accel = accel - v0 * (pitch.air_drag() * speed);
-  if (model.magnus_coefficient != 0.0f) {
-    accel = accel + math::Vector3(
-                        omega.coords[1] * v0.coords[2] - omega.coords[2] * v0.coords[1],
-                        omega.coords[2] * v0.coords[0] - omega.coords[0] * v0.coords[2],
-                        omega.coords[0] * v0.coords[1] - omega.coords[1] * v0.coords[0]) *
-                        model.magnus_coefficient;
-  }
+  if (model.magnus_coefficient != 0.0f)
+    accel = accel + omega.GetCrossProduct(v0) * model.magnus_coefficient;
   return accel;
 }
 
@@ -196,14 +196,16 @@ void Ball::Step(const Pitch& pitch) {
 
 void Ball::ApplyImpulseAtPoint(const math::Vector3& impulse,
                                const math::Vector3& world_point) {
+  // Something can only push the ball where it touches the shell, so the point
+  // must sit one radius from the centre; anything else is a caller bug.
+  const math::Vector3 r = world_point - state_.position;
+  assert(std::fabs(r.GetLength() - model_.radius) <=
+         kSurfaceTolerance * model_.radius);
+
   BallState next = state_;
   next.velocity = next.velocity + impulse * (1.0f / model_.mass);
 
-  const math::Vector3 r = world_point - state_.position;
-  const math::Vector3 torque(
-      r.coords[1] * impulse.coords[2] - r.coords[2] * impulse.coords[1],
-      r.coords[2] * impulse.coords[0] - r.coords[0] * impulse.coords[2],
-      r.coords[0] * impulse.coords[1] - r.coords[1] * impulse.coords[0]);
+  const math::Vector3 torque(r.GetCrossProduct(impulse));
   next.angular_velocity = next.angular_velocity + torque * (1.0f / inertia());
   set_state(next);
 }
@@ -214,10 +216,7 @@ std::optional<math::Vector3> Ball::SolveContactImpulse(
   const math::Vector3 r = contact.point - state_.position;
 
   const math::Vector3& omega = state_.angular_velocity;
-  const math::Vector3 omega_cross_r(
-      omega.coords[1] * r.coords[2] - omega.coords[2] * r.coords[1],
-      omega.coords[2] * r.coords[0] - omega.coords[0] * r.coords[2],
-      omega.coords[0] * r.coords[1] - omega.coords[1] * r.coords[0]);
+  const math::Vector3 omega_cross_r = omega.GetCrossProduct(r);
 
   const math::Vector3 u = state_.velocity + omega_cross_r - contact.surface_velocity;
   const float un = u.GetDotProduct(n);
