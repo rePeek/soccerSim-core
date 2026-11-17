@@ -459,3 +459,31 @@ TEST_CASE("A fast path is swept even when both endpoints are outside a post",
   CHECK(state.position.coords[0] == Approx(touching_x).margin(1e-5f));
   CHECK(state.velocity.coords[0] == Approx(-collider.material.restitution * 200).margin(1e-4f));
 }
+
+TEST_CASE("A ball at rest on the grass is integrated to the same state",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutAero();
+  const auto pitch = FrictionlessPitch();
+  Ball ball(config);
+  ball.PlaceOnGround(3, 4);
+  const auto before = ball.get_state();
+  for (int i = 0; i < 5; ++i) ball.Step(pitch);
+  const auto after = ball.get_state();
+  CHECK(after.position == before.position);
+  CHECK(after.velocity == before.velocity);
+  CHECK(after.angular_velocity == before.angular_velocity);
+  CHECK_FALSE(after.orientation != before.orientation);
+
+  // Spin at rest still advances the orientation, so "stopped" is not a shortcut
+  // for a spinning ball on the grass.
+  auto spinning = before;
+  spinning.angular_velocity = Vector3(0, 0, 4);
+  ball.set_state(spinning);
+  ball.Step(pitch);
+  CHECK(ball.get_state().orientation != spinning.orientation);
+
+  // A zero vertical velocity in flight is not rest: gravity must still apply.
+  ball.set_state(BallAt({0, 0, 5}, {0, 0, 0}));
+  ball.Step(pitch);
+  CHECK(ball.get_state().velocity.coords[2] == Approx(-kGravity * kDt).margin(1e-4f));
+}

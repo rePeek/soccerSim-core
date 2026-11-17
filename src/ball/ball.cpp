@@ -28,6 +28,104 @@ using geometry::HalfSpace;
 using geometry::Plane;
 using geometry::Sphere;
 
+namespace {
+
+// Touching distance to the grass and to the interval start: closer than this is
+// "already in contact", not a new impact.
+constexpr float kTouchEpsilon = 1e-4f;
+
+// The ball rolls while it rests on the grass, and flies otherwise. This is the
+// single definition of "on the ground and neither climbing nor falling", and it
+// picks the integrator's branch.
+bool IsRolling(const BallModel& model, const BallState& state) {
+  return state.position.coords[2] <= model.radius + kTouchEpsilon &&
+         std::fabs(state.velocity.coords[2]) <= kTouchEpsilon;
+}
+
+// Grass resists horizontal motion only: a constant deceleration plus an optional
+// quadratic term, clamping at rest instead of flipping the sign.
+math::Vector3 GrassDrag(const math::Vector3& velocity, float dt,
+                        const Pitch& pitch) {
+  math::Vector3 v = velocity;
+  const float hs =
+      std::sqrt(v.coords[0] * v.coords[0] + v.coords[1] * v.coords[1]);
+  if (hs > 0.0f) {
+    const float resistance = pitch.ground_deceleration() +
+                             pitch.quadratic_resistance() * hs * hs;
+    const float scale = std::max(0.0f, hs - resistance * dt) / hs;
+    v.coords[0] *= scale;
+    v.coords[1] *= scale;
+  }
+  return v;
+}
+
+// Ground resistance applies only while the ball rests on the grass and is not
+// climbing; a descended interval keeps the velocity it has.
+math::Vector3 LaunchVelocity(const BallModel& model, const BallState& state,
+                             float dt, const Pitch& pitch) {
+  if (state.position.coords[2] <= model.radius + kTouchEpsilon &&
+      state.velocity.coords[2] >= -kTouchEpsilon)
+    return GrassDrag(state.velocity, dt, pitch);
+  return state.velocity;
+}
+
+math::Vector3 Acceleration(const BallModel& model, const math::Vector3& v0,
+                           const math::Vector3& omega, const Pitch& pitch) {
+  const float speed = v0.GetLength();
+  math::Vector3 accel{0.0f, 0.0f, pitch.gravity()};
+  if (speed > 0.0f)
+    accel = accel - v0 * (pitch.air_drag() * speed);
+  if (model.magnus_coefficient != 0.0f) {
+    accel = accel + math::Vector3(
+                        omega.coords[1] * v0.coords[2] - omega.coords[2] * v0.coords[1],
+                        omega.coords[2] * v0.coords[0] - omega.coords[0] * v0.coords[2],
+                        omega.coords[0] * v0.coords[1] - omega.coords[1] * v0.coords[0]) *
+                        model.magnus_coefficient;
+  }
+  return accel;
+}
+
+// First-order quaternion integration of a spin over dt, renormalized because the
+// Euler step does not preserve the unit length.
+math::Quaternion IntegrateOrientation(const math::Quaternion& q,
+                                      const math::Vector3& omega, float dt) {
+  const math::Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
+  return (q + omega_q * q * (0.5f * dt)).GetNormalized();
+}
+
+// A ball at rest on the grass has nothing to integrate. This must require the
+// rolling branch: a ball at the apex of a throw also has zero vertical speed,
+// and a spinning ball still needs its orientation advanced.
+bool IsAtRest(const BallState& state) {
+  return state.velocity.GetSquaredLength() <= kTouchEpsilon * kTouchEpsilon &&
+         state.angular_velocity.GetSquaredLength() <= kTouchEpsilon * kTouchEpsilon;
+}
+
+// One interval of contact-free motion: ballistic flight in the air, rolling on
+// the grass while resting on it.
+BallState IntegrateMotion(const BallModel& model, const BallState& state,
+                          float dt, const Pitch& pitch) {
+  if (dt <= 0.0f) return state;
+  const bool rolling = IsRolling(model, state);
+  if (rolling && IsAtRest(state)) return state;
+  BallState next = state;
+  if (rolling) {
+    next.velocity = GrassDrag(state.velocity, dt, pitch);
+    next.velocity.coords[2] = 0.0f;
+    next.position = state.position + next.velocity * dt;
+    next.position.coords[2] = model.radius;
+  } else {
+    const math::Vector3 v0 = LaunchVelocity(model, state, dt, pitch);
+    const math::Vector3 accel = Acceleration(model, v0, state.angular_velocity, pitch);
+    next.position = state.position + (v0 + accel * (0.5f * dt)) * dt;
+    next.velocity = v0 + accel * dt;
+  }
+  next.orientation = IntegrateOrientation(state.orientation, next.angular_velocity, dt);
+  return next;
+}
+
+}  // namespace
+
 // ---- Public interface ----
 
 Ball::Ball(const BallModel& model)
@@ -46,7 +144,7 @@ void Ball::Step(const Pitch& pitch) {
   for (std::size_t guard = 0;; ++guard) {
     // 1. Predict the entire tick without collisions. Repairs below only adjust
     // an initially overlapping start; they do not subdivide simulation time.
-    BallState next = IntegrateMotion(start, dt, pitch);
+    BallState next = IntegrateMotion(model_, start, dt, pitch);
 
     // 2. Sweep the path to that predicted position, not just its endpoint.
     // TOI locates the contact geometrically; it never scales the integration.
@@ -143,78 +241,6 @@ void Ball::PlaceOnGround(float x, float y) {
   state.position = math::Vector3(x, y, model_.radius);
   set_state(state);
   Info(Channel::ball, std::format("placed on ground at ({}, {})", x, y));
-}
-
-bool Ball::OnGround(const BallState& state) const {
-  return state.position.coords[2] <= model_.radius + kTouchEpsilon;
-}
-
-bool Ball::VerticallyResting(const BallState& state) {
-  return std::fabs(state.velocity.coords[2]) <= kTouchEpsilon;
-}
-
-math::Vector3 Ball::GrassDrag(const math::Vector3& velocity, float dt,
-                             const Pitch& pitch) const {
-  math::Vector3 v = velocity;
-  const float hs =
-      std::sqrt(v.coords[0] * v.coords[0] + v.coords[1] * v.coords[1]);
-  if (hs > 0.0f) {
-    const float resistance = pitch.ground_deceleration() +
-                             pitch.quadratic_resistance() * hs * hs;
-    const float scale = std::max(0.0f, hs - resistance * dt) / hs;
-    v.coords[0] *= scale;
-    v.coords[1] *= scale;
-  }
-  return v;
-}
-
-math::Vector3 Ball::LaunchVelocity(const BallState& state, float dt,
-                                  const Pitch& pitch) const {
-  if (OnGround(state) && state.velocity.coords[2] >= -kTouchEpsilon)
-    return GrassDrag(state.velocity, dt, pitch);
-  return state.velocity;
-}
-
-math::Vector3 Ball::Acceleration(const math::Vector3& v0,
-                                const math::Vector3& omega,
-                                const Pitch& pitch) const {
-  const float speed = v0.GetLength();
-  math::Vector3 accel{0.0f, 0.0f, pitch.gravity()};
-  if (speed > 0.0f)
-    accel = accel - v0 * (pitch.air_drag() * speed);
-  if (model_.magnus_coefficient != 0.0f) {
-    accel = accel + math::Vector3(
-                        omega.coords[1] * v0.coords[2] - omega.coords[2] * v0.coords[1],
-                        omega.coords[2] * v0.coords[0] - omega.coords[0] * v0.coords[2],
-                        omega.coords[0] * v0.coords[1] - omega.coords[1] * v0.coords[0]) *
-                        model_.magnus_coefficient;
-  }
-  return accel;
-}
-
-math::Quaternion Ball::IntegrateOrientation(const math::Quaternion& q,
-                                            const math::Vector3& omega, float dt) {
-  const math::Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
-  return (q + omega_q * q * (0.5f * dt)).GetNormalized();
-}
-
-BallState Ball::IntegrateMotion(const BallState& state, float dt,
-                                const Pitch& pitch) const {
-  if (dt <= 0.0f) return state;
-  BallState next = state;
-  if (OnGround(state) && VerticallyResting(state)) {
-    next.velocity = GrassDrag(state.velocity, dt, pitch);
-    next.velocity.coords[2] = 0.0f;
-    next.position = state.position + next.velocity * dt;
-    next.position.coords[2] = model_.radius;
-  } else {
-    const math::Vector3 v0 = LaunchVelocity(state, dt, pitch);
-    const math::Vector3 accel = Acceleration(v0, state.angular_velocity, pitch);
-    next.position = state.position + (v0 + accel * (0.5f * dt)) * dt;
-    next.velocity = v0 + accel * dt;
-  }
-  next.orientation = IntegrateOrientation(state.orientation, next.angular_velocity, dt);
-  return next;
 }
 
 // ---- Passive contact geometry ----

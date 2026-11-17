@@ -70,22 +70,6 @@ class Ball {
     return (2.0f / 3.0f) * model_.mass * model_.radius * model_.radius;
   }
 
-  bool OnGround(const BallState& state) const;
-  static bool VerticallyResting(const BallState& state);
-  math::Vector3 GrassDrag(const math::Vector3& velocity, float dt,
-                          const Pitch& pitch) const;
-  math::Vector3 LaunchVelocity(const BallState& state, float dt,
-                               const Pitch& pitch) const;
-  math::Vector3 Acceleration(const math::Vector3& velocity,
-                             const math::Vector3& omega,
-                             const Pitch& pitch) const;
-  static math::Quaternion IntegrateOrientation(const math::Quaternion& q,
-                                              const math::Vector3& omega,
-                                              float dt);
-  // Integrate one interval of contact-free motion: ballistic flight in the
-  // air, rolling on grass while resting on the ground.
-  BallState IntegrateMotion(const BallState& state, float dt,
-                            const Pitch& pitch) const;
   BallContact ToBallContact(const collision::CollisionHit& hit,
                             const math::Vector3& velocity) const;
   std::optional<collision::CollisionHit> FindContact(
@@ -95,7 +79,6 @@ class Ball {
   void Depenetrate(BallState& state, const BallContact& contact,
                    std::span<const geometry::ColliderMotion> colliders) const;
 
-  static constexpr float kTouchEpsilon = 1e-4f;
   BallModel model_;
   BallState state_;
 };
