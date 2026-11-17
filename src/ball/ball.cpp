@@ -153,7 +153,7 @@ bool Ball::VerticallyResting(const BallState& state) {
   return std::fabs(state.velocity.coords[2]) <= kTouchEpsilon;
 }
 
-math::Vector3 Ball::GrassDrag(const math::Vector3& velocity, float span,
+math::Vector3 Ball::GrassDrag(const math::Vector3& velocity, float dt,
                              const Pitch& pitch) const {
   math::Vector3 v = velocity;
   const float hs =
@@ -161,17 +161,17 @@ math::Vector3 Ball::GrassDrag(const math::Vector3& velocity, float span,
   if (hs > 0.0f) {
     const float resistance = pitch.ground_deceleration() +
                              pitch.quadratic_resistance() * hs * hs;
-    const float scale = std::max(0.0f, hs - resistance * span) / hs;
+    const float scale = std::max(0.0f, hs - resistance * dt) / hs;
     v.coords[0] *= scale;
     v.coords[1] *= scale;
   }
   return v;
 }
 
-math::Vector3 Ball::LaunchVelocity(const BallState& state, float span,
+math::Vector3 Ball::LaunchVelocity(const BallState& state, float dt,
                                   const Pitch& pitch) const {
   if (OnGround(state) && state.velocity.coords[2] >= -kTouchEpsilon)
-    return GrassDrag(state.velocity, span, pitch);
+    return GrassDrag(state.velocity, dt, pitch);
   return state.velocity;
 }
 
@@ -198,22 +198,22 @@ math::Quaternion Ball::IntegrateOrientation(const math::Quaternion& q,
   return (q + omega_q * q * (0.5f * dt)).GetNormalized();
 }
 
-BallState Ball::IntegrateMotion(const BallState& state, float span,
+BallState Ball::IntegrateMotion(const BallState& state, float dt,
                                 const Pitch& pitch) const {
-  if (span <= 0.0f) return state;
+  if (dt <= 0.0f) return state;
   BallState next = state;
   if (OnGround(state) && VerticallyResting(state)) {
-    next.velocity = GrassDrag(state.velocity, span, pitch);
+    next.velocity = GrassDrag(state.velocity, dt, pitch);
     next.velocity.coords[2] = 0.0f;
-    next.position = state.position + next.velocity * span;
+    next.position = state.position + next.velocity * dt;
     next.position.coords[2] = model_.radius;
   } else {
-    const math::Vector3 v0 = LaunchVelocity(state, span, pitch);
+    const math::Vector3 v0 = LaunchVelocity(state, dt, pitch);
     const math::Vector3 accel = Acceleration(v0, state.angular_velocity, pitch);
-    next.position = state.position + (v0 + accel * (0.5f * span)) * span;
-    next.velocity = v0 + accel * span;
+    next.position = state.position + (v0 + accel * (0.5f * dt)) * dt;
+    next.velocity = v0 + accel * dt;
   }
-  next.orientation = IntegrateOrientation(state.orientation, next.angular_velocity, span);
+  next.orientation = IntegrateOrientation(state.orientation, next.angular_velocity, dt);
   return next;
 }
 

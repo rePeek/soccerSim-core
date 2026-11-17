@@ -72,9 +72,9 @@ class Ball {
 
   bool OnGround(const BallState& state) const;
   static bool VerticallyResting(const BallState& state);
-  math::Vector3 GrassDrag(const math::Vector3& velocity, float span,
+  math::Vector3 GrassDrag(const math::Vector3& velocity, float dt,
                           const Pitch& pitch) const;
-  math::Vector3 LaunchVelocity(const BallState& state, float span,
+  math::Vector3 LaunchVelocity(const BallState& state, float dt,
                                const Pitch& pitch) const;
   math::Vector3 Acceleration(const math::Vector3& velocity,
                              const math::Vector3& omega,
@@ -82,9 +82,9 @@ class Ball {
   static math::Quaternion IntegrateOrientation(const math::Quaternion& q,
                                               const math::Vector3& omega,
                                               float dt);
-  // Integrate one span of contact-free motion: ballistic flight in the air,
-  // rolling on grass while resting on the ground.
-  BallState IntegrateMotion(const BallState& state, float span,
+  // Integrate one interval of contact-free motion: ballistic flight in the
+  // air, rolling on grass while resting on the ground.
+  BallState IntegrateMotion(const BallState& state, float dt,
                             const Pitch& pitch) const;
   BallContact ToBallContact(const collision::CollisionHit& hit,
                             const math::Vector3& velocity) const;
