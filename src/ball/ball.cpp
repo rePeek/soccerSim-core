@@ -39,6 +39,11 @@ constexpr float kTouchEpsilon = 1e-4f;
 // normalized in float, so the distance is only radius-accurate to a few ulps.
 constexpr float kSurfaceTolerance = 1e-3f;
 
+// Thin-shell sphere inertia, I = 2/3 * mass * radius^2.
+float Inertia(const BallModel& model) {
+  return (2.0f / 3.0f) * model.mass * model.radius * model.radius;
+}
+
 // The ball rolls while it rests on the grass, and flies otherwise. This is the
 // single definition of "on the ground and neither climbing nor falling", and it
 // picks the integrator's branch.
@@ -206,7 +211,7 @@ void Ball::ApplyImpulseAtPoint(const math::Vector3& impulse,
   next.velocity = next.velocity + impulse * (1.0f / model_.mass);
 
   const math::Vector3 torque(r.GetCrossProduct(impulse));
-  next.angular_velocity = next.angular_velocity + torque * (1.0f / inertia());
+  next.angular_velocity = next.angular_velocity + torque * (1.0f / Inertia(model_));
   set_state(next);
 }
 
@@ -227,7 +232,7 @@ std::optional<math::Vector3> Ball::SolveContactImpulse(
 
   // Sphere surface contacts have a radial lever arm, perpendicular to slip.
   const math::Vector3 ut = u - n * un;
-  const float inverse = 1.0f / mass + r.GetDotProduct(r) / inertia();
+  const float inverse = 1.0f / mass + r.GetDotProduct(r) / Inertia(model_);
   math::Vector3 jt = ut * (-1.0f / inverse);
 
   const float jt_len = jt.GetLength();
@@ -243,8 +248,6 @@ void Ball::PlaceOnGround(float x, float y) {
   set_state(state);
   Info(Channel::ball, std::format("placed on ground at ({}, {})", x, y));
 }
-
-// ---- Passive contact geometry ----
 
 BallContact Ball::ToBallContact(const collision::CollisionHit& hit,
                                 const math::Vector3& velocity) const {

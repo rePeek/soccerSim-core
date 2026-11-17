@@ -61,11 +61,6 @@ class Ball {
   void PlaceOnGround(float x, float y);
 
  private:
-  // Thin-shell sphere inertia, I = 2/3 * mass * radius^2.
-  float inertia() const {
-    return (2.0f / 3.0f) * model_.mass * model_.radius * model_.radius;
-  }
-
   BallContact ToBallContact(const collision::CollisionHit& hit,
                             const math::Vector3& velocity) const;
   std::optional<collision::CollisionHit> FindContact(
