@@ -1,10 +1,5 @@
 #pragma once
 
-// football::ball owns the ball end to end: its state, the impulse response, the
-// one-tick contact resolution and the Ball facade. Contact detection itself
-// lives in football::collision (generic swept queries); the material response
-// and the tick rules live here, next to the state they act on.
-
 #include <span>
 #include <vector>
 
@@ -15,6 +10,7 @@
 #include "football/models.h"
 
 namespace football::pitch { class Pitch; }
+namespace football::collision { struct CollisionHit; }
 
 namespace football::ball {
 
@@ -30,9 +26,7 @@ struct BallState {
 struct BallContact {
   geometry::ColliderId collider = 0;
   float toi = 0.0f;
-  // World point where the ball surface met the collider surface: ball centre -
-  // normal * radius. The impulse acts here, so the offset from the centre is
-  // what turns a straight hit into spin.
+  // World-space point on the ball surface: centre - normal * radius.
   math::Vector3 point;
   math::Vector3 normal;
   math::Vector3 relative_velocity;
@@ -43,50 +37,9 @@ struct BallContact {
 
 struct BallStepResult {
   BallState state;
-  // At most one entry carries a non-zero normal impulse: a tick resolves one
-  // impact and integrates the rest of itself collision-free. Any further
-  // entries are zero-impulse overlap repairs recorded before that impact.
+  // At most one impact; other entries are zero-impulse overlap repairs.
   std::vector<BallContact> contacts;
 };
-
-// ---- Impulse response ----
-// Thin-shell sphere inertia factor, I = kBallInertiaFactor * mass * radius^2.
-inline constexpr float kBallInertiaFactor = 2.0f / 3.0f;
-
-float BallInertia(const BallModel& config);
-
-// The only way a ball state changes: an impulse [N*s] applied at a world point.
-// Gameplay (pass, shot) supplies the impulse itself; contact resolution derives
-// one from the material in SolveContactImpulse. Position is deliberately left
-// untouched -- placing the ball at a contact belongs to the contact layer.
-BallState ApplyImpulseAtPoint(const BallState& ball,
-                              const math::Vector3& impulse,
-                              const math::Vector3& world_point,
-                              const BallModel& config);
-
-struct ContactImpulse {
-  // normal * jn + jt, ready for ApplyImpulseAtPoint at contact.point.
-  math::Vector3 impulse{0};
-  // Zero when the contact is already separating: nothing to apply, and callers
-  // use it to tell a real impact from an overlap repair.
-  float normal_impulse = 0.0f;
-};
-
-// Impulse for one contact: restitution sets the normal part, Coulomb friction
-// caps the tangential part by it. `contact.point` is the lever arm, recorded by
-// the contact layer as `ball position - normal * radius`.
-ContactImpulse SolveContactImpulse(const BallState& ball,
-                                   const BallContact& contact,
-                                   const geometry::ContactMaterial& material,
-                                   const BallModel& config);
-
-// ---- One tick of ball physics ----
-// Advances one tick against the scene, resolving at most one impact.
-BallStepResult AdvanceBallTick(const BallState& initial,
-                               std::span<const geometry::ColliderMotion> colliders,
-                               float dt,
-                               const BallModel& config,
-                               const Pitch& pitch);
 
 class Ball {
  public:
@@ -97,20 +50,61 @@ class Ball {
   void set_state(const BallState& state) { state_ = state; }
   const BallModel& model() const { return model_; }
 
-  // The pitch is the scene a tick resolves against, so it is a per-call
-  // argument: Ball owns no reference to it and outlives no owner.
-  BallStepResult Step(const Pitch& pitch);
-  BallStepResult Predict(const Pitch& pitch) const;
-  BallState Predict(const Pitch& pitch,
-                    time::TickSpan ahead) const;
+  // Apply impulse [N*s] at a world-space point to this ball immediately.
+  // Changes velocity and spin, not position or orientation.
+  void ApplyImpulseAtPoint(const math::Vector3& impulse,
+                           const math::Vector3& world_point);
 
-  // Authoritative ground placement: z is forced to the ball radius and
-  // velocity/spin are cleared. Airborne states still use set_state(BallState).
+  struct ContactImpulse {
+    math::Vector3 impulse{0};
+    float normal_impulse = 0.0f;
+  };
+
+  // Compute an impulse from this ball's state without applying it.
+  ContactImpulse SolveContactImpulse(
+      const BallContact& contact,
+      const geometry::ContactMaterial& material) const;
+
+  // Advance this ball against an explicit collider set and commit the result.
+  BallStepResult AdvanceBallTick(
+      std::span<const geometry::ColliderMotion> colliders,
+      float dt, const Pitch& pitch);
+
+  BallStepResult Step(const Pitch& pitch);
+  // Predictions advance a copy, leaving this ball unchanged.
+  BallStepResult Predict(const Pitch& pitch) const;
+  BallState Predict(const Pitch& pitch, time::TickSpan ahead) const;
+
+  // z is forced to the radius; velocity/spin are cleared.
   void PlaceOnGround(float x, float y);
 
  private:
-  BallStepResult EvaluateTick(const Pitch& pitch) const;
+  // Thin-shell sphere inertia, I = 2/3 * mass * radius^2.
+  float inertia() const {
+    return (2.0f / 3.0f) * model_.mass * model_.radius * model_.radius;
+  }
 
+  bool OnGround(const BallState& state) const;
+  static bool VerticallyResting(const BallState& state);
+  math::Vector3 GrassDrag(const math::Vector3& velocity, float span,
+                          const Pitch& pitch) const;
+  math::Vector3 LaunchVelocity(const BallState& state, float span,
+                               const Pitch& pitch) const;
+  math::Vector3 Acceleration(const math::Vector3& velocity,
+                             const math::Vector3& omega,
+                             const Pitch& pitch) const;
+  static math::Quaternion IntegrateOrientation(const math::Quaternion& q,
+                                              const math::Vector3& omega,
+                                              float dt);
+  BallState AdvanceFreeFlight(const BallState& state, float span,
+                              const Pitch& pitch) const;
+  BallContact ToBallContact(const collision::CollisionHit& hit,
+                            const math::Vector3& velocity) const;
+  std::vector<BallContact> AdvanceBallSegment(
+      std::span<const geometry::ColliderMotion> colliders,
+      float dt, const Pitch& pitch);
+
+  static constexpr float kTouchEpsilon = 1e-4f;
   BallModel model_;
   BallState state_;
 };
