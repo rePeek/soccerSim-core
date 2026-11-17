@@ -104,17 +104,20 @@ TEST_CASE("The lever arm comes from the applied point, not from the radius",
 
 TEST_CASE("Frictionless contact reflects the normal velocity by restitution",
           "[unit][ball][response]") {
-  Ball ball(TestBallModel());
-  ball.set_state(BallAt({0, 0, 0.11f}, {0, 0, -2}));
-  const auto before = ball.get_state();
-  const Vector3 normal{0, 0, 1};
-  const auto solved = Resolve(ball, SurfaceContact(ball, normal), {0.5f, 0});
+  for (const float restitution : {0.0f, 0.5f, 1.0f}) {
+    INFO("restitution=" << restitution);
+    Ball ball(TestBallModel());
+    ball.set_state(BallAt({0, 0, 0.11f}, {0, 0, -2}));
+    const auto before = ball.get_state();
+    const Vector3 normal{0, 0, 1};
+    const auto solved = Resolve(ball, SurfaceContact(ball, normal), {restitution, 0});
 
-  CHECK(solved.normal_impulse > 0.0f);
-  CHECK(ball.get_state().velocity.coords[2] == Approx(1.0f).margin(1e-4f));
-  CHECK(ball.get_state().angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
-  CHECK(TangentialImpulse(before, ball, normal, solved.normal_impulse).GetLength() ==
-        Approx(0.0f).margin(1e-6f));
+    CHECK(solved.normal_impulse > 0.0f);
+    CHECK(ball.get_state().velocity.coords[2] == Approx(2.0f * restitution).margin(1e-4f));
+    CHECK(ball.get_state().angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
+    CHECK(TangentialImpulse(before, ball, normal, solved.normal_impulse).GetLength() ==
+          Approx(0.0f).margin(1e-6f));
+  }
 }
 
 TEST_CASE("Separating contact produces no new normal impulse",

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-#include <span>
 
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/quaternion.hpp"
@@ -24,22 +22,17 @@ struct BallState {
 
 struct BallContact {
   geometry::ColliderId collider = 0;
+  // Fraction along the predicted path; not a fractional integration timestep.
   float toi = 0.0f;
   // World-space point on the ball surface: centre - normal * radius.
   math::Vector3 point;
   math::Vector3 normal;
+  // Predicted full-tick centre velocity relative to the collider surface.
   math::Vector3 relative_velocity;
   float normal_impulse = 0.0f;
   bool position_corrected = false;
   math::Vector3 surface_velocity = math::Vector3(0);
 };
-
-struct BallStepResult {
-  BallState state;
-  // The tick's single impact, or nullopt if none. Overlap repairs stay internal.
-  std::optional<BallContact> contact;
-};
-
 class Ball {
  public:
   explicit Ball(const BallModel& model =
@@ -49,7 +42,9 @@ class Ball {
   void set_state(const BallState& state) { state_ = state; }
   const BallModel& model() const { return model_; }
 
-  BallStepResult Step(const Pitch& pitch);
+  // Predict free motion, sweep the path, then commit or stop at one impact.
+  // An impact uses the predicted velocity/spin, with no post-impact motion.
+  void Step(const Pitch& pitch);
 
   // Apply impulse [N*s] at a world-space point to this ball immediately.
   // Changes velocity and spin, not position or orientation.
@@ -65,11 +60,6 @@ class Ball {
   ContactImpulse SolveContactImpulse(
       const BallContact& contact,
       const geometry::ContactMaterial& material) const;
-
-  // Advance this ball against an explicit collider set and commit the result.
-  BallStepResult AdvanceBallTick(
-      std::span<const geometry::ColliderMotion> colliders,
-      float dt, const Pitch& pitch);
 
   // z is forced to the radius; velocity/spin are cleared.
   void PlaceOnGround(float x, float y);
@@ -96,9 +86,12 @@ class Ball {
                               const Pitch& pitch) const;
   BallContact ToBallContact(const collision::CollisionHit& hit,
                             const math::Vector3& velocity) const;
-  std::optional<BallContact> AdvanceBallSegment(
-      std::span<const geometry::ColliderMotion> colliders,
-      float dt, const Pitch& pitch);
+  std::optional<collision::CollisionHit> FindContact(
+      const BallState& start, const BallState& next,
+      std::span<const geometry::ColliderMotion> colliders, float dt,
+      std::span<const geometry::ColliderId> repaired) const;
+  void Depenetrate(BallState& state, const BallContact& contact,
+                   std::span<const geometry::ColliderMotion> colliders) const;
 
   static constexpr float kTouchEpsilon = 1e-4f;
   BallModel model_;
