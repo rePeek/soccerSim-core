@@ -135,7 +135,6 @@ BallState IntegrateMotion(const BallModel& model, const BallState& state,
 BallContact ToBallContact(const collision::CollisionHit& hit,
                           const math::Vector3& velocity, float ball_radius) {
   BallContact contact;
-  contact.collider = hit.collider;
   contact.toi = hit.toi;
   contact.point = hit.center - hit.normal * ball_radius;
   contact.normal = hit.normal;
@@ -145,37 +144,30 @@ BallContact ToBallContact(const collision::CollisionHit& hit,
 }
 
 // Sweeps the path from start to the predicted next state, so a fast ball cannot
-// pass through a collider whose endpoints both lie outside it.
-std::optional<collision::CollisionHit> FindContact(
+// pass through a collider whose endpoints both lie outside it. Colliders already
+// repaired for an initial overlap must not hide a later, real impact.
+std::optional<collision::ColliderHit> FindContact(
     float ball_radius, const BallState& start, const BallState& next,
     std::span<const geometry::Collider> colliders, float dt,
-    std::span<const geometry::ColliderId> repaired) {
+    const std::vector<const geometry::Collider*>& repaired) {
   const collision::MovingSphere sphere{
       {start.position, ball_radius}, (next.position - start.position) * (1.0f / dt)};
   if (repaired.empty()) return collision::FirstHit(sphere, colliders, dt);
 
-  // An initial, separating overlap must not hide another collider's impact.
-  std::optional<collision::CollisionHit> best;
+  std::optional<collision::ColliderHit> best;
   for (const auto& collider : colliders) {
-    const auto hit = collision::FirstHit(
-        sphere, std::span<const geometry::Collider>(&collider, 1), dt);
+    const auto hit = collision::Sweep(sphere, collider.shape, dt);
     if (!hit) continue;
-    if (hit->toi <= kTouchEpsilon &&
-        std::find(repaired.begin(), repaired.end(), collider.id) != repaired.end() &&
-        (next.velocity - hit->surface_velocity).GetDotProduct(hit->normal) >= 0.0f)
+    const bool was_repaired =
+        std::find(repaired.begin(), repaired.end(), &collider) != repaired.end();
+    const float normal_velocity =
+        (start.velocity - hit->surface_velocity).GetDotProduct(hit->normal);
+    if (was_repaired && hit->toi <= kTouchEpsilon && normal_velocity >= 0.0f)
       continue;
-    if (!best || hit->toi < best->toi ||
-        (hit->toi == best->toi && hit->collider < best->collider)) best = hit;
+    if (!best || hit->toi < best->hit.toi)
+      best = collision::ColliderHit{*hit, &collider};
   }
   return best;
-}
-
-// Looks a hit's id back up in the scene; the sweep only reports geometry.
-const geometry::Collider* FindCollider(
-    std::span<const geometry::Collider> colliders, geometry::ColliderId id) {
-  for (const auto& collider : colliders)
-    if (collider.id == id) return &collider;
-  return nullptr;
 }
 
 // Moves the centre back onto the surface of a collider the ball overlaps. Only
@@ -218,7 +210,7 @@ void Ball::Step(const Pitch& pitch) {
   const auto colliders = pitch.colliders();
   const float ball_radius = model_.radius;
   BallState start = state_;
-  std::vector<geometry::ColliderId> repaired;
+  std::vector<const geometry::Collider*> repaired;
   const std::size_t repair_cap = colliders.size() + 2;
   for (std::size_t guard = 0;; ++guard) {
     // 1. Predict the entire tick without collisions. Repairs below only adjust
@@ -227,29 +219,28 @@ void Ball::Step(const Pitch& pitch) {
 
     // 2. Sweep the path to that predicted position, not just its endpoint.
     // TOI locates the contact geometrically; it never scales the integration.
-    const auto hit = FindContact(ball_radius, start, next, colliders, dt, repaired);
-    if (!hit) {
+    const auto found = FindContact(ball_radius, start, next, colliders, dt, repaired);
+    if (!found) {
       set_state(next);
       return;
     }
-    // The hit only carries an id; the scene owns the pose and the material.
-    const geometry::Collider* collider = FindCollider(colliders, hit->collider);
-    assert(collider != nullptr);
+    const auto& hit = found->hit;
+    const geometry::Collider& collider = *found->collider;
 
-    BallContact contact = ToBallContact(*hit, next.velocity, ball_radius);
+    BallContact contact = ToBallContact(hit, next.velocity, ball_radius);
     if (contact.toi <= kTouchEpsilon &&
         contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f &&
         guard < repair_cap) {
-      Depenetrate(start, contact, *collider, ball_radius);
-      repaired.push_back(contact.collider);
+      Depenetrate(start, contact, collider, ball_radius);
+      repaired.push_back(found->collider);
       continue;
     }
 
     // 3. Keep the predicted velocity, spin and orientation, but stop the centre
     // at first contact. Resolve just one passive impulse, with no tail motion.
-    next.position = hit->center;
+    next.position = hit.center;
     const auto original_center = next.position;
-    Depenetrate(next, contact, *collider, ball_radius);
+    Depenetrate(next, contact, collider, ball_radius);
     contact.position_corrected = next.position != original_center;
     contact.point = next.position - contact.normal * ball_radius;
     // Commit the predicted state before solving: the solver reads position and
@@ -257,13 +248,11 @@ void Ball::Step(const Pitch& pitch) {
     // centre sits on the surface. A separating contact leaves this state as is.
     set_state(next);
 
-    const auto impulse = SolveContactImpulse(contact, collider->material);
+    const auto impulse = SolveContactImpulse(contact, collider.material);
     if (!impulse) return;
 
     ApplyImpulseAtPoint(*impulse, contact.point);
-    Debug(Channel::ball, std::format("tick resolved contact with {}; position=({}, {}, {})",
-                                     contact.collider, state_.position.coords[0],
-                                     state_.position.coords[1], state_.position.coords[2]));
+    Debug(Channel::ball, std::format("ball contact: name={}, toi={}", collider.name, hit.toi));
     return;
   }
 }

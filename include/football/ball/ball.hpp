@@ -21,7 +21,6 @@ struct BallState {
 };
 
 struct BallContact {
-  geometry::ColliderId collider = 0;
   // Fraction along the predicted path; not a fractional integration timestep.
   float toi = 0.0f;
   // World-space point on the ball surface: centre - normal * radius.

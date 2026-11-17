@@ -39,20 +39,22 @@ bool Penetrates(const geometry::Sphere& sphere,
 bool Penetrates(const geometry::Sphere& sphere,
                 const geometry::Capsule& capsule);
 
-// Pure swept-sphere CCD against one collider over [0, dt] (`dt` in seconds).
+// Pure swept-sphere CCD against one shape over [0, dt] (`dt` in seconds). The
+// shape is all it takes: names, materials and owners stay outside.
 // Deterministic, never mutates state and draws no RNG.
 //
 // Input contract: dt must be finite and > 0, radii must be finite and >= 0, and
 // all coordinates must be finite. A violation throws std::invalid_argument (a
-// malformed collider is a caller bug, not 'no collision'). Valid input with no
+// malformed shape is a caller bug, not 'no collision'). Valid input with no
 // contact over the interval returns nullopt. Planes are two-sided surfaces;
 // half-spaces are one-sided solids.
 std::optional<CollisionHit> Sweep(
     const MovingSphere& sphere,
-    const geometry::Collider& collider, float dt);
+    const geometry::ColliderShape& shape, float dt);
 
-// Earliest hit over a set. Equal TOI is broken by the lower collider id.
-std::optional<CollisionHit> FirstHit(
+// Earliest contact over a set, with the collider that owns it. Equal TOI keeps
+// the collider met first in the set, so only names and addresses are ignored.
+std::optional<ColliderHit> FirstHit(
     const MovingSphere& sphere,
     std::span<const geometry::Collider> colliders, float dt);
 

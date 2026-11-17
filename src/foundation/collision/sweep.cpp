@@ -89,7 +89,7 @@ void ValidateShape(const ColliderShape& shape) {
 
 // Rejects malformed sweeps. A valid query with no contact returns nullopt; bad
 // input is a caller bug, so it throws instead of being reported as "no hit".
-void ValidateSweep(const MovingSphere& sphere, const Collider& collider,
+void ValidateSweep(const MovingSphere& sphere, const ColliderShape& shape,
                    float dt) {
   if (!std::isfinite(dt) || dt <= 0.0f)
     throw std::invalid_argument(
@@ -98,14 +98,13 @@ void ValidateSweep(const MovingSphere& sphere, const Collider& collider,
       !IsFiniteVector(sphere.shape.center) || !IsFiniteVector(sphere.velocity))
     throw std::invalid_argument(
         "collision::Sweep: invalid moving sphere");
-  ValidateShape(collider.shape);
+  ValidateShape(shape);
 }
 
 // Two-sided plane: a thin surface. The sphere touches when its centre is one
 // radius away, on either side, and the normal points back to the side it
 // arrived from.
 std::optional<CollisionHit> SweepPlane(const MovingSphere& sphere,
-                                       const Collider& collider,
                                        const Plane& plane, float dt) {
   const math::Vector3 ball_position = sphere.shape.center;
   const math::Vector3 disp = sphere.velocity * dt;
@@ -116,7 +115,6 @@ std::optional<CollisionHit> SweepPlane(const MovingSphere& sphere,
   const float dn = disp.GetDotProduct(n);
 
   CollisionHit hit;
-  hit.collider = collider.id;
   if (std::fabs(d0) <= ball_radius + kEpsilon) {
     hit.toi = 0.0f;
     hit.center = ball_position;
@@ -136,9 +134,7 @@ std::optional<CollisionHit> SweepPlane(const MovingSphere& sphere,
 // One-sided solid: the -normal side is solid, so a sphere already inside it
 // reports toi == 0 and otherwise contacts when its surface reaches the plane.
 std::optional<CollisionHit> SweepHalfSpace(const MovingSphere& sphere,
-                                           const Collider& collider,
-                                           const HalfSpace& half_space,
-                                           float dt) {
+                                           const HalfSpace& half_space, float dt) {
   const math::Vector3 ball_position = sphere.shape.center;
   const math::Vector3 disp = sphere.velocity * dt;
   const float ball_radius = sphere.shape.radius;
@@ -150,7 +146,6 @@ std::optional<CollisionHit> SweepHalfSpace(const MovingSphere& sphere,
   const float dn = disp.GetDotProduct(n);
 
   CollisionHit hit;
-  hit.collider = collider.id;
   hit.normal = n;
   if (d0 < -kEpsilon) {
     hit.toi = 0.0f;
@@ -166,7 +161,6 @@ std::optional<CollisionHit> SweepHalfSpace(const MovingSphere& sphere,
 }
 
 std::optional<CollisionHit> SweepSphere(const MovingSphere& sphere,
-                                        const Collider& collider,
                                         const Sphere& other, float dt) {
   const math::Vector3 ball_position = sphere.shape.center;
   const math::Vector3 disp = sphere.velocity * dt;
@@ -176,7 +170,6 @@ std::optional<CollisionHit> SweepSphere(const MovingSphere& sphere,
   const float radius_sum = ball_radius + other.radius;
 
   CollisionHit hit;
-  hit.collider = collider.id;
 
   if (r0.GetLength() < radius_sum - kEpsilon) {
     hit.toi = 0.0f;
@@ -204,7 +197,6 @@ std::optional<CollisionHit> SweepSphere(const MovingSphere& sphere,
 }
 
 std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
-                                         const Collider& collider,
                                          const Capsule& capsule, float dt) {
   const math::Vector3 ball_position = sphere.shape.center;
   const math::Vector3 disp = sphere.velocity * dt;
@@ -219,7 +211,6 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
   const float dist0 = (r0 - closest0).GetLength();
 
   CollisionHit hit;
-  hit.collider = collider.id;
 
   if (dist0 < radius_sum - kEpsilon) {
     hit.toi = 0.0f;
@@ -277,36 +268,35 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
 }  // namespace
 
 std::optional<CollisionHit> Sweep(const MovingSphere& sphere,
-                                  const Collider& collider, float dt) {
-  ValidateSweep(sphere, collider, dt);
+                                  const ColliderShape& shape, float dt) {
+  ValidateSweep(sphere, shape, dt);
   return std::visit(
-      [&](const auto& shape) -> std::optional<CollisionHit> {
-        using T = std::decay_t<decltype(shape)>;
+      [&](const auto& concrete) -> std::optional<CollisionHit> {
+        using T = std::decay_t<decltype(concrete)>;
         if constexpr (std::is_same_v<T, Plane>) {
-          return SweepPlane(sphere, collider, shape, dt);
+          return SweepPlane(sphere, concrete, dt);
         } else if constexpr (std::is_same_v<T, HalfSpace>) {
-          return SweepHalfSpace(sphere, collider, shape, dt);
+          return SweepHalfSpace(sphere, concrete, dt);
         } else if constexpr (std::is_same_v<T, Sphere>) {
-          return SweepSphere(sphere, collider, shape, dt);
+          return SweepSphere(sphere, concrete, dt);
         } else {
-          return SweepCapsule(sphere, collider, shape, dt);
+          return SweepCapsule(sphere, concrete, dt);
         }
       },
-      collider.shape);
+      shape);
 }
 
-std::optional<CollisionHit> FirstHit(
+std::optional<ColliderHit> FirstHit(
     const MovingSphere& sphere,
     std::span<const Collider> colliders, float dt) {
-  std::optional<CollisionHit> best;
+  std::optional<ColliderHit> best;
   for (const Collider& collider : colliders) {
-    const std::optional<CollisionHit> hit = Sweep(sphere, collider, dt);
+    const std::optional<CollisionHit> hit = Sweep(sphere, collider.shape, dt);
     if (!hit.has_value()) continue;
-    if (!best.has_value() ||
-        hit->toi < best->toi - kEpsilon ||
-        (std::fabs(hit->toi - best->toi) <= kEpsilon && hit->collider < best->collider)) {
-      best = hit;
-    }
+    // Strictly earlier wins; an exact tie keeps the collider met first, so
+    // neither names nor addresses ever order contacts.
+    if (!best.has_value() || hit->toi < best->hit.toi)
+      best = ColliderHit{*hit, &collider};
   }
   return best;
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-
 // Query result and query input for football::collision.
 //
 // collision answers "did they touch, when, and from which direction". It never
@@ -28,11 +27,19 @@ struct MovingSphere {
 //   surface_velocity  collider contact-surface velocity at TOI (zero if static)
 // Response (normal impulse, restitution, friction) is deliberately absent.
 struct CollisionHit {
-  geometry::ColliderId collider = 0;
   float toi = 0.0f;
   math::Vector3 center;
   math::Vector3 normal;
   math::Vector3 surface_velocity;
+};
+
+// The earliest contact of a set and the collider it belongs to. The pointer is a
+// borrowed, non-owning reference: it stays valid only while the caller keeps the
+// container alive and its elements in place, so it must not be stored across
+// ticks.
+struct ColliderHit {
+  CollisionHit hit;
+  const geometry::Collider* collider = nullptr;
 };
 
 }  // namespace football::collision

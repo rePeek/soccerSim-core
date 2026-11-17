@@ -8,7 +8,9 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <cstddef>
+#include <string_view>
 #include <variant>
 #include <type_traits>
 
@@ -34,13 +36,13 @@ TEST_CASE("Default pitch builds seven ordered static colliders", "[unit][pitch]"
   const Pitch pitch;
   REQUIRE(pitch.colliders().size() == 7);
 
-  // Ids are 1..7, unique, in a fixed order (also the CCD tie-break order).
-  for (std::size_t i = 0; i < pitch.colliders().size(); ++i) {
-    CHECK(pitch.colliders()[i].id == i + 1);
-    for (std::size_t j = i + 1; j < pitch.colliders().size(); ++j) {
-      CHECK(pitch.colliders()[i].id != pitch.colliders()[j].id);
-    }
-  }
+  // Names label the scene for logs; the order is what breaks exact TOI ties.
+  CHECK(pitch.colliders()[0].name == "ground");
+  const std::array<std::string_view, 6> goal_parts{
+      "goal_neg_x_neg_y_post", "goal_neg_x_pos_y_post", "goal_pos_x_neg_y_post",
+      "goal_pos_x_pos_y_post", "goal_neg_x_crossbar", "goal_pos_x_crossbar"};
+  for (std::size_t i = 0; i < goal_parts.size(); ++i)
+    CHECK(pitch.colliders()[i + 1].name == goal_parts[i]);
 
   // Ground first: a solid half-space at z = 0 facing up.
   const Collider& ground = pitch.colliders().front();

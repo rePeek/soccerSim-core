@@ -49,7 +49,7 @@ class Pitch {
   constexpr float air_drag() const { return model_.air_drag; }
 
   // ---- Physics scene: ground, posts and crossbars, generated once ----
-  // Stable ids (also the deterministic CCD tie-break order) and a fixed order.
+  // Fixed order: it decides contacts that land on exactly the same TOI.
   std::span<const geometry::Collider> colliders() const {
     return colliders_;
   }
@@ -67,8 +67,8 @@ class Pitch {
   bool operator==(const Pitch& other) const;
 
 private:
-  // The whole immutable scene, built once at construction. The generator and
-  // its stable collider ids are implementation detail in pitch.cpp.
+  // The whole immutable scene, built once at construction. The generator is
+  // implementation detail in pitch.cpp.
   void BuildColliders();
   void BuildGrass();
   void BuildGoal();

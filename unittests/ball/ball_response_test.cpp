@@ -29,7 +29,6 @@ BallState BallAt(const Vector3& position, const Vector3& velocity) {
 
 BallContact SurfaceContact(const Ball& ball, const Vector3& normal) {
   BallContact contact;
-  contact.collider = 1;
   contact.toi = 0.5f;
   contact.normal = normal;
   contact.point = ball.get_state().position - normal * ball.model().radius;

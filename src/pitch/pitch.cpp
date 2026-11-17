@@ -1,5 +1,5 @@
 // football::pitch::Pitch implementation: one-time generation of the static scene.
-// Keep collider ids/order, material coefficients and float arithmetic stable.
+// Keep collider order, names, material coefficients and float arithmetic stable.
 
 #include "football/pitch/pitch.hpp"
 
@@ -13,27 +13,7 @@ namespace football::pitch {
 
 namespace {
 
-// Stable ids and geometry frozen because the CCD uses ColliderId for
-// deterministic contact sorting.
-constexpr geometry::ColliderId kGroundColliderId = 1;
-constexpr geometry::ColliderId kLeftPostLowColliderId = 2;
-constexpr geometry::ColliderId kLeftPostHighColliderId = 3;
-constexpr geometry::ColliderId kRightPostLowColliderId = 4;
-constexpr geometry::ColliderId kRightPostHighColliderId = 5;
-constexpr geometry::ColliderId kLeftBarColliderId = 6;
-constexpr geometry::ColliderId kRightBarColliderId = 7;
 constexpr float kPostRadius = 0.06f;
-
-// Deterministic static collider: one pose, stable id.
-geometry::Collider StaticCollider(
-    geometry::ColliderId id, geometry::ColliderShape shape,
-    geometry::ContactMaterial material) {
-  geometry::Collider collider;
-  collider.id = id;
-  collider.shape = shape;
-  collider.material = material;
-  return collider;
-}
 
 }  // namespace
 
@@ -62,7 +42,8 @@ bool Pitch::operator==(const Pitch& other) const {
          post_material_ == other.post_material_;
 }
 
-// The whole immutable scene, built once at construction.
+// The whole immutable scene, built once at construction. The order is fixed: it
+// is the tie-break order for contacts that happen at exactly the same TOI.
 void Pitch::BuildColliders() {
   colliders_.clear();
   colliders_.reserve(7);
@@ -75,42 +56,37 @@ void Pitch::BuildColliders() {
 // the effective ball-ground restitution is the ground contact material.
 void Pitch::BuildGrass() {
   using geometry::HalfSpace;
-  colliders_.push_back(StaticCollider(
-      kGroundColliderId,
-      HalfSpace{math::Vector3(0, 0, 0), math::Vector3(0, 0, 1)},
-      ground_material_));
+  colliders_.push_back(
+      {HalfSpace{math::Vector3(0, 0, 0), math::Vector3(0, 0, 1)},
+       ground_material_, "ground"});
 }
 
-// Goal: four posts plus two crossbars, all steel.
+// Goal: four posts plus two crossbars, all steel. Names carry the side in
+// coordinates rather than in "left"/"right", which flips with the attacking
+// direction.
 void Pitch::BuildGoal() {
   using geometry::Capsule;
   const float x = half_length();
   const float y = goal_half_width();
   const float z = goal_height();
-  colliders_.push_back(StaticCollider(
-      kLeftPostLowColliderId,
-      Capsule{math::Vector3(-x, -y, 0), math::Vector3(-x, -y, z), kPostRadius},
-      post_material_));
-  colliders_.push_back(StaticCollider(
-      kLeftPostHighColliderId,
-      Capsule{math::Vector3(-x, y, 0), math::Vector3(-x, y, z), kPostRadius},
-      post_material_));
-  colliders_.push_back(StaticCollider(
-      kRightPostLowColliderId,
-      Capsule{math::Vector3(x, -y, 0), math::Vector3(x, -y, z), kPostRadius},
-      post_material_));
-  colliders_.push_back(StaticCollider(
-      kRightPostHighColliderId,
-      Capsule{math::Vector3(x, y, 0), math::Vector3(x, y, z), kPostRadius},
-      post_material_));
-  colliders_.push_back(StaticCollider(
-      kLeftBarColliderId,
-      Capsule{math::Vector3(-x, -y, z), math::Vector3(-x, y, z), kPostRadius},
-      post_material_));
-  colliders_.push_back(StaticCollider(
-      kRightBarColliderId,
-      Capsule{math::Vector3(x, -y, z), math::Vector3(x, y, z), kPostRadius},
-      post_material_));
+  colliders_.push_back(
+      {Capsule{math::Vector3(-x, -y, 0), math::Vector3(-x, -y, z), kPostRadius},
+       post_material_, "goal_neg_x_neg_y_post"});
+  colliders_.push_back(
+      {Capsule{math::Vector3(-x, y, 0), math::Vector3(-x, y, z), kPostRadius},
+       post_material_, "goal_neg_x_pos_y_post"});
+  colliders_.push_back(
+      {Capsule{math::Vector3(x, -y, 0), math::Vector3(x, -y, z), kPostRadius},
+       post_material_, "goal_pos_x_neg_y_post"});
+  colliders_.push_back(
+      {Capsule{math::Vector3(x, y, 0), math::Vector3(x, y, z), kPostRadius},
+       post_material_, "goal_pos_x_pos_y_post"});
+  colliders_.push_back(
+      {Capsule{math::Vector3(-x, -y, z), math::Vector3(-x, y, z), kPostRadius},
+       post_material_, "goal_neg_x_crossbar"});
+  colliders_.push_back(
+      {Capsule{math::Vector3(x, -y, z), math::Vector3(x, y, z), kPostRadius},
+       post_material_, "goal_pos_x_crossbar"});
 }
 
 }  // namespace football::pitch
