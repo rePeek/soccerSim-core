@@ -423,7 +423,8 @@ TEST_CASE("Passive response applies an impulse to the predicted full-tick state"
   contact.normal = Vector3(0, 0, 1);
   contact.point = touching.position - contact.normal * config.radius;
   const auto solved = expected.SolveContactImpulse(contact, ground.material);
-  expected.ApplyImpulseAtPoint(solved.impulse, contact.point);
+  REQUIRE(solved.has_value());
+  expected.ApplyImpulseAtPoint(*solved, contact.point);
 
   Ball ball(config);
   ball.set_state(initial);

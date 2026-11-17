@@ -170,6 +170,9 @@ void Ball::Step(const Pitch& pitch) {
     Depenetrate(next, contact, colliders);
     contact.position_corrected = next.position != original_center;
     contact.point = next.position - contact.normal * model_.radius;
+    // Commit the predicted state before solving: the solver reads position and
+    // velocity off the ball, and the lever arm is only -normal * radius once the
+    // centre sits on the surface. A separating contact leaves this state as is.
     set_state(next);
 
     const ContactMaterial* material = nullptr;
@@ -180,11 +183,10 @@ void Ball::Step(const Pitch& pitch) {
       }
     }
     const ContactMaterial m = material ? *material : ContactMaterial{0.5f, 0.0f};
-    const ContactImpulse solved = SolveContactImpulse(contact, m);
-    if (!(solved.normal_impulse > 0.0f)) return;
+    const auto impulse = SolveContactImpulse(contact, m);
+    if (!impulse) return;
 
-    contact.normal_impulse = solved.normal_impulse;
-    ApplyImpulseAtPoint(solved.impulse, contact.point);
+    ApplyImpulseAtPoint(*impulse, contact.point);
     Debug(Channel::ball, std::format("tick resolved contact with {}; position=({}, {}, {})",
                                      contact.collider, state_.position.coords[0],
                                      state_.position.coords[1], state_.position.coords[2]));
@@ -206,7 +208,7 @@ void Ball::ApplyImpulseAtPoint(const math::Vector3& impulse,
   set_state(next);
 }
 
-Ball::ContactImpulse Ball::SolveContactImpulse(
+std::optional<math::Vector3> Ball::SolveContactImpulse(
     const BallContact& contact, const ContactMaterial& material) const {
   const math::Vector3 n = contact.normal.GetNormalized({0, 0, 1});
   const math::Vector3 r = contact.point - state_.position;
@@ -219,7 +221,7 @@ Ball::ContactImpulse Ball::SolveContactImpulse(
 
   const math::Vector3 u = state_.velocity + omega_cross_r - contact.surface_velocity;
   const float un = u.GetDotProduct(n);
-  if (un >= 0.0f) return {};
+  if (un >= 0.0f) return std::nullopt;
 
   const float mass = model_.mass;
   const float jn = -mass * (1.0f + material.restitution) * un;
@@ -233,7 +235,7 @@ Ball::ContactImpulse Ball::SolveContactImpulse(
   const float mu_jn = material.friction * jn;
   if (jt_len > mu_jn) jt = jt * (mu_jn / jt_len);
 
-  return {n * jn + jt, jn};
+  return n * jn + jt;
 }
 
 void Ball::PlaceOnGround(float x, float y) {

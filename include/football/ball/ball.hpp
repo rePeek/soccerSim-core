@@ -29,7 +29,6 @@ struct BallContact {
   math::Vector3 normal;
   // Predicted full-tick centre velocity relative to the collider surface.
   math::Vector3 relative_velocity;
-  float normal_impulse = 0.0f;
   bool position_corrected = false;
   math::Vector3 surface_velocity = math::Vector3(0);
 };
@@ -51,13 +50,9 @@ class Ball {
   void ApplyImpulseAtPoint(const math::Vector3& impulse,
                            const math::Vector3& world_point);
 
-  struct ContactImpulse {
-    math::Vector3 impulse{0};
-    float normal_impulse = 0.0f;
-  };
-
-  // Compute an impulse from this ball's state without applying it.
-  ContactImpulse SolveContactImpulse(
+  // Impulse [N*s] to apply at contact.point, or nullopt when the contact is
+  // already separating. Does not touch the ball.
+  std::optional<math::Vector3> SolveContactImpulse(
       const BallContact& contact,
       const geometry::ContactMaterial& material) const;
 

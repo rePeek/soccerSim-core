@@ -2,6 +2,8 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <optional>
+
 #include "football/ball/ball.hpp"
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/vector3.hpp"
@@ -34,17 +36,21 @@ BallContact SurfaceContact(const Ball& ball, const Vector3& normal) {
   return contact;
 }
 
-Ball::ContactImpulse Resolve(Ball& ball, const BallContact& contact,
-                             const ContactMaterial& material) {
-  const auto solved = ball.SolveContactImpulse(contact, material);
-  ball.ApplyImpulseAtPoint(solved.impulse, contact.point);
-  return solved;
+Vector3 SolveAndApply(Ball& ball, const BallContact& contact,
+                      const ContactMaterial& material) {
+  const auto impulse = ball.SolveContactImpulse(contact, material);
+  REQUIRE(impulse.has_value());
+  ball.ApplyImpulseAtPoint(*impulse, contact.point);
+  return *impulse;
 }
 
-Vector3 TangentialImpulse(const BallState& before, const Ball& after,
-                          const Vector3& normal, float normal_impulse) {
-  const Vector3 total = (after.get_state().velocity - before.velocity) * after.model().mass;
-  return total - normal * normal_impulse;
+// The normal share of an impulse; the rest is tangential.
+float NormalShare(const Vector3& impulse, const Vector3& normal) {
+  return impulse.GetDotProduct(normal);
+}
+
+Vector3 TangentialShare(const Vector3& impulse, const Vector3& normal) {
+  return impulse - normal * NormalShare(impulse, normal);
 }
 
 }  // namespace
@@ -108,26 +114,25 @@ TEST_CASE("Frictionless contact reflects the normal velocity by restitution",
     INFO("restitution=" << restitution);
     Ball ball(TestBallModel());
     ball.set_state(BallAt({0, 0, 0.11f}, {0, 0, -2}));
-    const auto before = ball.get_state();
     const Vector3 normal{0, 0, 1};
-    const auto solved = Resolve(ball, SurfaceContact(ball, normal), {restitution, 0});
+    const Vector3 impulse =
+        SolveAndApply(ball, SurfaceContact(ball, normal), {restitution, 0});
 
-    CHECK(solved.normal_impulse > 0.0f);
+    CHECK(NormalShare(impulse, normal) > 0.0f);
     CHECK(ball.get_state().velocity.coords[2] == Approx(2.0f * restitution).margin(1e-4f));
     CHECK(ball.get_state().angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
-    CHECK(TangentialImpulse(before, ball, normal, solved.normal_impulse).GetLength() ==
-          Approx(0.0f).margin(1e-6f));
+    CHECK(TangentialShare(impulse, normal).GetLength() == Approx(0.0f).margin(1e-6f));
   }
 }
 
-TEST_CASE("Separating contact produces no new normal impulse",
+TEST_CASE("Separating contact produces no impulse at all",
           "[unit][ball][response]") {
   Ball ball(TestBallModel());
   ball.set_state(BallAt({0, 0, 0.11f}, {0, 0, 2}));
-  const auto solved = Resolve(ball, SurfaceContact(ball, {0, 0, 1}), {0.5f, 0});
+  const auto impulse =
+      ball.SolveContactImpulse(SurfaceContact(ball, {0, 0, 1}), {0.5f, 0});
 
-  CHECK(solved.normal_impulse == Approx(0.0f));
-  CHECK(solved.impulse.GetLength() == Approx(0.0f).margin(1e-9f));
+  CHECK_FALSE(impulse.has_value());
   CHECK(ball.get_state().velocity.coords[2] == Approx(2.0f));
   CHECK(ball.get_state().velocity.coords[0] == Approx(0.0f));
 }
@@ -136,25 +141,25 @@ TEST_CASE("Tangential impulse is Coulomb-capped by friction",
           "[unit][ball][response]") {
   Ball ball(TestBallModel());
   ball.set_state(BallAt({0, 0, 0.11f}, {3, 0, -2}));
-  const auto before = ball.get_state();
   const ContactMaterial material{0.5f, 0.2f};
   const Vector3 normal{0, 0, 1};
-  const auto solved = Resolve(ball, SurfaceContact(ball, normal), material);
+  const Vector3 impulse =
+      SolveAndApply(ball, SurfaceContact(ball, normal), material);
 
-  REQUIRE(solved.normal_impulse > 0.0f);
-  CHECK(TangentialImpulse(before, ball, normal, solved.normal_impulse).GetLength() <=
-        material.friction * solved.normal_impulse + 1e-5f);
+  REQUIRE(NormalShare(impulse, normal) > 0.0f);
+  CHECK(TangentialShare(impulse, normal).GetLength() <=
+        material.friction * NormalShare(impulse, normal) + 1e-5f);
 }
 
 TEST_CASE("Friction slows tangential velocity and produces spin",
           "[unit][ball][response]") {
   Ball ball(TestBallModel());
   ball.set_state(BallAt({0, 0, 0.11f}, {3, 0, -2}));
-  const auto before = ball.get_state();
   const Vector3 normal{0, 0, 1};
-  const auto solved = Resolve(ball, SurfaceContact(ball, normal), {0.5f, 0.5f});
+  const Vector3 impulse =
+      SolveAndApply(ball, SurfaceContact(ball, normal), {0.5f, 0.5f});
 
-  CHECK(TangentialImpulse(before, ball, normal, solved.normal_impulse).GetLength() > 0.0f);
+  CHECK(TangentialShare(impulse, normal).GetLength() > 0.0f);
   CHECK(ball.get_state().velocity.coords[0] < 3.0f);
   CHECK(ball.get_state().angular_velocity.GetLength() > 0.0f);
 }
@@ -167,16 +172,16 @@ TEST_CASE("Contact resolution takes its lever arm from the contact point",
   const ContactMaterial frictionless{0.5f, 0};
   const Vector3 normal{0, 0, 1};
 
-  Resolve(ball, SurfaceContact(ball, normal), frictionless);
+  SolveAndApply(ball, SurfaceContact(ball, normal), frictionless);
   CHECK(ball.get_state().angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
 
   ball.set_state(initial);
   auto offset = SurfaceContact(ball, normal);
   offset.point = initial.position + Vector3(0.05f, 0, -ball.model().radius);
-  const auto solved = Resolve(ball, offset, frictionless);
+  const Vector3 impulse = SolveAndApply(ball, offset, frictionless);
   const float expected_inertia = (2.0f / 3.0f) * 0.5f * 0.11f * 0.11f;
   CHECK(ball.get_state().angular_velocity.coords[1] ==
-        Approx(-0.05f * solved.normal_impulse / expected_inertia).margin(1e-5f));
+        Approx(-0.05f * NormalShare(impulse, normal) / expected_inertia).margin(1e-5f));
 }
 
 TEST_CASE("Moving collider velocity enters the relative contact velocity",
@@ -185,9 +190,9 @@ TEST_CASE("Moving collider velocity enters the relative contact velocity",
   ball.set_state(BallAt({0, 0, 0.11f}, {0, 0, 1}));
   auto contact = SurfaceContact(ball, {0, 0, 1});
 
-  CHECK(ball.SolveContactImpulse(contact, {0.5f, 0}).normal_impulse == Approx(0.0f));
+  CHECK_FALSE(ball.SolveContactImpulse(contact, {0.5f, 0}).has_value());
   contact.surface_velocity = Vector3(0, 0, 3);
-  CHECK(ball.SolveContactImpulse(contact, {0.5f, 0}).normal_impulse > 0.0f);
+  CHECK(ball.SolveContactImpulse(contact, {0.5f, 0}).has_value());
 }
 
 TEST_CASE("Solving uses current state without applying the impulse",
@@ -196,15 +201,17 @@ TEST_CASE("Solving uses current state without applying the impulse",
   ball.set_state(BallAt({1, 2, 0.11f}, {0, 0, -2}));
   const auto contact = SurfaceContact(ball, {0, 0, 1});
   const auto before = ball.get_state();
-  const auto solved = ball.SolveContactImpulse(contact, {0.5f, 0});
-  CHECK(solved.normal_impulse == Approx(1.5f));
+  const auto impulse = ball.SolveContactImpulse(contact, {0.5f, 0});
+  REQUIRE(impulse.has_value());
+  // Frictionless, so the whole impulse points along the normal.
+  CHECK(impulse->coords[2] == Approx(1.5f));
   CHECK(ball.get_state().position == before.position);
   CHECK(ball.get_state().velocity == before.velocity);
   CHECK(ball.get_state().angular_velocity == before.angular_velocity);
   CHECK_FALSE(ball.get_state().orientation != before.orientation);
 
-  ball.ApplyImpulseAtPoint(solved.impulse, contact.point);
-  CHECK(ball.SolveContactImpulse(contact, {0.5f, 0}).normal_impulse == Approx(0.0f));
+  ball.ApplyImpulseAtPoint(*impulse, contact.point);
+  CHECK_FALSE(ball.SolveContactImpulse(contact, {0.5f, 0}).has_value());
 }
 
 TEST_CASE("Successive impulses accumulate on the current ball state",
