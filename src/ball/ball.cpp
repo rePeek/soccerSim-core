@@ -157,16 +157,8 @@ void Ball::Step(const Pitch& pitch) {
   const auto& hit = found->hit;
   const geometry::Collider& collider = *found->collider;
 
-  // 3. A zero-time contact that is already separating is not an impact: it is a
-  //    ball leaving the grass, so fly the whole tick from the predicted state.
-  if (hit.toi <= kTouchEpsilon &&
-      (start.velocity - hit.surface_velocity).GetDotProduct(hit.normal) >= 0.0f) {
-    set_state(predicted);
-    return;
-  }
-
-  // 4. The single impact: stop at the contact point and change the velocity.
-  //    The rest of the tick is discarded.
+  // The single impact: stop at the contact point and change the velocity. The
+  // rest of the tick is discarded.
   predicted.position = hit.center;
   const math::Vector3 contact_point = predicted.position - hit.normal * ball_radius;
   // Commit before solving: the solver reads position and velocity off the ball,

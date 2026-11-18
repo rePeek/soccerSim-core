@@ -357,25 +357,6 @@ TEST_CASE("Step advances exactly one fixed tick", "[unit][ball][simulation]") {
   CHECK(ball.get_state().position.coords[0] == Approx(1.0f + 4 * 2 * kDt));
   CHECK(ball.get_state().velocity.coords[2] == Approx(6.0f - kGravity * 2 * kDt));
 }
-TEST_CASE("A separating start under the grass flies free without an impulse",
-          "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
-  Ball ball(config);
-
-  // The ball starts under the grass and inside a post while separating. The
-  // grass is fixed by the rolling integrator, but the post is not pushed out:
-  // the tick simply flies free, keeping the velocity budget with no impulse.
-  ball.set_state(BallAt({pitch.half_length(), -pitch.goal_half_width() + 0.05f, 0.05f},
-                        {0, 1, 0}));
-  ball.Step(pitch);
-  const auto state = ball.get_state();
-  CHECK(state.position.coords[2] == Approx(config.radius).margin(1e-5f));
-  // The post is left untouched: y advances by the free-flight step.
-  CHECK(state.position.coords[1] ==
-        Approx(-pitch.goal_half_width() + 0.05f + kDt).margin(1e-5f));
-  CHECK(state.velocity.coords[1] == Approx(1.0f).margin(1e-6f));
-}
 
 TEST_CASE("Passive response applies an impulse to the predicted state",
           "[unit][ball][simulation]") {
