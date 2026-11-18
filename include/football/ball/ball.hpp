@@ -28,7 +28,6 @@ struct BallContact {
   math::Vector3 normal;
   // Centre velocity relative to the collider surface at contact time.
   math::Vector3 relative_velocity;
-  bool position_corrected = false;
   math::Vector3 surface_velocity = math::Vector3(0);
 };
 

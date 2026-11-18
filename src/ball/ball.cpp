@@ -9,7 +9,6 @@
 #include <span>
 #include <type_traits>
 #include <variant>
-#include <vector>
 
 #include "football/foundation/collision/collision_hit.hpp"
 #include "football/foundation/collision/sweep.hpp"
@@ -143,43 +142,11 @@ BallContact ToBallContact(const collision::CollisionHit& hit,
   return contact;
 }
 
-// Sweeps the path from start to the predicted next state, so a fast ball cannot
-// pass through a collider whose endpoints both lie outside it. Colliders already
-// repaired for an initial overlap must not hide a later, real impact.
-std::optional<collision::ColliderHit> FindContact(
-    float ball_radius, const BallState& start, const BallState& next,
-    std::span<const geometry::Collider> colliders, float dt,
-    const std::vector<const geometry::Collider*>& repaired) {
-  const collision::MovingSphere sphere{
-      {start.position, ball_radius}, (next.position - start.position) * (1.0f / dt)};
-  if (repaired.empty()) return collision::FirstHit(sphere, colliders, dt);
-
-  std::optional<collision::ColliderHit> best;
-  for (const auto& collider : colliders) {
-    const auto hit = collision::Sweep(sphere, collider.shape, dt);
-    if (!hit) continue;
-    const bool was_repaired =
-        std::find(repaired.begin(), repaired.end(), &collider) != repaired.end();
-    // Judged at contact time, which for a zero-time contact is the tick-start
-    // velocity -- the same rule Step applies below.
-    const float normal_velocity =
-        (start.velocity - hit->surface_velocity).GetDotProduct(hit->normal);
-    if (was_repaired && hit->toi <= kTouchEpsilon && normal_velocity >= 0.0f)
-      continue;
-    if (!best || hit->toi < best->hit.toi)
-      best = collision::ColliderHit{*hit, &collider};
-  }
-  return best;
-}
-
 // Moves the centre back onto the surface of a collider the ball overlaps. Only
-// the position changes; the contact is not an impact by itself.
-// Returns whether the centre actually moved: a mere tangency is already on the
-// surface and must not be mistaken for a repair.
-bool Depenetrate(BallState& state, const BallContact& contact,
+// the position changes; a mere tangency is already on the surface and stays put.
+void Depenetrate(BallState& state, const BallContact& contact,
                  const geometry::Collider& collider, float ball_radius) {
-  if (contact.toi > kTouchEpsilon) return false;
-  const math::Vector3 before = state.position;
+  if (contact.toi > kTouchEpsilon) return;
   const math::Vector3 surface = std::visit(
       [&](const auto& shape) -> math::Vector3 {
         using T = std::decay_t<decltype(shape)>;
@@ -197,12 +164,9 @@ bool Depenetrate(BallState& state, const BallContact& contact,
       },
       collider.shape);
   state.position = surface + contact.normal * ball_radius;
-  return state.position != before;
 }
 
 }  // namespace
-
-// ---- Public interface ----
 
 Ball::Ball(const BallModel& model)
     : model_(model), state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()} {
@@ -213,65 +177,58 @@ Ball::Ball(const BallModel& model)
 
 void Ball::Step(const Pitch& pitch) {
   constexpr float dt = time::kTickSeconds;
-  const auto colliders = pitch.colliders();
   const float ball_radius = model_.radius;
-  BallState start = state_;
-  std::vector<const geometry::Collider*> repaired;
-  const std::size_t repair_cap = colliders.size() + 2;
-  for (std::size_t guard = 0;; ++guard) {
-    // 1. Predict the entire tick without collisions. Repairs below only adjust
-    // an initially overlapping start; they do not subdivide simulation time.
-    BallState next = IntegrateMotion(model_, start, dt, pitch);
+  const BallState start = state_;
 
-    // 2. Sweep the path to that predicted position, not just its endpoint.
-    // TOI locates the contact geometrically; it never scales the integration.
-    const auto found = FindContact(ball_radius, start, next, colliders, dt, repaired);
-    if (!found) {
-      set_state(next);
-      return;
-    }
-    const auto& hit = found->hit;
-    const geometry::Collider& collider = *found->collider;
+  // 1. Predict the tick with no collisions.
+  const BallState predicted = IntegrateMotion(model_, start, dt, pitch);
 
-    // 3. Evaluate the ball at the moment of contact: only the geometry comes from
-    // the straight sweep, position and velocity are integrated up to `toi`.
-    const float contact_dt = dt * hit.toi;
-    BallState at_contact = IntegrateMotion(model_, start, contact_dt, pitch);
-    at_contact.position = hit.center;
-
-    BallContact contact = ToBallContact(hit, at_contact.velocity, ball_radius);
-
-    // Initial overlap: repair the start and sweep again; it is not an impact, so it
-    // does not spend the tick's single impulse. A contact that is merely tangent and
-    // already separating moves nothing, and repeating that no-op would exhaust the
-    // repair cap and leave the tick with nothing committed -- so it flies free
-    // instead, letting the next tick catch the ball.
-    if (contact.toi <= kTouchEpsilon &&
-        contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f &&
-        guard < repair_cap) {
-      if (Depenetrate(start, contact, collider, ball_radius)) {
-        repaired.push_back(found->collider);
-        continue;
-      }
-      set_state(next);
-      return;
-    }
-
-    const auto original_center = at_contact.position;
-    Depenetrate(at_contact, contact, collider, ball_radius);
-    contact.position_corrected = at_contact.position != original_center;
-    contact.point = at_contact.position - contact.normal * ball_radius;
-    // Commit before solving: the solver reads position and velocity off the ball,
-    // and the lever arm is only -normal * radius once the centre sits on the
-    // surface. A separating contact leaves this state as is.
-    set_state(at_contact);
-
-    const auto impulse = SolveContactImpulse(contact, collider.material);
-    if (impulse) ApplyImpulseAtPoint(*impulse, contact.point);
-    Debug(Channel::ball, std::format("ball contact: name={}, toi={}", collider.name, hit.toi));
-    // The rest of the tick is deliberately discarded: one impact per tick.
+  // 2. Sweep that path. A rolling ball rests on the grass, and the rolling
+  //    integration already pins its centre to the radius, so the ground is not a
+  //    candidate contact: query only the goal furniture.
+  const auto colliders = pitch.colliders();
+  const auto swept = IsRolling(model_, start) ? colliders.subspan(1) : colliders;
+  const collision::MovingSphere sphere{
+      {start.position, ball_radius},
+      (predicted.position - start.position) * (1.0f / dt)};
+  const auto found = collision::FirstHit(sphere, swept, dt);
+  if (!found) {
+    set_state(predicted);
     return;
   }
+
+  const auto& hit = found->hit;
+  const geometry::Collider& collider = *found->collider;
+
+  // 3. State at the contact instant: geometry from the sweep, velocity from the
+  //    integration up to that moment.
+  BallState at_contact = IntegrateMotion(model_, start, dt * hit.toi, pitch);
+  at_contact.position = hit.center;
+  BallContact contact = ToBallContact(hit, at_contact.velocity, ball_radius);
+
+  // A zero-time contact that is already separating is not an impact. It comes
+  // from an anomalous start (set_state or float error) that sits inside a
+  // collider, so push the centre back to the surface and fly the rest of the
+  // tick.
+  if (contact.toi <= kTouchEpsilon &&
+      contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f) {
+    Depenetrate(at_contact, contact, collider, ball_radius);
+    set_state(IntegrateMotion(model_, at_contact, dt, pitch));
+    return;
+  }
+
+  // The single impact: fix any remaining overlap, then change the velocity.
+  Depenetrate(at_contact, contact, collider, ball_radius);
+  contact.point = at_contact.position - contact.normal * ball_radius;
+  // Commit before solving: the solver reads position and velocity off the ball,
+  // and the lever arm is only -normal * radius once the centre sits on the
+  // surface.
+  set_state(at_contact);
+
+  const auto impulse = SolveContactImpulse(contact, collider.material);
+  if (impulse) ApplyImpulseAtPoint(*impulse, contact.point);
+  Debug(Channel::ball, std::format("ball contact: name={}, toi={}", collider.name, hit.toi));
+  // The rest of the tick is deliberately discarded: one impact per tick.
 }
 
 void Ball::ApplyImpulseAtPoint(const math::Vector3& impulse,

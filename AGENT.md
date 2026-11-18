@@ -47,10 +47,11 @@ declared dependencies, never `simcore`. The C11 `capi_unit` consumer links
   contact and applies a passive impulse to the state integrated up to that
   instant. The rest of the tick is not integrated, so there is no TOI-based time
   split and no post-impact tail motion.
-- A tick that starts tangent to a surface while separating flies free and may end
-  at most g/2*tick^2 (~0.5 mm) below the grass; the next tick catches the ball.
-  Treating such a contact as a repair instead would repeat a no-op until the
-  repair cap and stall the ball.
+- A rolling ball is anchored to the grass by its integrator, so the ground is
+  not a candidate contact: the sweep skips it and queries only the goal
+  furniture. A tick that starts tangent to a surface while separating flies free
+  and may end at most g/2*tick^2 (~0.5 mm) below the grass; the next tick catches
+  the ball. Anomalous starts are fixed once, not by a repair loop.
 - Keep floating-point expressions explicit and ordered; do not reorder
   arithmetic in a way that changes results without an intentional, tested
   semantic change.

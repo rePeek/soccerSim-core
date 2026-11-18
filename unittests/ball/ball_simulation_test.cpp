@@ -367,37 +367,26 @@ TEST_CASE("Step advances exactly one fixed tick", "[unit][ball][simulation]") {
   CHECK(ball.get_state().velocity.coords[2] == Approx(6.0f - kGravity * 2 * kDt));
 }
 
-TEST_CASE("Ground and post overlap repairs stay internal without hiding an impact",
+TEST_CASE("An anomalous start under the grass and inside a post is pushed out",
           "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
-  const auto& high = pitch.colliders()[4];
-  const auto& post = std::get<Capsule>(high.shape);
-  const float radius_sum = config.radius + post.radius;
+  const float radius_sum =
+      config.radius + std::get<Capsule>(pitch.colliders()[3].shape).radius;
   Ball ball(config);
 
-  SECTION("two separating overlaps are repaired without an impact") {
-    ball.set_state(BallAt({pitch.half_length(), -pitch.goal_half_width() + 0.05f, 0.05f},
-                          {0, 1, 0}));
-    ball.Step(pitch);
-    const auto state = ball.get_state();
-    // Both overlaps are gone and the tick kept its velocity budget.
-    CHECK(state.position.coords[2] >= config.radius - 1e-5f);
-    const float axis_gap = state.position.coords[1] + pitch.goal_half_width();
-    CHECK(axis_gap >= radius_sum - 1e-5f);
-    CHECK(state.velocity.coords[1] == Approx(1.0f).margin(1e-6f));
-  }
-  SECTION("an impact after both repairs still resolves at contact") {
-    const float touching_y = pitch.goal_half_width() - radius_sum;
-    const float start_y = -pitch.goal_half_width() + 0.05f;
-    ball.set_state(BallAt({pitch.half_length(), start_y, 0.05f}, {0, 2000, 0}));
-    ball.Step(pitch);
-    const auto state = ball.get_state();
-    CHECK(state.position.coords[1] == Approx(touching_y).margin(1e-5f));
-    CHECK(state.position.coords[2] >= config.radius - 1e-5f);
-    // No gravity or drag along y, so the contact speed is the launch speed.
-    CHECK(state.velocity.coords[1] == Approx(-high.material.restitution * 2000));
-  }
+  // The ball starts below the grass and inside a post while separating. The
+  // grass is not swept for a rolling ball -- its integrator pins z to the radius
+  // -- and the post has one depenetration. Both are position-only fixes, so the
+  // tick keeps its velocity budget with no impulse.
+  ball.set_state(BallAt({pitch.half_length(), -pitch.goal_half_width() + 0.05f, 0.05f},
+                        {0, 1, 0}));
+  ball.Step(pitch);
+  const auto state = ball.get_state();
+  CHECK(state.position.coords[2] >= config.radius - 1e-5f);
+  const float axis_gap = state.position.coords[1] + pitch.goal_half_width();
+  CHECK(axis_gap >= radius_sum - 1e-5f);
+  CHECK(state.velocity.coords[1] == Approx(1.0f).margin(1e-6f));
 }
 
 TEST_CASE("Passive response applies an impulse to the contact-time state",
