@@ -29,6 +29,28 @@ math::Vector3 ClosestPointOnSegment(const math::Vector3& p,
   return a + ab * t;
 }
 
+math::Vector3 Depenetrate(const math::Vector3& center, float radius,
+                          const geometry::ColliderShape& shape,
+                          const math::Vector3& normal) {
+  const math::Vector3 surface = std::visit(
+      [&](const auto& concrete) -> math::Vector3 {
+        using T = std::decay_t<decltype(concrete)>;
+        if constexpr (std::is_same_v<T, Plane> || std::is_same_v<T, HalfSpace>) {
+          const auto n = concrete.normal.GetNormalized({0, 0, 1});
+          return center - n * (center - concrete.point).GetDotProduct(n);
+        } else if constexpr (std::is_same_v<T, Sphere>) {
+          return concrete.center + normal * concrete.radius;
+        } else {
+          const auto closest = ClosestPointOnSegment(
+              center - concrete.a, {0, 0, 0}, concrete.b - concrete.a);
+          return concrete.a + closest + normal * concrete.radius;
+        }
+      },
+      shape);
+  return surface + normal * radius;
+}
+
+
 namespace {
 
 constexpr float kEpsilon = 1e-6f;

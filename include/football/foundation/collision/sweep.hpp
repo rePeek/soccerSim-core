@@ -19,6 +19,13 @@ math::Vector3 ClosestPointOnSegment(const math::Vector3& p,
                                        const math::Vector3& a,
                                        const math::Vector3& b);
 
+// Moves a sphere centre back onto the surface of a shape it overlaps: returns
+// the centre of a sphere of `radius` resting tangent on `shape`, with `normal`
+// pointing from the surface toward the sphere. Pure geometry, no time or toi.
+math::Vector3 Depenetrate(const math::Vector3& center, float radius,
+                          const geometry::ColliderShape& shape,
+                          const math::Vector3& normal);
+
 bool Overlap(const geometry::Sphere& sphere,
              const geometry::Sphere& other);
 bool Overlap(const geometry::Sphere& sphere,

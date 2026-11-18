@@ -7,8 +7,6 @@
 #include <format>
 #include <optional>
 #include <span>
-#include <type_traits>
-#include <variant>
 
 #include "football/foundation/collision/collision_hit.hpp"
 #include "football/foundation/collision/sweep.hpp"
@@ -21,11 +19,7 @@ using namespace football::math;
 
 namespace football::ball {
 
-using geometry::Capsule;
 using geometry::ContactMaterial;
-using geometry::HalfSpace;
-using geometry::Plane;
-using geometry::Sphere;
 
 namespace {
 
@@ -134,30 +128,6 @@ BallContact ToBallContact(const collision::CollisionHit& hit,
   return contact;
 }
 
-// Moves the centre back onto the surface of a collider the ball overlaps. Only
-// the position changes; a mere tangency is already on the surface and stays put.
-void Depenetrate(BallState& state, const BallContact& contact,
-                 const geometry::Collider& collider, float ball_radius) {
-  if (contact.toi > kTouchEpsilon) return;
-  const math::Vector3 surface = std::visit(
-      [&](const auto& shape) -> math::Vector3 {
-        using T = std::decay_t<decltype(shape)>;
-        if constexpr (std::is_same_v<T, Plane> || std::is_same_v<T, HalfSpace>) {
-          const auto normal = shape.normal.GetNormalized({0, 0, 1});
-          return state.position -
-              normal * (state.position - shape.point).GetDotProduct(normal);
-        } else if constexpr (std::is_same_v<T, Sphere>) {
-          return shape.center + contact.normal * shape.radius;
-        } else {
-          const auto closest = collision::ClosestPointOnSegment(
-              state.position - shape.a, {0, 0, 0}, shape.b - shape.a);
-          return shape.a + closest + contact.normal * shape.radius;
-        }
-      },
-      collider.shape);
-  state.position = surface + contact.normal * ball_radius;
-}
-
 }  // namespace
 
 Ball::Ball(const BallModel& model)
@@ -204,13 +174,16 @@ void Ball::Step(const Pitch& pitch) {
   // tick.
   if (contact.toi <= kTouchEpsilon &&
       contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f) {
-    Depenetrate(at_contact, contact, collider, ball_radius);
+    at_contact.position = collision::Depenetrate(
+        at_contact.position, ball_radius, collider.shape, contact.normal);
     set_state(IntegrateMotion(model_, at_contact, dt, pitch));
     return;
   }
 
   // The single impact: fix any remaining overlap, then change the velocity.
-  Depenetrate(at_contact, contact, collider, ball_radius);
+  if (contact.toi <= kTouchEpsilon)
+    at_contact.position = collision::Depenetrate(
+        at_contact.position, ball_radius, collider.shape, contact.normal);
   contact.point = at_contact.position - contact.normal * ball_radius;
   // Commit before solving: the solver reads position and velocity off the ball,
   // and the lever arm is only -normal * radius once the centre sits on the
