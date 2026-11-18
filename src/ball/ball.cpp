@@ -165,12 +165,9 @@ void Ball::Step(const Pitch& pitch) {
     return;
   }
 
-  // 4. The single impact: stop at the contact point, fix any overlap, then
-  //    change the velocity. The rest of the tick is discarded.
+  // 4. The single impact: stop at the contact point and change the velocity.
+  //    The rest of the tick is discarded.
   predicted.position = hit.center;
-  if (hit.toi <= kTouchEpsilon)
-    predicted.position = collision::Depenetrate(
-        predicted.position, ball_radius, collider.shape, hit.normal);
   const math::Vector3 contact_point = predicted.position - hit.normal * ball_radius;
   // Commit before solving: the solver reads position and velocity off the ball,
   // and the lever arm is only -normal * radius once the centre sits on the
