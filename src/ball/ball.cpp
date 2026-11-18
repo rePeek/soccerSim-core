@@ -151,24 +151,18 @@ void Ball::Step(const Pitch& pitch) {
   const auto& hit = found->hit;
   const geometry::Collider& collider = *found->collider;
 
-  // 3. State at the contact instant: geometry from the sweep, velocity from the
-  //    integration up to that moment.
-  BallState at_contact = IntegrateMotion(model_, start, dt * hit.toi, pitch);
-  at_contact.position = hit.center;
-
-  // A zero-time contact that is already separating is not an impact. It comes
-  // from an anomalous start (set_state or float error) that sits inside a
-  // collider, so push the centre back to the surface and fly the rest of the
-  // tick.
+  // 3. A zero-time contact that is already separating is not an impact: it is a
+  //    ball leaving the grass, so fly the whole tick from the predicted state.
   if (hit.toi <= kTouchEpsilon &&
-      (at_contact.velocity - hit.surface_velocity).GetDotProduct(hit.normal) >= 0.0f) {
-    at_contact.position = collision::Depenetrate(
-        at_contact.position, ball_radius, collider.shape, hit.normal);
-    set_state(IntegrateMotion(model_, at_contact, dt, pitch));
+      (start.velocity - hit.surface_velocity).GetDotProduct(hit.normal) >= 0.0f) {
+    set_state(predicted);
     return;
   }
 
-  // The single impact: fix any remaining overlap, then change the velocity.
+  // 4. The single impact: stop at the contact point, fix any overlap, then
+  //    change the velocity. The rest of the tick is discarded.
+  BallState at_contact = predicted;
+  at_contact.position = hit.center;
   if (hit.toi <= kTouchEpsilon)
     at_contact.position = collision::Depenetrate(
         at_contact.position, ball_radius, collider.shape, hit.normal);
@@ -182,7 +176,6 @@ void Ball::Step(const Pitch& pitch) {
       hit.normal, contact_point, hit.surface_velocity, collider.material);
   if (impulse) ApplyImpulseAtPoint(*impulse, contact_point);
   Debug(Channel::ball, std::format("ball contact: name={}, toi={}", collider.name, hit.toi));
-  // The rest of the tick is deliberately discarded: one impact per tick.
 }
 
 void Ball::ApplyImpulseAtPoint(const math::Vector3& impulse,
