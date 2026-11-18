@@ -18,7 +18,11 @@ constexpr float kPostRadius = 0.06f;
 }  // namespace
 
 Pitch::Pitch(const PitchModel& model) : model_(model) {
-  BuildColliders();
+  // The scene is fixed size, so it lives in an array: the count is checked by
+  // the compiler and no allocation is needed.
+  BuildGrass(colliders_.front());
+  BuildGoal(std::span(colliders_).subspan(1));
+
   Info(Channel::pitch, std::format("scene built: {}x{} m, {} colliders", model_.length,
                                   model_.width, colliders_.size()));
 }
@@ -42,51 +46,35 @@ bool Pitch::operator==(const Pitch& other) const {
          post_material_ == other.post_material_;
 }
 
-// The whole immutable scene, built once at construction. The order is fixed: it
-// is the tie-break order for contacts that happen at exactly the same TOI.
-void Pitch::BuildColliders() {
-  colliders_.clear();
-  colliders_.reserve(7);
-  BuildGrass();
-  BuildGoal();
-}
-
 // Grass: the ground half-space the ball rolls on. Rolling resistance and grass
 // height are the ground_* fields, not properties of the HalfSpace geometry;
 // the effective ball-ground restitution is the ground contact material.
-void Pitch::BuildGrass() {
+void Pitch::BuildGrass(geometry::Collider& target) const {
   using geometry::HalfSpace;
-  colliders_.push_back(
-      {HalfSpace{math::Vector3(0, 0, 0), math::Vector3(0, 0, 1)},
-       ground_material_, "ground"});
+  target = {HalfSpace{math::Vector3(0, 0, 0), math::Vector3(0, 0, 1)},
+            ground_material_, "ground"};
 }
 
 // Goal: four posts plus two crossbars, all steel. Names carry the side in
 // coordinates rather than in "left"/"right", which flips with the attacking
 // direction.
-void Pitch::BuildGoal() {
+void Pitch::BuildGoal(std::span<geometry::Collider> target) const {
   using geometry::Capsule;
   const float x = half_length();
   const float y = goal_half_width();
   const float z = goal_height();
-  colliders_.push_back(
-      {Capsule{math::Vector3(-x, -y, 0), math::Vector3(-x, -y, z), kPostRadius},
-       post_material_, "goal_neg_x_neg_y_post"});
-  colliders_.push_back(
-      {Capsule{math::Vector3(-x, y, 0), math::Vector3(-x, y, z), kPostRadius},
-       post_material_, "goal_neg_x_pos_y_post"});
-  colliders_.push_back(
-      {Capsule{math::Vector3(x, -y, 0), math::Vector3(x, -y, z), kPostRadius},
-       post_material_, "goal_pos_x_neg_y_post"});
-  colliders_.push_back(
-      {Capsule{math::Vector3(x, y, 0), math::Vector3(x, y, z), kPostRadius},
-       post_material_, "goal_pos_x_pos_y_post"});
-  colliders_.push_back(
-      {Capsule{math::Vector3(-x, -y, z), math::Vector3(-x, y, z), kPostRadius},
-       post_material_, "goal_neg_x_crossbar"});
-  colliders_.push_back(
-      {Capsule{math::Vector3(x, -y, z), math::Vector3(x, y, z), kPostRadius},
-       post_material_, "goal_pos_x_crossbar"});
+  target[0] = {Capsule{math::Vector3(-x, -y, 0), math::Vector3(-x, -y, z), kPostRadius},
+               post_material_, "goal_neg_x_neg_y_post"};
+  target[1] = {Capsule{math::Vector3(-x, y, 0), math::Vector3(-x, y, z), kPostRadius},
+               post_material_, "goal_neg_x_pos_y_post"};
+  target[2] = {Capsule{math::Vector3(x, -y, 0), math::Vector3(x, -y, z), kPostRadius},
+               post_material_, "goal_pos_x_neg_y_post"};
+  target[3] = {Capsule{math::Vector3(x, y, 0), math::Vector3(x, y, z), kPostRadius},
+               post_material_, "goal_pos_x_pos_y_post"};
+  target[4] = {Capsule{math::Vector3(-x, -y, z), math::Vector3(-x, y, z), kPostRadius},
+               post_material_, "goal_neg_x_crossbar"};
+  target[5] = {Capsule{math::Vector3(x, -y, z), math::Vector3(x, y, z), kPostRadius},
+               post_material_, "goal_pos_x_crossbar"};
 }
 
 }  // namespace football::pitch

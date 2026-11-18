@@ -8,8 +8,9 @@
 // about them. Rule decisions (goal, out of play, fouls) stay in the rules
 // module -- pitch only provides the geometry those decisions need.
 
+#include <array>
+#include <cstddef>
 #include <span>
-#include <vector>
 
 #include "football/foundation/geometry/collider.hpp"
 #include "football/models.h"
@@ -67,11 +68,15 @@ class Pitch {
   bool operator==(const Pitch& other) const;
 
 private:
-  // The whole immutable scene, built once at construction. The generator is
-  // implementation detail in pitch.cpp.
-  void BuildColliders();
-  void BuildGrass();
-  void BuildGoal();
+  // The scene is fixed: the grass plus, per goal, two posts and a crossbar. The
+  // count is spelled out once so the array that holds it is checked when built.
+  static constexpr std::size_t kGoalParts = 6;
+  static constexpr std::size_t kColliderCount = 1 + kGoalParts;
+
+  // Built once at construction; the generators are implementation detail in
+  // pitch.cpp.
+  void BuildGrass(geometry::Collider& target) const;
+  void BuildGoal(std::span<geometry::Collider> target) const;
 
   PitchModel model_;
   float line_width_ = 0.12f;
@@ -84,7 +89,7 @@ private:
 
   geometry::ContactMaterial ground_material_{0.62f, 0.0f};
   geometry::ContactMaterial post_material_{0.8f, 0.0f};
-  std::vector<geometry::Collider> colliders_;
+  std::array<geometry::Collider, kColliderCount> colliders_{};
 };
 
 }  // namespace football::pitch
