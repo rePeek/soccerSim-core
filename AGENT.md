@@ -43,10 +43,14 @@ declared dependencies, never `simcore`. The C11 `capi_unit` consumer links
 - Physics is deterministic and RNG-free. Behaviour must be derived from
   explainable state (skill, contact geometry, body orientation, ball velocity).
 - Each tick predicts collision-free motion first, then sweeps that path. With
-  no impact it commits the prediction. At the first impact it places the ball
-  at contact and applies a passive impulse using the predicted full-tick
-  velocity/spin. There is no TOI-based time split or post-impact tail motion.
-  Initial overlap repairs stay internal and do not consume the single impact.
+  no impact it commits the prediction. At the first impact it places the ball at
+  contact and applies a passive impulse to the state integrated up to that
+  instant. The rest of the tick is not integrated, so there is no TOI-based time
+  split and no post-impact tail motion.
+- A tick that starts tangent to a surface while separating flies free and may end
+  at most g/2*tick^2 (~0.5 mm) below the grass; the next tick catches the ball.
+  Treating such a contact as a repair instead would repeat a no-op until the
+  repair cap and stall the ball.
 - Keep floating-point expressions explicit and ordered; do not reorder
   arithmetic in a way that changes results without an intentional, tested
   semantic change.

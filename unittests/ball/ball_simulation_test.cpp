@@ -256,7 +256,10 @@ TEST_CASE("Successive ground bounces keep the pitch restitution and never sink",
     ball.Step(pitch);
     const auto state = ball.get_state();
     const float vz = state.velocity.coords[2];
-    CHECK(state.position.coords[2] >= config.radius - 1e-5f);
+    // A tick that starts tangent and separating can end below the surface by at
+    // most g/2*dt^2 (0.5 mm): the next tick repairs it, which is the trade for
+    // never stalling a ball on a contact it cannot resolve.
+    CHECK(state.position.coords[2] >= config.radius - 5e-4f);
     CHECK(state.position.coords[2] <= config.radius + 0.6f);
     if (previous <= 0.0f && vz > 0.0f) {
       ++bounces;
@@ -291,7 +294,7 @@ TEST_CASE("A collision tick stops at the first post, not the second",
   CHECK(ball.get_state().velocity.coords[1] > 0.0f);
 }
 
-TEST_CASE("Small ground launch resolves the contact without an apex split",
+TEST_CASE("A tiny ground launch is caught on the following tick",
           "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
@@ -299,10 +302,18 @@ TEST_CASE("Small ground launch resolves the contact without an apex split",
   ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 0.045f}));
   ball.Step(pitch);
 
+  // Tangent and separating at contact time, but the apex and the landing both fall
+  // inside this tick: the tick flies free and ends a hair under the surface.
   const auto state = ball.get_state();
-  CHECK(state.position.coords[2] == Approx(config.radius).margin(1e-6f));
-  // Contact at toi 0 while separating: the tick keeps the launch velocity.
-  CHECK(state.velocity.coords[2] == Approx(0.045f).margin(1e-6f));
+  CHECK(state.position.coords[2] <= config.radius);
+  CHECK(state.position.coords[2] >= config.radius - 5e-4f);
+  CHECK(state.velocity.coords[2] == Approx(0.045f - kGravity * kDt).margin(1e-5f));
+
+  // The next tick finds the ball under the surface and bounces it.
+  const float restitution = pitch.colliders().front().material.restitution;
+  ball.Step(pitch);
+  CHECK(ball.get_state().velocity.coords[2] ==
+        Approx(restitution * (kGravity * kDt - 0.045f)).margin(1e-5f));
 }
 
 TEST_CASE("Ground resistance is predicted for the full tick before a post impact",
@@ -561,4 +572,28 @@ TEST_CASE("A rolling ball is not blocked by its own ground contact",
     previous_x = state.position.coords[0];
   }
   CHECK(ball.get_state().velocity.coords[0] < 4.0f);
+}
+
+TEST_CASE("A ball leaving the grass also leaves it in later ticks",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutAero();
+  const auto pitch = FrictionlessPitch();
+  Ball ball(config);
+  // Tangent to the grass with a tiny upward speed: separating at contact time,
+  // but the predicted end of the tick already dips under the surface.
+  ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 0.01f}));
+
+  for (int i = 0; i < 4; ++i) {
+    const auto before = ball.get_state();
+    ball.Step(pitch);
+    const auto after = ball.get_state();
+    INFO("tick " << i << " z=" << after.position.coords[2]
+                 << " vz=" << after.velocity.coords[2]);
+    // Each tick must make progress: either it rises, or it falls back and is
+    // caught again. Standing still with a live upward velocity is a stall.
+    CHECK(after.position.coords[2] != Approx(before.position.coords[2]));
+    CHECK(after.velocity.coords[2] != Approx(before.velocity.coords[2]));
+  }
+  // The dip is caught within a couple of ticks instead of hovering forever.
+  CHECK(ball.get_state().velocity.coords[2] > 0.0f);
 }

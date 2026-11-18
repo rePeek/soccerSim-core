@@ -160,11 +160,10 @@ std::optional<collision::ColliderHit> FindContact(
     if (!hit) continue;
     const bool was_repaired =
         std::find(repaired.begin(), repaired.end(), &collider) != repaired.end();
-    // Judge separation on the predicted outcome, not the tick-start velocity: a
-    // ball that starts on the surface with a small upward speed looks separating at
-    // the start, yet its apex falls back inside this tick.
+    // Judged at contact time, which for a zero-time contact is the tick-start
+    // velocity -- the same rule Step applies below.
     const float normal_velocity =
-        (next.velocity - hit->surface_velocity).GetDotProduct(hit->normal);
+        (start.velocity - hit->surface_velocity).GetDotProduct(hit->normal);
     if (was_repaired && hit->toi <= kTouchEpsilon && normal_velocity >= 0.0f)
       continue;
     if (!best || hit->toi < best->hit.toi)
@@ -175,9 +174,12 @@ std::optional<collision::ColliderHit> FindContact(
 
 // Moves the centre back onto the surface of a collider the ball overlaps. Only
 // the position changes; the contact is not an impact by itself.
-void Depenetrate(BallState& state, const BallContact& contact,
+// Returns whether the centre actually moved: a mere tangency is already on the
+// surface and must not be mistaken for a repair.
+bool Depenetrate(BallState& state, const BallContact& contact,
                  const geometry::Collider& collider, float ball_radius) {
-  if (contact.toi > kTouchEpsilon) return;
+  if (contact.toi > kTouchEpsilon) return false;
+  const math::Vector3 before = state.position;
   const math::Vector3 surface = std::visit(
       [&](const auto& shape) -> math::Vector3 {
         using T = std::decay_t<decltype(shape)>;
@@ -195,6 +197,7 @@ void Depenetrate(BallState& state, const BallContact& contact,
       },
       collider.shape);
   state.position = surface + contact.normal * ball_radius;
+  return state.position != before;
 }
 
 }  // namespace
@@ -238,14 +241,20 @@ void Ball::Step(const Pitch& pitch) {
 
     BallContact contact = ToBallContact(hit, at_contact.velocity, ball_radius);
 
-    // Initial overlap: repair the start and sweep again. This is not an impact,
-    // so it does not spend the tick's single impulse.
+    // Initial overlap: repair the start and sweep again; it is not an impact, so it
+    // does not spend the tick's single impulse. A contact that is merely tangent and
+    // already separating moves nothing, and repeating that no-op would exhaust the
+    // repair cap and leave the tick with nothing committed -- so it flies free
+    // instead, letting the next tick catch the ball.
     if (contact.toi <= kTouchEpsilon &&
         contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f &&
         guard < repair_cap) {
-      Depenetrate(start, contact, collider, ball_radius);
-      repaired.push_back(found->collider);
-      continue;
+      if (Depenetrate(start, contact, collider, ball_radius)) {
+        repaired.push_back(found->collider);
+        continue;
+      }
+      set_state(next);
+      return;
     }
 
     const auto original_center = at_contact.position;

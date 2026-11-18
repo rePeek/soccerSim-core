@@ -26,7 +26,7 @@ struct BallContact {
   // World-space point on the ball surface: centre - normal * radius.
   math::Vector3 point;
   math::Vector3 normal;
-  // Predicted full-tick centre velocity relative to the collider surface.
+  // Centre velocity relative to the collider surface at contact time.
   math::Vector3 relative_velocity;
   bool position_corrected = false;
   math::Vector3 surface_velocity = math::Vector3(0);
@@ -42,7 +42,8 @@ class Ball {
   const BallModel& model() const { return model_; }
 
   // Predict free motion, sweep the path, then commit or stop at one impact.
-  // An impact uses the predicted velocity/spin, with no post-impact motion.
+  // An impact is resolved at the contact instant, and the rest of the tick is
+  // deliberately not integrated.
   void Step(const Pitch& pitch);
 
   // Apply impulse [N*s] at a world-space point on the ball surface. Changes
