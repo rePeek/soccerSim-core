@@ -14,6 +14,7 @@ target_sources(football_ball
     BASE_DIRS ${PROJECT_SOURCE_DIR}/include
     FILES
       ${PROJECT_SOURCE_DIR}/include/football/ball/ball.hpp
+      ${PROJECT_SOURCE_DIR}/include/football/ball/ball_snapshot.hpp
 )
 
 target_include_directories(football_ball
