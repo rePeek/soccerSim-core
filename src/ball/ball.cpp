@@ -131,8 +131,9 @@ void Ball::Step(const Pitch& pitch) {
   const float ball_radius = model_.radius;
   const BallState start = state_;
 
-  // 1. Predict the tick with no collisions.
-  const BallState predicted = IntegrateMotion(model_, start, dt, pitch);
+  // 1. Predict the tick with no collisions; the impact path below only corrects
+  //    this position, keeping the predicted velocity and spin.
+  BallState predicted = IntegrateMotion(model_, start, dt, pitch);
 
   // 2. Sweep that path. A rolling ball rests on the grass, and the rolling
   //    integration already pins its centre to the radius, so the ground is not a
@@ -161,16 +162,15 @@ void Ball::Step(const Pitch& pitch) {
 
   // 4. The single impact: stop at the contact point, fix any overlap, then
   //    change the velocity. The rest of the tick is discarded.
-  BallState at_contact = predicted;
-  at_contact.position = hit.center;
+  predicted.position = hit.center;
   if (hit.toi <= kTouchEpsilon)
-    at_contact.position = collision::Depenetrate(
-        at_contact.position, ball_radius, collider.shape, hit.normal);
-  const math::Vector3 contact_point = at_contact.position - hit.normal * ball_radius;
+    predicted.position = collision::Depenetrate(
+        predicted.position, ball_radius, collider.shape, hit.normal);
+  const math::Vector3 contact_point = predicted.position - hit.normal * ball_radius;
   // Commit before solving: the solver reads position and velocity off the ball,
   // and the lever arm is only -normal * radius once the centre sits on the
   // surface.
-  set_state(at_contact);
+  set_state(predicted);
 
   const auto impulse = SolveContactImpulse(
       hit.normal, contact_point, hit.surface_velocity, collider.material);
