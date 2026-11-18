@@ -11,15 +11,7 @@ using namespace football::log;
 
 namespace football::pitch {
 
-namespace {
-
-constexpr float kPostRadius = 0.06f;
-
-}  // namespace
-
 Pitch::Pitch(const PitchModel& model) : model_(model) {
-  // The scene is fixed size, so it lives in an array: the count is checked by
-  // the compiler and no allocation is needed.
   BuildGrass(colliders_.front());
   BuildGoal(std::span(colliders_).subspan(1));
 
@@ -51,7 +43,7 @@ bool Pitch::operator==(const Pitch& other) const {
 // the effective ball-ground restitution is the ground contact material.
 void Pitch::BuildGrass(geometry::Collider& target) const {
   using geometry::HalfSpace;
-  target = {HalfSpace{math::Vector3(0, 0, 0), math::Vector3(0, 0, 1)},
+  target = {HalfSpace{math::Vector3(0), math::Vector3(0, 0, 1)},
             ground_material_, "ground"};
 }
 
@@ -60,6 +52,8 @@ void Pitch::BuildGrass(geometry::Collider& target) const {
 // direction.
 void Pitch::BuildGoal(std::span<geometry::Collider> target) const {
   using geometry::Capsule;
+  // Laws of the Game cap the post and crossbar section at 12 cm.
+  constexpr float kPostRadius = 0.06f;
   const float x = half_length();
   const float y = goal_half_width();
   const float z = goal_height();
