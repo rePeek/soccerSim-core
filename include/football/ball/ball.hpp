@@ -30,8 +30,8 @@ class Ball {
   const BallModel& model() const { return model_; }
 
   // Predict free motion, sweep the path, then commit or stop at one impact.
-  // An impact is resolved at the contact instant, and the rest of the tick is
-  // deliberately not integrated.
+  // An impact stops at the contact point and resolves with the predicted
+  // velocity/spin; the rest of the tick is not integrated.
   void Step(const Pitch& pitch);
 
   // Apply impulse [N*s] at a world-space point on the ball surface. Changes

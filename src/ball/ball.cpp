@@ -120,8 +120,6 @@ BallState IntegrateMotion(const BallModel& model, const BallState& state,
   return next;
 }
 
-// ---- Contact geometry ----
-
 }  // namespace
 
 Ball::Ball(const BallModel& model)
@@ -154,18 +152,18 @@ void Ball::Step(const Pitch& pitch) {
     return;
   }
 
-  const auto& hit = found->hit;
-  const geometry::Collider& collider = *found->collider;
-
-  // The single impact: stop at the contact point and change the velocity. The
+  // 3. The single impact: stop at the contact point and change the velocity. The
   // rest of the tick is discarded.
+  const auto& hit = found->hit;
   predicted.position = hit.center;
-  const math::Vector3 contact_point = predicted.position - hit.normal * ball_radius;
   // Commit before solving: the solver reads position and velocity off the ball,
   // and the lever arm is only -normal * radius once the centre sits on the
   // surface.
   set_state(predicted);
 
+  // 4. Resolve the impulse and change the velocity.
+  const geometry::Collider& collider = *found->collider;
+  const math::Vector3 contact_point = predicted.position - hit.normal * ball_radius;
   const auto impulse = SolveContactImpulse(
       hit.normal, contact_point, hit.surface_velocity, collider.material);
   if (impulse) ApplyImpulseAtPoint(*impulse, contact_point);
