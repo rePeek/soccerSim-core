@@ -90,14 +90,6 @@ math::Vector3 Acceleration(const BallModel& model, const math::Vector3& v0,
   return accel;
 }
 
-// First-order quaternion integration of a spin over dt, renormalized because the
-// Euler step does not preserve the unit length.
-math::Quaternion IntegrateOrientation(const math::Quaternion& q,
-                                      const math::Vector3& omega, float dt) {
-  const math::Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
-  return (q + omega_q * q * (0.5f * dt)).GetNormalized();
-}
-
 // A ball at rest on the grass has nothing to integrate. This must require the
 // rolling branch: a ball at the apex of a throw also has zero vertical speed,
 // and a spinning ball still needs its orientation advanced.

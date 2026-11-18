@@ -329,4 +329,11 @@ void Quaternion::Set(const Quaternion &quat) {
     return os;
   }
 
+
+  Quaternion IntegrateOrientation(const Quaternion& q, const Vector3& omega,
+                                  real dt) {
+    const Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
+    return (q + omega_q * q * (0.5f * dt)).GetNormalized();
+  }
+
 }

@@ -64,4 +64,9 @@ namespace football::math {
 
   std::ostream& operator<<(std::ostream& os, const Quaternion& v);
 
+  // First-order integration of an angular velocity over dt seconds,
+  // renormalized because the Euler step does not preserve unit length.
+  Quaternion IntegrateOrientation(const Quaternion& q, const Vector3& omega,
+                                  real dt);
+
 }
