@@ -293,26 +293,19 @@ TEST_CASE("A collision tick stops at the first post, not the second",
   CHECK(ball.get_state().velocity.coords[1] > 0.0f);
 }
 
-TEST_CASE("A tiny ground launch is caught on the following tick",
+TEST_CASE("A tiny ground launch is absorbed as rolling",
           "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
   Ball ball(config);
+  // Below the lift threshold the bounce cannot clear even half a millimetre,
+  // so it is absorbed and the ball stays on the grass with vz cleared.
   ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 0.045f}));
   ball.Step(pitch);
 
-  // Tangent and separating at contact time, but the apex and the landing both fall
-  // inside this tick: the tick flies free and ends a hair under the surface.
   const auto state = ball.get_state();
-  CHECK(state.position.coords[2] <= config.radius);
-  CHECK(state.position.coords[2] >= config.radius - 5e-4f);
-  CHECK(state.velocity.coords[2] == Approx(0.045f - kGravity * kDt).margin(1e-5f));
-
-  // The next tick finds the ball under the surface and bounces it.
-  const float restitution = pitch.colliders().front().material.restitution;
-  ball.Step(pitch);
-  CHECK(ball.get_state().velocity.coords[2] ==
-        Approx(restitution * (2 * kGravity * kDt - 0.045f)).margin(1e-5f));
+  CHECK(state.position.coords[2] == Approx(config.radius).margin(1e-5f));
+  CHECK(state.velocity.coords[2] == Approx(0.0f).margin(1e-6f));
 }
 
 TEST_CASE("Ground resistance is predicted for the full tick before a post impact",
@@ -546,27 +539,21 @@ TEST_CASE("A rolling ball is not blocked by its own ground contact",
   CHECK(ball.get_state().velocity.coords[0] < 4.0f);
 }
 
-TEST_CASE("A ball leaving the grass also leaves it in later ticks",
+TEST_CASE("A tiny lift off the grass is absorbed as resting",
           "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
   Ball ball(config);
-  // Tangent to the grass with a tiny upward speed: separating at contact time,
-  // but the predicted end of the tick already dips under the surface.
+  // A lift too small to leave the grass; the tick clears it instead of letting
+  // the ball dip through the surface.
   ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 0.01f}));
 
   for (int i = 0; i < 4; ++i) {
-    const auto before = ball.get_state();
     ball.Step(pitch);
-    const auto after = ball.get_state();
-    INFO("tick " << i << " z=" << after.position.coords[2]
-                 << " vz=" << after.velocity.coords[2]);
-    // Each tick must make progress: either it rises, or it falls back and is
-    // caught again. Standing still with a live upward velocity is a stall.
-    CHECK(after.position.coords[2] != Approx(before.position.coords[2]));
-    CHECK(after.velocity.coords[2] != Approx(before.velocity.coords[2]));
+    const auto state = ball.get_state();
+    INFO("tick " << i << " z=" << state.position.coords[2]
+                 << " vz=" << state.velocity.coords[2]);
+    CHECK(state.position.coords[2] == Approx(config.radius).margin(1e-5f));
+    CHECK(state.velocity.coords[2] == Approx(0.0f).margin(1e-6f));
   }
-  // The dip is caught on the next tick instead of hovering, and the ball never
-  // sinks far below the grass while it bounces.
-  CHECK(ball.get_state().position.coords[2] >= config.radius - 5e-4f);
 }

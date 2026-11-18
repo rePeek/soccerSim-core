@@ -38,12 +38,17 @@ float Inertia(const BallModel& model) {
   return (2.0f / 3.0f) * model.mass * model.radius * model.radius;
 }
 
+// A ball on the grass rising slower than this cannot lift more than roughly half
+// a millimetre, so its tiny bounce is absorbed as rolling instead of crossing the
+// grass boundary and needing a repair next tick.
+constexpr float kLiftEpsilon = 0.1f;
+
 // The ball rolls while it rests on the grass, and flies otherwise. This is the
-// single definition of "on the ground and neither climbing nor falling", and it
-// picks the integrator's branch.
+// single definition of "on the ground and not really lifting", and it picks the
+// integrator's branch.
 bool IsRolling(const BallModel& model, const BallState& state) {
   return state.position.coords[2] <= model.radius + kTouchEpsilon &&
-         std::fabs(state.velocity.coords[2]) <= kTouchEpsilon;
+         std::fabs(state.velocity.coords[2]) <= kLiftEpsilon;
 }
 
 // Grass resists horizontal motion only: a constant deceleration plus an optional
