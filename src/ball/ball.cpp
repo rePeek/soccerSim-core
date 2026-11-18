@@ -117,17 +117,6 @@ BallState IntegrateMotion(const BallModel& model, const BallState& state,
 
 // ---- Contact geometry ----
 
-BallContact ToBallContact(const collision::CollisionHit& hit,
-                          const math::Vector3& velocity, float ball_radius) {
-  BallContact contact;
-  contact.toi = hit.toi;
-  contact.point = hit.center - hit.normal * ball_radius;
-  contact.normal = hit.normal;
-  contact.surface_velocity = hit.surface_velocity;
-  contact.relative_velocity = velocity - hit.surface_velocity;
-  return contact;
-}
-
 }  // namespace
 
 Ball::Ball(const BallModel& model)
@@ -166,32 +155,32 @@ void Ball::Step(const Pitch& pitch) {
   //    integration up to that moment.
   BallState at_contact = IntegrateMotion(model_, start, dt * hit.toi, pitch);
   at_contact.position = hit.center;
-  BallContact contact = ToBallContact(hit, at_contact.velocity, ball_radius);
 
   // A zero-time contact that is already separating is not an impact. It comes
   // from an anomalous start (set_state or float error) that sits inside a
   // collider, so push the centre back to the surface and fly the rest of the
   // tick.
-  if (contact.toi <= kTouchEpsilon &&
-      contact.relative_velocity.GetDotProduct(contact.normal) >= 0.0f) {
+  if (hit.toi <= kTouchEpsilon &&
+      (at_contact.velocity - hit.surface_velocity).GetDotProduct(hit.normal) >= 0.0f) {
     at_contact.position = collision::Depenetrate(
-        at_contact.position, ball_radius, collider.shape, contact.normal);
+        at_contact.position, ball_radius, collider.shape, hit.normal);
     set_state(IntegrateMotion(model_, at_contact, dt, pitch));
     return;
   }
 
   // The single impact: fix any remaining overlap, then change the velocity.
-  if (contact.toi <= kTouchEpsilon)
+  if (hit.toi <= kTouchEpsilon)
     at_contact.position = collision::Depenetrate(
-        at_contact.position, ball_radius, collider.shape, contact.normal);
-  contact.point = at_contact.position - contact.normal * ball_radius;
+        at_contact.position, ball_radius, collider.shape, hit.normal);
+  const math::Vector3 contact_point = at_contact.position - hit.normal * ball_radius;
   // Commit before solving: the solver reads position and velocity off the ball,
   // and the lever arm is only -normal * radius once the centre sits on the
   // surface.
   set_state(at_contact);
 
-  const auto impulse = SolveContactImpulse(contact, collider.material);
-  if (impulse) ApplyImpulseAtPoint(*impulse, contact.point);
+  const auto impulse = SolveContactImpulse(
+      hit.normal, contact_point, hit.surface_velocity, collider.material);
+  if (impulse) ApplyImpulseAtPoint(*impulse, contact_point);
   Debug(Channel::ball, std::format("ball contact: name={}, toi={}", collider.name, hit.toi));
   // The rest of the tick is deliberately discarded: one impact per tick.
 }
@@ -213,14 +202,15 @@ void Ball::ApplyImpulseAtPoint(const math::Vector3& impulse,
 }
 
 std::optional<math::Vector3> Ball::SolveContactImpulse(
-    const BallContact& contact, const ContactMaterial& material) const {
-  const math::Vector3 n = contact.normal.GetNormalized({0, 0, 1});
-  const math::Vector3 r = contact.point - state_.position;
+    const math::Vector3& normal, const math::Vector3& contact_point,
+    const math::Vector3& surface_velocity, const ContactMaterial& material) const {
+  const math::Vector3 n = normal.GetNormalized({0, 0, 1});
+  const math::Vector3 r = contact_point - state_.position;
 
   const math::Vector3& omega = state_.angular_velocity;
   const math::Vector3 omega_cross_r = omega.GetCrossProduct(r);
 
-  const math::Vector3 u = state_.velocity + omega_cross_r - contact.surface_velocity;
+  const math::Vector3 u = state_.velocity + omega_cross_r - surface_velocity;
   const float un = u.GetDotProduct(n);
   if (un >= 0.0f) return std::nullopt;
 

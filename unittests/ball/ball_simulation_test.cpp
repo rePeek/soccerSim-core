@@ -11,7 +11,6 @@
 
 using football::math::Vector3;
 using football::ball::Ball;
-using football::ball::BallContact;
 using football::ball::BallModel;
 using football::ball::BallState;
 using football::geometry::Capsule;
@@ -428,12 +427,12 @@ TEST_CASE("Passive response applies an impulse to the contact-time state",
       (initial.orientation + omega_q * initial.orientation * (0.5f * (fraction * kDt)))
           .GetNormalized();
   expected.set_state(touching);
-  BallContact contact;
-  contact.normal = Vector3(0, 0, 1);
-  contact.point = touching.position - contact.normal * config.radius;
-  const auto solved = expected.SolveContactImpulse(contact, ground.material);
+  const Vector3 contact_normal(0, 0, 1);
+  const Vector3 contact_point = touching.position - contact_normal * config.radius;
+  const auto solved = expected.SolveContactImpulse(
+      contact_normal, contact_point, Vector3(0, 0, 0), ground.material);
   REQUIRE(solved.has_value());
-  expected.ApplyImpulseAtPoint(*solved, contact.point);
+  expected.ApplyImpulseAtPoint(*solved, contact_point);
 
   Ball ball(config);
   ball.set_state(initial);

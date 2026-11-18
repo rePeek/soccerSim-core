@@ -10,7 +10,6 @@
 
 using football::math::Vector3;
 using football::ball::Ball;
-using football::ball::BallContact;
 using football::ball::BallModel;
 using football::ball::BallState;
 using football::geometry::ContactMaterial;
@@ -27,19 +26,17 @@ BallState BallAt(const Vector3& position, const Vector3& velocity) {
   return state;
 }
 
-BallContact SurfaceContact(const Ball& ball, const Vector3& normal) {
-  BallContact contact;
-  contact.toi = 0.5f;
-  contact.normal = normal;
-  contact.point = ball.get_state().position - normal * ball.model().radius;
-  return contact;
+// The shell point facing the surface, mirroring how a sweep reports a contact.
+Vector3 ContactPoint(const Ball& ball, const Vector3& normal) {
+  return ball.get_state().position - normal * ball.model().radius;
 }
 
-Vector3 SolveAndApply(Ball& ball, const BallContact& contact,
+Vector3 SolveAndApply(Ball& ball, const Vector3& normal, const Vector3& point,
                       const ContactMaterial& material) {
-  const auto impulse = ball.SolveContactImpulse(contact, material);
+  const auto impulse =
+      ball.SolveContactImpulse(normal, point, Vector3(0, 0, 0), material);
   REQUIRE(impulse.has_value());
-  ball.ApplyImpulseAtPoint(*impulse, contact.point);
+  ball.ApplyImpulseAtPoint(*impulse, point);
   return *impulse;
 }
 
@@ -123,8 +120,8 @@ TEST_CASE("Frictionless contact reflects the normal velocity by restitution",
     Ball ball(TestBallModel());
     ball.set_state(BallAt({0, 0, 0.11f}, {0, 0, -2}));
     const Vector3 normal{0, 0, 1};
-    const Vector3 impulse =
-        SolveAndApply(ball, SurfaceContact(ball, normal), {restitution, 0});
+    const Vector3 point = ContactPoint(ball, normal);
+    const Vector3 impulse = SolveAndApply(ball, normal, point, {restitution, 0});
 
     CHECK(NormalShare(impulse, normal) > 0.0f);
     CHECK(ball.get_state().velocity.coords[2] == Approx(2.0f * restitution).margin(1e-4f));
@@ -137,8 +134,8 @@ TEST_CASE("Separating contact produces no impulse at all",
           "[unit][ball][response]") {
   Ball ball(TestBallModel());
   ball.set_state(BallAt({0, 0, 0.11f}, {0, 0, 2}));
-  const auto impulse =
-      ball.SolveContactImpulse(SurfaceContact(ball, {0, 0, 1}), {0.5f, 0});
+  const auto impulse = ball.SolveContactImpulse(
+      {0, 0, 1}, ContactPoint(ball, {0, 0, 1}), Vector3(0, 0, 0), {0.5f, 0});
 
   CHECK_FALSE(impulse.has_value());
   CHECK(ball.get_state().velocity.coords[2] == Approx(2.0f));
@@ -151,8 +148,8 @@ TEST_CASE("Tangential impulse is Coulomb-capped by friction",
   ball.set_state(BallAt({0, 0, 0.11f}, {3, 0, -2}));
   const ContactMaterial material{0.5f, 0.2f};
   const Vector3 normal{0, 0, 1};
-  const Vector3 impulse =
-      SolveAndApply(ball, SurfaceContact(ball, normal), material);
+  const Vector3 point = ContactPoint(ball, normal);
+  const Vector3 impulse = SolveAndApply(ball, normal, point, material);
 
   REQUIRE(NormalShare(impulse, normal) > 0.0f);
   CHECK(TangentialShare(impulse, normal).GetLength() <=
@@ -164,8 +161,8 @@ TEST_CASE("Friction slows tangential velocity and produces spin",
   Ball ball(TestBallModel());
   ball.set_state(BallAt({0, 0, 0.11f}, {3, 0, -2}));
   const Vector3 normal{0, 0, 1};
-  const Vector3 impulse =
-      SolveAndApply(ball, SurfaceContact(ball, normal), {0.5f, 0.5f});
+  const Vector3 point = ContactPoint(ball, normal);
+  const Vector3 impulse = SolveAndApply(ball, normal, point, {0.5f, 0.5f});
 
   CHECK(TangentialShare(impulse, normal).GetLength() > 0.0f);
   CHECK(ball.get_state().velocity.coords[0] < 3.0f);
@@ -180,15 +177,14 @@ TEST_CASE("Contact resolution takes its lever arm from the contact point",
   const ContactMaterial frictionless{0.5f, 0};
   const Vector3 normal{0, 0, 1};
 
-  SolveAndApply(ball, SurfaceContact(ball, normal), frictionless);
+  SolveAndApply(ball, normal, ContactPoint(ball, normal), frictionless);
   CHECK(ball.get_state().angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
 
   ball.set_state(initial);
   // Same normal and velocity, but the recorded point sits on the +x flank:
   // the lever arm therefore follows the point, not the -normal * radius rule.
-  auto offset = SurfaceContact(ball, normal);
-  offset.point = initial.position + Vector3(ball.model().radius, 0, 0);
-  const Vector3 impulse = SolveAndApply(ball, offset, frictionless);
+  const Vector3 offset_point = initial.position + Vector3(ball.model().radius, 0, 0);
+  const Vector3 impulse = SolveAndApply(ball, normal, offset_point, frictionless);
   const float expected_inertia = (2.0f / 3.0f) * 0.5f * 0.11f * 0.11f;
   CHECK(ball.get_state().angular_velocity.coords[1] ==
         Approx(-ball.model().radius * NormalShare(impulse, normal) / expected_inertia)
@@ -199,20 +195,22 @@ TEST_CASE("Moving collider velocity enters the relative contact velocity",
           "[unit][ball][response]") {
   Ball ball(TestBallModel());
   ball.set_state(BallAt({0, 0, 0.11f}, {0, 0, 1}));
-  auto contact = SurfaceContact(ball, {0, 0, 1});
+  const Vector3 point = ContactPoint(ball, {0, 0, 1});
 
-  CHECK_FALSE(ball.SolveContactImpulse(contact, {0.5f, 0}).has_value());
-  contact.surface_velocity = Vector3(0, 0, 3);
-  CHECK(ball.SolveContactImpulse(contact, {0.5f, 0}).has_value());
+  CHECK_FALSE(ball.SolveContactImpulse({0, 0, 1}, point, Vector3(0, 0, 0), {0.5f, 0})
+                  .has_value());
+  CHECK(ball.SolveContactImpulse({0, 0, 1}, point, Vector3(0, 0, 3), {0.5f, 0})
+            .has_value());
 }
 
 TEST_CASE("Solving uses current state without applying the impulse",
           "[unit][ball][response]") {
   Ball ball(TestBallModel());
   ball.set_state(BallAt({1, 2, 0.11f}, {0, 0, -2}));
-  const auto contact = SurfaceContact(ball, {0, 0, 1});
+  const Vector3 point = ContactPoint(ball, {0, 0, 1});
   const auto before = ball.get_state();
-  const auto impulse = ball.SolveContactImpulse(contact, {0.5f, 0});
+  const auto impulse =
+      ball.SolveContactImpulse({0, 0, 1}, point, Vector3(0, 0, 0), {0.5f, 0});
   REQUIRE(impulse.has_value());
   // Frictionless, so the whole impulse points along the normal.
   CHECK(impulse->coords[2] == Approx(1.5f));
@@ -221,8 +219,9 @@ TEST_CASE("Solving uses current state without applying the impulse",
   CHECK(ball.get_state().angular_velocity == before.angular_velocity);
   CHECK_FALSE(ball.get_state().orientation != before.orientation);
 
-  ball.ApplyImpulseAtPoint(*impulse, contact.point);
-  CHECK_FALSE(ball.SolveContactImpulse(contact, {0.5f, 0}).has_value());
+  ball.ApplyImpulseAtPoint(*impulse, point);
+  CHECK_FALSE(ball.SolveContactImpulse({0, 0, 1}, point, Vector3(0, 0, 0), {0.5f, 0})
+                  .has_value());
 }
 
 TEST_CASE("Successive impulses accumulate on the current ball state",

@@ -20,17 +20,6 @@ struct BallState {
   math::Quaternion orientation;
 };
 
-struct BallContact {
-  // Fraction along the predicted path; not a fractional integration timestep.
-  float toi = 0.0f;
-  // World-space point on the ball surface: centre - normal * radius.
-  math::Vector3 point;
-  math::Vector3 normal;
-  // Centre velocity relative to the collider surface at contact time.
-  math::Vector3 relative_velocity;
-  math::Vector3 surface_velocity = math::Vector3(0);
-};
-
 class Ball {
  public:
   explicit Ball(const BallModel& model =
@@ -51,10 +40,13 @@ class Ball {
   void ApplyImpulseAtPoint(const math::Vector3& impulse,
                            const math::Vector3& world_point);
 
-  // Impulse [N*s] to apply at contact.point, or nullopt when the contact is
-  // already separating. Does not touch the ball.
+  // Impulse [N*s] to apply at `contact_point`, or nullopt when the contact is
+  // already separating. `normal` points from the surface toward the ball and
+  // `contact_point` sits on the ball's shell. Does not touch the ball.
   std::optional<math::Vector3> SolveContactImpulse(
-      const BallContact& contact,
+      const math::Vector3& normal,
+      const math::Vector3& contact_point,
+      const math::Vector3& surface_velocity,
       const geometry::ContactMaterial& material) const;
 
   // z is forced to the radius; velocity/spin are cleared.
