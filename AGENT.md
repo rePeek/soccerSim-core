@@ -10,13 +10,18 @@ rules that are true *now*.
 - `foundation` — math, time, geometry and generic collision primitives
 - `pitch` — pitch description and static physics scene
 - `ball` — authoritative ball model, physics and contact response
-- `env.cpp` / `include/football/env.hpp` — minimal `Env` facade over one
-  Ball on one Pitch
-- `capi.h` / `capi.cpp` — C ABI adapter for C and C#; see `docs/capi.md`
+- `env.cpp` / `include/football/env.hpp` — `Env`: one match's state and rules —
+  one Ball on one Pitch, the tick cursor and the derived match boundaries; it
+  advances only when someone calls `Step()`
+- `src/runner/` — `football::runner`: the execution side. `SingleRunner` owns one
+  match and one worker, and holds play/pause
+- `capi.h` / `capi.cpp` — C ABI adapter for C and C#; one handle per match, model
+  values, lifecycle and the control/progress surface
 - `models.h` — single C header: model layouts/defaults plus C++ aliases
 
 There is no match clock, team, player, referee, event, observation, AI or
 Runtime layer in this build.
+
 
 ## Build and test
 
@@ -32,7 +37,8 @@ nix develop --command bash -c 'cmake --preset release && cmake --build --preset 
 
 The domain suites `pitch_unit` and `ball_unit` link only their modules and
 declared dependencies, never `simcore`. The C11 `capi_unit` consumer links
-`simcore` to exercise the exported C ABI.
+`simcore` to exercise the exported C ABI, and `env_unit` links it because `Env`
+is compiled into the shared library rather than into a module of its own.
 
 ## Coordinate and physics conventions
 
@@ -65,21 +71,24 @@ declared dependencies, never `simcore`. The C11 `capi_unit` consumer links
 include/football/
 ├── foundation/   math/, time/, geometry/, collision/
 ├── pitch/        Pitch description and static scene
-├── ball/         Ball, BallModel, BallState, impulse/contact/response
+├── ball/         Ball, BallState and BallSnapshot (the renderable frame)
 ├── models.h      shared C model definitions, defaults, C++ aliases
-├── env.hpp       minimal Env facade
+├── env.hpp       Env: the match state and rules
 └── capi.h        pure C ABI
 
 src/
 ├── foundation/   football::foundation, football::geometry, football::collision
 ├── pitch/        football::pitch
 ├── ball/         football::ball
-├── env.cpp       minimal Env implementation
+├── runner/       football::runner: SingleRunner
+├── env.cpp       Env: the ball, the pitch and the cursor
 └── capi.cpp      C ABI adapter
 
 unittests/
 ├── pitch/        pitch_unit
 ├── ball/         ball_unit
+├── env/          env_unit (links simcore)
+├── runner/       runner_unit (links simcore, reaches src/ headers)
 └── capi/         capi_unit (compiled as C)
 ```
 
@@ -91,14 +100,58 @@ unittests/
 - Do not add a dependency from a leaf module back to `env`/`simcore`.
 - Keep `Pitch` free of match/rules/actor concepts; it owns geometry and the
   static physics scene only.
-- `Ball` is the only authority for ball state; `Env` only owns the
-  composition and lifecycle.
+- `Ball` is the only authority for ball state. `Env` is one match: the ball, the
+  pitch and the tick cursor, advanced only by `Step()`. It holds no
+  thread, lock, flag or notion of playing, so the same object works for a live
+  host, a batch run and a future branch search alike.
+- Playing, pausing and stopping are the executor's state, not the match's. The
+  executor (`football::runner::SingleRunner`) owns its `Env` and one worker and
+  knows nothing about time or match state: it only decides whether the loop keeps
+  calling `Step()`. `IsRunning()` is the whole of what it reports - asked to run and
+  the worker is alive - and it says nothing about the tick.
+- The match is read through `Environment()`, and only at a quiescent point:
+  `Pause()` returns once the worker is parked, and a loop that reached full time
+  has ended. Nothing is published or duplicated, so a host that wants live progress
+  while the match runs has to wait for the loop to end first. Pacing to real time or
+  per-frame tick budgets belong to the host, not to the core.
+- Match boundaries are derived from the cursor and then cached: `Env::Step()` is the
+  only writer of both the tick and the `MatchPhase` it mirrors, so `Phase()` is a
+  plain read that can never disagree with `Ticks()`. Both come from the single
+  `PhaseOfTick()` rule, which yields `FirstHalf`, the single tick of `HalfTime` at
+  `kHalfTime`, `SecondHalf`, and `FullTime` from `kFullTime` onwards (saturating, so
+  it stays full time past the horizon). A host that wants a break to last simply
+  holds the match at the half-time tick.
+  A match is always 90 minutes at 100 Hz (540000 ticks) with half time at 45
+  (270000), both fixed constants rather than configuration. There is no clock,
+  break, ceremony, change of ends or added time: half time is only the tick where
+  the halves meet, and the last simulated tick is `kFullTime - 1`.
+- `Step()` does not police the horizon: it advances exactly one tick and the
+  executor stops calling it once `Finished()` reports full time. `Step(duration)`
+  is the bounded form and stops at full time on its own.
+- Never let two threads touch one `Env`: it is plain state with no synchronisation,
+  and time is no exception — the cursor is a plain member counted per match. The
+  runner exposes it as `Environment()`, and `Pause()` is the rendezvous that makes
+  reading it safe. Exceptions must not cross a thread boundary: the runner logs
+  them and ends its loop.
+- Teardown is thread lifetime: the loop is a `std::jthread`, so destroying the
+  runner requests stop and joins, and a parked loop is woken through the stop
+  token rather than a simulation flag. The runner is declared after the `Env` it
+  drives so it is destroyed first.
 - `PitchModel` / `BallModel` alias the C structs defined once in `models.h`;
   never duplicate model layouts. Initialize every field explicitly: `{}`
   produces zeros in C++ too, not physical defaults.
 - Models are copied without validation by `Pitch` / `Ball`. C ABI NULL checks
   and exception translation remain.
 - C ABI headers must compile as C; keep C++ types and exceptions behind the
-  adapter. Model structs are caller-owned values; the adapter owns a single Env.
+  adapter. Model structs are caller-owned values; the adapter owns one match per
+  `football_session` handle — a `SingleRunner` owning one match and one worker —
+  never a singleton.
+- Every match is independent: no static or thread-local simulation state and no
+  RNG, so any number may run at once and identical inputs give identical results.
+  The only process-wide piece is the log, which is thread-safe; per-match teardown
+  must not flush it, so a host calls `football_flush()` once before exiting.
+- No frame or observation delivery exists yet. Do not reintroduce chunk or
+  snapshot-stream APIs until that boundary is designed: the C ABI today exposes
+  lifecycle, `resume`/`pause` and published progress only.
 - Do not reintroduce animation, player, team, referee, event, observation or AI
   code without a deliberate architecture decision.

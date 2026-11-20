@@ -41,14 +41,18 @@ add_subdirectory(src/pitch)
 add_subdirectory(src/ball)
 
 # Minimal public environment: Ball physics on a Pitch, no match or actor layer.
-add_library(simcore SHARED src/env.cpp src/capi.cpp)
+# Env is the synchronous match; AsyncRunner drives it on a thread of its own, so
+# the host only posts requests and reads published progress.
+add_library(simcore SHARED src/env.cpp src/runner/runner.cpp src/capi.cpp)
 add_library(football::simcore ALIAS simcore)
+# The C ABI is the only supported contract. env.hpp stays a plain header on the
+# include path but is not exported as part of this target's public headers.
 target_sources(simcore PUBLIC FILE_SET HEADERS
   BASE_DIRS ${PROJECT_SOURCE_DIR}/include
   FILES
-    ${PROJECT_SOURCE_DIR}/include/football/env.hpp
     ${PROJECT_SOURCE_DIR}/include/football/capi.h)
 target_compile_definitions(simcore PRIVATE FOOTBALL_CAPI_BUILD)
+target_include_directories(simcore PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(simcore
   PUBLIC football::ball football::pitch
   PRIVATE football::log)

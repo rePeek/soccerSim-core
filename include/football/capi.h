@@ -1,6 +1,8 @@
 #ifndef FOOTBALL_CAPI_H
 #define FOOTBALL_CAPI_H
 
+#include <stdint.h>
+
 #include "football/models.h"
 
 #if defined(_WIN32)
@@ -22,13 +24,46 @@ extern "C" {
 #  define FOOTBALL_NOEXCEPT
 #endif
 
-/* The library owns exactly one environment. Models are copied: callers may
- * modify or discard them after football_init returns. Calling football_init
- * again replaces the current environment; shutdown is safe at any time. */
-FOOTBALL_API void FOOTBALL_CALL football_init(
+/* Opaque handle: one environment whose loop runs on a thread of its own. Any
+ * number of sessions may exist at the same time; each owns its state and its
+ * clock, so matches never share anything and run independently. */
+typedef struct football_session football_session;
+
+/* Creates a session paused at tick 0 with its loop thread parked. Models are
+ * copied, so callers may modify or discard them afterwards. A match is always 90
+ * minutes at 100 Hz (540000 ticks), with half time at 45. Returns NULL for a NULL
+ * model or when the loop thread cannot start. */
+FOOTBALL_API football_session* FOOTBALL_CALL football_session_create(
     const football_pitch_model* pitch_model,
     const football_ball_model* ball_model) FOOTBALL_NOEXCEPT;
-FOOTBALL_API void FOOTBALL_CALL football_shutdown(void) FOOTBALL_NOEXCEPT;
+
+/* Stops the loop, joins it and releases the session. NULL is ignored; a handle
+ * must be destroyed exactly once, before the process exits. */
+FOOTBALL_API void FOOTBALL_CALL football_session_destroy(
+    football_session* session) FOOTBALL_NOEXCEPT;
+
+/* Control. Idempotent, safe from any thread, applied by the loop between ticks.
+ * Resuming after full time does nothing: a match never restarts. */
+FOOTBALL_API void FOOTBALL_CALL football_resume(
+    football_session* session) FOOTBALL_NOEXCEPT;
+FOOTBALL_API void FOOTBALL_CALL football_pause(
+    football_session* session) FOOTBALL_NOEXCEPT;
+
+/* Published progress: written by the loop, readable from any thread. A NULL
+ * handle reports neither running nor finished, and 0 ticks. */
+FOOTBALL_API int FOOTBALL_CALL football_running(
+    const football_session* session) FOOTBALL_NOEXCEPT;
+FOOTBALL_API int FOOTBALL_CALL football_finished(
+    const football_session* session) FOOTBALL_NOEXCEPT;
+FOOTBALL_API uint64_t FOOTBALL_CALL football_ticks(
+    const football_session* session) FOOTBALL_NOEXCEPT;
+/* MatchPhase as a plain integer: 0 first half, 1 half time, 2 second half,
+ * 3 full time. */
+FOOTBALL_API int FOOTBALL_CALL football_phase(
+    const football_session* session) FOOTBALL_NOEXCEPT;
+
+/* Writes every buffered log entry; call once before the process exits. */
+FOOTBALL_API void FOOTBALL_CALL football_flush(void) FOOTBALL_NOEXCEPT;
 
 #ifdef __cplusplus
 }
