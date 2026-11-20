@@ -39,6 +39,21 @@ std::uint64_t TicksWhenDone(SingleRunner& runner) {
   return runner.Environment().Ticks().value;
 }
 
+// Progress belongs to the match, so it is only readable while the worker is
+// parked. Runs short bursts until the tick passes `target`, pausing before every
+// read instead of touching the match while the loop owns it.
+std::uint64_t AdvancePast(SingleRunner& runner, std::uint64_t target) {
+  std::uint64_t tick = runner.Environment().Ticks().value;
+  for (int burst = 0; burst < 20 && tick <= target; ++burst) {
+    runner.Resume();
+    REQUIRE(WaitFor([&runner] { return runner.IsRunning(); }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    runner.Pause();
+    tick = runner.Environment().Ticks().value;
+  }
+  return tick;
+}
+
 }  // namespace
 
 TEST_CASE("a new runner is paused") {
@@ -82,16 +97,11 @@ TEST_CASE("pause parks the worker before it returns") {
 TEST_CASE("resume continues from where the pause left off") {
   SingleRunner runner(kPitch, kBall);
 
-  runner.Resume();
-  REQUIRE(WaitFor([&runner] { return runner.Environment().Ticks() > Tick{0}; }));
+  const std::uint64_t paused_at = AdvancePast(runner, 0);
+  REQUIRE(paused_at > 0);
+  REQUIRE_FALSE(runner.Environment().Finished());
 
-  runner.Pause();
-  const std::uint64_t paused_at = runner.Environment().Ticks().value;
-
-  runner.Resume();
-  REQUIRE(WaitFor([&runner, paused_at] {
-    return runner.Environment().Ticks().value > paused_at;
-  }));
+  REQUIRE(AdvancePast(runner, paused_at) > paused_at);
   REQUIRE_FALSE(runner.Environment().Finished());
 }
 
@@ -108,14 +118,17 @@ TEST_CASE("resuming a finished match does nothing") {
 }
 
 TEST_CASE("destroying a running runner joins its worker") {
-  Env* match = nullptr;
+  const auto start = std::chrono::steady_clock::now();
   {
     SingleRunner runner(kPitch, kBall);
     runner.Resume();
     REQUIRE(WaitFor([&runner] { return runner.IsRunning(); }));
-    match = &runner.Environment();
+    // Park once to see the match it leaves behind, then destroy it running.
+    runner.Pause();
+    REQUIRE(runner.Environment().Ticks() < kFullTime);
+    runner.Resume();
   }  // must stop the worker and join, not hang
-  REQUIRE(match->Ticks() < kFullTime);  // the match was left behind intact
+  REQUIRE(std::chrono::steady_clock::now() - start < std::chrono::seconds(5));
 }
 
 TEST_CASE("runners own independent matches") {
