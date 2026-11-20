@@ -6,12 +6,6 @@
 #include "football/log/log.hpp"
 #include "runner/runner.hpp"
 
-// The C ABI documents the phase as an integer, so pin the mapping it promises.
-static_assert(static_cast<int>(MatchPhase::FirstHalf) == 0, "ABI: first half");
-static_assert(static_cast<int>(MatchPhase::HalfTime) == 1, "ABI: half time");
-static_assert(static_cast<int>(MatchPhase::SecondHalf) == 2, "ABI: second half");
-static_assert(static_cast<int>(MatchPhase::FullTime) == 3, "ABI: full time");
-
 using namespace football::log;
 
 // The opaque handle is bound to one runner, which owns one match and one worker.
@@ -48,9 +42,12 @@ football_session* FOOTBALL_CALL football_session_create(
 }
 
 void FOOTBALL_CALL football_session_destroy(football_session* session) noexcept {
-  if (session == nullptr) return;
-  Info(Channel::capi, "football_session_destroy released a session");
-  delete session;  // stops and joins the runner before releasing the match
+  if (session != nullptr) {
+    Info(Channel::capi, "football_session_destroy released a session");
+    delete session;  // stops and joins the runner before releasing the match
+  }
+  // Teardown also publishes the buffered log, so a host never flushes by hand.
+  Flush();
 }
 
 void FOOTBALL_CALL football_resume(football_session* session) noexcept {
@@ -70,15 +67,4 @@ int FOOTBALL_CALL football_running(const football_session* session) noexcept {
 int FOOTBALL_CALL football_finished(const football_session* session) noexcept {
   return session && session->runner.Environment().Finished() ? 1 : 0;
 }
-
-uint64_t FOOTBALL_CALL football_ticks(const football_session* session) noexcept {
-  return session ? session->runner.Environment().Ticks().value : 0;
-}
-
-int FOOTBALL_CALL football_phase(const football_session* session) noexcept {
-  return session ? static_cast<int>(session->runner.Environment().Phase()) : 0;
-}
-
-void FOOTBALL_CALL football_flush(void) noexcept { Flush(); }
-
 }  // extern "C"

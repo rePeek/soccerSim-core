@@ -148,8 +148,8 @@ unittests/
   never a singleton.
 - Every match is independent: no static or thread-local simulation state and no
   RNG, so any number may run at once and identical inputs give identical results.
-  The only process-wide piece is the log, which is thread-safe; per-match teardown
-  must not flush it, so a host calls `football_flush()` once before exiting.
+  The only process-wide piece is the log, which is thread-safe; destroying a
+  session flushes it, so no separate flush call exists.
 - No frame or observation delivery exists yet. Do not reintroduce chunk or
   snapshot-stream APIs until that boundary is designed: the C ABI today exposes
   lifecycle, `resume`/`pause` and published progress only.

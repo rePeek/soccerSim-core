@@ -37,8 +37,9 @@ FOOTBALL_API football_session* FOOTBALL_CALL football_session_create(
     const football_pitch_model* pitch_model,
     const football_ball_model* ball_model) FOOTBALL_NOEXCEPT;
 
-/* Stops the loop, joins it and releases the session. NULL is ignored; a handle
- * must be destroyed exactly once, before the process exits. */
+/* Stops the loop, joins it, releases the session and writes every buffered
+ * log entry. NULL is ignored; a handle must be destroyed exactly once,
+ * before the process exits. */
 FOOTBALL_API void FOOTBALL_CALL football_session_destroy(
     football_session* session) FOOTBALL_NOEXCEPT;
 
@@ -50,20 +51,11 @@ FOOTBALL_API void FOOTBALL_CALL football_pause(
     football_session* session) FOOTBALL_NOEXCEPT;
 
 /* Published progress: written by the loop, readable from any thread. A NULL
- * handle reports neither running nor finished, and 0 ticks. */
+ * handle reports neither running nor finished. */
 FOOTBALL_API int FOOTBALL_CALL football_running(
     const football_session* session) FOOTBALL_NOEXCEPT;
 FOOTBALL_API int FOOTBALL_CALL football_finished(
     const football_session* session) FOOTBALL_NOEXCEPT;
-FOOTBALL_API uint64_t FOOTBALL_CALL football_ticks(
-    const football_session* session) FOOTBALL_NOEXCEPT;
-/* MatchPhase as a plain integer: 0 first half, 1 half time, 2 second half,
- * 3 full time. */
-FOOTBALL_API int FOOTBALL_CALL football_phase(
-    const football_session* session) FOOTBALL_NOEXCEPT;
-
-/* Writes every buffered log entry; call once before the process exits. */
-FOOTBALL_API void FOOTBALL_CALL football_flush(void) FOOTBALL_NOEXCEPT;
 
 #ifdef __cplusplus
 }
