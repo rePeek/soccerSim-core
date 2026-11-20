@@ -14,10 +14,10 @@ rules that are true *now*.
   one Ball on one Pitch, the tick cursor and the derived match boundaries; it
   advances only when someone calls `Step()`
 - `src/runner.cpp` / `include/football/runner.hpp` — `football::runner`: the
-  execution side. `SingleRunner` owns one match and one worker, and holds
-  play/pause
+  execution side. `SingleRunner` owns one match and plays it to full time in
+  its constructor
 - `capi.h` / `capi.cpp` — C ABI adapter for C and C#; one handle per match, model
-  values, lifecycle and the control/progress surface
+  values and lifecycle only
 - `models.h` — single C header: model layouts/defaults plus C++ aliases
 
 There is no match clock, team, player, referee, event, observation, AI or
@@ -106,16 +106,13 @@ unittests/
   pitch and the tick cursor, advanced only by `Step()`. It holds no
   thread, lock, flag or notion of playing, so the same object works for a live
   host, a batch run and a future branch search alike.
-- Playing, pausing and stopping are the executor's state, not the match's. The
-  executor (`football::runner::SingleRunner`) owns its `Env` and one worker and
-  knows nothing about time or match state: it only decides whether the loop keeps
-  calling `Step()`. `IsRunning()` is the whole of what it reports - asked to run and
-  the worker is alive - and it says nothing about the tick.
-- The match is read through `Environment()`, and only at a quiescent point:
-  `Pause()` returns once the worker is parked, and a loop that reached full time
-  has ended. Nothing is published or duplicated, so a host that wants live progress
-  while the match runs has to wait for the loop to end first. Pacing to real time or
-  per-frame tick budgets belong to the host, not to the core.
+- The executor owns its match and nothing else. The executor
+  (`football::runner::SingleRunner`) plays `Env` to full time in its
+  constructor: it holds no play/pause/stop state and reports nothing about the
+  tick.
+- The match is read through `Environment()` once the run has ended, which is
+  before the runner exists. Nothing is published or duplicated. Pacing to real
+  time or per-frame tick budgets belong to the host, not to the core.
 - Match boundaries are derived from the cursor and then cached: `Env::Step()` is the
   only writer of both the tick and the `MatchPhase` it mirrors, so `Phase()` is a
   plain read that can never disagree with `Ticks()`. Both come from the single
@@ -132,13 +129,10 @@ unittests/
   is the bounded form and stops at full time on its own.
 - Never let two threads touch one `Env`: it is plain state with no synchronisation,
   and time is no exception — the cursor is a plain member counted per match. The
-  runner exposes it as `Environment()`, and `Pause()` is the rendezvous that makes
-  reading it safe. Exceptions must not cross a thread boundary: the runner logs
-  them and ends its loop.
-- Teardown is thread lifetime: the loop is a `std::jthread`, so destroying the
-  runner requests stop and joins, and a parked loop is woken through the stop
-  token rather than a simulation flag. The runner is declared after the `Env` it
-  drives so it is destroyed first.
+  runner exposes it as `Environment()` only after its run has ended. Exceptions
+  must not cross a host call: the runner logs them and stops the run.
+- There is no worker: the run is the constructor, so nothing is left to join or
+  wake. The runner is declared after the `Env` it owns.
 - `PitchModel` / `BallModel` alias the C structs defined once in `models.h`;
   never duplicate model layouts. Initialize every field explicitly: `{}`
   produces zeros in C++ too, not physical defaults.
@@ -146,7 +140,7 @@ unittests/
   and exception translation remain.
 - C ABI headers must compile as C; keep C++ types and exceptions behind the
   adapter. Model structs are caller-owned values; the adapter owns one match per
-  `football_session` handle — a `SingleRunner` owning one match and one worker —
+  `football_session` handle — a `SingleRunner` owning one match —
   never a singleton.
 - Every match is independent: no static or thread-local simulation state and no
   RNG, so any number may run at once and identical inputs give identical results.
@@ -154,6 +148,6 @@ unittests/
   session flushes it, so no separate flush call exists.
 - No frame or observation delivery exists yet. Do not reintroduce chunk or
   snapshot-stream APIs until that boundary is designed: the C ABI today exposes
-  lifecycle, `resume`/`pause` and published progress only.
+  lifecycle only.
 - Do not reintroduce animation, player, team, referee, event, observation or AI
   code without a deliberate architecture decision.

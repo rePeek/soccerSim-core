@@ -41,8 +41,8 @@ add_subdirectory(src/pitch)
 add_subdirectory(src/ball)
 
 # Minimal public environment: Ball physics on a Pitch, no match or actor layer.
-# Env is the synchronous match; AsyncRunner drives it on a thread of its own, so
-# the host only posts requests and reads published progress.
+# Env is the synchronous match; the runner plays it to full time, so the C ABI
+# only creates and releases sessions.
 add_library(simcore SHARED src/env.cpp src/runner.cpp src/capi.cpp)
 add_library(football::simcore ALIAS simcore)
 # The C ABI is the only supported contract. env.hpp and runner.hpp stay plain

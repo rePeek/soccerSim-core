@@ -16,34 +16,21 @@ int main(void) {
   football_session_destroy(NULL);
   if (football_session_create(NULL, &ball) != NULL) return 1;
   if (football_session_create(&pitch, NULL) != NULL) return 2;
-  if (football_running(NULL) != 0) return 3;
 
-  /* Two handles are two independent matches, both paused at the start. */
+  /* A handle is one match; two handles are two independent matches. */
   football_session* a = football_session_create(&pitch, &ball);
   football_session* b = football_session_create(&pitch, &ball);
-  if (a == NULL || b == NULL) return 7;
-  if (a == b) return 8;
-
-  if (football_running(a) != 0) return 9;
-
-  /* Pausing a fresh environment is a no-op it can report, and a paused handle
-   * never advances on its own. */
-  football_pause(a);
-  football_pause(b);
-  if (football_running(a) != 0 || football_running(b) != 0) return 12;
-
-  /* A handle identifies its own match: destroying one stops, joins and releases
-   * only that environment, so the other stays alive and readable. */
-  football_session_destroy(b);
-  if (football_running(a) != 0) return 21;
+  if (a == NULL || b == NULL) return 3;
+  if (a == b) return 4;
 
   /* Models are copied on create, so zeroing the caller's structs is harmless. */
   memset(&pitch, 0, sizeof(pitch));
   memset(&ball, 0, sizeof(ball));
   football_session* c = football_session_create(&pitch, &ball);
-  if (c == NULL) return 24;
+  if (c == NULL) return 5;
 
   football_session_destroy(c);
+  football_session_destroy(b);
   football_session_destroy(a);
 
   return 0;
