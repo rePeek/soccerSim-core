@@ -1,8 +1,6 @@
-# The runner is a library-internal layer (src/), so the suite links simcore and
-# adds the private src include directory to reach runner.hpp.
+# The runner is a library-internal layer, so the suite links simcore to reach
+# its implementation through the shared library.
 add_executable(football_runner_unit_tests runner_test.cpp)
-
-target_include_directories(football_runner_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(football_runner_unit_tests
   PRIVATE
     football::simcore

@@ -4,7 +4,7 @@
 
 #include "football/env.hpp"
 #include "football/log/log.hpp"
-#include "runner/runner.hpp"
+#include "football/runner.hpp"
 
 using namespace football::log;
 
@@ -60,11 +60,5 @@ void FOOTBALL_CALL football_pause(football_session* session) noexcept {
 
 int FOOTBALL_CALL football_running(const football_session* session) noexcept {
   return session && session->runner.IsRunning() ? 1 : 0;
-}
-
-/* Progress reads the match the runner owns, so call football_pause() first (it
- * returns once the worker is parked) or read it after the loop has ended. */
-int FOOTBALL_CALL football_finished(const football_session* session) noexcept {
-  return session && session->runner.Environment().Finished() ? 1 : 0;
 }
 }  // extern "C"

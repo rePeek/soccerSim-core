@@ -51,10 +51,8 @@ FOOTBALL_API void FOOTBALL_CALL football_pause(
     football_session* session) FOOTBALL_NOEXCEPT;
 
 /* Published progress: written by the loop, readable from any thread. A NULL
- * handle reports neither running nor finished. */
+ * handle reports not running. */
 FOOTBALL_API int FOOTBALL_CALL football_running(
-    const football_session* session) FOOTBALL_NOEXCEPT;
-FOOTBALL_API int FOOTBALL_CALL football_finished(
     const football_session* session) FOOTBALL_NOEXCEPT;
 
 #ifdef __cplusplus

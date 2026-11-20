@@ -13,8 +13,9 @@ rules that are true *now*.
 - `env.cpp` / `include/football/env.hpp` — `Env`: one match's state and rules —
   one Ball on one Pitch, the tick cursor and the derived match boundaries; it
   advances only when someone calls `Step()`
-- `src/runner/` — `football::runner`: the execution side. `SingleRunner` owns one
-  match and one worker, and holds play/pause
+- `src/runner.cpp` / `include/football/runner.hpp` — `football::runner`: the
+  execution side. `SingleRunner` owns one match and one worker, and holds
+  play/pause
 - `capi.h` / `capi.cpp` — C ABI adapter for C and C#; one handle per match, model
   values, lifecycle and the control/progress surface
 - `models.h` — single C header: model layouts/defaults plus C++ aliases
@@ -74,13 +75,14 @@ include/football/
 ├── ball/         Ball, BallState and BallSnapshot (the renderable frame)
 ├── models.h      shared C model definitions, defaults, C++ aliases
 ├── env.hpp       Env: the match state and rules
+├── runner.hpp    football::runner: SingleRunner
 └── capi.h        pure C ABI
 
 src/
 ├── foundation/   football::foundation, football::geometry, football::collision
 ├── pitch/        football::pitch
 ├── ball/         football::ball
-├── runner/       football::runner: SingleRunner
+├── runner.cpp    football::runner: SingleRunner
 ├── env.cpp       Env: the ball, the pitch and the cursor
 └── capi.cpp      C ABI adapter
 
@@ -88,7 +90,7 @@ unittests/
 ├── pitch/        pitch_unit
 ├── ball/         ball_unit
 ├── env/          env_unit (links simcore)
-├── runner/       runner_unit (links simcore, reaches src/ headers)
+├── runner/       runner_unit (links simcore)
 └── capi/         capi_unit (compiled as C)
 ```
 
