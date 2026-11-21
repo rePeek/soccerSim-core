@@ -29,8 +29,8 @@ namespace football::math {
       void Set(real xyz);
       void Set(real x, real y, real z);
       void Set(const Vector3 &vec);
-      float GetEnvCoord(int index) const;
-      void SetEnvCoord(int index, float value);
+      float GetCoord(int index) const;
+      void SetCoord(int index, float value);
 
       // ----- operator overloading
       bool operator == (const Vector3 &vector) const;

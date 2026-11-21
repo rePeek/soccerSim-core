@@ -45,7 +45,7 @@ void Vector3::Set(const Vector3 &vec) {
   coords[2] = vec.coords[2];
 }
 
-  float Vector3::GetEnvCoord(int index) const {
+  float Vector3::GetCoord(int index) const {
     switch (index) {
       case 0:
         return coords[0];
@@ -59,7 +59,7 @@ void Vector3::Set(const Vector3 &vec) {
     return 0;
   }
 
-  void Vector3::SetEnvCoord(int index, float value) {
+  void Vector3::SetCoord(int index, float value) {
     switch (index) {
       case 0:
         coords[0] = value;
