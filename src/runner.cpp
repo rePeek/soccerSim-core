@@ -9,15 +9,22 @@ using namespace football::log;
 namespace football::runner {
 
 SingleRunner::SingleRunner(pitch::PitchModel pitch_model,
-                           ball::BallModel ball_model, history::Recording recording)
-    : env_(pitch_model, ball_model, recording) {
-  thread_ = std::jthread([this](std::stop_token token) { Loop(token); });
-  Info(Channel::env, "runner worker started");
-}
+                           ball::BallModel ball_model,
+                           history::Recording recording,
+                           time::TickSpan ticks_per_step)
+    : env_(pitch_model, ball_model, recording),
+      ticks_per_step_(ticks_per_step) {}
 
 SingleRunner::~SingleRunner() {
   Stop();
   Info(Channel::env, "runner destroyed");
+}
+
+void SingleRunner::Start() {
+  if (started_) return;
+  started_ = true;
+  thread_ = std::jthread([this](std::stop_token token) { Loop(token); });
+  Info(Channel::env, "runner worker started");
 }
 
 void SingleRunner::Wait() {
@@ -42,7 +49,11 @@ const Env& SingleRunner::EnvironmentAfterJoin() const {
 void SingleRunner::Loop(std::stop_token token) {
   while (!token.stop_requested() && !env_.Finished()) {
     try {
-      env_.Step();
+      if (ticks_per_step_.value == 0) {
+        env_.Step();
+      } else {
+        env_.Step(ticks_per_step_);
+      }
     } catch (...) {
       Error(Channel::env, "runner caught an exception and stopped");
       return;

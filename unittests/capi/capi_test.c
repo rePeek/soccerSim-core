@@ -39,8 +39,9 @@ static int TestNullArguments(void) {
   football_render_snapshot original = snapshot;
 
   football_session_destroy(NULL);
-  REQUIRE(football_session_create(NULL, &ball) == NULL);
-  REQUIRE(football_session_create(&pitch, NULL) == NULL);
+  football_session_start(NULL);
+  REQUIRE(football_session_create(NULL, &ball, 0) == NULL);
+  REQUIRE(football_session_create(&pitch, NULL, 0) == NULL);
   REQUIRE(football_get_render_snapshot(NULL, 0, &snapshot) == 0);
   REQUIRE(memcmp(&snapshot, &original, sizeof(snapshot)) == 0);
   return 1;
@@ -51,8 +52,8 @@ static int TestSessionsHaveIndependentSnapshotCopies(void) {
   football_ball_model first_ball = DefaultBall();
   football_ball_model second_ball = DefaultBall();
   second_ball.radius = 0.2f;
-  football_session* first_session = football_session_create(&pitch, &first_ball);
-  football_session* second_session = football_session_create(&pitch, &second_ball);
+  football_session* first_session = football_session_create(&pitch, &first_ball, 0);
+  football_session* second_session = football_session_create(&pitch, &second_ball, 0);
   REQUIRE(first_session != NULL);
   REQUIRE(second_session != NULL);
   REQUIRE(first_session != second_session);
@@ -79,6 +80,10 @@ static int TestSessionsHaveIndependentSnapshotCopies(void) {
   REQUIRE(football_get_render_snapshot(second_session, 0, &snapshot) == 1);
   REQUIRE(snapshot.pz == second_ball.radius);
 
+  football_session_start(first_session);
+  football_session_start(first_session);
+  football_session_start(second_session);
+
   football_session_destroy(second_session);
   football_session_destroy(first_session);
   return 1;
@@ -88,7 +93,7 @@ static int TestSessionCopiesCallerOwnedModels(void) {
   football_pitch_model pitch = DefaultPitch();
   football_ball_model ball = DefaultBall();
   const float original_radius = ball.radius;
-  football_session* session = football_session_create(&pitch, &ball);
+  football_session* session = football_session_create(&pitch, &ball, 0);
   REQUIRE(session != NULL);
   memset(&pitch, 0, sizeof(pitch));
   memset(&ball, 0, sizeof(ball));
@@ -98,7 +103,7 @@ static int TestSessionCopiesCallerOwnedModels(void) {
   REQUIRE(snapshot.pz == original_radius);
   football_session_destroy(session);
 
-  football_session* zero_model_session = football_session_create(&pitch, &ball);
+  football_session* zero_model_session = football_session_create(&pitch, &ball, 0);
   REQUIRE(zero_model_session != NULL);
   football_session_destroy(zero_model_session);
   return 1;

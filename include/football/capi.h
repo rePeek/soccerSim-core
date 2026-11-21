@@ -34,7 +34,11 @@ typedef struct football_render_snapshot {
 
 FOOTBALL_API football_session* FOOTBALL_CALL football_session_create(
     const football_pitch_model* pitch_model,
-    const football_ball_model* ball_model) FOOTBALL_NOEXCEPT;
+    const football_ball_model* ball_model,
+    uint64_t ticks_per_step) FOOTBALL_NOEXCEPT;
+
+FOOTBALL_API void FOOTBALL_CALL football_session_start(
+    football_session* session) FOOTBALL_NOEXCEPT;
 
 FOOTBALL_API void FOOTBALL_CALL football_session_destroy(
     football_session* session) FOOTBALL_NOEXCEPT;
