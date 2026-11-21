@@ -10,9 +10,9 @@ rules that are true *now*.
 - `foundation` — math, time, geometry and generic collision primitives
 - `pitch` — pitch description and static physics scene
 - `ball` — authoritative ball model, physics and contact response
-- `env.cpp` / `include/football/env.hpp` — `Env`: one match's state and rules —
-  one Ball on one Pitch, the tick cursor and the derived match boundaries; it
-  advances only when someone calls `Step()`
+- `env.cpp` / `include/football/env.hpp` — `football::Env`: one match's state and
+  rules — one Ball on one Pitch, the tick cursor and the derived match boundaries;
+  it advances only when someone calls `Step()`
 - `src/runner.cpp` / `include/football/runner.hpp` — `football::runner`: the
   execution side. `SingleRunner` owns one match and the worker that plays it to
   full time
@@ -104,8 +104,8 @@ unittests/
 - Do not add a dependency from a leaf module back to `env`/`simcore`.
 - Keep `Pitch` free of match/rules/actor concepts; it owns geometry and the
   static physics scene only.
-- `Ball` is the only authority for ball state. `Env` is one match: the ball, the
-  pitch and the tick cursor, advanced only by `Step()`. It holds no
+- `Ball` is the only authority for ball state. `football::Env` is one match: the
+  ball, the pitch and the tick cursor, advanced only by `Step()`. It holds no
   thread, lock, flag or notion of playing, so the same object works for a live
   host, a batch run and a future branch search alike.
 - The executor owns its match and nothing else. The executor

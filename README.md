@@ -4,8 +4,8 @@ A minimal deterministic C++23 football **ball-physics core**:
 
 - `Pitch` owns the pitch description and the static physics scene.
 - `Ball` owns the authoritative ball state, integration and contact response.
-- `Env` is one match: the ball, the pitch, the tick cursor and the derived match
-  phase, advanced only by `Step()`.
+- `football::Env` is one match: the ball, the pitch, the tick cursor and the
+  derived match phase, advanced only by `Step()`.
 - `football::runner::SingleRunner` owns one match and the worker that plays it.
 - The C ABI is one handle over one runner.
 

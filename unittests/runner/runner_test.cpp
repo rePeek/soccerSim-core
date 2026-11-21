@@ -8,6 +8,10 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/runner.hpp"
 
+using football::ball::BallModel;
+using football::pitch::PitchModel;
+using football::kFullTime;
+using football::MatchPhase;
 using football::runner::SingleRunner;
 
 namespace {

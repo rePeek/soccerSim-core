@@ -6,15 +6,13 @@
 #include "football/foundation/time/tick.hpp"
 #include "football/pitch/pitch.hpp"
 
-using namespace football::ball;
-using namespace football::pitch;
-using namespace football::time;
+namespace football {
 
 // Default half and full time: 270000 and 540000 ticks = 45 and 90 minutes at
 // the native 100 Hz rate. There is no clock or added time: both boundaries are
 // fixed tick counts, and the last simulated tick is kFullTime - 1.
-inline constexpr Tick kHalfTime{Minutes(45).value};
-inline constexpr Tick kFullTime{Minutes(90).value};
+inline constexpr time::Tick kHalfTime{time::Minutes(45).value};
+inline constexpr time::Tick kFullTime{time::Minutes(90).value};
 static_assert(kHalfTime.value == 270000, "45 minutes at 100 Hz");
 static_assert(kFullTime.value == 540000, "90 minutes at 100 Hz");
 
@@ -43,7 +41,7 @@ constexpr MatchPhase PhaseOfTick(std::uint64_t tick) {
 // executor has stopped, never while its loop runs.
 class Env {
  public:
-  explicit Env(PitchModel pitch_model, BallModel ball_model);
+  explicit Env(pitch::PitchModel pitch_model, ball::BallModel ball_model);
   ~Env();
 
   Env(const Env&) = delete;
@@ -56,16 +54,18 @@ class Env {
   void Step();
   // The same step, repeated: advances up to `duration` ticks, stopping at full
   // time.
-  void Step(TickSpan duration);
+  void Step(time::TickSpan duration);
 
-  Tick Ticks() const;
+  time::Tick Ticks() const;
   MatchPhase Phase() const;
   bool Finished() const;
 
  private:
-  Pitch pitch_;
-  Ball ball_;
-  Tick tick_{0};
+  pitch::Pitch pitch_;
+  ball::Ball ball_;
+  time::Tick tick_{0};
   // Mirrors the cursor so Phase() is a plain read; Step() is the only writer.
   MatchPhase phase_{MatchPhase::FirstHalf};
 };
+
+}  // namespace football

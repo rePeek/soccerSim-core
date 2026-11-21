@@ -6,6 +6,13 @@
 #include "football/env.hpp"
 #include "football/foundation/time/tick.hpp"
 
+using football::ball::BallModel;
+using football::pitch::PitchModel;
+using football::Env;
+using football::kFullTime;
+using football::kHalfTime;
+using football::MatchPhase;
+using football::PhaseOfTick;
 using football::time::Tick;
 using football::time::TickSpan;
 using Catch::Approx;

@@ -6,7 +6,7 @@ using namespace football::log;
 
 namespace football::runner {
 
-SingleRunner::SingleRunner(PitchModel pitch_model, BallModel ball_model)
+SingleRunner::SingleRunner(pitch::PitchModel pitch_model, ball::BallModel ball_model)
     : env_(pitch_model, ball_model) {
   // The worker is the only executor, so construction starts it and returns: a
   // host never waits for a match to be played, and no control surface is needed to
