@@ -15,12 +15,12 @@ rules that are true *now*.
   `Ball`, `Env` or the runner
 - `env.cpp` / `include/football/env.hpp` — `football::Env`: one match's state and
   rules — one Ball on one Pitch, the tick cursor and the derived match boundaries;
-  it advances only when someone calls `Step()`
+  it advances only through `LoopMain()`
 - `src/runner.cpp` / `include/football/runner.hpp` — `football::runner`: the
   execution side. `SingleRunner` owns one match and the worker that plays it to
-  full time
+  its tick limit or full time
 - `capi.h` / `capi.cpp` — C ABI adapter for C and C#; one handle per match, model
-  values, lifecycle and copied render snapshots
+  values, start, lifecycle and copied render snapshots
 - `models.h` — single C header: model layouts/defaults plus C++ aliases
 
 There is no match clock, team, player, referee, event, observation, AI or
@@ -127,9 +127,10 @@ unittests/
 - Keep `Pitch` free of match/rules/actor concepts; it owns geometry and the
   static physics scene only.
 - `Ball` is the only authority for ball state. `football::Env` is one match: the
-  ball, the pitch and the tick cursor, advanced only by `Step()`. It holds no
-  thread, lock, flag or notion of playing, so the same object works for a live
-  host, a batch run and a future branch search alike.
+  ball, the pitch and the tick cursor, advanced only by `LoopMain()` (its
+  one-tick `Step()` is private). It holds no thread, lock, flag or notion of
+  playing, so the same object works for a live host, a batch run and a future
+  branch search alike.
 - `football::history::History` records what a match looked like: the caller hands
   it the authoritative `BallState` and the committed tick, so it never pulls state
   and never depends on `Ball`, `Env` or the runner. Recording is fixed at
@@ -144,39 +145,41 @@ unittests/
   appending. `ReadSnapshot()` uses that Tick/index invariant and returns a copied
   `std::optional<Snapshot>` under the same mutex as recording.
 - The executor owns its match and nothing else. The executor
-  (`football::runner::SingleRunner`) plays `Env` to full time on a worker thread:
-  it holds no play/pause state and reports nothing about the tick; `Wait()` joins
-  the worker and `Stop()` ends it, both one-way.
+  (`football::runner::SingleRunner`) does not play until `Start()`; then it runs
+  `Env::LoopMain(tick_limit)` on a worker thread and has no stepping loop of its
+  own. It holds no play/pause state and reports nothing about the tick; `Wait()`
+  and the destructor join the worker, so a running match always finishes before
+  its `Env` is destroyed, and `Start()` is one-shot.
 - `runner.history().ReadSnapshot(tick)` is the concurrent read path and returns
   a copied frame. History exposes no raw Chunk accessor; its Chunk stays internal.
   `EnvironmentAfterJoin()` returns only `const Env&` and throws `std::logic_error`
-  until the worker is joined by `Wait()` or `Stop()`, even if execution has already
-  finished. Lifecycle calls, environment access and destruction must be serialised
-  by the host; history reads may run concurrently while the runner stays alive.
-  Host pacing stays outside the core.
-- Match boundaries are derived from the cursor and then cached: `Env::Step()` is the
-  only writer of both the tick and the `MatchPhase` it mirrors, so `Phase()` is a
-  plain read that can never disagree with `Ticks()`. Both come from the single
-  `PhaseOfTick()` rule, which yields `FirstHalf`, the single tick of `HalfTime` at
-  `kHalfTime`, `SecondHalf`, and `FullTime` from `kFullTime` onwards (saturating, so
-  it stays full time past the horizon). A host that wants a break to last simply
-  holds the match at the half-time tick.
+  while the worker is running, even if execution has already finished; it is
+  readable before `Start()` and after `Wait()`. Lifecycle calls, environment
+  access and destruction must be serialised by the host; history reads may run
+  concurrently while the runner stays alive. Host pacing stays outside the core.
+- Match boundaries are derived from the cursor and then cached: the one-tick
+  `Step()` is the only writer of both the tick and the `MatchPhase` it mirrors,
+  so `Phase()` is a plain read that can never disagree with `Ticks()`. Both come
+  from the `PhaseOfTick()` rule, which yields `FirstHalf`, the single tick of
+  `HalfTime` at `kHalfTime`, `SecondHalf`, and `FullTime` from `kFullTime`
+  onwards (saturating, so it stays full time past the horizon). A host that
+  wants a break to last simply holds the match at the half-time tick.
   A match is always 90 minutes at 100 Hz (540000 ticks) with half time at 45
   (270000), both fixed constants rather than configuration. There is no clock,
   break, ceremony, change of ends or added time: half time is only the tick where
   the halves meet, and the last simulated tick is `kFullTime - 1`.
-- `Step()` does not police the horizon: it advances exactly one tick and the
-  executor stops calling it once `Finished()` reports full time. `Step(duration)`
-  is the bounded form and stops at full time on its own.
+- `Step()` is private: it advances exactly one tick and does not police the
+  horizon. `LoopMain(tick_limit)` is the only public advance; it stops at full
+  time or after `tick_limit` ticks, whichever comes first, and a zero limit
+  plays the whole match.
 - Never read or mutate live `Env` state concurrently with its executor; the
   cursor and phase are plain state. The sole concurrent read exception is the
   synchronised `History::ReadSnapshot()` path, which does not read live state.
-  Exceptions must not cross the thread boundary: the runner logs them and stops.
-- One match, one worker: only the loop advances `Env`. `Stop()` requests stop
-  and joins, and the destructor does the same, so a live session is left where
-  its loop stopped instead of being waited for. `Env` outlives the thread and
-  stays readable. The runner is declared after
-  the `Env` it owns.
+  Exceptions must not cross the thread boundary: the match logs them and the
+  loop stops.
+- One match, one worker: only the loop advances `Env`, and there is no external
+  stop. `Wait()` and the destructor join it, so a live session is always played
+  out before its `Env` dies. The runner is declared after the `Env` it owns.
 - `PitchModel` / `BallModel` alias the C structs defined once in `models.h`;
   never duplicate model layouts. Initialize every field explicitly: `{}`
   produces zeros in C++ too, not physical defaults.

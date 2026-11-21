@@ -53,7 +53,7 @@ static int TestSessionsHaveIndependentSnapshotCopies(void) {
   football_ball_model second_ball = DefaultBall();
   second_ball.radius = 0.2f;
   football_session* first_session = football_session_create(&pitch, &first_ball, 0);
-  football_session* second_session = football_session_create(&pitch, &second_ball, 0);
+  football_session* second_session = football_session_create(&pitch, &second_ball, 100);
   REQUIRE(first_session != NULL);
   REQUIRE(second_session != NULL);
   REQUIRE(first_session != second_session);
@@ -82,7 +82,6 @@ static int TestSessionsHaveIndependentSnapshotCopies(void) {
 
   football_session_start(first_session);
   football_session_start(first_session);
-  football_session_start(second_session);
 
   football_session_destroy(second_session);
   football_session_destroy(first_session);

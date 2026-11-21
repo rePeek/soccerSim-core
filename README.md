@@ -5,7 +5,7 @@ A minimal deterministic C++23 football **ball-physics core**:
 - `Pitch` owns the pitch description and the static physics scene.
 - `Ball` owns the authoritative ball state, integration and contact response.
 - `football::Env` is one match: the ball, the pitch, the tick cursor and the
-  derived match phase, advanced only by `Step()`.
+  derived match phase, advanced only by `LoopMain()`.
 - `football::runner::SingleRunner` owns one match and the worker that plays it.
 - `football::history` records 64-byte state frames of a match in-process.
 - The C ABI is one handle over one runner.
@@ -43,8 +43,10 @@ int main(void) {
   football_ball_model ball = {
       .mass = 0.43f, .radius = 0.11f, .magnus_coefficient = 0.02f};
 
-  football_session* session = football_session_create(&pitch, &ball);
+  football_session* session = football_session_create(&pitch, &ball, 0);
   if (session == NULL) return 1;
+
+  football_session_start(session);
 
   football_render_snapshot snapshot;
   if (!football_get_render_snapshot(session, 0, &snapshot)) {
@@ -57,11 +59,13 @@ int main(void) {
 }
 ```
 
-A handle owns one match and its loop thread: `football_session_create` starts
-the match on a worker and returns, while `football_session_destroy` stops and
-joins that loop, releases the match and writes the buffered log. A match is
-always 90 minutes at 100 Hz (540000 ticks) with half time at 45, and a NULL model
-or a loop thread that cannot start makes creation return NULL.
+A handle owns one match and its loop thread: `football_session_create` prepares
+the match and copies the models, `football_session_start` begins the loop once,
+and `football_session_destroy` joins that loop - so it returns once the run ends -
+releases the match and writes the buffered log. The third argument bounds the
+run: the loop stops after that many ticks or at full time, whichever comes first;
+zero plays the whole match. A match is always 90 minutes at 100 Hz (540000 ticks)
+with half time at 45, and a NULL model makes creation return NULL.
 
 `football_get_render_snapshot(session, tick, output)` copies one recorded pose
 while the worker runs. It returns 1 on success, or 0 for a NULL argument or an
@@ -120,25 +124,26 @@ unittests/
 - `Ball` is the only authority for ball state.
 - `Pitch` owns geometry and the static scene only; no rules or actors.
 - `Env` holds no thread, lock or play state: one executor owns it and only
-  `Step()` advances it.
+  `LoopMain()` advances it; its one-tick `Step()` is private.
 - `football::history` records 64-byte `Snapshot` frames of state handed to it by
   `Env`; a full match is ~33 MiB, reserved up front, never allocated per frame.
   Recording is fixed at construction; a disabled recorder allocates nothing.
   `Recording::Enabled` and `Recording::Disabled` make that choice explicit.
-  `RecordSnapshot()` requires consecutive ticks starting at zero
-  and rejects gaps or duplicates with `std::invalid_argument`; `ReadSnapshot()`
-  returns a copied `std::optional<Snapshot>` indexed by Tick.
-- One match, one worker: `SingleRunner` starts the loop, `Wait()` joins a
-  finished run, `Stop()` ends one early, and the match stays readable until the
-  runner dies.
-- The C ABI exposes model values, lifecycle and copied render snapshots; `src/`
-  is never a public include directory.
+  `RecordSnapshot()` requires consecutive ticks starting at zero and rejects gaps
+  or duplicates with `std::invalid_argument`; `ReadSnapshot()` returns a copied
+  `std::optional<Snapshot>` indexed by Tick.
+- One match, one worker: `SingleRunner` does not play until `Start()`, and `Wait()`
+  or the destructor joins it, so a running match is always played out before it
+  dies. There is no external stop.
+- The C ABI exposes model values, start, lifecycle and copied render snapshots;
+  `src/` is never a public include directory.
 - `Chunk` remains private storage inside History, with no raw accessors.
   `runner.history().ReadSnapshot(tick)` copies recorded frames safely while the
-  worker runs. `runner.EnvironmentAfterJoin()` returns only `const Env&` after
-  `Wait()` or `Stop()` joins the worker, and throws `std::logic_error` before that.
-  Lifecycle operations, environment access and destruction must be serialised
-  by the host; concurrent history reads require the runner to remain alive.
+  worker runs. `runner.EnvironmentAfterJoin()` returns only `const Env&` before
+  `Start()` or after `Wait()` joins the worker, and throws `std::logic_error`
+  while the worker runs. Lifecycle operations, environment access and destruction
+  must be serialised by the host; concurrent history reads require the runner to
+  remain alive.
 
 ## Math conventions
 

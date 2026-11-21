@@ -11,9 +11,9 @@ using namespace football::log;
 struct football_session {
   football_session(const football_pitch_model& pitch_model,
                    const football_ball_model& ball_model,
-                   std::uint64_t ticks_per_step)
+                   std::uint64_t tick_limit)
       : runner(pitch_model, ball_model, football::history::Recording::Enabled,
-               football::time::TickSpan{ticks_per_step}) {}
+               football::time::TickSpan{tick_limit}) {}
 
   football::runner::SingleRunner runner;
 };
@@ -23,7 +23,7 @@ extern "C" {
 football_session* FOOTBALL_CALL football_session_create(
     const football_pitch_model* pitch_model,
     const football_ball_model* ball_model,
-    uint64_t ticks_per_step) noexcept {
+    uint64_t tick_limit) noexcept {
   if (pitch_model == nullptr || ball_model == nullptr) {
     Warning(Channel::capi, "football_session_create ignored a NULL model");
     return nullptr;
@@ -31,7 +31,7 @@ football_session* FOOTBALL_CALL football_session_create(
 
   try {
     auto* handle =
-        new football_session(*pitch_model, *ball_model, ticks_per_step);
+        new football_session(*pitch_model, *ball_model, tick_limit);
     Info(Channel::capi, "football_session_create completed");
     return handle;
   } catch (...) {

@@ -34,8 +34,7 @@ class Env {
   Env(Env&&) = delete;
   Env& operator=(Env&&) = delete;
 
-  void Step();
-  void Step(time::TickSpan duration);
+  void LoopMain(time::TickSpan tick_limit);
 
   const history::History& history() const { return history_; }
 
@@ -44,6 +43,8 @@ class Env {
   bool Finished() const;
 
  private:
+  void Step();
+
   pitch::Pitch pitch_;
   ball::Ball ball_;
   history::History history_;

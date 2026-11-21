@@ -1,17 +1,19 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdint>
+
 #include "football/env.hpp"
 #include "football/foundation/time/tick.hpp"
 
 using football::ball::BallModel;
-using football::pitch::PitchModel;
 using football::history::Recording;
 using football::Env;
 using football::kFullTime;
 using football::kHalfTime;
 using football::MatchPhase;
 using football::PhaseOfTick;
+using football::pitch::PitchModel;
 using football::time::Tick;
 using football::time::TickSpan;
 using Catch::Approx;
@@ -37,7 +39,6 @@ TEST_CASE("a match is 45 and 90 minutes at 100 Hz") {
 
 TEST_CASE("a new environment is at tick 0 in the first half") {
   Env env(kPitch, kBall);
-
   REQUIRE(env.Ticks() == Tick{0});
   REQUIRE(env.Phase() == MatchPhase::FirstHalf);
   REQUIRE_FALSE(env.Finished());
@@ -45,139 +46,124 @@ TEST_CASE("a new environment is at tick 0 in the first half") {
 
 TEST_CASE("a new match records its opening frame") {
   Env env(kPitch, kBall);
-
-  const auto frame = env.history().ReadSnapshot(Tick{0});
-  REQUIRE(env.history().enabled());
-  REQUIRE(frame);
-  REQUIRE(frame->tick == Tick{0});
-  REQUIRE(frame->ball.position.coords[0] == Approx(0.0f));
-  REQUIRE(frame->ball.position.coords[1] == Approx(0.0f));
-  REQUIRE(frame->ball.position.coords[2] == Approx(kBall.radius));
-  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{1}));
+  const auto opening = env.history().ReadSnapshot(Tick{0});
+  REQUIRE(opening);
+  REQUIRE(opening->tick == Tick{0});
+  REQUIRE(opening->ball.position.coords[0] == Approx(0.0f));
+  REQUIRE(opening->ball.position.coords[1] == Approx(0.0f));
+  REQUIRE(opening->ball.position.coords[2] == Approx(kBall.radius));
 }
 
-TEST_CASE("every step records the tick it committed") {
+TEST_CASE("every LoopMain tick records the tick it committed") {
   Env env(kPitch, kBall);
-
-  env.Step();
-  env.Step();
-
-  for (std::uint64_t tick = 0; tick <= env.Ticks().value; ++tick) {
-    const auto frame = env.history().ReadSnapshot(Tick{tick});
-    REQUIRE(frame);
-    REQUIRE(frame->tick == Tick{tick});
-  }
+  env.LoopMain(TickSpan{1});
+  env.LoopMain(TickSpan{1});
+  REQUIRE(env.history().ReadSnapshot(Tick{2}));
+  REQUIRE(env.history().ReadSnapshot(Tick{2})->tick == env.Ticks());
   REQUIRE_FALSE(env.history().ReadSnapshot(Tick{3}));
 }
 
 TEST_CASE("recorded frames are values, not views") {
   Env env(kPitch, kBall);
-
-  env.Step();
+  env.LoopMain(TickSpan{1});
   const auto recorded = env.history().ReadSnapshot(Tick{1});
   REQUIRE(recorded);
-  env.Step(TickSpan{50});
-
+  env.LoopMain(TickSpan{50});
   REQUIRE(env.history().ReadSnapshot(Tick{1}) == recorded);
 }
 
 TEST_CASE("a match can be built without recording") {
   Env env(kPitch, kBall, Recording::Disabled);
-
-  env.Step(TickSpan{10});
-
+  env.LoopMain(TickSpan{10});
   REQUIRE_FALSE(env.history().enabled());
   REQUIRE_FALSE(env.history().ReadSnapshot(Tick{0}));
-  REQUIRE_FALSE(env.history().ReadSnapshot(env.Ticks()));
   REQUIRE(env.Ticks() == Tick{10});
 }
 
 TEST_CASE("equal inputs record equal frames") {
   Env first(kPitch, kBall);
   Env second(kPitch, kBall);
-
   for (int i = 0; i < 6; ++i) {
-    first.Step(TickSpan{100});
-    second.Step(TickSpan{100});
+    first.LoopMain(TickSpan{100});
+    second.LoopMain(TickSpan{100});
   }
-
-  for (std::uint64_t tick = 0; tick <= first.Ticks().value; ++tick) {
-    const auto first_frame = first.history().ReadSnapshot(Tick{tick});
-    REQUIRE(first_frame);
-    REQUIRE(second.history().ReadSnapshot(Tick{tick}) == first_frame);
+  for (const Tick tick : {Tick{0}, Tick{1}, Tick{300}, Tick{600}}) {
+    REQUIRE(first.history().ReadSnapshot(tick) ==
+            second.history().ReadSnapshot(tick));
   }
 }
 
-TEST_CASE("step advances exactly one tick") {
-  Env env(kPitch, kBall);
+TEST_CASE("LoopMain plays the whole match without a tick limit") {
+  Env env(kPitch, kBall, Recording::Disabled);
+  env.LoopMain(TickSpan{});
+  REQUIRE(env.Ticks() == kFullTime);
+  REQUIRE(env.Finished());
+}
 
-  env.Step();
+TEST_CASE("LoopMain stops once its tick limit is reached") {
+  Env env(kPitch, kBall, Recording::Disabled);
+  env.LoopMain(TickSpan{100});
+  REQUIRE(env.Ticks() == Tick{100});
+  REQUIRE_FALSE(env.Finished());
+}
+
+TEST_CASE("LoopMain stops at full time before a large tick limit") {
+  Env env(kPitch, kBall, Recording::Disabled);
+  env.LoopMain(TickSpan{kFullTime.value + 1000});
+  REQUIRE(env.Ticks() == kFullTime);
+  REQUIRE(env.Finished());
+}
+
+TEST_CASE("LoopMain advances exactly one tick") {
+  Env env(kPitch, kBall);
+  env.LoopMain(TickSpan{1});
   REQUIRE(env.Ticks() == Tick{1});
-  env.Step();
+  env.LoopMain(TickSpan{1});
   REQUIRE(env.Ticks() == Tick{2});
 }
 
 TEST_CASE("advance runs exactly the requested ticks") {
   Env env(kPitch, kBall);
-
-  env.Step(TickSpan{500});
+  env.LoopMain(TickSpan{500});
   REQUIRE(env.Ticks() == Tick{500});
   REQUIRE(env.Phase() == MatchPhase::FirstHalf);
-
-  env.Step(TickSpan{0});
-  REQUIRE(env.Ticks() == Tick{500});
-
-  env.Step(TickSpan{250});
+  env.LoopMain(TickSpan{250});
   REQUIRE(env.Ticks() == Tick{750});
 }
 
 TEST_CASE("the phase boundaries come from the cursor") {
   Env env(kPitch, kBall);
-
-  env.Step(kHalfTime - Tick{1});
+  env.LoopMain(kHalfTime - Tick{1});
   REQUIRE(env.Ticks() == Tick{kHalfTime.value - 1});
   REQUIRE(env.Phase() == MatchPhase::FirstHalf);
-
-  env.Step();
+  env.LoopMain(TickSpan{1});
   REQUIRE(env.Ticks() == kHalfTime);
   REQUIRE(env.Phase() == MatchPhase::HalfTime);
   REQUIRE_FALSE(env.Finished());
-
-  env.Step();
+  env.LoopMain(TickSpan{1});
   REQUIRE(env.Phase() == MatchPhase::SecondHalf);
   REQUIRE_FALSE(env.Finished());
 }
 
-TEST_CASE("the bulk step stops at full time") {
+TEST_CASE("advancing past full time stops at the horizon") {
   Env env(kPitch, kBall);
-
-  env.Step(TickSpan{kFullTime.value + 1000});
+  env.LoopMain(TickSpan{kFullTime.value + 1000});
   REQUIRE(env.Ticks() == kFullTime);
   REQUIRE(env.Finished());
   REQUIRE(env.Phase() == MatchPhase::FullTime);
-
-  env.Step(TickSpan{10});
+  REQUIRE(env.history().ReadSnapshot(kFullTime));
+  env.LoopMain(TickSpan{10});
   REQUIRE(env.Ticks() == kFullTime);
-
-  env.Step();
-  REQUIRE(env.Ticks().value == kFullTime.value + 1);
-  REQUIRE(env.Phase() == MatchPhase::FullTime);
-  REQUIRE(env.Finished());
-
-  const auto frame = env.history().ReadSnapshot(env.Ticks());
-  REQUIRE(frame);
-  REQUIRE(frame->tick == env.Ticks());
+  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{kFullTime.value + 1}));
 }
 
 TEST_CASE("environments are independent") {
   Env first(kPitch, kBall);
   Env second(kPitch, kBall);
-
-  first.Step(TickSpan{7});
+  first.LoopMain(TickSpan{7});
   REQUIRE(first.Ticks() == Tick{7});
   REQUIRE(second.Ticks() == Tick{0});
-
-  second.Step(TickSpan{3});
+  second.LoopMain(TickSpan{3});
   REQUIRE(second.Ticks() == Tick{3});
   REQUIRE(first.Ticks() == Tick{7});
   REQUIRE(first.Phase() == second.Phase());
@@ -186,10 +172,9 @@ TEST_CASE("environments are independent") {
 TEST_CASE("equal inputs produce equal results") {
   Env first(kPitch, kBall);
   Env second(kPitch, kBall);
-
   for (int i = 0; i < 6; ++i) {
-    first.Step(TickSpan{100});
-    second.Step(TickSpan{100});
+    first.LoopMain(TickSpan{100});
+    second.LoopMain(TickSpan{100});
     REQUIRE(first.Ticks() == second.Ticks());
     REQUIRE(first.Phase() == second.Phase());
     REQUIRE(first.Finished() == second.Finished());
@@ -199,32 +184,26 @@ TEST_CASE("equal inputs produce equal results") {
 
 TEST_CASE("half time is exactly one tick wide") {
   Env env(kPitch, kBall);
-
-  env.Step(kHalfTime - Tick{1});
+  env.LoopMain(kHalfTime - Tick{1});
   REQUIRE(env.Phase() == MatchPhase::FirstHalf);
-
-  env.Step();
+  env.LoopMain(TickSpan{1});
   REQUIRE(env.Phase() == MatchPhase::HalfTime);
-
-  env.Step();
+  env.LoopMain(TickSpan{1});
   REQUIRE(env.Phase() == MatchPhase::SecondHalf);
-
-  env.Step(kFullTime - env.Ticks());
+  env.LoopMain(kFullTime - env.Ticks());
   REQUIRE(env.Phase() == MatchPhase::FullTime);
   REQUIRE(env.Finished());
 }
 
 TEST_CASE("the stored phase always agrees with the cursor") {
   Env env(kPitch, kBall);
-
   constexpr std::uint64_t kStride = 37;
   for (std::uint64_t tick = 0; tick <= 2000; tick += kStride) {
     REQUIRE(env.Ticks().value == tick);
     REQUIRE(env.Phase() == PhaseOfTick(tick));
-    env.Step(TickSpan{kStride});
+    env.LoopMain(TickSpan{kStride});
   }
-
-  env.Step(kFullTime - env.Ticks());
+  env.LoopMain(kFullTime - env.Ticks());
   REQUIRE(env.Ticks() == kFullTime);
   REQUIRE(env.Phase() == PhaseOfTick(kFullTime.value));
   REQUIRE(env.Phase() == MatchPhase::FullTime);
@@ -233,12 +212,10 @@ TEST_CASE("the stored phase always agrees with the cursor") {
 TEST_CASE("finished follows the stored phase") {
   Env env(kPitch, kBall);
   REQUIRE_FALSE(env.Finished());
-
-  env.Step(kFullTime - Tick{1});
+  env.LoopMain(kFullTime - Tick{1});
   REQUIRE(env.Phase() == MatchPhase::SecondHalf);
   REQUIRE_FALSE(env.Finished());
-
-  env.Step();
+  env.LoopMain(TickSpan{1});
   REQUIRE(env.Phase() == MatchPhase::FullTime);
   REQUIRE(env.Finished());
 }

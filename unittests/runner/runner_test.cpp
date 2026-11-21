@@ -52,7 +52,7 @@ TEST_CASE("a runner exposes history but rejects live environment access while ru
   REQUIRE(opening);
   REQUIRE(opening->tick == Tick{0});
 
-  runner.Stop();
+  runner.Wait();
   REQUIRE(&reader.history() == &reader.EnvironmentAfterJoin().history());
 }
 
@@ -85,32 +85,16 @@ TEST_CASE("waiting before start returns immediately") {
   REQUIRE(runner.EnvironmentAfterJoin().Ticks() == Tick{0});
 }
 
-TEST_CASE("a tick span plays the same match") {
-  SingleRunner single(kPitch, kBall);
-  SingleRunner chunked(kPitch, kBall, Recording::Enabled, TickSpan{100});
-
-  single.Start();
-  chunked.Start();
-  single.Wait();
-  chunked.Wait();
-
-  REQUIRE(single.EnvironmentAfterJoin().Ticks() ==
-          chunked.EnvironmentAfterJoin().Ticks());
-  for (const Tick tick : {Tick{0}, Tick{1}, Tick{100}, kFullTime}) {
-    REQUIRE(single.history().ReadSnapshot(tick) ==
-            chunked.history().ReadSnapshot(tick));
-  }
-}
-
-TEST_CASE("stopping reaps the worker and keeps the match readable") {
-  SingleRunner runner(kPitch, kBall, Recording::Disabled);
+TEST_CASE("a tick limit stops the run") {
+  SingleRunner runner(kPitch, kBall, Recording::Enabled, TickSpan{100});
   runner.Start();
-  REQUIRE_THROWS_AS(runner.EnvironmentAfterJoin(), std::logic_error);
-  runner.Stop();
-  runner.Stop();
-  const auto stopped_at = runner.EnvironmentAfterJoin().Ticks();
   runner.Wait();
-  REQUIRE(runner.EnvironmentAfterJoin().Ticks() == stopped_at);
+
+  const auto& env = runner.EnvironmentAfterJoin();
+  REQUIRE(env.Ticks() == Tick{100});
+  REQUIRE_FALSE(env.Finished());
+  REQUIRE(runner.history().ReadSnapshot(Tick{100}));
+  REQUIRE_FALSE(runner.history().ReadSnapshot(Tick{101}));
 }
 
 TEST_CASE("runners own independent matches") {

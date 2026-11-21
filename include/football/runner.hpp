@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stop_token>
 #include <thread>
 
 #include "football/env.hpp"
@@ -12,8 +11,7 @@ class SingleRunner {
  public:
   SingleRunner(pitch::PitchModel pitch_model, ball::BallModel ball_model,
                history::Recording recording = history::Recording::Enabled,
-               time::TickSpan ticks_per_step = {});
-
+               time::TickSpan tick_limit = {});
   ~SingleRunner();
 
   SingleRunner(const SingleRunner&) = delete;
@@ -25,17 +23,13 @@ class SingleRunner {
 
   void Wait();
 
-  void Stop();
-
   const history::History& history() const;
 
   const Env& EnvironmentAfterJoin() const;
 
  private:
-  void Loop(std::stop_token token);
-
   Env env_;
-  time::TickSpan ticks_per_step_{};
+  time::TickSpan tick_limit_{};
   bool started_ = false;
   std::jthread thread_;
 };

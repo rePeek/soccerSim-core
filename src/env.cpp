@@ -27,9 +27,22 @@ void Env::Step() {
   history_.RecordSnapshot(tick_, ball_.get_state());
 }
 
-void Env::Step(time::TickSpan duration) {
-  for (std::uint64_t i = 0; i < duration.value && !Finished(); ++i) {
-    Step();
+void Env::LoopMain(time::TickSpan tick_limit) {
+  std::uint64_t advanced = 0;
+  while (!Finished() && (tick_limit.value == 0 || advanced < tick_limit.value)) {
+    try {
+      Step();
+    } catch (...) {
+      log::Error(log::Channel::env, "match caught an exception and stopped");
+      return;
+    }
+    ++advanced;
+  }
+
+  if (Finished()) {
+    log::Info(log::Channel::env, "match reached full time");
+  } else {
+    log::Info(log::Channel::env, "match reached its tick limit");
   }
 }
 
