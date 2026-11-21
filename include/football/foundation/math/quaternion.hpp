@@ -28,6 +28,7 @@ namespace football::math {
       void Set(const Quaternion &quat);
 
       // ----- operator overloading
+      bool operator == (const Quaternion &fac) const = default;
       bool operator != (const Quaternion &fac) const;
       const Quaternion operator * (float scale) const;
       Vector3 operator * (const Vector3 &fac) const;
