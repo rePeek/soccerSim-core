@@ -10,6 +10,9 @@ rules that are true *now*.
 - `foundation` — math, time, geometry and generic collision primitives
 - `pitch` — pitch description and static physics scene
 - `ball` — authoritative ball model, physics and contact response
+- `history` — `football::history`: records fixed-size `Snapshot` frames of match
+  state into a `Chunk`; callers hand it state values, so it never depends on
+  `Ball`, `Env` or the runner
 - `env.cpp` / `include/football/env.hpp` — `football::Env`: one match's state and
   rules — one Ball on one Pitch, the tick cursor and the derived match boundaries;
   it advances only when someone calls `Step()`
@@ -36,11 +39,11 @@ nix develop --command bash -c 'cmake --preset debug && cmake --build --preset de
 nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j $(nproc) && ctest --preset release'
 ```
 
-The domain suites `collision_unit`, `pitch_unit` and `ball_unit` link only
-their modules and declared dependencies, never `simcore`. The C11 `capi_unit`
-consumer links `simcore` to exercise the exported C ABI, and `env_unit` plus
-`runner_unit` link it because `Env` and `SingleRunner` are compiled into the
-shared library rather than into modules of their own.
+The domain suites `collision_unit`, `pitch_unit`, `ball_unit` and `history_unit`
+link only their modules and declared dependencies, never `simcore`. The C11
+`capi_unit` consumer links `simcore` to exercise the exported C ABI, and
+`env_unit` plus `runner_unit` link it because `Env` and `SingleRunner` are
+compiled into the shared library rather than into modules of their own.
 
 ## Coordinate and physics conventions
 
@@ -74,6 +77,7 @@ include/football/
 ├── foundation/   math/, time/, geometry/, collision/
 ├── pitch/        Pitch description and static scene
 ├── ball/         Ball and BallState
+├── history/      Snapshot, Chunk and History: frame recording
 ├── models.h      shared C model definitions, defaults, C++ aliases
 ├── env.hpp       Env: the match state and rules
 ├── runner.hpp    football::runner: SingleRunner
@@ -83,6 +87,7 @@ src/
 ├── foundation/   football::foundation, football::geometry, football::collision
 ├── pitch/        football::pitch
 ├── ball/         football::ball
+├── history/      football::history
 ├── runner.cpp    football::runner: SingleRunner
 ├── env.cpp       Env: the ball, the pitch and the cursor
 └── capi.cpp      C ABI adapter
@@ -91,6 +96,7 @@ unittests/
 ├── collision/    collision_unit
 ├── pitch/        pitch_unit
 ├── ball/         ball_unit
+├── history/      history_unit
 ├── env/          env_unit (links simcore)
 ├── runner/       runner_unit (links simcore)
 └── capi/         capi_unit (compiled as C)
@@ -108,6 +114,15 @@ unittests/
   ball, the pitch and the tick cursor, advanced only by `Step()`. It holds no
   thread, lock, flag or notion of playing, so the same object works for a live
   host, a batch run and a future branch search alike.
+- `football::history::History` records what a match looked like: the caller hands
+  it the authoritative `BallState` and the committed tick, so it never pulls state
+  and never depends on `Ball`, `Env` or the runner. Recording is fixed at
+  construction (`record`): a disabled recorder drops frames and allocates nothing.
+  Frames are 64 bytes, so a recorded match is ~33 MiB; `Env` reserves that up
+  front and never allocates per frame. Keep frames fixed-size: variable-length
+  data (events, sparse samples) belongs in a separate structure, not in
+  `Snapshot`. Never include `env.hpp` from history; a frame stores the tick only,
+  and phase stays derived.
 - The executor owns its match and nothing else. The executor
   (`football::runner::SingleRunner`) plays `Env` to full time on a worker thread:
   it holds no play/pause state and reports nothing about the tick; `Wait()` joins
@@ -155,8 +170,8 @@ unittests/
   RNG, so any number may run at once and identical inputs give identical results.
   The only process-wide piece is the log, which is thread-safe; destroying a
   session flushes it, so no separate flush call exists.
-- No frame or observation delivery exists yet. Do not reintroduce chunk or
-  snapshot-stream APIs until that boundary is designed: the C ABI today exposes
-  lifecycle only.
+- No frame or observation delivery exists yet. History records in-process frames;
+  the C ABI still exposes lifecycle only. Do not teach the runner or the C ABI
+  about frames until that delivery boundary is designed.
 - Do not reintroduce animation, player, team, referee, event, observation or AI
   code without a deliberate architecture decision.

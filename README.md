@@ -7,6 +7,7 @@ A minimal deterministic C++23 football **ball-physics core**:
 - `football::Env` is one match: the ball, the pitch, the tick cursor and the
   derived match phase, advanced only by `Step()`.
 - `football::runner::SingleRunner` owns one match and the worker that plays it.
+- `football::history` records 64-byte state frames of a match in-process.
 - The C ABI is one handle over one runner.
 
 There is no match clock, team, player, referee, event, observation, AI or
@@ -53,7 +54,8 @@ joins that loop, releases the match and writes the buffered log. A match is
 always 90 minutes at 100 Hz (540000 ticks) with half time at 45, and a NULL model
 or a loop thread that cannot start makes creation return NULL. The ABI exposes
 model values and lifecycle only: there is no play/pause, progress query or state
-access yet.
+access yet. A session records its frames in-process, but nothing delivers them
+through the ABI yet.
 
 To build the example on Linux, from the repository root:
 
@@ -69,6 +71,7 @@ include/football/
 ├── foundation/   math/, time/, geometry/, collision/
 ├── pitch/        Pitch description and static scene
 ├── ball/         Ball and BallState
+├── history/      Snapshot, Chunk and History: frame recording
 ├── models.h      shared C model definitions, defaults, C++ aliases
 ├── env.hpp       Env: the match state and rules
 ├── runner.hpp    football::runner: SingleRunner
@@ -78,6 +81,7 @@ src/
 ├── foundation/   football::foundation, football::geometry, football::collision
 ├── pitch/        football::pitch
 ├── ball/         football::ball
+├── history/      football::history
 ├── env.cpp       Env: the ball, the pitch, the cursor and the phase
 ├── runner.cpp    SingleRunner: the worker that plays one match
 └── capi.cpp      C ABI adapter
@@ -86,6 +90,7 @@ unittests/
 ├── collision/    collision_unit
 ├── pitch/        pitch_unit
 ├── ball/         ball_unit
+├── history/      history_unit
 ├── env/          env_unit
 ├── runner/       runner_unit
 └── capi/         capi_unit (compiled as C)
@@ -101,6 +106,10 @@ unittests/
 - `Pitch` owns geometry and the static scene only; no rules or actors.
 - `Env` holds no thread, lock or play state: one executor owns it and only
   `Step()` advances it.
+- `football::history` records 64-byte `Snapshot` frames of state handed to it by
+  `Env`; a full match is ~33 MiB, reserved up front, never allocated per frame.
+  Recording is fixed when the match is built and a disabled recorder allocates
+  nothing.
 - One match, one worker: `SingleRunner` starts the loop, `Wait()` joins a
   finished run, `Stop()` ends one early, and the match stays readable until the
   runner dies.
