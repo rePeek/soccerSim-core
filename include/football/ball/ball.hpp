@@ -30,13 +30,13 @@ class Ball {
   void set_state(const BallState& state) { state_ = state; }
   const BallModel& model() const { return model_; }
 
-  // Read-only projection of the renderable state into the shared wire layout:
+  // Read-only projection of the renderable state into the fixed frame layout:
   // centre position and body orientation, without velocity or spin.
   BallSnapshot Observe() const;
 
   // Predict free motion, sweep the path, then commit or stop at one impact.
-  // An impact stops at the contact point and resolves with the predicted
-  // velocity/spin; the rest of the tick is not integrated.
+  // An impact stops at the contact point and resolves the impulse from the
+  // predicted state; the rest of the tick is not integrated.
   void Step(const Pitch& pitch);
 
   // Apply impulse [N*s] at a world-space point on the ball surface. Changes

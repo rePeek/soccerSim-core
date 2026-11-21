@@ -4,7 +4,7 @@
 //
 // collision answers "did they touch, when, and from which direction". It never
 // answers "how do they move afterwards": that (impulse, restitution, friction)
-// belongs to ball/player.
+// belongs to the ball's contact response.
 
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/geometry/shapes.hpp"

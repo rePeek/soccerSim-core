@@ -3,7 +3,7 @@
 // The pitch builds the ground (a solid half-space) and the goal furniture
 // (four posts + two crossbars) once at construction, and exposes them as a
 // read-only, deterministically ordered list. These tests pin that contract
-// without creating a Ball or a Simulation.
+// without creating a Ball or an Env.
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>

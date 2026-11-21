@@ -1,13 +1,11 @@
 #pragma once
 
-
 #include "football/foundation/time/tick.hpp"
 
 namespace football::time {
 
 // Millisecond input/output adapters, not a second simulation time domain.
 // Exact conversion is intentional: rounding needs an explicit caller policy.
-// During migration these also serve the remaining legacy API shims.
 inline constexpr std::uint64_t kMillisecondsPerTick = 1000 / kTicksPerSecond;
 static_assert(1000 % kTicksPerSecond == 0);
 

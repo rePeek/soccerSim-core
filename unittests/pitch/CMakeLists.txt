@@ -1,6 +1,5 @@
 # football::pitch — domain ownership of the static pitch scene. Links only the
-# pitch module (and its geometry/foundation dependencies); no Ball, no
-# Simulation.
+# pitch module (and its geometry/foundation dependencies); no Ball, no Env.
 
 add_executable(football_pitch_unit_tests pitch_test.cpp)
 target_link_libraries(football_pitch_unit_tests

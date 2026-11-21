@@ -8,8 +8,8 @@ namespace football::time {
 
 // One simulation tick is the discrete time quantum: 1/100 s physical time.
 // New simulation timestamps, deadlines, durations and cadences use Tick or
-// TickSpan. Millisecond conversion belongs at API/config boundaries; migration
-// adapters must not silently quantize legacy sub-tick estimates or clocks.
+// TickSpan. Millisecond conversion belongs at API/config boundaries; adapters
+// must not silently quantize sub-tick estimates or clocks.
 inline constexpr std::uint64_t kTicksPerSecond = 100;
 inline constexpr float kTickSeconds = 1.0f / static_cast<float>(kTicksPerSecond);
 

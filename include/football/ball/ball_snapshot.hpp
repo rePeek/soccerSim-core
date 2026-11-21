@@ -7,8 +7,8 @@
 
 namespace football::ball {
 
-// One frame of the snapshot stream: the renderable part of BallState, position
-// and orientation only. It is written with the math types directly, so the
+// One renderable frame: the part of BallState a caller copies out, position and
+// orientation only. It is written with the math types directly, so the
 // simulation never converts, and the asserts below pin the bytes a consumer
 // maps onto its own struct: seven consecutive 32-bit floats, no padding.
 struct BallSnapshot {

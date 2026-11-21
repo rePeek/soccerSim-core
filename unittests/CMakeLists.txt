@@ -2,7 +2,8 @@
 add_subdirectory(collision)
 add_subdirectory(pitch)
 add_subdirectory(ball)
-# Env is compiled into simcore, so its suite links the shared library too.
+# Env and the runner are compiled into simcore, so their suites link the shared
+# library too.
 add_subdirectory(env)
 add_subdirectory(runner)
 add_subdirectory(capi)

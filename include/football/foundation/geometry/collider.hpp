@@ -17,7 +17,7 @@ struct ContactMaterial {
 
 // One collider: what it looks like, how it responds, and a label for logs.
 // `name` is not an identity -- it may be empty or repeated, never orders contacts
-// and never keys a lookup. Who a collider belongs to (a player, a team, a rule)
+// and never keys a lookup. Who a collider belongs to (a body, a side, a rule)
 // is knowledge the owner keeps, not something geometry carries.
 struct Collider {
   ColliderShape shape;

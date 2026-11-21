@@ -4,9 +4,9 @@
 // fixed environment (gravity, ground) and the static colliders generated
 // once at construction.
 //
-// The dependency points one way: ball/player read this scene; pitch never knows
-// about them. Rule decisions (goal, out of play, fouls) stay in the rules
-// module -- pitch only provides the geometry those decisions need.
+// The dependency points one way: the ball reads this scene; pitch never knows
+// about it. Rule decisions (goal, out of play, fouls) belong to the match --
+// pitch only provides the geometry those decisions need.
 
 #include <array>
 #include <cstddef>
@@ -20,9 +20,8 @@ namespace football::pitch {
 // Read-only pitch description in metres: x is length, y is width, and the
 // centre spot is the origin.
 //
-// Ground parameters keep the legacy empirical values, not standard Coulomb
-// coefficients, so migration to Pitch preserves the historical simulation
-// behaviour exactly.
+// Ground parameters are the empirical friction values the ball is tuned
+// against, not standard Coulomb coefficients: keep them unchanged.
 class Pitch {
  public:
   explicit Pitch(const PitchModel& model =
@@ -37,7 +36,7 @@ class Pitch {
   constexpr float goal_half_width() const { return goal_width_ * 0.5f; }
   constexpr float goal_height() const { return goal_height_; }
   constexpr float goal_depth() const { return goal_depth_; }
-  // Penalty-area geometry used by the referee and restart placement.
+  // Penalty-area geometry for rule decisions and restart placement.
   constexpr float penalty_area_depth() const { return penalty_area_depth_; }
   constexpr float penalty_mark_distance() const { return penalty_mark_distance_; }
 
@@ -56,7 +55,7 @@ class Pitch {
   }
 
   // Ground-plane bounds only. Ball radius, line crossing and restart decisions
-  // belong to the runtime simulation and referee, not this domain description.
+  // belong to the match, not this domain description.
   constexpr bool contains(float x, float y) const {
     return x >= -half_length() && x <= half_length() &&
            y >= -half_width() && y <= half_width();

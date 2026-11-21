@@ -1,6 +1,6 @@
 # football::collision — generic continuous collision queries (swept sphere vs
-# plane/sphere/capsule). Depends only on geometry + foundation; ball/player
-# keep their own material and response models on top of it.
+# plane, half-space, sphere or capsule). Depends only on geometry + foundation;
+# the ball keeps its own material and response model on top of it.
 add_library(football_collision STATIC
   sweep.cpp)
 add_library(football::collision ALIAS football_collision)

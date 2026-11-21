@@ -9,7 +9,7 @@
     {
       "name": "debug",
       "displayName": "Debug",
-      "description": "GCC with C++20 module scanning",
+      "description": "Debug build: GCC, Ninja, symbols and no optimization",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
@@ -22,7 +22,7 @@
     {
       "name": "release",
       "displayName": "Release",
-      "description": "GCC with C++20 module scanning (optimized)",
+      "description": "Release build: GCC, Ninja, optimized",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {

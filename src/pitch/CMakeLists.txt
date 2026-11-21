@@ -1,6 +1,6 @@
 # football::pitch owns the pitch description and the static physics scene
-# (ground/posts/crossbars as geometry colliders). ball and player read it;
-# pitch never depends on them, and it owns no coordinate conversion.
+# (ground/posts/crossbars as geometry colliders). the ball reads it; pitch
+# never depends on it, and it owns no coordinate conversion.
 add_library(football_pitch STATIC pitch.cpp)
 add_library(football::pitch ALIAS football_pitch)
 target_sources(football_pitch PUBLIC FILE_SET HEADERS

@@ -23,10 +23,10 @@ static_assert(kFullTime.value == 540000, "90 minutes at 100 Hz");
 enum class MatchPhase { FirstHalf, HalfTime, SecondHalf, FullTime };
 
 // The one place the boundaries are turned into a phase. `Env::Step()` calls it to
-// update the phase it stores, and anything publishing progress derives the phase
-// the same way. Half time is the single tick at kHalfTime, so a caller that wants
-// a break to last holds the match there; full time is reached at kFullTime and
-// stays.
+// update the phase it stores, so anything that reports progress derives the
+// phase from the same rule. Half time is the single tick at kHalfTime, so a
+// caller that wants a break to last holds the match there; full time is
+// reached at kFullTime and stays.
 constexpr MatchPhase PhaseOfTick(std::uint64_t tick) {
   if (tick >= kFullTime.value) return MatchPhase::FullTime;
   if (tick == kHalfTime.value) return MatchPhase::HalfTime;
@@ -39,8 +39,8 @@ constexpr MatchPhase PhaseOfTick(std::uint64_t tick) {
 // lock and no notion of playing or pausing.
 //
 // Nothing here is synchronised: one executor owns the environment and is the only
-// code that advances or reads it. A host that observes a running match reads the
-// progress its executor publishes, never this object.
+// code that advances or reads it. A host reads this object only once that
+// executor has stopped, never while its loop runs.
 class Env {
  public:
   explicit Env(PitchModel pitch_model, BallModel ball_model);
