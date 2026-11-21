@@ -221,8 +221,4 @@ void Ball::PlaceOnGround(float x, float y) {
   Info(Channel::ball, std::format("placed on ground at ({}, {})", x, y));
 }
 
-BallSnapshot Ball::Observe() const {
-  return {state_.position, state_.orientation};
-}
-
 }  // namespace football::ball

@@ -68,7 +68,7 @@ cc -std=c11 -Iinclude example.c -Lbuild/debug -lsimcore \
 include/football/
 ├── foundation/   math/, time/, geometry/, collision/
 ├── pitch/        Pitch description and static scene
-├── ball/         Ball, BallState and BallSnapshot (the renderable frame)
+├── ball/         Ball and BallState
 ├── models.h      shared C model definitions, defaults, C++ aliases
 ├── env.hpp       Env: the match state and rules
 ├── runner.hpp    football::runner: SingleRunner

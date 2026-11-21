@@ -2,7 +2,6 @@
 
 #include <optional>
 
-#include "football/ball/ball_snapshot.hpp"
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/math/vector3.hpp"
@@ -29,10 +28,6 @@ class Ball {
   BallState get_state() const { return state_; }
   void set_state(const BallState& state) { state_ = state; }
   const BallModel& model() const { return model_; }
-
-  // Read-only projection of the renderable state into the fixed frame layout:
-  // centre position and body orientation, without velocity or spin.
-  BallSnapshot Observe() const;
 
   // Predict free motion, sweep the path, then commit or stop at one impact.
   // An impact stops at the contact point and resolves the impulse from the
