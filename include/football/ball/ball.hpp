@@ -2,8 +2,8 @@
 
 #include <optional>
 
+#include "football/ball/ball_state.hpp"
 #include "football/foundation/geometry/collider.hpp"
-#include "football/foundation/math/quaternion.hpp"
 #include "football/foundation/math/vector3.hpp"
 #include "football/models.h"
 
@@ -12,13 +12,6 @@ namespace football::pitch { class Pitch; }
 namespace football::ball {
 
 using namespace football::pitch;
-
-struct BallState {
-  math::Vector3 position;
-  math::Vector3 velocity;
-  math::Vector3 angular_velocity;
-  math::Quaternion orientation;
-};
 
 class Ball {
  public:
