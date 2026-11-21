@@ -9,6 +9,7 @@ using namespace football::log;
 
 // The opaque handle is bound to one runner, which owns one match and one worker:
 // creating a session starts that loop and destroying it stops and joins the loop.
+// The match records its frames in-process; nothing delivers them over the ABI yet.
 struct football_session {
   football_session(const football_pitch_model& pitch_model,
                    const football_ball_model& ball_model)

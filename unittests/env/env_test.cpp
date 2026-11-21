@@ -41,6 +41,62 @@ TEST_CASE("a new environment is at tick 0 in the first half") {
   REQUIRE_FALSE(env.Finished());
 }
 
+TEST_CASE("a new match records its opening frame") {
+  Env env(kPitch, kBall);
+
+  const auto& frames = env.history().chunk().frames;
+  REQUIRE(env.history().enabled());
+  REQUIRE(frames.size() == 1);
+  REQUIRE(frames.front().tick == Tick{0});
+  REQUIRE(frames.front().ball.position.coords[0] == Approx(0.0f));
+  REQUIRE(frames.front().ball.position.coords[1] == Approx(0.0f));
+  REQUIRE(frames.front().ball.position.coords[2] == Approx(kBall.radius));
+}
+
+TEST_CASE("every step records the tick it committed") {
+  Env env(kPitch, kBall);
+
+  env.Step();
+  env.Step();
+
+  const auto& frames = env.history().chunk().frames;
+  REQUIRE(frames.size() == 3);
+  REQUIRE(frames.back().tick == env.Ticks());
+  REQUIRE(frames.back().tick == Tick{2});
+}
+
+TEST_CASE("recorded frames are values, not views") {
+  Env env(kPitch, kBall);
+
+  env.Step();
+  const auto recorded = env.history().chunk().frames[1].ball.position;
+  env.Step(TickSpan{50});
+
+  REQUIRE(env.history().chunk().frames[1].ball.position == recorded);
+}
+
+TEST_CASE("a match can be built without recording") {
+  Env env(kPitch, kBall, /*record=*/false);
+
+  env.Step(TickSpan{10});
+
+  REQUIRE_FALSE(env.history().enabled());
+  REQUIRE(env.history().chunk().frames.empty());
+  REQUIRE(env.Ticks() == Tick{10});
+}
+
+TEST_CASE("equal inputs record equal frames") {
+  Env first(kPitch, kBall);
+  Env second(kPitch, kBall);
+
+  for (int i = 0; i < 6; ++i) {
+    first.Step(TickSpan{100});
+    second.Step(TickSpan{100});
+  }
+
+  REQUIRE(first.history().chunk().frames == second.history().chunk().frames);
+}
+
 TEST_CASE("step advances exactly one tick") {
   Env env(kPitch, kBall);
 
@@ -100,6 +156,9 @@ TEST_CASE("the bulk step stops at full time") {
   REQUIRE(env.Ticks().value == kFullTime.value + 1);
   REQUIRE(env.Phase() == MatchPhase::FullTime);
   REQUIRE(env.Finished());
+
+  // The recorder follows the committed tick, so the overstepped tick is kept too.
+  REQUIRE(env.history().chunk().frames.back().tick == env.Ticks());
 }
 
 TEST_CASE("environments are independent") {

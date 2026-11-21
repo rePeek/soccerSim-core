@@ -39,10 +39,12 @@ add_subdirectory(src/log)
 add_subdirectory(src/foundation)
 add_subdirectory(src/pitch)
 add_subdirectory(src/ball)
+add_subdirectory(src/history)
 
 # One match: Ball physics on a Pitch, no team, player or rules layer. Env is
 # the synchronous match; the runner plays it on a worker, so the C ABI only
-# creates and releases sessions.
+# creates and releases sessions. History records frames in-process and is not
+# delivered over the ABI yet.
 add_library(simcore SHARED src/env.cpp src/runner.cpp src/capi.cpp)
 add_library(football::simcore ALIAS simcore)
 # The C ABI is the only supported contract. env.hpp and runner.hpp stay plain
@@ -55,7 +57,7 @@ target_compile_definitions(simcore PRIVATE FOOTBALL_CAPI_BUILD)
 target_include_directories(simcore PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(simcore
   PUBLIC football::ball football::pitch
-  PRIVATE football::log)
+  PRIVATE football::log football::history)
 football_configure_target(simcore)
 
 if(BUILD_TESTING)

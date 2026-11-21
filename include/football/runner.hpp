@@ -16,7 +16,8 @@ namespace football::runner {
 // that loop has ended, which is what makes reading the match safe.
 class SingleRunner {
  public:
-  SingleRunner(pitch::PitchModel pitch_model, ball::BallModel ball_model);
+  SingleRunner(pitch::PitchModel pitch_model, ball::BallModel ball_model,
+               bool record = true);
   // Stops the loop and joins it; a match short of full time is left as it was.
   ~SingleRunner();
 

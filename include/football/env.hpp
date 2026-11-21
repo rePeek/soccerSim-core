@@ -4,6 +4,7 @@
 
 #include "football/ball/ball.hpp"
 #include "football/foundation/time/tick.hpp"
+#include "football/history/history.hpp"
 #include "football/pitch/pitch.hpp"
 
 namespace football {
@@ -32,16 +33,17 @@ constexpr MatchPhase PhaseOfTick(std::uint64_t tick) {
   return MatchPhase::SecondHalf;
 }
 
-// One match's state and simulation rules: the ball, the pitch and the tick
-// cursor. It advances only when someone calls Step(), so it holds no thread, no
-// lock and no notion of playing or pausing.
+// One match's state and simulation rules: the ball, the pitch, the tick cursor
+// and the recorder. It advances only when someone calls Step(), so it holds no
+// thread, no lock and no notion of playing or pausing.
 //
 // Nothing here is synchronised: one executor owns the environment and is the only
 // code that advances or reads it. A host reads this object only once that
 // executor has stopped, never while its loop runs.
 class Env {
  public:
-  explicit Env(pitch::PitchModel pitch_model, ball::BallModel ball_model);
+  explicit Env(pitch::PitchModel pitch_model, ball::BallModel ball_model,
+               bool record = true);
   ~Env();
 
   Env(const Env&) = delete;
@@ -56,6 +58,9 @@ class Env {
   // time.
   void Step(time::TickSpan duration);
 
+  // The recorder this match owns. Empty when it was built without one.
+  const history::History& history() const { return history_; }
+
   time::Tick Ticks() const;
   MatchPhase Phase() const;
   bool Finished() const;
@@ -63,6 +68,7 @@ class Env {
  private:
   pitch::Pitch pitch_;
   ball::Ball ball_;
+  history::History history_;
   time::Tick tick_{0};
   // Mirrors the cursor so Phase() is a plain read; Step() is the only writer.
   MatchPhase phase_{MatchPhase::FirstHalf};

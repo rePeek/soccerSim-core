@@ -13,6 +13,7 @@ using football::pitch::PitchModel;
 using football::kFullTime;
 using football::MatchPhase;
 using football::runner::SingleRunner;
+using football::time::Tick;
 
 namespace {
 
@@ -28,10 +29,15 @@ TEST_CASE("a runner plays its match to full time") {
   REQUIRE(runner.Environment().Ticks() == kFullTime);
   REQUIRE(runner.Environment().Phase() == MatchPhase::FullTime);
   REQUIRE(runner.Environment().Finished());
+
+  const auto& frames = runner.Environment().history().chunk().frames;
+  REQUIRE(frames.size() == kFullTime.value + 1);
+  REQUIRE(frames.front().tick == Tick{0});
+  REQUIRE(frames.back().tick == kFullTime);
 }
 
 TEST_CASE("waiting twice is harmless") {
-  SingleRunner runner(kPitch, kBall);
+  SingleRunner runner(kPitch, kBall, /*record=*/false);
   runner.Wait();
   runner.Wait();
 
@@ -39,7 +45,7 @@ TEST_CASE("waiting twice is harmless") {
 }
 
 TEST_CASE("stopping reaps the worker and keeps the match readable") {
-  SingleRunner runner(kPitch, kBall);
+  SingleRunner runner(kPitch, kBall, /*record=*/false);
   runner.Stop();
   runner.Stop();  // idempotent
 
@@ -51,8 +57,8 @@ TEST_CASE("stopping reaps the worker and keeps the match readable") {
 }
 
 TEST_CASE("runners own independent matches") {
-  SingleRunner first(kPitch, kBall);
-  SingleRunner second(kPitch, kBall);
+  SingleRunner first(kPitch, kBall, /*record=*/false);
+  SingleRunner second(kPitch, kBall, /*record=*/false);
 
   first.Wait();
   second.Wait();
@@ -60,4 +66,13 @@ TEST_CASE("runners own independent matches") {
   REQUIRE(first.Environment().Ticks() == kFullTime);
   REQUIRE(second.Environment().Ticks() == kFullTime);
   REQUIRE(&first.Environment() != &second.Environment());
+}
+
+TEST_CASE("a runner can play without recording") {
+  SingleRunner runner(kPitch, kBall, /*record=*/false);
+  runner.Wait();
+
+  REQUIRE_FALSE(runner.Environment().history().enabled());
+  REQUIRE(runner.Environment().history().chunk().frames.empty());
+  REQUIRE(runner.Environment().Ticks() == kFullTime);
 }
