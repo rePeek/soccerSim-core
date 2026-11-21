@@ -7,8 +7,8 @@
 
 using namespace football::log;
 
-// The opaque handle is bound to one runner, which owns one match and plays it
-// to full time, so a session is complete as soon as it exists.
+// The opaque handle is bound to one runner, which owns one match and one worker:
+// creating a session starts that loop and destroying it stops and joins the loop.
 struct football_session {
   football_session(const football_pitch_model& pitch_model,
                    const football_ball_model& ball_model)
@@ -32,7 +32,7 @@ football_session* FOOTBALL_CALL football_session_create(
     Info(Channel::capi, "football_session_create completed");
     return handle;
   } catch (...) {
-    // A failed run must leave no half-built handle behind.
+    // A failed worker start must leave no half-built handle behind.
     Error(Channel::capi, "football_session_create failed");
     return nullptr;
   }
@@ -41,7 +41,7 @@ football_session* FOOTBALL_CALL football_session_create(
 void FOOTBALL_CALL football_session_destroy(football_session* session) noexcept {
   if (session != nullptr) {
     Info(Channel::capi, "football_session_destroy released a session");
-    delete session;  // releases the match the runner left behind
+    delete session;  // stops and joins the runner before releasing the match
   }
   // Teardown also publishes the buffered log, so a host never flushes by hand.
   Flush();

@@ -8,23 +8,55 @@ namespace football::runner {
 
 SingleRunner::SingleRunner(PitchModel pitch_model, BallModel ball_model)
     : env_(pitch_model, ball_model) {
-  // The run is the constructor: with no control surface there is nothing to
-  // resume, so the match simply plays until it reports full time.
-  while (!env_.Finished()) {
-    try {
-      env_.Step();
-    } catch (...) {
-      // Exceptions never cross a host call: a broken tick is reported and the
-      // match stays where it stopped.
-      Error(Channel::env, "runner caught an exception and stopped");
-      return;
-    }
-  }
-  Info(Channel::env, "runner reached full time");
+  // The worker is the only executor, so construction starts it and returns: a
+  // host never waits for a match to be played, and no control surface is needed to
+  // keep it going.
+  thread_ = std::jthread([this](std::stop_token token) { Loop(token); });
+  Info(Channel::env, "runner worker started");
+}
+
+SingleRunner::~SingleRunner() {
+  // Reap the worker before the match and the log line go away; Stop() never
+  // waits for full time.
+  Stop();
+  Info(Channel::env, "runner destroyed");
+}
+
+void SingleRunner::Wait() {
+  // Joining without a stop request lets the match play out to full time; a loop
+  // that already ended leaves nothing to join.
+  if (thread_.joinable()) thread_.join();
+}
+
+void SingleRunner::Stop() {
+  // One-way teardown: ask the loop to end, then reap the thread. Stopping touches
+  // only the loop, so the match is left exactly where it stopped and stays
+  // readable through Environment().
+  if (!thread_.joinable()) return;
+  thread_.request_stop();
+  thread_.join();
 }
 
 Env& SingleRunner::Environment() { return env_; }
 
 const Env& SingleRunner::Environment() const { return env_; }
+
+void SingleRunner::Loop(std::stop_token token) {
+  // Bounded by the match: once the environment reports full time the loop ends,
+  // so a finished match leaves no worker behind.
+  while (!token.stop_requested() && !env_.Finished()) {
+    try {
+      env_.Step();
+    } catch (...) {
+      // Exceptions never cross the thread boundary, so a broken tick is reported
+      // here and the loop ends instead of taking the process down.
+      Error(Channel::env, "runner caught an exception and stopped");
+      return;
+    }
+  }
+
+  if (!token.stop_requested()) Info(Channel::env, "runner reached full time");
+  Info(Channel::env, "runner loop exited");
+}
 
 }  // namespace football::runner

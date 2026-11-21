@@ -14,8 +14,8 @@ rules that are true *now*.
   one Ball on one Pitch, the tick cursor and the derived match boundaries; it
   advances only when someone calls `Step()`
 - `src/runner.cpp` / `include/football/runner.hpp` — `football::runner`: the
-  execution side. `SingleRunner` owns one match and plays it to full time in
-  its constructor
+  execution side. `SingleRunner` owns one match and the worker that plays it to
+  full time
 - `capi.h` / `capi.cpp` — C ABI adapter for C and C#; one handle per match, model
   values and lifecycle only
 - `models.h` — single C header: model layouts/defaults plus C++ aliases
@@ -29,17 +29,18 @@ Runtime layer in this build.
 CMake >= 3.24, Ninja, C11 and C++23; use the `flake.nix` dev shell.
 
 ```sh
-# Debug build + pitch/ball suites
+# Debug build + all suites
 nix develop --command bash -c 'cmake --preset debug && cmake --build --preset debug -j $(nproc) && ctest --preset debug'
 
 # Release
 nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j $(nproc) && ctest --preset release'
 ```
 
-The domain suites `pitch_unit` and `ball_unit` link only their modules and
-declared dependencies, never `simcore`. The C11 `capi_unit` consumer links
-`simcore` to exercise the exported C ABI, and `env_unit` links it because `Env`
-is compiled into the shared library rather than into a module of its own.
+The domain suites `collision_unit`, `pitch_unit` and `ball_unit` link only
+their modules and declared dependencies, never `simcore`. The C11 `capi_unit`
+consumer links `simcore` to exercise the exported C ABI, and `env_unit` plus
+`runner_unit` link it because `Env` and `SingleRunner` are compiled into the
+shared library rather than into modules of their own.
 
 ## Coordinate and physics conventions
 
@@ -48,7 +49,7 @@ is compiled into the shared library rather than into a module of its own.
 - SI units: metres, seconds, kilograms, radians. The native tick is 100 Hz
   (10 ms).
 - Physics is deterministic and RNG-free. Behaviour must be derived from
-  explainable state (skill, contact geometry, body orientation, ball velocity).
+  explainable state (contact geometry, ball orientation, ball velocity).
 - Each tick predicts collision-free motion first, then sweeps that path. With
   no impact it commits the prediction. At the first impact it places the ball at
   contact and applies a passive impulse to the state integrated up to that
@@ -87,6 +88,7 @@ src/
 └── capi.cpp      C ABI adapter
 
 unittests/
+├── collision/    collision_unit
 ├── pitch/        pitch_unit
 ├── ball/         ball_unit
 ├── env/          env_unit (links simcore)
@@ -107,12 +109,14 @@ unittests/
   thread, lock, flag or notion of playing, so the same object works for a live
   host, a batch run and a future branch search alike.
 - The executor owns its match and nothing else. The executor
-  (`football::runner::SingleRunner`) plays `Env` to full time in its
-  constructor: it holds no play/pause/stop state and reports nothing about the
-  tick.
-- The match is read through `Environment()` once the run has ended, which is
-  before the runner exists. Nothing is published or duplicated. Pacing to real
-  time or per-frame tick budgets belong to the host, not to the core.
+  (`football::runner::SingleRunner`) plays `Env` to full time on a worker thread:
+  it holds no play/pause state and reports nothing about the tick; `Wait()` joins
+  the worker and `Stop()` ends it, both one-way.
+- The match is read through `Environment()` once the worker has been reaped:
+  `Wait()` joins without stopping, so it returns when the match reaches full time,
+  while `Stop()` ends the loop and leaves the match where it stopped. Nothing is
+  published or duplicated. Pacing to real time or per-frame tick budgets belong
+  to the host, not to the core.
 - Match boundaries are derived from the cursor and then cached: `Env::Step()` is the
   only writer of both the tick and the `MatchPhase` it mirrors, so `Phase()` is a
   plain read that can never disagree with `Ticks()`. Both come from the single
@@ -129,10 +133,15 @@ unittests/
   is the bounded form and stops at full time on its own.
 - Never let two threads touch one `Env`: it is plain state with no synchronisation,
   and time is no exception — the cursor is a plain member counted per match. The
-  runner exposes it as `Environment()` only after its run has ended. Exceptions
-  must not cross a host call: the runner logs them and stops the run.
-- There is no worker: the run is the constructor, so nothing is left to join or
-  wake. The runner is declared after the `Env` it owns.
+  loop thread is the only writer while it runs, so the runner exposes
+  `Environment()` for reading only after the worker has been reaped by `Wait()`
+  or `Stop()`. Exceptions must not cross the thread boundary: the runner logs
+  them and stops the run.
+- One match, one worker: the loop thread is the only code that touches `Env` while
+  the runner exists. `Stop()` requests stop and joins, and the destructor does the
+  same, so a live session is left where its loop stopped instead of being waited
+  for; `Env` outlives the thread and stays readable. The runner is declared after
+  the `Env` it owns.
 - `PitchModel` / `BallModel` alias the C structs defined once in `models.h`;
   never duplicate model layouts. Initialize every field explicitly: `{}`
   produces zeros in C++ too, not physical defaults.
