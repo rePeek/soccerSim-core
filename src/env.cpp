@@ -10,7 +10,7 @@ namespace football {
 
 Env::Env(pitch::PitchModel pitch_model, ball::BallModel ball_model,
          history::Recording recording)
-    : pitch_(pitch_model), ball_(ball_model), history_(0, recording) {
+    : pitch_(pitch_model), ball_(ball_model), history_(recording) {
   ball_.PlaceOnGround(0.0f, 0.0f);
   history_.RecordSnapshot(tick_, ball_.get_state());
   Info(Channel::env, "environment constructed");

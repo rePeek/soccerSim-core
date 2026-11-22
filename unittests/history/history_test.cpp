@@ -64,8 +64,8 @@ TEST_CASE("recording requires consecutive ticks starting at zero") {
   }
 }
 
-TEST_CASE("a reserved recorder starts empty and records normally") {
-  History history(1000);
+TEST_CASE("explicitly enabled recording starts empty and accepts frames") {
+  History history(Recording::Enabled);
   REQUIRE_FALSE(history.ReadSnapshot(Tick{0}));
   history.RecordSnapshot(Tick{0}, BallAt(1.0f));
   const auto frame = history.ReadSnapshot(Tick{0});
@@ -74,7 +74,7 @@ TEST_CASE("a reserved recorder starts empty and records normally") {
 }
 
 TEST_CASE("a disabled recorder drops every frame") {
-  History history(1000, Recording::Disabled);
+  History history(Recording::Disabled);
   history.RecordSnapshot(Tick{1}, BallAt(0.0f));
   REQUIRE_FALSE(history.enabled());
   REQUIRE_FALSE(history.ReadSnapshot(Tick{0}));
@@ -105,7 +105,7 @@ TEST_CASE("snapshot reads return independent copies or nullopt") {
   REQUIRE_FALSE(reader.ReadSnapshot(Tick{2}));
   REQUIRE_FALSE(reader.ReadSnapshot(Tick{UINT64_MAX}));
 
-  const History disabled(0, Recording::Disabled);
+  const History disabled(Recording::Disabled);
   REQUIRE_FALSE(disabled.ReadSnapshot(Tick{0}));
 }
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <mutex>
 #include <optional>
 
@@ -14,8 +13,7 @@ enum class Recording { Disabled, Enabled };
 
 class History {
  public:
-  explicit History(std::size_t expected_frames = 0,
-                   Recording recording = Recording::Enabled);
+  explicit History(Recording recording = Recording::Enabled);
 
   void RecordSnapshot(time::Tick tick, const ball::BallState& ball);
 

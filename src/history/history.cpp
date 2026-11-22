@@ -4,10 +4,7 @@
 
 namespace football::history {
 
-History::History(std::size_t expected_frames, Recording recording)
-    : enabled_(recording == Recording::Enabled) {
-  if (enabled_) chunk_.frames.reserve(expected_frames);
-}
+History::History(Recording recording) : enabled_(recording == Recording::Enabled) {}
 
 void History::RecordSnapshot(time::Tick tick, const ball::BallState& ball) {
   if (!enabled_) return;

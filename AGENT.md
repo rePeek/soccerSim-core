@@ -136,7 +136,7 @@ unittests/
   Frames are 64 bytes and live in a private Chunk's vector. Env records from tick
   zero without a fixed-duration capacity reservation; the vector grows as needed.
   Recording has no retention limit, so callers must choose tick limits that fit
-  their memory budget. History callers may supply an expected-frame reserve hint. Keep frames
+  their memory budget. There is no capacity-reservation parameter. Keep frames
   fixed-size: variable-length data belongs in separate structures. Never include
   `env.hpp` from history.
   `RecordSnapshot()` requires consecutive ticks starting at zero and rejects
