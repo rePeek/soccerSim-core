@@ -31,9 +31,11 @@ float ThinShellMomentOfInertia(const BallModel& model) {
   return (2.0f / 3.0f) * model.mass * model.radius * model.radius;
 }
 
-bool IsRolling(const BallModel& model, const BallState& state) {
+bool IsRolling(const BallModel& model, const BallState& state, const Pitch& pitch) {
+  const float settling_speed = std::max(
+      kMaxRollingVerticalSpeed, 2.0f * std::fabs(pitch.gravity()) * time::kTickSeconds);
   return state.position.coords[2] <= model.radius + kGroundContactDistanceTolerance &&
-         std::fabs(state.velocity.coords[2]) <= kMaxRollingVerticalSpeed;
+         std::fabs(state.velocity.coords[2]) <= settling_speed;
 }
 
 math::Vector3 ApplyGrassResistance(const math::Vector3& velocity,
@@ -51,6 +53,18 @@ math::Vector3 ApplyGrassResistance(const math::Vector3& velocity,
     slowed_velocity.coords[1] *= speed_scale;
   }
   return slowed_velocity;
+}
+
+math::Vector3 ApplyGrassSpinResistance(const BallModel& model,
+                                     const math::Vector3& angular_velocity,
+                                     float dt, const Pitch& pitch) {
+  const float surface_speed = angular_velocity.GetLength() * model.radius;
+  if (surface_speed == 0.0f) return angular_velocity;
+  const float deceleration = pitch.ground_deceleration() +
+                            pitch.quadratic_resistance() * surface_speed * surface_speed;
+  const float speed_scale =
+      std::max(0.0f, surface_speed - deceleration * dt) / surface_speed;
+  return angular_velocity * speed_scale;
 }
 
 math::Vector3 LaunchVelocity(const BallModel& model, const BallState& state,
@@ -86,7 +100,7 @@ bool IsAtRest(const BallState& state) {
 BallState IntegrateMotion(const BallModel& model, const BallState& state,
                           float dt, const Pitch& pitch) {
   if (dt <= 0.0f) return state;
-  const bool rolling = IsRolling(model, state);
+  const bool rolling = IsRolling(model, state, pitch);
   if (rolling && IsAtRest(state)) return state;
   BallState next = state;
   if (rolling) {
@@ -94,6 +108,7 @@ BallState IntegrateMotion(const BallModel& model, const BallState& state,
     next.velocity.coords[2] = 0.0f;
     next.position = state.position + next.velocity * dt;
     next.position.coords[2] = model.radius;
+    next.angular_velocity = ApplyGrassSpinResistance(model, state.angular_velocity, dt, pitch);
   } else {
     const math::Vector3 launch_velocity = LaunchVelocity(model, state, dt, pitch);
     const math::Vector3 acceleration =
@@ -124,7 +139,7 @@ void Ball::Step(const Pitch& pitch) {
   BallState predicted = IntegrateMotion(model_, start, dt, pitch);
 
   const auto colliders = pitch.colliders();
-  const auto swept = IsRolling(model_, start) ? colliders.subspan(1) : colliders;
+  const auto swept = IsRolling(model_, start, pitch) ? colliders.subspan(1) : colliders;
   const collision::MovingSphere sphere{
       {start.position, ball_radius},
       (predicted.position - start.position) * (1.0f / dt)};

@@ -526,3 +526,62 @@ TEST_CASE("A tiny lift off the grass is absorbed as resting",
     CHECK(state.velocity.coords[2] == Approx(0.0f).margin(1e-6f));
   }
 }
+
+TEST_CASE("Grass dissipates grounded spin without reversing it",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutMagnus();
+  const Pitch pitch;
+  for (const Vector3 spin : {Vector3(0, -30, 0), Vector3(0, 0, 30), Vector3(12, -24, 6)}) {
+    Ball ball(config);
+    auto initial = BallAt({0, 0, config.radius}, {0, 0, 0});
+    initial.angular_velocity = spin;
+    ball.set_state(initial);
+    float previous_speed = spin.GetLength();
+    for (int tick = 0; tick < 1000; ++tick) {
+      ball.Step(pitch);
+      const auto state = ball.get_state();
+      CHECK(state.angular_velocity.GetLength() <= previous_speed + 1e-5f);
+      CHECK(state.angular_velocity.GetDotProduct(spin) >= 0.0f);
+      CHECK(state.position == initial.position);
+      previous_speed = state.angular_velocity.GetLength();
+    }
+    CHECK(ball.get_state().angular_velocity == Vector3(0, 0, 0));
+    const auto stopped = ball.get_state();
+    ball.Step(pitch);
+    CHECK(ball.get_state().orientation == stopped.orientation);
+  }
+}
+
+TEST_CASE("Ground spin resistance preserves spin without grass resistance",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutMagnus();
+  Ball ball(config);
+  auto state = BallAt({0, 0, config.radius}, {1, 0, 0});
+  state.angular_velocity = Vector3(1, -3, 5);
+  ball.set_state(state);
+  for (int tick = 0; tick < 100; ++tick) ball.Step(PitchWithoutResistance());
+  CHECK(ball.get_state().angular_velocity == state.angular_velocity);
+}
+
+TEST_CASE("Grass spin resistance does not damp airborne spin",
+          "[unit][ball][simulation]") {
+  Ball ball(BallWithoutMagnus());
+  auto state = BallAt({0, 0, 10}, {1, 0, 0});
+  state.angular_velocity = Vector3(1, -3, 5);
+  ball.set_state(state);
+  ball.Step(Pitch{});
+  CHECK(ball.get_state().angular_velocity == state.angular_velocity);
+}
+
+TEST_CASE("Sub-tick ground rebounds settle and stop spinning",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutMagnus();
+  Ball ball(config);
+  auto state = BallAt({0, 0, config.radius}, {0, 0, 0.112f});
+  state.angular_velocity = Vector3(0, -15, 0);
+  ball.set_state(state);
+  for (int tick = 0; tick < 1000; ++tick) ball.Step(Pitch{});
+  CHECK(ball.get_state().position.coords[2] == Approx(config.radius));
+  CHECK(ball.get_state().velocity == Vector3(0, 0, 0));
+  CHECK(ball.get_state().angular_velocity == Vector3(0, 0, 0));
+}

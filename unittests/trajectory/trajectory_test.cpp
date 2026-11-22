@@ -23,7 +23,7 @@ using Catch::Approx;
 
 namespace {
 
-constexpr std::uint64_t kTicks = 1000;
+constexpr std::uint64_t kTicks = 1500;
 constexpr BallModel kBall{.mass = 0.43f, .radius = 0.11f,
                           .magnus_coefficient = 0.02f};
 
@@ -51,6 +51,14 @@ void RecordTrajectory(Ball& ball, const Pitch& pitch,
     history.RecordSnapshot(Tick{tick}, ball.get_state());
   }
   history.SaveJsonl(path);
+  const auto last = history.ReadSnapshot(Tick{kTicks});
+  const auto previous = history.ReadSnapshot(Tick{kTicks - 1});
+  REQUIRE(last);
+  REQUIRE(previous);
+  CHECK(last->ball.velocity.GetLength() == Approx(0.0f).margin(1e-4f));
+  CHECK(last->ball.angular_velocity.GetLength() == Approx(0.0f).margin(1e-4f));
+  CHECK(last->ball.position == previous->ball.position);
+  CHECK(last->ball.orientation == previous->ball.orientation);
 }
 
 Ball GroundedBall() {
@@ -64,7 +72,7 @@ Ball GroundedBall() {
 TEST_CASE("a forward kick records a decelerating roll that stays on the grass") {
   const auto path = TrajectoryPath("forward");
   Ball ball = GroundedBall();
-  ball.ApplyImpulseAtPoint({1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f});
+  ball.ApplyImpulseAtPoint({5.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f});
 
   History history;
   RecordTrajectory(ball, Pitch{}, path, history);
@@ -83,7 +91,7 @@ TEST_CASE("a forward kick records a decelerating roll that stays on the grass") 
 
   const auto last = history.ReadSnapshot(Tick{kTicks});
   REQUIRE(last);
-  CHECK(last->ball.position.coords[0] > 1.0f);
+  CHECK(last->ball.position.coords[0] > 15.0f);
   CHECK(last->ball.position.coords[1] == Approx(0.0f).margin(1e-5f));
   CHECK(last->ball.velocity.coords[0] == Approx(0.0f).margin(1e-4f));
 
@@ -97,7 +105,9 @@ TEST_CASE("a forward kick records a decelerating roll that stays on the grass") 
 TEST_CASE("a lofted kick records a flight arc and settles back onto the grass") {
   const auto path = TrajectoryPath("lofted");
   Ball ball = GroundedBall();
-  ball.ApplyImpulseAtPoint({0.5f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f});
+  const football::math::Vector3 impulse{3.0f, 0.0f, 2.5f};
+  const auto contact = ball.get_state().position - impulse.GetNormalized() * kBall.radius;
+  ball.ApplyImpulseAtPoint(impulse, contact);
 
   History history;
   RecordTrajectory(ball, Pitch{}, path, history);
@@ -111,8 +121,8 @@ TEST_CASE("a lofted kick records a flight arc and settles back onto the grass") 
     highest = std::max(highest, height);
     if (height > kBall.radius + 1e-4f) ++airborne_ticks;
   }
-  CHECK(highest > 0.3f);
-  CHECK(airborne_ticks > 10);
+  CHECK(highest > 1.0f);
+  CHECK(airborne_ticks > 100);
 
   const auto last = history.ReadSnapshot(Tick{kTicks});
   REQUIRE(last);
@@ -127,7 +137,7 @@ TEST_CASE("a lofted kick records a flight arc and settles back onto the grass") 
 TEST_CASE("a diagonal kick records displacement on both horizontal axes") {
   const auto path = TrajectoryPath("diagonal");
   Ball ball = GroundedBall();
-  ball.ApplyImpulseAtPoint({1.0f, 0.5f, 0.0f}, {0.0f, 0.0f, 0.0f});
+  ball.ApplyImpulseAtPoint({5.0f, 2.5f, 0.0f}, {0.0f, 0.0f, 0.0f});
 
   History history;
   RecordTrajectory(ball, Pitch{}, path, history);
@@ -136,8 +146,8 @@ TEST_CASE("a diagonal kick records displacement on both horizontal axes") {
   const auto last = history.ReadSnapshot(Tick{kTicks});
   REQUIRE(first);
   REQUIRE(last);
-  CHECK(last->ball.position.coords[0] > first->ball.position.coords[0] + 0.5f);
-  CHECK(last->ball.position.coords[1] > first->ball.position.coords[1] + 0.2f);
+  CHECK(last->ball.position.coords[0] > first->ball.position.coords[0] + 15.0f);
+  CHECK(last->ball.position.coords[1] > first->ball.position.coords[1] + 7.0f);
   CHECK(last->ball.position.coords[2] == Approx(kBall.radius).margin(1e-5f));
   CHECK(last->ball.velocity.GetLength() == Approx(0.0f).margin(1e-4f));
 
@@ -155,7 +165,7 @@ TEST_CASE("a diagonal kick records displacement on both horizontal axes") {
 TEST_CASE("a saved trajectory round-trips every recorded tick exactly") {
   const auto path = TrajectoryPath("round_trip");
   Ball ball = GroundedBall();
-  ball.ApplyImpulseAtPoint({0.8f, -0.3f, 0.6f}, {0.0f, kBall.radius, kBall.radius});
+  ball.ApplyImpulseAtPoint({4.0f, -1.5f, 3.0f}, {0.0f, kBall.radius, kBall.radius});
 
   History history;
   RecordTrajectory(ball, Pitch{}, path, history);
@@ -194,4 +204,60 @@ TEST_CASE("a saved trajectory round-trips every recorded tick exactly") {
     REQUIRE(loaded.ReadSnapshot(Tick{tick}) == history.ReadSnapshot(Tick{tick}));
   }
   REQUIRE_FALSE(loaded.ReadSnapshot(Tick{kTicks + 1}));
+}
+
+TEST_CASE("a long pass flies across the pitch then bounces and rolls to rest") {
+  const auto path = TrajectoryPath("long_pass");
+  Ball ball(kBall);
+  ball.PlaceOnGround(-25.0f, -12.0f);
+  const auto start = ball.get_state().position;
+  const football::math::Vector3 impulse{8.6f, 2.58f, 5.16f};
+  const auto contact = start - impulse.GetNormalized() * kBall.radius;
+  ball.ApplyImpulseAtPoint(impulse, contact);
+
+  const Pitch pitch;
+  History history;
+  RecordTrajectory(ball, pitch, path, history);
+
+  float highest = kBall.radius;
+  std::uint64_t first_landing = 0;
+  bool airborne = false;
+  int bounces = 0;
+  for (std::uint64_t tick = 1; tick <= kTicks; ++tick) {
+    const auto frame = history.ReadSnapshot(Tick{tick});
+    const auto previous = history.ReadSnapshot(Tick{tick - 1});
+    REQUIRE(frame);
+    REQUIRE(previous);
+    const auto& state = frame->ball;
+    highest = std::max(highest, state.position.coords[2]);
+    CHECK(state.position.coords[2] >= kBall.radius - 1e-5f);
+    CHECK(pitch.contains(state.position.coords[0], state.position.coords[1]));
+    if (state.position.coords[2] > kBall.radius + 1e-4f) airborne = true;
+    if (airborne && first_landing == 0 &&
+        state.position.coords[2] <= kBall.radius + 1e-4f) {
+      first_landing = tick;
+    }
+    if (previous->ball.velocity.coords[2] < 0.0f && state.velocity.coords[2] > 0.0f) {
+      ++bounces;
+    }
+  }
+
+  CHECK(highest > 4.0f);
+  CHECK(highest < 10.0f);
+  REQUIRE(first_landing > 150);
+  REQUIRE(first_landing < 300);
+  const auto landing = history.ReadSnapshot(Tick{first_landing});
+  const auto last = history.ReadSnapshot(Tick{kTicks});
+  REQUIRE(landing);
+  REQUIRE(last);
+  CHECK(landing->ball.position.coords[0] - start.coords[0] > 25.0f);
+  CHECK(last->ball.position.coords[0] - start.coords[0] > 40.0f);
+  CHECK(last->ball.position.coords[1] - start.coords[1] > 10.0f);
+  CHECK(last->ball.position.coords[0] > landing->ball.position.coords[0] + 1.0f);
+  CHECK(bounces >= 2);
+
+  const History loaded = History::LoadJsonl(path);
+  CHECK(loaded.ReadSnapshot(Tick{0}) == history.ReadSnapshot(Tick{0}));
+  CHECK(loaded.ReadSnapshot(Tick{first_landing}) == landing);
+  CHECK(loaded.ReadSnapshot(Tick{kTicks}) == last);
 }

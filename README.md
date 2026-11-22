@@ -181,3 +181,13 @@ inversion and Euler singularities require a separate mathematical audit.
 ## License
 
 Apache-2.0. See `LICENSE`.
+
+## Ground spin dissipation
+
+Grounded motion applies the pitch's empirical grass resistance to both horizontal translation and spin. Spin uses the equivalent surface speed `radius * |angular_velocity|`, reduced by `(ground_deceleration + quadratic_resistance * surface_speed^2) * dt`, with saturation at zero and no reversal. This is a dissipative rolling/spin resistance model, not a no-slip constraint or a coupled sliding-contact solver. It introduces no new model or ABI fields. Airborne spin is unchanged; removing both grass-resistance coefficients preserves grounded spin.
+
+The grounded vertical-speed threshold is at least two ticks of gravitational velocity change. Together with the ground-distance tolerance, this absorbs rebounds whose flight is only a few discrete integration steps, avoiding an endless low-energy bounce cycle that would prevent grass resistance from acting. Larger launches and impacts retain the pitch restitution. All trajectory tests require final linear/angular speed within the rest tolerance and an unchanged final position and orientation.
+
+## Replay trajectories
+
+`trajectory_unit` generates 15-second JSONL replays in the build tree's `unittests/trajectory/trajectories/` directory. `forward.jsonl` and `diagonal.jsonl` use stronger ground kicks with travel exceeding 15 metres. `lofted.jsonl` contains a visible flight arc. `long_pass.jsonl` starts at (-25, -12) metres with initial velocity approximately (20, 6, 12) m/s; it crosses much of the pitch, reaches about 6 metres above ground, bounces and rolls before settling. Its test checks flight time, height, travel distance, pitch bounds, multiple bounces and replay loading. `round_trip.jsonl` remains the exact serialization round-trip example.
