@@ -37,9 +37,9 @@ constexpr MatchPhase PhaseOfTick(std::uint64_t tick) {
 // and the recorder. It advances only when someone calls Step(), so it holds no
 // thread, no lock and no notion of playing or pausing.
 //
-// Nothing here is synchronised: one executor owns the environment and is the only
-// code that advances or reads it. A host reads this object only once that
-// executor has stopped, never while its loop runs.
+// Live state is not synchronised: only the executor advances or reads it while
+// running. The exception is history().ReadSnapshot(), which copies recorded
+// frames under History's lock and is safe while the executor runs.
 class Env {
  public:
   explicit Env(pitch::PitchModel pitch_model, ball::BallModel ball_model,

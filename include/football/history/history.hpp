@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <mutex>
+#include <optional>
 
 #include "football/ball/ball_state.hpp"
 #include "football/foundation/time/tick.hpp"
@@ -23,12 +25,18 @@ class History {
   // Appends the state at `tick`. Does nothing while disabled.
   void BuildSnapshot(time::Tick tick, const ball::BallState& ball);
 
+  // Copies a frame by tick index (recording starts at zero, one frame per tick).
+  // Safe during recording; returns nullopt when the tick is unavailable.
+  std::optional<Snapshot> ReadSnapshot(time::Tick tick) const;
+
+  // Direct access is only safe once recording has stopped.
   const Chunk& chunk() const { return chunk_; }
   bool enabled() const { return enabled_; }
 
  private:
   Chunk chunk_;
   bool enabled_;
+  mutable std::mutex mutex_;
 };
 
 }  // namespace football::history

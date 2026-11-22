@@ -9,7 +9,7 @@ using namespace football::log;
 
 // The opaque handle is bound to one runner, which owns one match and one worker:
 // creating a session starts that loop and destroying it stops and joins the loop.
-// The match records its frames in-process; nothing delivers them over the ABI yet.
+// Render reads copy recorded poses through History's synchronised read method.
 struct football_session {
   football_session(const football_pitch_model& pitch_model,
                    const football_ball_model& ball_model)
@@ -46,6 +46,27 @@ void FOOTBALL_CALL football_session_destroy(football_session* session) noexcept 
   }
   // Teardown also publishes the buffered log, so a host never flushes by hand.
   Flush();
+}
+
+int FOOTBALL_CALL football_get_render_snapshot(
+    const football_session* session, uint64_t tick,
+    football_render_snapshot* output) noexcept {
+  if (session == nullptr || output == nullptr) return 0;
+
+  try {
+    const auto snapshot = session->runner.Environment().history().ReadSnapshot(
+        football::time::Tick{tick});
+    if (!snapshot) return 0;
+
+    const auto& position = snapshot->ball.position.coords;
+    const auto& orientation = snapshot->ball.orientation.elements;
+    *output = football_render_snapshot{
+        snapshot->tick.value, position[0], position[1], position[2],
+        orientation[0], orientation[1], orientation[2], orientation[3]};
+    return 1;
+  } catch (...) {
+    return 0;
+  }
 }
 
 }  // extern "C"

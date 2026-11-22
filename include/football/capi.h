@@ -29,6 +29,12 @@ extern "C" {
  * match, so matches never share anything and run independently. */
 typedef struct football_session football_session;
 
+typedef struct football_render_snapshot {
+  uint64_t tick;
+  float px, py, pz;
+  float qx, qy, qz, qw;
+} football_render_snapshot;
+
 /* Creates a session and starts its loop on a thread of its own. Models are
  * copied, so callers may modify or discard them afterwards. A match is always 90
  * minutes at 100 Hz (540000 ticks), with half time at 45. Returns NULL for a NULL
@@ -42,6 +48,13 @@ FOOTBALL_API football_session* FOOTBALL_CALL football_session_create(
  * process exits. A match short of full time is stopped where it is. */
 FOOTBALL_API void FOOTBALL_CALL football_session_destroy(
     football_session* session) FOOTBALL_NOEXCEPT;
+
+/* Copies a recorded pose, safe while the session runs. Returns 1 on success,
+ * 0 for NULL arguments or an unavailable tick; output is unchanged on failure.
+ * The session must remain alive throughout the call. */
+FOOTBALL_API int FOOTBALL_CALL football_get_render_snapshot(
+    const football_session* session, uint64_t tick,
+    football_render_snapshot* output) FOOTBALL_NOEXCEPT;
 
 #ifdef __cplusplus
 }

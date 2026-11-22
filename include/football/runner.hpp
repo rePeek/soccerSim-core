@@ -11,9 +11,9 @@ namespace football::runner {
 // context of a single match, which is what the C ABI handle binds to.
 //
 // It holds no control state - nothing resumes, pauses or reports progress - so the
-// worker plays the match as soon as the runner exists. The loop thread is the only
-// code that touches the environment while it runs, and Wait() returns only once
-// that loop has ended, which is what makes reading the match safe.
+// worker plays the match as soon as the runner exists. Only the loop touches live
+// match state while running; Wait() makes that state safe to read. Recorded
+// frames can be copied concurrently through History::ReadSnapshot().
 class SingleRunner {
  public:
   SingleRunner(pitch::PitchModel pitch_model, ball::BallModel ball_model,
@@ -34,7 +34,8 @@ class SingleRunner {
   // remains readable. One-way: the run cannot be restarted, only rebuilt.
   void Stop();
 
-  // The match this runner owns, safe to read once Wait() has returned.
+  // Live state is safe to read after Wait()/Stop(); while running, only use
+  // the const history().ReadSnapshot() path.
   Env& Environment();
   const Env& Environment() const;
 
