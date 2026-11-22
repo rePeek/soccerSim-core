@@ -43,7 +43,7 @@ int main(void) {
   football_ball_model ball = {
       .mass = 0.43f, .radius = 0.11f, .magnus_coefficient = 0.02f};
 
-  football_session* session = football_session_create(&pitch, &ball, 100);
+  football_session* session = football_session_create(&pitch, &ball, 100, NULL);
   if (session == NULL) return 1;
 
   football_session_start(session);
@@ -59,14 +59,17 @@ int main(void) {
 }
 ```
 
-`football_session_create` prepares the environment and copies the models.
-`football_session_start` launches its loop once, and `football_session_destroy`
-waits for completion before releasing the environment and flushing the log.
-The third creation argument specifies how many ticks to advance: zero advances
-no ticks and keeps the initial snapshot. Positive limits run that many ticks
-unless execution fails. There is no fixed match duration or external stop.
-History grows as needed; callers should choose tick limits that fit their
-memory budget. A NULL model makes creation return NULL.
+`football_session_create` prepares the environment, copies the models and builds
+the history. `football_session_start` launches the loop once, and
+`football_session_destroy` waits for completion before releasing the environment
+and flushing the log. The third argument specifies how many ticks to advance:
+zero advances no ticks and keeps the initial snapshot, positive limits run that
+many ticks unless execution fails. The fourth argument names a JSON Lines history
+to replay: when it is NULL or empty the session records a new match, otherwise it
+loads that file and never simulates, so ticks stay at zero and the loaded frames
+are only read. There is no fixed match duration or external stop. History grows
+as needed; callers should choose tick limits that fit their memory budget. A NULL
+model makes creation return NULL.
 
 `football_get_render_snapshot(session, tick, output)` copies one recorded pose
 while the worker runs. It returns 1 on success, or 0 for a NULL argument or an
@@ -130,17 +133,22 @@ unittests/
 - `football::history` records 64-byte `Snapshot` frames of state handed to it by
   `Env`. History retains every tick in a growing vector; there is no fixed-duration
   reservation or retention limit.
-  Recording is fixed at construction; a disabled recorder allocates nothing.
-  `Recording::Enabled` and `Recording::Disabled` make that choice explicit.
+  Construction is fixed: `History()` records, while `HistoryMode::Replay` comes only
+  from `LoadJsonl()` and rejects recording with `std::logic_error`. `mode()` reports
+  the current mode, and both modes own a Chunk.
   `RecordSnapshot()` requires consecutive ticks starting at zero and rejects gaps
   or duplicates with `std::invalid_argument`; `ReadSnapshot()` returns a copied
   `std::optional<Snapshot>` indexed by Tick.
 - `History::SaveJsonl(path)` writes one header line (format version and tick rate)
   then one JSON object per tick holding the complete state. Writes go to a
   sibling `.tmp` file that is renamed into place, so a failed save keeps the old
-  file and throws `std::runtime_error`. Loading is not implemented yet; the design
-  keeps replay possible through the same private Chunk and `ReadSnapshot()`.
-  Examples of the format live in the history tests.
+  file and throws `std::runtime_error`.
+- `History::LoadJsonl(path)` reads such a file back: it validates the header and
+  every frame, rejects malformed or non-consecutive data with `std::runtime_error`
+  naming the file and line, and returns a History in `Replay` mode: readable and
+  saveable, but not recordable. `Env` and `SingleRunner` always record, so a
+  simulated match can never write into a loaded trajectory. Both functions take the path from the caller; History never chooses
+  where files live.
 - `SingleRunner` starts only on `Start()`. `Wait()` and the destructor join the
   worker, which executes `Env::LoopMain(tick_limit)`. There is no external Stop.
   Each LoopMain call advances additional ticks; a zero limit is a no-op.

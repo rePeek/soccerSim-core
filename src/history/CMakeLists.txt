@@ -4,7 +4,7 @@ add_library(football::history ALIAS football_history)
 target_sources(football_history
   PRIVATE
     history.cpp
-    save_jsonl.cpp
+    jsonl.cpp
   PUBLIC FILE_SET HEADERS
     BASE_DIRS ${PROJECT_SOURCE_DIR}/include
     FILES

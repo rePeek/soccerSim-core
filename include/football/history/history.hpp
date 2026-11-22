@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <optional>
 
@@ -10,24 +11,35 @@
 
 namespace football::history {
 
-enum class Recording { Disabled, Enabled };
+enum class HistoryMode { Recording, Replay };
 
 class History {
  public:
-  explicit History(Recording recording = Recording::Enabled);
+  History();
+  History(History&&) = default;
+  History& operator=(History&&) = default;
+  History(const History&) = delete;
+  History& operator=(const History&) = delete;
 
   void RecordSnapshot(time::Tick tick, const ball::BallState& ball);
 
   std::optional<Snapshot> ReadSnapshot(time::Tick tick) const;
 
   void SaveJsonl(const std::filesystem::path& path) const;
+  static History LoadJsonl(const std::filesystem::path& path);
 
-  bool enabled() const { return enabled_; }
+  HistoryMode mode() const { return mode_; }
 
  private:
-  Chunk chunk_;
-  bool enabled_;
-  mutable std::mutex mutex_;
+  struct State {
+    Chunk chunk;
+    std::mutex mutex;
+  };
+
+  explicit History(Chunk chunk);
+
+  HistoryMode mode_;
+  std::unique_ptr<State> state_;
 };
 
 }

@@ -10,8 +10,7 @@ namespace football::runner {
 class SingleRunner {
  public:
   SingleRunner(pitch::PitchModel pitch_model, ball::BallModel ball_model,
-               history::Recording recording = history::Recording::Enabled,
-               time::TickSpan tick_limit = {});
+               time::TickSpan tick_limit = {}, history::History history = {});
   ~SingleRunner();
 
   SingleRunner(const SingleRunner&) = delete;

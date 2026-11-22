@@ -10,7 +10,7 @@ namespace football {
 class Env {
  public:
   explicit Env(pitch::PitchModel pitch_model, ball::BallModel ball_model,
-               history::Recording recording = history::Recording::Enabled);
+               history::History history = {});
   ~Env();
 
   Env(const Env&) = delete;

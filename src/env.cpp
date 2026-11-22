@@ -1,6 +1,7 @@
 #include "football/env.hpp"
 
 #include <cstdint>
+#include <utility>
 
 #include "football/log/log.hpp"
 
@@ -9,10 +10,12 @@ using namespace football::log;
 namespace football {
 
 Env::Env(pitch::PitchModel pitch_model, ball::BallModel ball_model,
-         history::Recording recording)
-    : pitch_(pitch_model), ball_(ball_model), history_(recording) {
-  ball_.PlaceOnGround(0.0f, 0.0f);
-  history_.RecordSnapshot(tick_, ball_.get_state());
+         history::History history)
+    : pitch_(pitch_model), ball_(ball_model), history_(std::move(history)) {
+  if (history_.mode() == history::HistoryMode::Recording) {
+    ball_.PlaceOnGround(0.0f, 0.0f);
+    history_.RecordSnapshot(tick_, ball_.get_state());
+  }
   Info(Channel::env, "environment constructed");
 }
 
@@ -25,6 +28,10 @@ void Env::Step() {
 }
 
 void Env::LoopMain(time::TickSpan tick_limit) {
+  if (history_.mode() == history::HistoryMode::Replay) {
+    Info(Channel::env, "replay environment does not simulate");
+    return;
+  }
   for (std::uint64_t advanced = 0; advanced < tick_limit.value; ++advanced) {
     try {
       Step();

@@ -3,17 +3,33 @@
 #include <cstdint>
 #include <new>
 
+#include "football/history/history.hpp"
 #include "football/log/log.hpp"
 #include "football/runner.hpp"
 
 using namespace football::log;
 
+namespace {
+
+bool HasHistoryPath(const char* history_path) {
+  return history_path != nullptr && history_path[0] != '\0';
+}
+
+football::history::History MakeHistory(const char* history_path) {
+  if (HasHistoryPath(history_path)) {
+    return football::history::History::LoadJsonl(history_path);
+  }
+  return football::history::History{};
+}
+
+}
+
 struct football_session {
   football_session(const football_pitch_model& pitch_model,
                    const football_ball_model& ball_model,
-                   std::uint64_t tick_limit)
-      : runner(pitch_model, ball_model, football::history::Recording::Enabled,
-               football::time::TickSpan{tick_limit}) {}
+                   std::uint64_t tick_limit, const char* history_path)
+      : runner(pitch_model, ball_model, football::time::TickSpan{tick_limit},
+               MakeHistory(history_path)) {}
 
   football::runner::SingleRunner runner;
 };
@@ -23,7 +39,7 @@ extern "C" {
 football_session* FOOTBALL_CALL football_session_create(
     const football_pitch_model* pitch_model,
     const football_ball_model* ball_model,
-    uint64_t tick_limit) noexcept {
+    uint64_t tick_limit, const char* history_path) noexcept {
   if (pitch_model == nullptr || ball_model == nullptr) {
     Warning(Channel::capi, "football_session_create ignored a NULL model");
     return nullptr;
@@ -31,7 +47,7 @@ football_session* FOOTBALL_CALL football_session_create(
 
   try {
     auto* handle =
-        new football_session(*pitch_model, *ball_model, tick_limit);
+        new football_session(*pitch_model, *ball_model, tick_limit, history_path);
     Info(Channel::capi, "football_session_create completed");
     return handle;
   } catch (...) {
@@ -58,8 +74,8 @@ int FOOTBALL_CALL football_get_render_snapshot(
   if (session == nullptr || output == nullptr) return 0;
 
   try {
-    const auto snapshot = session->runner.history().ReadSnapshot(
-        football::time::Tick{tick});
+    const auto snapshot =
+        session->runner.history().ReadSnapshot(football::time::Tick{tick});
     if (!snapshot) return 0;
 
     const auto& position = snapshot->ball.position.coords;

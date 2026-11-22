@@ -188,4 +188,10 @@ TEST_CASE("a saved trajectory round-trips every recorded tick exactly") {
     CHECK(orientation.at(3).get<float>() == frame->ball.orientation.elements[3]);
   }
 
+  const History loaded = History::LoadJsonl(path);
+  REQUIRE(loaded.mode() == football::history::HistoryMode::Replay);
+  for (std::uint64_t tick = 0; tick <= kTicks; ++tick) {
+    REQUIRE(loaded.ReadSnapshot(Tick{tick}) == history.ReadSnapshot(Tick{tick}));
+  }
+  REQUIRE_FALSE(loaded.ReadSnapshot(Tick{kTicks + 1}));
 }

@@ -15,7 +15,7 @@
 
 using football::ball::BallState;
 using football::history::History;
-using football::history::Recording;
+using football::history::HistoryMode;
 using football::history::Snapshot;
 using football::math::Quaternion;
 using football::math::Vector3;
@@ -33,7 +33,7 @@ BallState BallAt(float x) {
 
 TEST_CASE("a recorder starts empty") {
   const History history;
-  REQUIRE(history.enabled());
+  REQUIRE(history.mode() == HistoryMode::Recording);
   REQUIRE_FALSE(history.ReadSnapshot(Tick{0}));
 }
 
@@ -73,21 +73,14 @@ TEST_CASE("recording requires consecutive ticks starting at zero") {
   }
 }
 
-TEST_CASE("explicitly enabled recording starts empty and accepts frames") {
-  History history(Recording::Enabled);
+TEST_CASE("a recorder starts empty, reports recording mode and accepts frames") {
+  History history;
+  REQUIRE(history.mode() == HistoryMode::Recording);
   REQUIRE_FALSE(history.ReadSnapshot(Tick{0}));
   history.RecordSnapshot(Tick{0}, BallAt(1.0f));
   const auto frame = history.ReadSnapshot(Tick{0});
   REQUIRE(frame);
   REQUIRE(frame->ball == BallAt(1.0f));
-}
-
-TEST_CASE("a disabled recorder drops every frame") {
-  History history(Recording::Disabled);
-  history.RecordSnapshot(Tick{1}, BallAt(0.0f));
-  REQUIRE_FALSE(history.enabled());
-  REQUIRE_FALSE(history.ReadSnapshot(Tick{0}));
-  REQUIRE_FALSE(history.ReadSnapshot(Tick{1}));
 }
 
 TEST_CASE("snapshot reads return independent copies or nullopt") {
@@ -114,8 +107,6 @@ TEST_CASE("snapshot reads return independent copies or nullopt") {
   REQUIRE_FALSE(reader.ReadSnapshot(Tick{2}));
   REQUIRE_FALSE(reader.ReadSnapshot(Tick{UINT64_MAX}));
 
-  const History disabled(Recording::Disabled);
-  REQUIRE_FALSE(disabled.ReadSnapshot(Tick{0}));
 }
 
 TEST_CASE("snapshot reads race with recording across chunk reallocations") {
@@ -222,9 +213,9 @@ TEST_CASE("saved float values round-trip exactly") {
   std::filesystem::remove(path);
 }
 
-TEST_CASE("saving a recorder without frames writes only the header") {
+TEST_CASE("saving an empty recording writes only the header") {
   const auto path = std::filesystem::temp_directory_path() / "football_history_empty.jsonl";
-  const History history(Recording::Disabled);
+  const History history;
 
   history.SaveJsonl(path);
 
@@ -248,4 +239,113 @@ TEST_CASE("saving to an unavailable path throws and leaves no file behind") {
 
   CHECK_THROWS_AS(history.SaveJsonl(path), std::runtime_error);
   CHECK_FALSE(std::filesystem::exists(path));
+}
+
+TEST_CASE("a saved history loads back with identical frames and recording disabled") {
+  const auto path = std::filesystem::temp_directory_path() / "football_history_load.jsonl";
+  History recorded;
+  auto first = BallAt(1.5f);
+  first.velocity = Vector3(0.1f, 0.2f, 0.3f);
+  first.angular_velocity = Vector3(0.4f, 0.5f, 0.6f);
+  first.orientation = Quaternion(0.1f, 0.2f, 0.3f, 0.9f);
+  recorded.RecordSnapshot(Tick{0}, first);
+  recorded.RecordSnapshot(Tick{1}, BallAt(2.5f));
+  recorded.SaveJsonl(path);
+
+  const History loaded = History::LoadJsonl(path);
+
+  REQUIRE(loaded.mode() == HistoryMode::Replay);
+  REQUIRE(loaded.ReadSnapshot(Tick{0}));
+  REQUIRE(loaded.ReadSnapshot(Tick{1}));
+  REQUIRE_FALSE(loaded.ReadSnapshot(Tick{2}));
+  REQUIRE(loaded.ReadSnapshot(Tick{0}) == recorded.ReadSnapshot(Tick{0}));
+  REQUIRE(loaded.ReadSnapshot(Tick{1}) == recorded.ReadSnapshot(Tick{1}));
+
+  std::filesystem::remove(path);
+}
+
+TEST_CASE("a loaded history rejects further recording") {
+  const auto path = std::filesystem::temp_directory_path() / "football_history_read_only.jsonl";
+  History recorded;
+  recorded.RecordSnapshot(Tick{0}, BallAt(1.0f));
+  recorded.SaveJsonl(path);
+
+  History loaded = History::LoadJsonl(path);
+  CHECK_THROWS_AS(loaded.RecordSnapshot(Tick{1}, BallAt(9.0f)), std::logic_error);
+
+  REQUIRE_FALSE(loaded.ReadSnapshot(Tick{1}));
+  REQUIRE(loaded.ReadSnapshot(Tick{0})->ball == BallAt(1.0f));
+
+  std::filesystem::remove(path);
+}
+
+TEST_CASE("loading rejects a missing file") {
+  const auto path = std::filesystem::temp_directory_path() / "football_history_missing_load.jsonl";
+  std::filesystem::remove(path);
+  CHECK_THROWS_AS(History::LoadJsonl(path), std::runtime_error);
+}
+
+TEST_CASE("loading rejects malformed headers and frames") {
+  const auto path = std::filesystem::temp_directory_path() / "football_history_invalid.jsonl";
+  const auto write = [&path](const std::vector<std::string>& lines) {
+    std::ofstream output(path, std::ios::trunc);
+    for (const std::string& line : lines) output << line << '\n';
+  };
+  const std::string header =
+      R"({"type":"header","version":1,"ticks_per_second":100})";
+  const std::string frame =
+      R"({"type":"snapshot","tick":0,"position":[0,0,0.11],"velocity":[0,0,0],"angular_velocity":[0,0,0],"orientation":[0,0,0,1]})";
+
+  write({});
+  CHECK_THROWS_AS(History::LoadJsonl(path), std::runtime_error);
+
+  write({"not json"});
+  CHECK_THROWS_AS(History::LoadJsonl(path), std::runtime_error);
+
+  write({R"({"type":"header","version":2,"ticks_per_second":100})"});
+  CHECK_THROWS_AS(History::LoadJsonl(path), std::runtime_error);
+
+  write({R"({"type":"header","version":1,"ticks_per_second":60})"});
+  CHECK_THROWS_AS(History::LoadJsonl(path), std::runtime_error);
+
+  write({frame});
+  CHECK_THROWS_AS(History::LoadJsonl(path), std::runtime_error);
+
+  write({header, frame,
+         R"({"type":"snapshot","tick":2,"position":[0,0,0.11],"velocity":[0,0,0],"angular_velocity":[0,0,0],"orientation":[0,0,0,1]})"});
+  CHECK_THROWS_AS(History::LoadJsonl(path), std::runtime_error);
+
+  write({header,
+         R"({"type":"snapshot","tick":0,"position":[0,0],"velocity":[0,0,0],"angular_velocity":[0,0,0],"orientation":[0,0,0,1]})"});
+  CHECK_THROWS_AS(History::LoadJsonl(path), std::runtime_error);
+
+  write({header,
+         R"({"type":"snapshot","tick":0,"position":[0,0,0.11],"velocity":[0,0,0],"angular_velocity":[0,0,0]})"});
+  CHECK_THROWS_AS(History::LoadJsonl(path), std::runtime_error);
+
+  write({header, frame});
+  CHECK_NOTHROW(History::LoadJsonl(path));
+
+  std::filesystem::remove(path);
+}
+
+TEST_CASE("a replayed history reports its mode and stays read-only and saveable") {
+  const auto path = std::filesystem::temp_directory_path() / "football_history_replay.jsonl";
+  History recorded;
+  recorded.RecordSnapshot(Tick{0}, BallAt(1.0f));
+  recorded.RecordSnapshot(Tick{1}, BallAt(2.0f));
+  recorded.SaveJsonl(path);
+
+  History replay = History::LoadJsonl(path);
+  REQUIRE(replay.mode() == HistoryMode::Replay);
+  REQUIRE_THROWS_AS(replay.RecordSnapshot(Tick{2}, BallAt(3.0f)), std::logic_error);
+
+  const auto copy = std::filesystem::temp_directory_path() / "football_history_replay_copy.jsonl";
+  replay.SaveJsonl(copy);
+  const History round_trip = History::LoadJsonl(copy);
+  REQUIRE(round_trip.ReadSnapshot(Tick{0}) == recorded.ReadSnapshot(Tick{0}));
+  REQUIRE(round_trip.ReadSnapshot(Tick{1}) == recorded.ReadSnapshot(Tick{1}));
+
+  std::filesystem::remove(path);
+  std::filesystem::remove(copy);
 }

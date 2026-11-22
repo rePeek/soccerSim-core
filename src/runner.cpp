@@ -1,6 +1,7 @@
 #include "football/runner.hpp"
 
 #include <stdexcept>
+#include <utility>
 
 #include "football/log/log.hpp"
 
@@ -10,9 +11,8 @@ namespace football::runner {
 
 SingleRunner::SingleRunner(pitch::PitchModel pitch_model,
                            ball::BallModel ball_model,
-                           history::Recording recording,
-                           time::TickSpan tick_limit)
-    : env_(pitch_model, ball_model, recording), tick_limit_(tick_limit) {}
+                           time::TickSpan tick_limit, history::History history)
+    : env_(pitch_model, ball_model, std::move(history)), tick_limit_(tick_limit) {}
 
 SingleRunner::~SingleRunner() {
   Wait();

@@ -119,7 +119,7 @@ unittests/
   comments, parameter-label comments and commented-out code. Use clear names
   and structure; put necessary explanations in Markdown prose instead.
   Preserve third-party code and its required license/copyright notices.
-- Prefer semantic names and explicit construction policies (`Recording::Disabled`
+- Prefer semantic names and explicit construction policies (`HistoryMode::Replay`
   rather than an unexplained `false`). Use designated model initializers when
   multiple adjacent scalar fields would otherwise be ambiguous.
 - A public header includes only what it uses.
@@ -128,14 +128,19 @@ unittests/
 - Keep `Pitch` free of match/rules/actor concepts; it owns geometry and the
   static physics scene only.
 - `Ball` is the only authority for ball state. `football::Env` is one match: the
-  ball, the pitch and the tick cursor, advanced only by `LoopMain()` (its
-  one-tick `Step()` is private). It holds no thread, lock, flag or notion of
-  playing, so the same object works for a live host, a batch run and a future
-  branch search alike.
+  ball, the pitch, the tick cursor and an injected `History`, advanced only by
+  `LoopMain()` (its one-tick `Step()` is private). It holds no thread, lock, flag
+  or notion of playing, so the same object works for a live host, a batch run and
+  a future branch search alike. `Env` takes its History by value and moves it in;
+  with a `Replay` history it records nothing and `LoopMain()` returns without
+  advancing, so a loaded trajectory can be hosted without simulating.
 - `football::history::History` records what a match looked like: the caller hands
   it the authoritative `BallState` and the committed tick, so it never pulls state
-  and never depends on `Ball`, `Env` or the runner. Recording is fixed at
-  construction (`Recording`): a disabled recorder drops frames and allocates nothing.
+  and never depends on `Ball`, `Env` or the runner. Its mode is fixed at
+  construction: `History()` records, and `Replay` is created only by `LoadJsonl()`
+  and rejects recording. `mode()` reports which one applies. Every history owns a
+  Chunk in both modes, so a loaded trajectory is a first-class value, not a
+  special case.
   Frames are 64 bytes and live in a private Chunk's vector. Env records from tick
   zero without a fixed-duration capacity reservation; the vector grows as needed.
   Recording has no retention limit, so callers must choose tick limits that fit
@@ -144,19 +149,31 @@ unittests/
   `env.hpp` from history.
   `RecordSnapshot()` requires consecutive ticks starting at zero and rejects
   gaps, duplicates and out-of-order ticks with `std::invalid_argument` before
-  appending. `ReadSnapshot()` uses that Tick/index invariant and returns a copied
-  `std::optional<Snapshot>` under the same mutex as recording.
-  `std::optional<Snapshot>` under the same mutex as recording.
-- `History::SaveJsonl(path)` writes JSON Lines: one header object holding the
-  format version and tick rate, then one object per tick with the full state
-  (position, velocity, angular velocity, orientation in x/y/z/w order). Floats
+  appending; in `Replay` mode it throws `std::logic_error` instead of mutating a
+  loaded trajectory. `ReadSnapshot()` uses that Tick/index invariant and returns a
+  copied `std::optional<Snapshot>` under the same mutex as recording.
+- `History` is movable and owns its Chunk through an internal state pointer, so
+  `Env` and `SingleRunner` take one by value and move it in; the recording lock
+  travels with that state. `History::SaveJsonl(path)` writes JSON Lines: one
+  header object holding the format version and tick rate, then one object per
+  tick with the full state (position, velocity, angular velocity, orientation in
+  x/y/z/w order). Floats
   round-trip exactly when read back as float. It takes the History lock, writes a
   sibling `.tmp` file and renames it into place, so a failed write leaves the
-  previous file intact and throws `std::runtime_error`. There is no loader yet;
-  replay stays a design constraint, not an implemented mode. JSON Lines is the
-  current interchange format because it is inspectable; a binary format may be
-  added later without changing Snapshot or Chunk. nlohmann_json is a PRIVATE
-  dependency of football::history and never appears in its public headers.
+  previous file intact and throws `std::runtime_error`.
+- `History::LoadJsonl(path)` is the read-only entry: it validates the header
+  (type, format version, tick rate) and every frame (type, consecutive ticks from
+  zero, array lengths of 3/3/3/4), then builds the Chunk and returns a History in
+  `Replay` mode: readable and saveable, but `RecordSnapshot()` throws
+  `std::logic_error`. It throws `std::runtime_error` with file, line and
+  reason on a missing file, empty file, malformed JSON or inconsistent data, and
+  leaves no partially loaded state. `Env` and `SingleRunner` always construct a
+  recording history, so a simulated match can never write into a loaded
+  trajectory. Callers choose and pass the path; History never decides where
+  files live. JSON Lines is the current interchange format
+  because it is inspectable; a binary format may be added later without changing
+  Snapshot or Chunk. nlohmann_json is a PRIVATE dependency of football::history
+  and never appears in its public headers.
 - The executor owns its match and nothing else. The executor
   (`football::runner::SingleRunner`) does not advance until `Start()`, which
   launches `Env::LoopMain(tick_limit)` on a worker. Start is one-shot; Wait and
@@ -190,6 +207,9 @@ unittests/
   RNG, so any number may run at once and identical inputs give identical results.
   The only process-wide piece is the log, which is thread-safe; destroying a
   session flushes it, so no separate flush call exists.
+`football_session_create` takes a models pair, a tick limit and an optional
+  JSON Lines path: a NULL or empty path records a new match, otherwise the file is
+  loaded and the session only replays it, without simulating.
 - C ABI render reads copy Tick, position and orientation into a 40-byte
   `football_render_snapshot`; never expose internal frame pointers or add a
   duplicate render history. Reads return 1 on success, 0 for invalid parameters

@@ -2,11 +2,11 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <filesystem>
 
 #include "football/env.hpp"
 
 using football::ball::BallModel;
-using football::history::Recording;
 using football::Env;
 using football::pitch::PitchModel;
 using football::time::Tick;
@@ -63,15 +63,6 @@ TEST_CASE("LoopMain advances exactly the requested ticks including zero") {
   REQUIRE(env.Ticks() == Tick{750});
 }
 
-TEST_CASE("an environment can advance without recording") {
-  Env env(kPitch, kBall, Recording::Disabled);
-  env.LoopMain(TickSpan{10});
-  REQUIRE_FALSE(env.history().enabled());
-  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{0}));
-  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{10}));
-  REQUIRE(env.Ticks() == Tick{10});
-}
-
 TEST_CASE("equal inputs record equal frames") {
   Env first(kPitch, kBall);
   Env second(kPitch, kBall);
@@ -95,10 +86,29 @@ TEST_CASE("environments are independent") {
 }
 
 TEST_CASE("LoopMain has no built-in match horizon") {
-  Env env(kPitch, kBall, Recording::Disabled);
+  Env env(kPitch, kBall);
   const auto duration = football::time::Minutes(120);
   env.LoopMain(duration);
   REQUIRE(env.Ticks() == Tick{duration.value});
   env.LoopMain(TickSpan{1000});
   REQUIRE(env.Ticks() == Tick{duration.value + 1000});
+}
+
+TEST_CASE("an environment given a replay history does not simulate") {
+  const auto path = std::filesystem::temp_directory_path() / "football_env_replay.jsonl";
+  football::history::History recording;
+  football::ball::BallState state;
+  state.position = football::math::Vector3(1.0f, 2.0f, 0.11f);
+  recording.RecordSnapshot(Tick{0}, state);
+  recording.SaveJsonl(path);
+
+  Env env(kPitch, kBall, football::history::History::LoadJsonl(path));
+  REQUIRE(env.history().mode() == football::history::HistoryMode::Replay);
+  env.LoopMain(TickSpan{100});
+  REQUIRE(env.Ticks() == Tick{0});
+  REQUIRE(env.history().ReadSnapshot(Tick{0}));
+  REQUIRE(env.history().ReadSnapshot(Tick{0})->ball.position.coords[0] == Approx(1.0f));
+  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{1}));
+
+  std::filesystem::remove(path);
 }
