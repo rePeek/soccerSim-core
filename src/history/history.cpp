@@ -18,4 +18,4 @@ std::optional<Snapshot> History::ReadSnapshot(time::Tick tick) const {
   return chunk_.frames[tick.value];
 }
 
-}  // namespace football::history
+}

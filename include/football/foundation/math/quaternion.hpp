@@ -27,7 +27,6 @@ namespace football::math {
       void Set(real x, real y, real z, real w);
       void Set(const Quaternion &quat);
 
-      // ----- operator overloading
       bool operator == (const Quaternion &fac) const = default;
       bool operator != (const Quaternion &fac) const;
       const Quaternion operator * (float scale) const;
@@ -38,7 +37,6 @@ namespace football::math {
       Quaternion operator - (const Quaternion &q2) const;
       Quaternion operator - () const;
 
-      // ----- mathematics
       Quaternion GetInverse() const;
       void GetAngles(real &X, real &Y, real &Z) const;
       void SetAngles(real X, real Y, real Z);
@@ -51,22 +49,20 @@ namespace football::math {
       void Normalize();
       Quaternion GetNormalized() const;
       float GetDotProduct(const Quaternion &subject) const;
-      Quaternion GetLerped(float bias, const Quaternion &to) const; // bias > 1 can extrapolate small angles in a hacky, incorrect way *edit: is that so? i'm not so sure
+      Quaternion GetLerped(float bias, const Quaternion &to) const;
       Quaternion GetSlerped(float bias, const Quaternion &to) const;
       Quaternion GetRotationTo(const Quaternion &to) const;
       Quaternion GetRotationMultipliedBy(float factor) const;
       radian GetRotationAngle(const Quaternion &to) const {
         return 2.0f * std::acos(clamp(this->GetDotProduct(to), -1.0f, 1.0f));
       }
-      float MakeSameNeighborhood(const Quaternion &src); // returns dot product as added bonus! ;)
+      float MakeSameNeighborhood(const Quaternion &src);
 
       real elements[4];
   };
 
   std::ostream& operator<<(std::ostream& os, const Quaternion& v);
 
-  // First-order integration of an angular velocity over dt seconds,
-  // renormalized because the Euler step does not preserve unit length.
   Quaternion IntegrateOrientation(const Quaternion& q, const Vector3& omega,
                                   real dt);
 

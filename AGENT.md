@@ -32,10 +32,8 @@ Runtime layer in this build.
 CMake >= 3.24, Ninja, C11 and C++23; use the `flake.nix` dev shell.
 
 ```sh
-# Debug build + all suites
 nix develop --command bash -c 'cmake --preset debug && cmake --build --preset debug -j $(nproc) && ctest --preset debug'
 
-# Release
 nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j $(nproc) && ctest --preset release'
 ```
 
@@ -104,7 +102,12 @@ unittests/
 
 ## Coding conventions
 
-- Prefer explicit values and narrow interfaces over comments that restate code.
+- Do not add comments to repository-owned source code, headers, tests, build
+  scripts, configuration files or documentation code examples. This includes
+  line comments, block comments, documentation comments, namespace-closing
+  comments, parameter-label comments and commented-out code. Use clear names
+  and structure; put necessary explanations in Markdown prose instead.
+  Preserve third-party code and its required license/copyright notices.
 - A public header includes only what it uses.
 - `src/` is never a PUBLIC include directory.
 - Do not add a dependency from a leaf module back to `env`/`simcore`.

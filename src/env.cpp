@@ -13,7 +13,6 @@ Env::Env(pitch::PitchModel pitch_model, ball::BallModel ball_model, bool record)
       ball_(ball_model),
       history_(record ? static_cast<std::size_t>(kFullTime.value) + 1 : 0,
                record) {
-  // The centre spot is the only sensible start until a caller moves the ball.
   ball_.PlaceOnGround(0.0f, 0.0f);
   history_.BuildSnapshot(tick_, ball_.get_state());
   Info(Channel::env, "environment constructed");
@@ -25,7 +24,6 @@ void Env::Step() {
   ball_.Step(pitch_);
   tick_ += time::TickSpan{1};
   phase_ = PhaseOfTick(tick_.value);
-  // Record after the tick is committed, so a frame's tick always matches Ticks().
   history_.BuildSnapshot(tick_, ball_.get_state());
 }
 
@@ -41,4 +39,4 @@ MatchPhase Env::Phase() const { return phase_; }
 
 bool Env::Finished() const { return phase_ == MatchPhase::FullTime; }
 
-}  // namespace football
+}

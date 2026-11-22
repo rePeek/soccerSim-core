@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
 
-# BallState is the state contract: header-only so recorders such as
-# football::history can depend on it without the physics library.
 add_library(football_ball_state INTERFACE)
 add_library(football::ball_state ALIAS football_ball_state)
 target_sources(football_ball_state INTERFACE FILE_SET HEADERS

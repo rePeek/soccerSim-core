@@ -32,7 +32,6 @@ namespace football::math {
       float GetCoord(int index) const;
       void SetCoord(int index, float value);
 
-      // ----- operator overloading
       bool operator == (const Vector3 &vector) const;
       bool operator != (const Vector3 &vector) const;
       void operator = (const Quaternion &quat);
@@ -57,30 +56,21 @@ namespace football::math {
 
       bool operator < (const Vector3 &vector) const;
 
-      // ----- mathematics
       Vector3 GetCrossProduct(const Vector3 &fac) const;
       real GetDotProduct(const Vector3 &fac) const;
-      // Fast inverse-sqrt approximation. Contract: a zero vector is left
-      // unchanged.
       void FastNormalize();
-      // Normalizes to unit length. A zero vector is replaced by ifNull.
       void Normalize(const Vector3 &ifNull);
-      // Normalizes to unit length. Contract: a zero vector is left as zero.
       void Normalize();
-      // Scales to the given length. Contract: a zero vector is left as zero.
       void NormalizeTo(float length);
       void NormalizeMax(float length);
-      // this function does not make much sense does it? void NormalizeMax(float length, const Vector3 &ifNull);
       Vector3 GetNormalized(const Vector3 &ifNull) const;
       Vector3 GetNormalized() const;
       Vector3 GetNormalizedTo(float length) const;
       Vector3 GetNormalizedMax(float length) const;
-      // this function does not make much sense does it? Vector3 GetNormalizedMax(float length, const Vector3 &ifNull) const;
       real GetDistance(const Vector3 &fac) const;
       real GetLength() const;
       real GetSquaredLength() const;
       radian GetAngle2D() const;
-      // both need to be normalized!
       radian GetAngle2D(const Vector3 &test) const;
       void Rotate(const Quaternion &quat);
       void Rotate2D(const radian angle);
@@ -91,8 +81,6 @@ namespace football::math {
       Vector3 EnforceMaximumDeviation(const Vector3 &deviant, float maxDeviation) const;
       Vector3 GetClamped2D(const Vector3 &v1, const Vector3 &v2) const;
 
-      // extrapolates a vector by a direction & a time difference in the future (positive) or in the past (negative)
-      // assume direction vector to be units per sec, assume time to be in milliseconds
       void Extrapolate(const Vector3 &direction, unsigned long time);
 
       real coords[3];
@@ -100,10 +88,8 @@ namespace football::math {
 
   std::ostream& operator<<(std::ostream& os, const Vector3& v);
 
-  // INLINED FUNCTIONS
 
 
-  // ----- operator overloading
 
   inline
   bool Vector3::operator == (const Vector3 &vector) const {
@@ -272,12 +258,10 @@ namespace football::math {
   inline
   void Vector3::Rotate(const Quaternion &quat) {
 
-    // cross product
     float uvx = coords[2] * quat.elements[1] - coords[1] * quat.elements[2];
     float uvy = coords[0] * quat.elements[2] - coords[2] * quat.elements[0];
     float uvz = coords[1] * quat.elements[0] - coords[0] * quat.elements[1];
 
-    // cross product
     float uuvx = uvz * quat.elements[1] - uvy * quat.elements[2];
     float uuvy = uvx * quat.elements[2] - uvz * quat.elements[0];
     float uuvz = uvy * quat.elements[0] - uvx * quat.elements[1];

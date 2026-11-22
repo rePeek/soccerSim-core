@@ -6,10 +6,6 @@
 
 namespace football::time {
 
-// One simulation tick is the discrete time quantum: 1/100 s physical time.
-// New simulation timestamps, deadlines, durations and cadences use Tick or
-// TickSpan. Millisecond conversion belongs at API/config boundaries; adapters
-// must not silently quantize sub-tick estimates or clocks.
 inline constexpr std::uint64_t kTicksPerSecond = 100;
 inline constexpr float kTickSeconds = 1.0f / static_cast<float>(kTicksPerSecond);
 
@@ -38,7 +34,7 @@ constexpr std::uint64_t MultiplyTime(std::uint64_t value, std::uint64_t factor) 
     throw std::overflow_error("tick duration overflow");
   return value * factor;
 }
-}  // namespace detail
+}
 
 constexpr Tick operator+(Tick time, TickSpan duration) {
   return {detail::AddTime(time.value, duration.value)};
@@ -72,4 +68,4 @@ constexpr float ToSeconds(TickSpan duration) {
   return static_cast<float>(duration.value) * kTickSeconds;
 }
 
-}  // namespace football::time
+}

@@ -36,7 +36,6 @@ void Quaternion::Set(const Quaternion &quat) {
 }
 
 
-  // ----- operator overloading
 
   bool Quaternion::operator != (const Quaternion &fac) const {
     if (fac.elements[0] != elements[0] || fac.elements[1] != elements[1] ||
@@ -53,7 +52,6 @@ void Quaternion::Set(const Quaternion &quat) {
 
   Vector3 Quaternion::operator * (const Vector3 &fac) const {
 
-    // nVidia SDK implementation
     Vector3 uv, uuv;
     Vector3 qvec(elements[0], elements[1], elements[2]);
     uv = qvec.GetCrossProduct(fac);
@@ -90,7 +88,6 @@ void Quaternion::Set(const Quaternion &quat) {
   }
 
 
-  // ----- mathematics
 
   Quaternion Quaternion::GetInverse() const {
     real fnorm = GetMagnitude();
@@ -110,7 +107,6 @@ void Quaternion::Set(const Quaternion &quat) {
 
     float singularityTest = elements[x] * elements[y] + elements[z] * elements[3];
     if (singularityTest > 0.49999 || singularityTest < -0.49999) {
-        // north and south pole
       if (singularityTest > 0) {
         Z = 2 * std::atan2(elements[x], elements[z]);
         Y = pi * 0.5;
@@ -136,8 +132,6 @@ void Quaternion::Set(const Quaternion &quat) {
   }
 
   void Quaternion::SetAngles(real X, real Y, real Z) {
-    // http://www.euclideanspace.com/maths/geometry/rotations/conversions/eulerToQuaternion/index.htm
-    // assuming the angles are in radians.
 
     float c1 = cos(Y / 2.0);
     float s1 = sin(Y / 2.0);
@@ -154,10 +148,7 @@ void Quaternion::Set(const Quaternion &quat) {
   }
 
   void Quaternion::GetAngleAxis(radian& rfangle, Vector3& rkaxis) const {
-    // the quaternion representing the rotation is
-    // q = cos(A/2)+sin(A/2)*(x*i+y*j+z*k)
 
-    // http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle
 
     rfangle = 2.0f * std::acos(elements[3]);
 
@@ -174,10 +165,6 @@ void Quaternion::Set(const Quaternion &quat) {
   }
 
   void Quaternion::SetAngleAxis(const radian &rfangle, const Vector3 &rkaxis) {
-    // assert: rkaxis[] is unit length
-    //
-    // the quaternion representing the rotation is
-    // q = cos(A/2)+sin(A/2)*(x*i+y*j+z*k)
 
     radian fhalfangle = 0.5f * rfangle;
     real fsin = sinf(fhalfangle);
@@ -213,8 +200,7 @@ void Quaternion::Set(const Quaternion &quat) {
   }
 
   void Quaternion::Normalize() {
-    // http://stackoverflow.com/questions/11667783/quaternion-and-normalization
-    double qmagsq = elements[0] * elements[0] + elements[1] * elements[1] + elements[2] * elements[2] + elements[3] * elements[3]; // squared magnitude
+    double qmagsq = elements[0] * elements[0] + elements[1] * elements[1] + elements[2] * elements[2] + elements[3] * elements[3];
     if (qmagsq < 0.000001f) {
       Set(QUATERNION_IDENTITY[0], QUATERNION_IDENTITY[1], QUATERNION_IDENTITY[2], QUATERNION_IDENTITY[3]);
     } else {
@@ -242,13 +228,10 @@ void Quaternion::Set(const Quaternion &quat) {
 
   Quaternion Quaternion::GetSlerped(float bias, const Quaternion &to) const {
 
-    // http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/index.htm
 
-    // quaternion to return
     Quaternion qm;
     Quaternion qb = to;
 
-    // Calculate angle between them.
     double cosHalfTheta = elements[3] * qb.elements[3] + elements[0] * qb.elements[0] + elements[1] * qb.elements[1] + elements[2] * qb.elements[2];
 
     if (cosHalfTheta < 0) {
@@ -256,7 +239,6 @@ void Quaternion::Set(const Quaternion &quat) {
       cosHalfTheta = -cosHalfTheta;
     }
 
-    // if *this=to or *this=-to then theta = 0 and we can return *this
     if (fabs(cosHalfTheta) >= 1.0) {
       qm.elements[3] = elements[3];
       qm.elements[0] = elements[0];
@@ -265,14 +247,10 @@ void Quaternion::Set(const Quaternion &quat) {
       return qm;
     }
 
-    // Calculate temporary values.
     double halfTheta = acos(cosHalfTheta);
     double sinHalfTheta = sqrt(1.0 - cosHalfTheta * cosHalfTheta);
 
-    // if theta = 180 degrees then result is not fully defined
-    // we could rotate around any axis normal to *this or to
     if (fabs(sinHalfTheta) < 0.000001f) {
-        // fabs is floating point absolute
       qm.elements[3] = (elements[3] * 0.5 + qb.elements[3] * 0.5);
       qm.elements[0] = (elements[0] * 0.5 + qb.elements[0] * 0.5);
       qm.elements[1] = (elements[1] * 0.5 + qb.elements[1] * 0.5);
@@ -283,7 +261,6 @@ void Quaternion::Set(const Quaternion &quat) {
     double ratioA = sin((1 - bias) * halfTheta) / sinHalfTheta;
     double ratioB = sin(bias * halfTheta) / sinHalfTheta;
 
-    //calculate Quaternion.
     qm.elements[3] = (elements[3] * ratioA + qb.elements[3] * ratioB);
     qm.elements[0] = (elements[0] * ratioA + qb.elements[0] * ratioB);
     qm.elements[1] = (elements[1] * ratioA + qb.elements[1] * ratioB);
@@ -293,7 +270,6 @@ void Quaternion::Set(const Quaternion &quat) {
   }
 
   Quaternion Quaternion::GetRotationTo(const Quaternion &to) const {
-    // http://stackoverflow.com/questions/8781129/when-i-have-two-orientation-quaternions-how-do-i-find-the-rotation-quaternion-n
     return to * this->GetInverse();
   }
 
@@ -305,9 +281,9 @@ void Quaternion::Set(const Quaternion &quat) {
     radian angle;
     GetAngleAxis(angle, axis);
 
-    if (angle > pi) angle -= 2.0f * pi; // range -pi .. pi
+    if (angle > pi) angle -= 2.0f * pi;
 
-    angle = std::fmod(angle * factor, 2.0f * pi);  // remove multiples of 2pi
+    angle = std::fmod(angle * factor, 2.0f * pi);
 
     result.SetAngleAxis(angle, axis);
 

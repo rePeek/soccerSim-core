@@ -1,5 +1,3 @@
-# football::collision — generic swept-sphere queries. Links only the collision
-# module and its geometry dependency; no ball, pitch or material semantics.
 
 add_executable(football_collision_unit_tests sweep_test.cpp)
 target_link_libraries(football_collision_unit_tests

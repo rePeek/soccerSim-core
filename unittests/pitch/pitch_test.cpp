@@ -1,9 +1,3 @@
-// football::pitch::Pitch — the domain that owns the static physics scene.
-//
-// The pitch builds the ground (a solid half-space) and the goal furniture
-// (four posts + two crossbars) once at construction, and exposes them as a
-// read-only, deterministically ordered list. These tests pin that contract
-// without creating a Ball or an Env.
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -36,7 +30,6 @@ TEST_CASE("Default pitch builds seven ordered static colliders", "[unit][pitch]"
   const Pitch pitch;
   REQUIRE(pitch.colliders().size() == 7);
 
-  // Names label the scene for logs; the order is what breaks exact TOI ties.
   CHECK(pitch.colliders()[0].name == "ground");
   const std::array<std::string_view, 6> goal_parts{
       "goal_neg_x_neg_y_post", "goal_neg_x_pos_y_post", "goal_pos_x_neg_y_post",
@@ -44,14 +37,12 @@ TEST_CASE("Default pitch builds seven ordered static colliders", "[unit][pitch]"
   for (std::size_t i = 0; i < goal_parts.size(); ++i)
     CHECK(pitch.colliders()[i + 1].name == goal_parts[i]);
 
-  // Ground first: a solid half-space at z = 0 facing up.
   const Collider& ground = pitch.colliders().front();
   REQUIRE(std::holds_alternative<HalfSpace>(ground.shape));
   const auto& half_space = std::get<HalfSpace>(ground.shape);
   CHECK(half_space.point == Vector3(0.0f, 0.0f, 0.0f));
   CHECK(half_space.normal == Vector3(0.0f, 0.0f, 1.0f));
 
-  // Goal furniture is capsules (four posts + two crossbars).
   for (std::size_t i = 1; i < pitch.colliders().size(); ++i) {
     CHECK(std::holds_alternative<Capsule>(pitch.colliders()[i].shape));
   }
@@ -67,7 +58,6 @@ TEST_CASE("Goal colliders follow the pitch geometry", "[unit][pitch]") {
     return std::get<Capsule>(pitch.colliders()[i].shape);
   };
 
-  // Posts: ids 2..5, vertical bars from the ground to the crossbar height.
   CHECK(capsule(1).a == Vector3(-x, -y, 0.0f));
   CHECK(capsule(1).b == Vector3(-x, -y, z));
   CHECK(capsule(2).a == Vector3(-x, y, 0.0f));
@@ -77,7 +67,6 @@ TEST_CASE("Goal colliders follow the pitch geometry", "[unit][pitch]") {
     CHECK(capsule(i).radius == Approx(0.06f));
   }
 
-  // Crossbars: ids 6 and 7, spanning the goal mouth at the top of the posts.
   CHECK(capsule(5).a == Vector3(-x, -y, z));
   CHECK(capsule(5).b == Vector3(-x, y, z));
   CHECK(capsule(6).a == Vector3(x, -y, z));
@@ -101,7 +90,6 @@ TEST_CASE("Configuration drives the derived geometry", "[unit][pitch]") {
   CHECK_FALSE(small.contains(45.1f, 0.0f));
   CHECK_FALSE(small.contains(0.0f, 30.1f));
 
-  // The goal posts move with the custom length.
   const auto post = std::get<Capsule>(small.colliders()[1].shape);
   CHECK(post.a.coords[0] == Approx(-45.0f));
 }

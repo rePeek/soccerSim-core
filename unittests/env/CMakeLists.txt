@@ -1,6 +1,3 @@
-# Env owns the ball and the cursor; the runner owns the loop. Env is compiled
-# into the shared library, so this suite links simcore on purpose: there is no
-# separate Env module to link against.
 add_executable(football_env_unit_tests env_test.cpp)
 
 target_link_libraries(football_env_unit_tests

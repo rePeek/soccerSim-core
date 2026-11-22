@@ -1,5 +1,3 @@
-// football::collision — swept-sphere queries answer "did they touch, when, and
-// from which direction", and nothing about identity, material or response.
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -40,15 +38,13 @@ Collider Wall(float x, std::string_view name) {
   return Collider{HalfSpace{Vector3(x, 0, 0), Vector3(-1, 0, 0)}, {}, name};
 }
 
-}  // namespace
+}
 
 TEST_CASE("A sweep reports the contact time, point and normal", "[unit][collision]") {
   const Capsule post{Vector3(1, 0, 0), Vector3(1, 0, 2), 0.05f};
-  // 100 m/s covers one metre per tick, so the post is reachable in a single sweep.
   const auto hit = Sweep(BallAt({0, 0, 1}, {100, 0, 0}), post, kDt);
 
   REQUIRE(hit.has_value());
-  // Ball surface reaches the post surface at x = 1 - 0.05 - 0.11 = 0.84 m.
   CHECK(hit->toi == Approx(0.84f).margin(1e-4f));
   CHECK(hit->center.coords[0] == Approx(0.84f).margin(1e-4f));
   CHECK(hit->normal.coords[0] == Approx(-1.0f).margin(1e-4f));
@@ -70,7 +66,6 @@ TEST_CASE("A sweep rejects malformed input instead of reporting a miss",
 }
 
 TEST_CASE("FirstHit keeps the earliest contact across the set", "[unit][collision]") {
-  // The near wall is hit first, even though the far one is listed first.
   const std::array colliders{Wall(0.9f, "far"), Wall(0.5f, "near")};
   const auto found = FirstHit(BallAt({0, 0, 1}, {100, 0, 0}), colliders, kDt);
 
@@ -96,12 +91,9 @@ TEST_CASE("FirstHit picks the same timing when the set is reordered",
 }
 
 TEST_CASE("An exact tie keeps the collider met first in the set", "[unit][collision]") {
-  // Two walls at the same distance: only the input order can decide.
   const std::array forward{Wall(0.5f, "first"), Wall(0.5f, "second")};
   const std::array reversed{Wall(0.5f, "second"), Wall(0.5f, "first")};
 
-  // The same pair, listed in the other order, keeps the other one: the input
-  // order alone decides, never the name.
   CHECK(FirstHit(BallAt({0, 0, 1}, {100, 0, 0}), forward, kDt)->collider->name ==
         "first");
   CHECK(FirstHit(BallAt({0, 0, 1}, {100, 0, 0}), reversed, kDt)->collider->name ==

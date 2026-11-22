@@ -22,27 +22,17 @@ class Ball {
   void set_state(const BallState& state) { state_ = state; }
   const BallModel& model() const { return model_; }
 
-  // Predict free motion, sweep the path, then commit or stop at one impact.
-  // An impact stops at the contact point and resolves the impulse from the
-  // predicted state; the rest of the tick is not integrated.
   void Step(const Pitch& pitch);
 
-  // Apply impulse [N*s] at a world-space point on the ball surface. Changes
-  // velocity and spin, not position or orientation; the point must be one
-  // radius from the centre (asserted), since only the shell can be struck.
   void ApplyImpulseAtPoint(const math::Vector3& impulse,
                            const math::Vector3& world_point);
 
-  // Impulse [N*s] to apply at `contact_point`, or nullopt when the contact is
-  // already separating. `normal` points from the surface toward the ball and
-  // `contact_point` sits on the ball's shell. Does not touch the ball.
   std::optional<math::Vector3> SolveContactImpulse(
       const math::Vector3& normal,
       const math::Vector3& contact_point,
       const math::Vector3& surface_velocity,
       const geometry::ContactMaterial& material) const;
 
-  // z is forced to the radius; velocity/spin are cleared.
   void PlaceOnGround(float x, float y);
 
  private:
@@ -50,4 +40,4 @@ class Ball {
   BallState state_;
 };
 
-}  // namespace football::ball
+}

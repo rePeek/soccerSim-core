@@ -1,5 +1,3 @@
-# Ball physics contract: models, CCD, response and one-tick motion.
-# Links only football::ball (+ foundation/geometry it declares), never simcore.
 
 add_executable(football_ball_unit_tests
   ball_model_test.cpp

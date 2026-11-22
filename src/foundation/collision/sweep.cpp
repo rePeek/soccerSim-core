@@ -55,7 +55,6 @@ namespace {
 
 constexpr float kEpsilon = 1e-6f;
 
-// Returns the number of roots; if two, t0 <= t1.
 int SolveQuadratic(float a, float b, float c, float& t0, float& t1) {
   if (std::fabs(a) < kEpsilon) {
     if (std::fabs(b) < kEpsilon) return 0;
@@ -76,7 +75,6 @@ math::Vector3 NormalizedSafe(const math::Vector3& v,
   return v.GetNormalized(fallback);
 }
 
-// ---- Input validation ----
 bool IsFiniteVector(const math::Vector3& v) {
   return std::isfinite(v.coords[0]) && std::isfinite(v.coords[1]) &&
          std::isfinite(v.coords[2]);
@@ -109,8 +107,6 @@ void ValidateShape(const ColliderShape& shape) {
       shape);
 }
 
-// Rejects malformed sweeps. A valid query with no contact returns nullopt; bad
-// input is a caller bug, so it throws instead of being reported as "no hit".
 void ValidateSweep(const MovingSphere& sphere, const ColliderShape& shape,
                    float dt) {
   if (!std::isfinite(dt) || dt <= 0.0f)
@@ -123,9 +119,6 @@ void ValidateSweep(const MovingSphere& sphere, const ColliderShape& shape,
   ValidateShape(shape);
 }
 
-// Two-sided plane: a thin surface. The sphere touches when its centre is one
-// radius away, on either side, and the normal points back to the side it
-// arrived from.
 std::optional<CollisionHit> SweepPlane(const MovingSphere& sphere,
                                        const Plane& plane, float dt) {
   const math::Vector3 ball_position = sphere.shape.center;
@@ -153,8 +146,6 @@ std::optional<CollisionHit> SweepPlane(const MovingSphere& sphere,
   return hit;
 }
 
-// One-sided solid: the -normal side is solid, so a sphere already inside it
-// reports toi == 0 and otherwise contacts when its surface reaches the plane.
 std::optional<CollisionHit> SweepHalfSpace(const MovingSphere& sphere,
                                            const HalfSpace& half_space, float dt) {
   const math::Vector3 ball_position = sphere.shape.center;
@@ -199,8 +190,6 @@ std::optional<CollisionHit> SweepSphere(const MovingSphere& sphere,
     hit.normal = NormalizedSafe(r0, {0, 0, 1});
     return hit;
   }
-  // Outside/tangent and non-approaching: reject the quadratic exit root.
-  // Convex distance cannot later decrease along this straight sweep.
   if (r0.GetDotProduct(disp) >= 0.0f) return std::nullopt;
 
   const float a = disp.GetDotProduct(disp);
@@ -255,7 +244,6 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
     if (t >= 0.0f && t <= 1.0f) best = std::min(best, t);
   }
 
-  // Interior: squared distance to the infinite line equals radius_sum^2.
   const math::Vector3 dir_v = seg_b - seg_a;
   const float dir_len2 = dir_v.GetDotProduct(dir_v);
   if (dir_len2 > kEpsilon) {
@@ -287,7 +275,7 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
   return hit;
 }
 
-}  // namespace
+}
 
 std::optional<CollisionHit> Sweep(const MovingSphere& sphere,
                                   const ColliderShape& shape, float dt) {
@@ -315,8 +303,6 @@ std::optional<ColliderHit> FirstHit(
   for (const Collider& collider : colliders) {
     const std::optional<CollisionHit> hit = Sweep(sphere, collider.shape, dt);
     if (!hit.has_value()) continue;
-    // Strictly earlier wins; an exact tie keeps the collider met first, so
-    // neither names nor addresses ever order contacts.
     if (!best.has_value() || hit->toi < best->hit.toi)
       best = ColliderHit{*hit, &collider};
   }
@@ -336,16 +322,13 @@ bool Overlap(const Sphere& sphere, const Capsule& capsule) {
 
 bool Overlap(const Sphere& sphere, const Plane& plane) {
   const math::Vector3 n = NormalizedSafe(plane.normal, {0, 0, 1});
-  // A plane is a surface, not a half-space: the sphere intersects it when its
-  // center is within one radius of it, on either side.
   return std::fabs((sphere.center - plane.point).GetDotProduct(n)) <= sphere.radius;
 }
 
 bool Overlap(const Sphere& sphere, const HalfSpace& half_space) {
   const math::Vector3 n =
       NormalizedSafe(half_space.normal, {0, 0, 1});
-  // Solid on the -normal side: overlap once the surface reaches the solid.
   return (sphere.center - half_space.point).GetDotProduct(n) <= sphere.radius;
 }
 
-}  // namespace football::collision
+}

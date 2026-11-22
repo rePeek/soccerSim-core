@@ -23,36 +23,22 @@ using geometry::ContactMaterial;
 
 namespace {
 
-// Touching distance to the grass and to the interval start: closer than this is
-// "already in contact", not a new impact.
 constexpr float kTouchEpsilon = 1e-4f;
 
-// Relative slack for "the point lies on the shell": the contact normal is
-// normalized in float, so the distance is only radius-accurate to a few ulps.
 constexpr float kSurfaceTolerance = 1e-3f;
 
-// ---- Motion ----
 
-// Thin-shell sphere inertia, I = 2/3 * mass * radius^2.
 float Inertia(const BallModel& model) {
   return (2.0f / 3.0f) * model.mass * model.radius * model.radius;
 }
 
-// A ball on the grass rising slower than this cannot lift more than roughly half
-// a millimetre, so its tiny bounce is absorbed as rolling instead of crossing the
-// grass boundary and needing a repair next tick.
 constexpr float kLiftEpsilon = 0.1f;
 
-// The ball rolls while it rests on the grass, and flies otherwise. This is the
-// single definition of "on the ground and not really lifting", and it picks the
-// integrator's branch.
 bool IsRolling(const BallModel& model, const BallState& state) {
   return state.position.coords[2] <= model.radius + kTouchEpsilon &&
          std::fabs(state.velocity.coords[2]) <= kLiftEpsilon;
 }
 
-// Grass resists horizontal motion only: a constant deceleration plus an optional
-// quadratic term, clamping at rest instead of flipping the sign.
 math::Vector3 GrassDrag(const math::Vector3& velocity, float dt,
                         const Pitch& pitch) {
   math::Vector3 v = velocity;
@@ -68,8 +54,6 @@ math::Vector3 GrassDrag(const math::Vector3& velocity, float dt,
   return v;
 }
 
-// Ground resistance applies only while the ball rests on the grass and is not
-// climbing; a descended interval keeps the velocity it has.
 math::Vector3 LaunchVelocity(const BallModel& model, const BallState& state,
                              float dt, const Pitch& pitch) {
   if (state.position.coords[2] <= model.radius + kTouchEpsilon &&
@@ -89,16 +73,11 @@ math::Vector3 Acceleration(const BallModel& model, const math::Vector3& v0,
   return accel;
 }
 
-// A ball at rest on the grass has nothing to integrate. This must require the
-// rolling branch: a ball at the apex of a throw also has zero vertical speed,
-// and a spinning ball still needs its orientation advanced.
 bool IsAtRest(const BallState& state) {
   return state.velocity.GetSquaredLength() <= kTouchEpsilon * kTouchEpsilon &&
          state.angular_velocity.GetSquaredLength() <= kTouchEpsilon * kTouchEpsilon;
 }
 
-// One interval of contact-free motion: ballistic flight in the air, rolling on
-// the grass while resting on it.
 BallState IntegrateMotion(const BallModel& model, const BallState& state,
                           float dt, const Pitch& pitch) {
   if (dt <= 0.0f) return state;
@@ -120,7 +99,7 @@ BallState IntegrateMotion(const BallModel& model, const BallState& state,
   return next;
 }
 
-}  // namespace
+}
 
 Ball::Ball(const BallModel& model)
     : model_(model), state_{Vector3(0), Vector3(0), Vector3(0), Quaternion()} {
@@ -134,13 +113,8 @@ void Ball::Step(const Pitch& pitch) {
   const float ball_radius = model_.radius;
   const BallState start = state_;
 
-  // 1. Predict the tick with no collisions; the impact path below only corrects
-  //    this position, keeping the predicted velocity and spin.
   BallState predicted = IntegrateMotion(model_, start, dt, pitch);
 
-  // 2. Sweep that path. A rolling ball rests on the grass, and the rolling
-  //    integration already pins its centre to the radius, so the ground is not a
-  //    candidate contact: query only the goal furniture.
   const auto colliders = pitch.colliders();
   const auto swept = IsRolling(model_, start) ? colliders.subspan(1) : colliders;
   const collision::MovingSphere sphere{
@@ -152,16 +126,10 @@ void Ball::Step(const Pitch& pitch) {
     return;
   }
 
-  // 3. The single impact: stop at the contact point and change the velocity. The
-  // rest of the tick is discarded.
   const auto& hit = found->hit;
   predicted.position = hit.center;
-  // Commit before solving: the solver reads position and velocity off the ball,
-  // and the lever arm is only -normal * radius once the centre sits on the
-  // surface.
   set_state(predicted);
 
-  // 4. Resolve the impulse and change the velocity.
   const geometry::Collider& collider = *found->collider;
   const math::Vector3 contact_point = predicted.position - hit.normal * ball_radius;
   const auto impulse = SolveContactImpulse(
@@ -172,8 +140,6 @@ void Ball::Step(const Pitch& pitch) {
 
 void Ball::ApplyImpulseAtPoint(const math::Vector3& impulse,
                                const math::Vector3& world_point) {
-  // Something can only push the ball where it touches the shell, so the point
-  // must sit one radius from the centre; anything else is a caller bug.
   const math::Vector3 r = world_point - state_.position;
   assert(std::fabs(r.GetLength() - model_.radius) <=
          kSurfaceTolerance * model_.radius);
@@ -202,7 +168,6 @@ std::optional<math::Vector3> Ball::SolveContactImpulse(
   const float mass = model_.mass;
   const float jn = -mass * (1.0f + material.restitution) * un;
 
-  // Sphere surface contacts have a radial lever arm, perpendicular to slip.
   const math::Vector3 ut = u - n * un;
   const float inverse = 1.0f / mass + r.GetDotProduct(r) / Inertia(model_);
   math::Vector3 jt = ut * (-1.0f / inverse);
@@ -221,4 +186,4 @@ void Ball::PlaceOnGround(float x, float y) {
   Info(Channel::ball, std::format("placed on ground at ({}, {})", x, y));
 }
 
-}  // namespace football::ball
+}

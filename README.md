@@ -43,7 +43,7 @@ int main(void) {
   football_session* session = football_session_create(&pitch, &ball);
   if (session == NULL) return 1;
 
-  football_session_destroy(session);  /* stops the loop and flushes the log */
+  football_session_destroy(session);
   return 0;
 }
 ```

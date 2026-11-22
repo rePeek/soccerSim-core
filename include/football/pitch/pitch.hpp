@@ -1,12 +1,5 @@
 #pragma once
 
-// football::pitch owns the pitch physics scene: the read-only description, the
-// fixed environment (gravity, ground) and the static colliders generated
-// once at construction.
-//
-// The dependency points one way: the ball reads this scene; pitch never knows
-// about it. Rule decisions (goal, out of play, fouls) belong to the match --
-// pitch only provides the geometry those decisions need.
 
 #include <array>
 #include <cstddef>
@@ -17,11 +10,6 @@
 
 namespace football::pitch {
 
-// Read-only pitch description in metres: x is length, y is width, and the
-// centre spot is the origin.
-//
-// Ground parameters are the empirical friction values the ball is tuned
-// against, not standard Coulomb coefficients: keep them unchanged.
 class Pitch {
  public:
   explicit Pitch(const PitchModel& model =
@@ -36,44 +24,29 @@ class Pitch {
   constexpr float goal_half_width() const { return goal_width_ * 0.5f; }
   constexpr float goal_height() const { return goal_height_; }
   constexpr float goal_depth() const { return goal_depth_; }
-  // Penalty-area geometry for rule decisions and restart placement.
   constexpr float penalty_area_depth() const { return penalty_area_depth_; }
   constexpr float penalty_mark_distance() const { return penalty_mark_distance_; }
 
-  // ---- Fixed environment the bodies move in (not per-tick input) ----
-  // Vertical gravity acceleration along -Z, in m/s^2.
   constexpr float gravity() const { return gravity_; }
   constexpr float quadratic_resistance() const { return model_.quadratic_resistance; }
   constexpr float ground_deceleration() const { return model_.ground_deceleration; }
-  // Quadratic air-drag coefficient: a = -air_drag * |v| * v.
   constexpr float air_drag() const { return model_.air_drag; }
 
-  // ---- Physics scene: ground, posts and crossbars, generated once ----
-  // Fixed order: it decides contacts that land on exactly the same TOI.
   std::span<const geometry::Collider> colliders() const {
     return colliders_;
   }
 
-  // Ground-plane bounds only. Ball radius, line crossing and restart decisions
-  // belong to the match, not this domain description.
   constexpr bool contains(float x, float y) const {
     return x >= -half_length() && x <= half_length() &&
            y >= -half_width() && y <= half_width();
   }
 
-  // Equality compares the configuration only. The collider list is derived data
-  // rebuilt from the configuration in the constructor, so it is not part of a
-  // pitch's identity.
   bool operator==(const Pitch& other) const;
 
 private:
-  // The scene is fixed: the grass plus, per goal, two posts and a crossbar. The
-  // count is spelled out once so the array that holds it is checked when built.
   static constexpr std::size_t kGoalParts = 6;
   static constexpr std::size_t kColliderCount = 1 + kGoalParts;
 
-  // Built once at construction; the generators are implementation detail in
-  // pitch.cpp.
   void BuildGrass(geometry::Collider& target) const;
   void BuildGoal(std::span<geometry::Collider> target) const;
 
@@ -91,4 +64,4 @@ private:
   std::array<geometry::Collider, kColliderCount> colliders_{};
 };
 
-}  // namespace football::pitch
+}

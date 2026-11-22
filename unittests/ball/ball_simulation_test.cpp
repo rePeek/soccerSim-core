@@ -1,4 +1,3 @@
-// Ball one-tick physics through the public Step API and the Pitch scene.
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -35,7 +34,7 @@ Pitch FrictionlessPitch() {
   return Pitch(football_pitch_model{105.0f, 68.0f, 0.0f, 0.0f, 0.0f});
 }
 
-}  // namespace
+}
 
 TEST_CASE("Free fall follows gravity", "[unit][ball][simulation]") {
   Ball ball(BallWithoutAero());
@@ -255,15 +254,10 @@ TEST_CASE("Successive ground bounces keep the pitch restitution and never sink",
     ball.Step(pitch);
     const auto state = ball.get_state();
     const float vz = state.velocity.coords[2];
-    // A tick that starts tangent and separating can end below the surface by at
-    // most g/2*dt^2 (0.5 mm): the next tick repairs it, which is the trade for
-    // never stalling a ball on a contact it cannot resolve.
     CHECK(state.position.coords[2] >= config.radius - 5e-4f);
     CHECK(state.position.coords[2] <= config.radius + 0.6f);
     if (previous <= 0.0f && vz > 0.0f) {
       ++bounces;
-      // The impulse uses the velocity at contact: never slower than the tick-start
-      // speed, never faster than one tick of gravity more.
       CHECK(vz >= restitution * -previous - 1e-4f);
       CHECK(vz <= restitution * (-previous + kGravity * kDt) + 1e-4f);
     }
@@ -276,7 +270,6 @@ TEST_CASE("A collision tick stops at the first post, not the second",
           "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
-  // Scene order: ground, left posts (low, high), right posts (low, high), bars.
   const auto& high = pitch.colliders()[4];
   const auto& post = std::get<Capsule>(high.shape);
   const float touching_y = pitch.goal_half_width() - post.radius - config.radius;
@@ -287,7 +280,6 @@ TEST_CASE("A collision tick stops at the first post, not the second",
   const auto state = ball.get_state();
   CHECK(state.position.coords[1] == Approx(touching_y).margin(1e-5f));
   CHECK(state.velocity.coords[1] == Approx(-high.material.restitution * 1000));
-  // The far post is only reachable on the following tick.
   ball.Step(pitch);
   CHECK(ball.get_state().position.coords[1] < 0.0f);
   CHECK(ball.get_state().velocity.coords[1] > 0.0f);
@@ -298,8 +290,6 @@ TEST_CASE("A tiny ground launch is absorbed as rolling",
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
   Ball ball(config);
-  // Below the lift threshold the bounce cannot clear even half a millimetre,
-  // so it is absorbed and the ball stays on the grass with vz cleared.
   ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 0.045f}));
   ball.Step(pitch);
 
@@ -322,7 +312,6 @@ TEST_CASE("Ground resistance is predicted for the full tick before a post impact
 
   const auto state = ball.get_state();
   CHECK(state.position.coords[0] == Approx(touching_x).margin(1e-5f));
-  // The grass drag is predicted for the whole tick before the impulse.
   CHECK(state.velocity.coords[0] ==
         Approx(-collider.material.restitution * (30.0f - 1.0f * kDt)).margin(1e-4f));
 }
@@ -341,8 +330,6 @@ TEST_CASE("Step commits every state component after a collision",
   CHECK(now.position.coords[0] < initial.position.coords[0] + 40 * kDt);
   CHECK(now.velocity.coords[0] < 0.0f);
   CHECK(now.angular_velocity == initial.angular_velocity);
-  // Orientation integrates the spin only up to the contact, so it must differ
-  // from the start pose without the full tick of rotation being applied.
   CHECK(now.orientation != initial.orientation);
 }
 
@@ -367,7 +354,6 @@ TEST_CASE("Passive response applies an impulse to the predicted state",
   initial.orientation.SetAngleAxis(0.3f, {1, 0, 0});
   const auto& ground = pitch.colliders().front();
 
-  // Analytic full-tick prediction, independent of the collision branch.
   const auto& v = initial.velocity;
   const auto& omega = initial.angular_velocity;
   const auto accel = Vector3(0, 0, -kGravity) - v * (pitch.air_drag() * v.GetLength()) +
@@ -380,8 +366,6 @@ TEST_CASE("Passive response applies an impulse to the predicted state",
   predicted.orientation =
       (initial.orientation + omega_q * initial.orientation * (0.5f * kDt)).GetNormalized();
 
-  // The impact stops at the chord contact point but keeps the predicted velocity,
-  // spin and orientation.
   const float fraction = (config.radius - initial.position.coords[2]) /
                          (predicted.position.coords[2] - initial.position.coords[2]);
   REQUIRE(fraction > 0.0f);
@@ -447,15 +431,12 @@ TEST_CASE("A ball at rest on the grass is integrated to the same state",
   CHECK(after.angular_velocity == before.angular_velocity);
   CHECK_FALSE(after.orientation != before.orientation);
 
-  // Spin at rest still advances the orientation, so "stopped" is not a shortcut
-  // for a spinning ball on the grass.
   auto spinning = before;
   spinning.angular_velocity = Vector3(0, 0, 4);
   ball.set_state(spinning);
   ball.Step(pitch);
   CHECK(ball.get_state().orientation != spinning.orientation);
 
-  // A zero vertical velocity in flight is not rest: gravity must still apply.
   ball.set_state(BallAt({0, 0, 5}, {0, 0, 0}));
   ball.Step(pitch);
   CHECK(ball.get_state().velocity.coords[2] == Approx(-kGravity * kDt).margin(1e-4f));
@@ -467,9 +448,6 @@ TEST_CASE("A drop bounces off the predicted tick-end speed",
   const auto pitch = FrictionlessPitch();
   const float restitution = pitch.colliders().front().material.restitution;
 
-  // The drop lands mid-tick, but the impulse uses the full-tick predicted
-  // velocity, so the bounce reflects one tick of gravity regardless of the
-  // actual contact moment.
   const float drop = 3e-4f;
   Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius + drop}, {0, 0, 0}));
@@ -489,7 +467,6 @@ TEST_CASE("A post impact keeps the remaining tick time unspent",
   const float touching_x = pitch.half_length() - post.radius - config.radius;
 
   Ball ball(config);
-  // Touches the post 4 ms into the tick; the other 6 ms must not be integrated.
   ball.set_state(BallAt({touching_x - 100 * 0.004f, -pitch.goal_half_width(),
                          config.radius},
                         {100, 0, 0}));
@@ -498,14 +475,13 @@ TEST_CASE("A post impact keeps the remaining tick time unspent",
   const auto state = ball.get_state();
   CHECK(state.position.coords[0] == Approx(touching_x).margin(1e-5f));
   CHECK(state.velocity.coords[0] == Approx(-post_collider.material.restitution * 100));
-  // Nothing moved after the contact point.
   CHECK(state.position.coords[0] > touching_x - 0.01f);
 }
 
 TEST_CASE("A rolling ball is not blocked by its own ground contact",
           "[unit][ball][simulation]") {
   const auto config = BallWithoutAero();
-  const Pitch pitch;  // default grass deceleration
+  const Pitch pitch;
   Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius}, {4, 0, 0}));
   float previous_x = 0.0f;
@@ -525,8 +501,6 @@ TEST_CASE("A tiny lift off the grass is absorbed as resting",
   const auto config = BallWithoutAero();
   const auto pitch = FrictionlessPitch();
   Ball ball(config);
-  // A lift too small to leave the grass; the tick clears it instead of letting
-  // the ball dip through the surface.
   ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 0.01f}));
 
   for (int i = 0; i < 4; ++i) {

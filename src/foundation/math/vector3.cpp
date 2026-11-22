@@ -75,11 +75,8 @@ void Vector3::Set(const Vector3 &vec) {
     }
   }
 
-  // ----- operator overloading
 
   void Vector3::operator=(const Quaternion &quat) {
-    // http://www.devmaster.net/forums/showthread.php?t=14097
-    // thanks @ reedbeta
 
     Quaternion blah;
     blah.Set(0, 0, -1, 0);
@@ -89,7 +86,6 @@ void Vector3::Set(const Vector3 &vec) {
   }
 
 
-  // ----- mathematics!!! don't we just love it
 
   Vector3 Vector3::GetCrossProduct(const Vector3 &fac) const {
     return Vector3(coords[1] * fac.coords[2] - coords[2] * fac.coords[1],
@@ -104,20 +100,16 @@ void Vector3::Set(const Vector3 &vec) {
 
   void Vector3::FastNormalize() {
 
-    // http://www.devmaster.net/forums/showthread.php?t=4460
-    // Quake-style fast inverse square root. std::bit_cast keeps the bit
-    // reinterpretation well-defined, unlike the old pointer punning.
 
     const real squared_length = GetDotProduct(*this);
-    if (squared_length == 0.0f) return;  // contract: zero stays zero
+    if (squared_length == 0.0f) return;
 
     float x = squared_length;
     const float xhalf = 0.5f * x;
-    std::uint32_t i = std::bit_cast<std::uint32_t>(x);  // bits of the float
-    i = 0x5f3759dfu - (i >> 1);                         // initial guess y0
-    x = std::bit_cast<float>(i);                        // back to float
-    x *= 1.5f - xhalf*x*x;                              // newton step, repeating
-                                                        // increases accuracy
+    std::uint32_t i = std::bit_cast<std::uint32_t>(x);
+    i = 0x5f3759dfu - (i >> 1);
+    x = std::bit_cast<float>(i);
+    x *= 1.5f - xhalf*x*x;
 
     coords[0] *= x;
     coords[1] *= x;
@@ -141,7 +133,7 @@ void Vector3::Set(const Vector3 &vec) {
 
   void Vector3::Normalize() {
     const real squared_length = GetDotProduct(*this);
-    if (squared_length == 0.0f) return;  // contract: zero stays zero
+    if (squared_length == 0.0f) return;
     real f = 1.0f / std::sqrt(squared_length);
     coords[0] *= f;
     coords[1] *= f;
@@ -150,7 +142,7 @@ void Vector3::Set(const Vector3 &vec) {
 
   void Vector3::NormalizeTo(float length) {
     const real squared_length = GetDotProduct(*this);
-    if (squared_length == 0.0f) return;  // contract: zero stays zero
+    if (squared_length == 0.0f) return;
     real f = length / std::sqrt(squared_length);
 
     coords[0] *= f;
@@ -193,7 +185,6 @@ void Vector3::Set(const Vector3 &vec) {
     v3[1] = coords[1] - fac.coords[1];
     v3[2] = coords[2] - fac.coords[2];
 
-    // premature optimization ;)
     if (v3[0] == 0.0f && v3[1] == 0.0f && v3[2] == 0.0f) return 0.0f;
 
     float length =
@@ -237,10 +228,6 @@ void Vector3::Set(const Vector3 &vec) {
     radian v2_to_this = (*this).GetAngle2D(v2);
     if (signSide(v1_to_this) != direction ||
         signSide(v2_to_this) == direction) {
-        // wrong side! (what this does: make 2 cross sections
-                      // through the virtual circle, one for each parameter, and
-                      // check if we are on the wrong side of either one
-      // check to which parameter-vec we are the closest and clamp to that one
       if (fabs(v1_to_this) < fabs(v2_to_this)) {
         result = v1;
       } else {

@@ -1,5 +1,3 @@
-# football::log owns the shared logger and the per-component channels.
-# Domain modules log through it instead of including BqLog directly.
 add_library(football_log STATIC log.cpp)
 add_library(football::log ALIAS football_log)
 

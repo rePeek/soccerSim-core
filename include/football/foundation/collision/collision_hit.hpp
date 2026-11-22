@@ -1,10 +1,5 @@
 #pragma once
 
-// Query result and query input for football::collision.
-//
-// collision answers "did they touch, when, and from which direction". It never
-// answers "how do they move afterwards": that (impulse, restitution, friction)
-// belongs to the ball's contact response.
 
 #include "football/foundation/geometry/collider.hpp"
 #include "football/foundation/geometry/shapes.hpp"
@@ -12,20 +7,11 @@
 
 namespace football::collision {
 
-// Kinematic input to one collision query: a moving sphere. Not a Ball -- it
-// carries no mass, spin, material or match identity, only the geometry and the
-// velocity needed to sweep it.
 struct MovingSphere {
   geometry::Sphere shape;
   math::Vector3 velocity;
 };
 
-// Result of one continuous collision query.
-//   toi               first contact time as a fraction of the swept interval [0, 1]
-//   center            sphere center at TOI
-//   normal            unit normal from the collider surface toward the sphere
-//   surface_velocity  collider contact-surface velocity at TOI (zero if static)
-// Response (normal impulse, restitution, friction) is deliberately absent.
 struct CollisionHit {
   float toi = 0.0f;
   math::Vector3 center;
@@ -33,13 +19,9 @@ struct CollisionHit {
   math::Vector3 surface_velocity;
 };
 
-// The earliest contact of a set and the collider it belongs to. The pointer is a
-// borrowed, non-owning reference: it stays valid only while the caller keeps the
-// container alive and its elements in place, so it must not be stored across
-// ticks.
 struct ColliderHit {
   CollisionHit hit;
   const geometry::Collider* collider = nullptr;
 };
 
-}  // namespace football::collision
+}

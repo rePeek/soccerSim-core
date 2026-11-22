@@ -4,8 +4,6 @@
 
 namespace football::time {
 
-// Millisecond input/output adapters, not a second simulation time domain.
-// Exact conversion is intentional: rounding needs an explicit caller policy.
 inline constexpr std::uint64_t kMillisecondsPerTick = 1000 / kTicksPerSecond;
 static_assert(1000 % kTicksPerSecond == 0);
 
@@ -22,4 +20,4 @@ constexpr std::uint64_t ToMilliseconds(Tick time) {
   return ToMilliseconds(TickSpan{time.value});
 }
 
-}  // namespace football::time
+}

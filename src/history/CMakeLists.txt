@@ -1,5 +1,3 @@
-# football::history records frames of match state. It depends on the state
-# contract only (ball_state.hpp), never on Ball's behaviour, Env or simcore.
 add_library(football_history STATIC)
 add_library(football::history ALIAS football_history)
 

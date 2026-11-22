@@ -12,8 +12,6 @@
         let
           pkgs = import nixpkgs { inherit system; };
         in {
-          # Single GCC toolchain. GCC 14+ supports CMake's C++20 module
-          # scanning out of the box (no clang-scan-deps, no libc++ flags).
           default = pkgs.mkShell {
             packages = [
               pkgs.cmake

@@ -1,4 +1,3 @@
-# BqLog's CMake entry point is src/, not its repository root.
 if(WIN32)
   set(_football_bq_platform win64)
 elseif(ANDROID)
@@ -19,7 +18,6 @@ endif()
 
 CPMAddPackage(NAME BqLog
   GITHUB_REPOSITORY Tencent/BqLog
-  # Release_2.5.0, pinned for reproducible builds.
   GIT_TAG 89af0fe488d3ba1e3760fb889751311032da0a8d
   SOURCE_SUBDIR src
   OPTIONS
@@ -28,13 +26,10 @@ CPMAddPackage(NAME BqLog
     "APPLE_LIB_FORMAT a"
     "JAVA_SUPPORT OFF" "NODE_API_SUPPORT OFF" "PYTHON_SUPPORT OFF" "GO_SUPPORT OFF")
 
-# Upstream uses directory-local include paths and writes archives into its own
-# checkout, so export only the public headers and isolate its build output.
 target_include_directories(BqLog SYSTEM INTERFACE "${BqLog_SOURCE_DIR}/include")
 set_target_properties(BqLog PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/_deps/bqlog-lib")
-# Nix's fortify preprocessor warning at -O0 must not trip upstream's -Werror.
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(BqLog PRIVATE -Wno-error=cpp)
 endif()

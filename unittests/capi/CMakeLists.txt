@@ -1,4 +1,3 @@
-# Compile the consumer with a C compiler, not a C++ compiler.
 add_executable(football_capi_tests capi_test.c)
 target_link_libraries(football_capi_tests PRIVATE football::simcore)
 set_target_properties(football_capi_tests PROPERTIES

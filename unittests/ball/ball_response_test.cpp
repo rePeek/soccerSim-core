@@ -1,4 +1,3 @@
-// Ball impulse response: analytic invariants exercised through Ball members.
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -26,7 +25,6 @@ BallState BallAt(const Vector3& position, const Vector3& velocity) {
   return state;
 }
 
-// The shell point facing the surface, mirroring how a sweep reports a contact.
 Vector3 ContactPoint(const Ball& ball, const Vector3& normal) {
   return ball.get_state().position - normal * ball.model().radius;
 }
@@ -40,7 +38,6 @@ Vector3 SolveAndApply(Ball& ball, const Vector3& normal, const Vector3& point,
   return *impulse;
 }
 
-// The normal share of an impulse; the rest is tangential.
 float NormalShare(const Vector3& impulse, const Vector3& normal) {
   return impulse.GetDotProduct(normal);
 }
@@ -49,7 +46,7 @@ Vector3 TangentialShare(const Vector3& impulse, const Vector3& normal) {
   return impulse - normal * NormalShare(impulse, normal);
 }
 
-}  // namespace
+}
 
 TEST_CASE("Impulse response uses thin-shell sphere inertia", "[unit][ball][response]") {
   Ball ball(TestBallModel());
@@ -63,8 +60,6 @@ TEST_CASE("A radial impulse changes linear velocity by J/m only",
           "[unit][ball][response]") {
   Ball ball(TestBallModel());
   const auto before = ball.get_state();
-  // Striking the bottom straight down: the lever arm is parallel to the impulse,
-  // so the change is torque-free translation.
   ball.ApplyImpulseAtPoint({0, 0, -1}, {0, 0, -ball.model().radius});
   const auto next = ball.get_state();
 
@@ -79,7 +74,6 @@ TEST_CASE("A radial impulse changes linear velocity by J/m only",
 TEST_CASE("Offset impulse produces the expected spin direction",
           "[unit][ball][response]") {
   Ball ball(TestBallModel());
-  // +x impulse at the bottom gives angular impulse about -y.
   ball.ApplyImpulseAtPoint({1, 0, 0}, {0, 0, -0.11f});
   const auto next = ball.get_state();
 
@@ -96,8 +90,6 @@ TEST_CASE("The lever arm direction comes from the point on the shell",
   const Ball ball_model(TestBallModel());
   const float radius = ball_model.model().radius;
 
-  // Same impulse magnitude, two surface points: the lever arm points along the
-  // line from the centre to the strike point, so the spin axis follows it.
   Ball bottom(TestBallModel());
   bottom.ApplyImpulseAtPoint({1, 0, 0}, {0, 0, -radius});
   const auto from_bottom = bottom.get_state();
@@ -107,8 +99,6 @@ TEST_CASE("The lever arm direction comes from the point on the shell",
   const auto from_side = side.get_state();
 
   CHECK(from_bottom.velocity.coords[0] == Approx(from_side.velocity.coords[0]));
-  // Striking the bottom spins about -y; striking the +x side produces no torque
-  // at all because there the lever arm is parallel to the impulse.
   CHECK(from_bottom.angular_velocity.coords[1] < 0.0f);
   CHECK(from_side.angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
 }
@@ -181,8 +171,6 @@ TEST_CASE("Contact resolution takes its lever arm from the contact point",
   CHECK(ball.get_state().angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
 
   ball.set_state(initial);
-  // Same normal and velocity, but the recorded point sits on the +x flank:
-  // the lever arm therefore follows the point, not the -normal * radius rule.
   const Vector3 offset_point = initial.position + Vector3(ball.model().radius, 0, 0);
   const Vector3 impulse = SolveAndApply(ball, normal, offset_point, frictionless);
   const float expected_inertia = (2.0f / 3.0f) * 0.5f * 0.11f * 0.11f;
@@ -212,7 +200,6 @@ TEST_CASE("Solving uses current state without applying the impulse",
   const auto impulse =
       ball.SolveContactImpulse({0, 0, 1}, point, Vector3(0, 0, 0), {0.5f, 0});
   REQUIRE(impulse.has_value());
-  // Frictionless, so the whole impulse points along the normal.
   CHECK(impulse->coords[2] == Approx(1.5f));
   CHECK(ball.get_state().position == before.position);
   CHECK(ball.get_state().velocity == before.velocity);

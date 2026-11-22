@@ -26,7 +26,6 @@ constexpr const char* kLogConfig = R"(
   log.buffer_size=65536
 )";
 
-// A function-local trivial static: created once, no destructor to run at exit.
 void EnsureCreated() {
   static const bool kCreated = [] {
     BqLog::create_log(kLogName, kLogConfig);
@@ -50,9 +49,6 @@ constexpr const char* ChannelName(Channel channel) {
   return "unknown";
 }
 
-// std::source_location yields a full signature such as
-// "void football::ball::Ball::Step(const Pitch&)". Reduce it to a short
-// "Ball::Step" (or "Env" for a constructor) so the prefix stays readable.
 std::string_view FunctionName(const char* signature) {
   const std::string_view text = signature != nullptr ? signature : "";
   const std::size_t arguments = text.find('(');
@@ -63,7 +59,6 @@ std::string_view FunctionName(const char* signature) {
   const std::size_t return_type = name.rfind(' ');
   if (return_type != std::string_view::npos) name = name.substr(return_type + 1);
 
-  // Keep only the last two scope components: Class::Function.
   const std::size_t scope = name.rfind("::");
   if (scope == std::string_view::npos) return name;
   const std::size_t outer = scope >= 2 ? name.rfind("::", scope - 2)
@@ -71,7 +66,6 @@ std::string_view FunctionName(const char* signature) {
   const std::string_view tail =
       outer == std::string_view::npos ? name : name.substr(outer + 2);
 
-  // A constructor reads "Pitch::Pitch"; collapse it to "Pitch".
   const std::size_t split = tail.rfind("::");
   if (split != std::string_view::npos &&
       tail.substr(0, split) == tail.substr(split + 2)) {
@@ -80,7 +74,7 @@ std::string_view FunctionName(const char* signature) {
   return tail;
 }
 
-}  // namespace
+}
 
 void Write(Channel channel, Level level, std::string_view message,
            const std::source_location& location) {
@@ -110,4 +104,4 @@ void Flush() {
   if (logger.is_valid()) logger.force_flush();
 }
 
-}  // namespace football::log
+}

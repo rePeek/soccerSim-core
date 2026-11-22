@@ -1,5 +1,3 @@
-// Env contract: one match's state and rules, advanced only by explicit calls.
-// Nothing here waits on a clock or a thread, so every assertion is exact.
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -22,7 +20,7 @@ namespace {
 constexpr PitchModel kPitch = PitchModel{105.0f, 68.0f, 0.04f, 1.6f, 0.015f};
 constexpr BallModel kBall = BallModel{0.43f, 0.11f, 0.02f};
 
-}  // namespace
+}
 
 TEST_CASE("a match is 45 and 90 minutes at 100 Hz") {
   REQUIRE(kHalfTime == Tick{270000});
@@ -76,7 +74,7 @@ TEST_CASE("recorded frames are values, not views") {
 }
 
 TEST_CASE("a match can be built without recording") {
-  Env env(kPitch, kBall, /*record=*/false);
+  Env env(kPitch, kBall, false);
 
   env.Step(TickSpan{10});
 
@@ -114,7 +112,7 @@ TEST_CASE("advance runs exactly the requested ticks") {
   REQUIRE(env.Phase() == MatchPhase::FirstHalf);
 
   env.Step(TickSpan{0});
-  REQUIRE(env.Ticks() == Tick{500});  // an empty advance is a no-op
+  REQUIRE(env.Ticks() == Tick{500});
 
   env.Step(TickSpan{250});
   REQUIRE(env.Ticks() == Tick{750});
@@ -127,12 +125,12 @@ TEST_CASE("the phase boundaries come from the cursor") {
   REQUIRE(env.Ticks() == Tick{kHalfTime.value - 1});
   REQUIRE(env.Phase() == MatchPhase::FirstHalf);
 
-  env.Step();  // tick 270000 is half time itself, one tick wide
+  env.Step();
   REQUIRE(env.Ticks() == kHalfTime);
   REQUIRE(env.Phase() == MatchPhase::HalfTime);
   REQUIRE_FALSE(env.Finished());
 
-  env.Step();  // and the second half starts on the next tick
+  env.Step();
   REQUIRE(env.Phase() == MatchPhase::SecondHalf);
   REQUIRE_FALSE(env.Finished());
 }
@@ -140,24 +138,19 @@ TEST_CASE("the phase boundaries come from the cursor") {
 TEST_CASE("the bulk step stops at full time") {
   Env env(kPitch, kBall);
 
-  // Asking for more than the match has left stops at the horizon.
   env.Step(TickSpan{kFullTime.value + 1000});
   REQUIRE(env.Ticks() == kFullTime);
   REQUIRE(env.Finished());
   REQUIRE(env.Phase() == MatchPhase::FullTime);
 
-  // Another bulk step on a finished match is a no-op.
   env.Step(TickSpan{10});
   REQUIRE(env.Ticks() == kFullTime);
 
-  // A single Step() is not guarded: stopping is the executor's job, so the
-  // phase saturates at full time even if a caller keeps stepping.
   env.Step();
   REQUIRE(env.Ticks().value == kFullTime.value + 1);
   REQUIRE(env.Phase() == MatchPhase::FullTime);
   REQUIRE(env.Finished());
 
-  // The recorder follows the committed tick, so the overstepped tick is kept too.
   REQUIRE(env.history().chunk().frames.back().tick == env.Ticks());
 }
 
@@ -176,7 +169,6 @@ TEST_CASE("environments are independent") {
 }
 
 TEST_CASE("equal inputs produce equal results") {
-  // No RNG and no shared state: two matches fed the same calls agree exactly.
   Env first(kPitch, kBall);
   Env second(kPitch, kBall);
 
@@ -196,20 +188,18 @@ TEST_CASE("half time is exactly one tick wide") {
   env.Step(kHalfTime - Tick{1});
   REQUIRE(env.Phase() == MatchPhase::FirstHalf);
 
-  env.Step();  // kHalfTime
+  env.Step();
   REQUIRE(env.Phase() == MatchPhase::HalfTime);
 
-  env.Step();  // kHalfTime + 1
+  env.Step();
   REQUIRE(env.Phase() == MatchPhase::SecondHalf);
 
-  // Full time keeps its own phase from kFullTime onwards.
   env.Step(kFullTime - env.Ticks());
   REQUIRE(env.Phase() == MatchPhase::FullTime);
   REQUIRE(env.Finished());
 }
 
 TEST_CASE("the stored phase always agrees with the cursor") {
-  // The phase is cached state, so it must never drift from the tick it mirrors.
   Env env(kPitch, kBall);
 
   constexpr std::uint64_t kStride = 37;
@@ -219,7 +209,6 @@ TEST_CASE("the stored phase always agrees with the cursor") {
     env.Step(TickSpan{kStride});
   }
 
-  // Walk the last tick before full time and across it as well.
   env.Step(kFullTime - env.Ticks());
   REQUIRE(env.Ticks() == kFullTime);
   REQUIRE(env.Phase() == PhaseOfTick(kFullTime.value));
@@ -234,7 +223,7 @@ TEST_CASE("finished follows the stored phase") {
   REQUIRE(env.Phase() == MatchPhase::SecondHalf);
   REQUIRE_FALSE(env.Finished());
 
-  env.Step();  // the tick that reaches full time flips the phase
+  env.Step();
   REQUIRE(env.Phase() == MatchPhase::FullTime);
   REQUIRE(env.Finished());
 }

@@ -1,5 +1,3 @@
-// History contract: a passive recorder. It never reads the match, so these tests
-// feed plain BallState values and link only football::history.
 #include <catch2/catch_test_macros.hpp>
 
 #include <atomic>
@@ -20,7 +18,7 @@ BallState BallAt(float x) {
   return state;
 }
 
-}  // namespace
+}
 
 TEST_CASE("a recorder starts empty") {
   const History history;
@@ -40,7 +38,6 @@ TEST_CASE("a record keeps its tick and a copy of the state") {
   REQUIRE(frame.tick == Tick{7});
   REQUIRE(frame.ball == state);
 
-  // A frame is a value: changing the source afterwards moves nothing.
   state.position = Vector3(2.0f, 0.0f, 0.11f);
   REQUIRE(frame.ball.position.coords[0] == 1.0f);
 }
@@ -63,7 +60,7 @@ TEST_CASE("the capacity hint sizes the chunk up front") {
 }
 
 TEST_CASE("a disabled recorder drops every frame and allocates nothing") {
-  History history(1000, /*enabled=*/false);
+  History history(1000, false);
 
   history.BuildSnapshot(Tick{1}, BallAt(0.0f));
 

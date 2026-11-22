@@ -14,8 +14,7 @@ namespace football::math {
   real clamp(const real value, const real min, const real max);
   real NormalizedClamp(const real value, const real min, const real max);
 
-  // you can never be too specific ;)
-  constexpr real pi = 3.1415926535897932384626433832795028841972f; // last decimal rounded ;)
+  constexpr real pi = 3.1415926535897932384626433832795028841972f;
   constexpr real EPSILON = 0.000001f;
   class radian {
    public:
@@ -54,15 +53,14 @@ namespace football::math {
     }
    private:
     float _angle = 0.0f;
-    // Was angle rotated by PI.
     bool _rotated = false;
   };
 
   void normalize(real v[3]);
-  signed int signSide(real n);  // returns -1 or 1
+  signed int signSide(real n);
   bool is_odd(int n);
 
-  inline float curve(float source, float bias = 1.0f) { // make linear / into sined _/-
+  inline float curve(float source, float bias = 1.0f) {
     return (std::sin((source - 0.5f) * pi) * 0.5f + 0.5f) * bias +
            source * (1.0f - bias);
   }
