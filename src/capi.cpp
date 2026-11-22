@@ -49,7 +49,7 @@ int FOOTBALL_CALL football_get_render_snapshot(
   if (session == nullptr || output == nullptr) return 0;
 
   try {
-    const auto snapshot = session->runner.Environment().history().ReadSnapshot(
+    const auto snapshot = session->runner.history().ReadSnapshot(
         football::time::Tick{tick});
     if (!snapshot) return 0;
 

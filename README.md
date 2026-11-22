@@ -133,9 +133,12 @@ unittests/
   runner dies.
 - The C ABI exposes model values, lifecycle and copied render snapshots; `src/`
   is never a public include directory.
-- Live Env state and raw `History::chunk()` references are not safe during
-  recording. Concurrent readers must use `ReadSnapshot()`; general Env access
-  requires the worker to have been joined through `Wait()` or `Stop()`.
+- `Chunk` remains private storage inside History, with no raw accessors.
+  `runner.history().ReadSnapshot(tick)` copies recorded frames safely while the
+  worker runs. `runner.EnvironmentAfterJoin()` returns only `const Env&` after
+  `Wait()` or `Stop()` joins the worker, and throws `std::logic_error` before that.
+  Lifecycle operations, environment access and destruction must be serialised
+  by the host; concurrent history reads require the runner to remain alive.
 
 ## Math conventions
 

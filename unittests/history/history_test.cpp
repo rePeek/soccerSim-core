@@ -25,7 +25,7 @@ BallState BallAt(float x) {
 TEST_CASE("a recorder starts empty") {
   const History history;
   REQUIRE(history.enabled());
-  REQUIRE(history.chunk().frames.empty());
+  REQUIRE_FALSE(history.ReadSnapshot(Tick{0}));
 }
 
 TEST_CASE("recording stores a copy of the state") {
@@ -33,27 +33,27 @@ TEST_CASE("recording stores a copy of the state") {
   BallState state = BallAt(1.0f);
   history.RecordSnapshot(Tick{0}, state);
 
-  REQUIRE(history.chunk().frames.size() == 1);
-  const auto& frame = history.chunk().frames.front();
-  REQUIRE(frame.tick == Tick{0});
-  REQUIRE(frame.ball == state);
+  const auto frame = history.ReadSnapshot(Tick{0});
+  REQUIRE(frame);
+  REQUIRE(frame->tick == Tick{0});
+  REQUIRE(frame->ball == state);
 
   state.position = Vector3(2.0f, 0.0f, 0.11f);
-  REQUIRE(frame.ball.position.coords[0] == 1.0f);
+  REQUIRE(frame->ball.position.coords[0] == 1.0f);
 }
 
 TEST_CASE("recording requires consecutive ticks starting at zero") {
   History history;
   REQUIRE_THROWS_AS(history.RecordSnapshot(Tick{100}, BallAt(0.0f)),
                     std::invalid_argument);
-  REQUIRE(history.chunk().frames.empty());
+  REQUIRE_FALSE(history.ReadSnapshot(Tick{0}));
 
   history.RecordSnapshot(Tick{0}, BallAt(0.0f));
   REQUIRE_THROWS_AS(history.RecordSnapshot(Tick{0}, BallAt(1.0f)),
                     std::invalid_argument);
   REQUIRE_THROWS_AS(history.RecordSnapshot(Tick{2}, BallAt(2.0f)),
                     std::invalid_argument);
-  REQUIRE(history.chunk().frames.size() == 1);
+  REQUIRE_FALSE(history.ReadSnapshot(Tick{1}));
 
   history.RecordSnapshot(Tick{1}, BallAt(1.0f));
   for (std::uint64_t tick = 0; tick < 2; ++tick) {
@@ -64,18 +64,21 @@ TEST_CASE("recording requires consecutive ticks starting at zero") {
   }
 }
 
-TEST_CASE("the capacity hint reserves the chunk up front") {
-  const History history(1000);
-  REQUIRE(history.chunk().frames.capacity() >= 1000);
-  REQUIRE(history.chunk().frames.empty());
+TEST_CASE("a reserved recorder starts empty and records normally") {
+  History history(1000);
+  REQUIRE_FALSE(history.ReadSnapshot(Tick{0}));
+  history.RecordSnapshot(Tick{0}, BallAt(1.0f));
+  const auto frame = history.ReadSnapshot(Tick{0});
+  REQUIRE(frame);
+  REQUIRE(frame->ball == BallAt(1.0f));
 }
 
-TEST_CASE("a disabled recorder drops every frame and allocates nothing") {
+TEST_CASE("a disabled recorder drops every frame") {
   History history(1000, Recording::Disabled);
   history.RecordSnapshot(Tick{1}, BallAt(0.0f));
   REQUIRE_FALSE(history.enabled());
-  REQUIRE(history.chunk().frames.empty());
-  REQUIRE(history.chunk().frames.capacity() == 0);
+  REQUIRE_FALSE(history.ReadSnapshot(Tick{0}));
+  REQUIRE_FALSE(history.ReadSnapshot(Tick{1}));
 }
 
 TEST_CASE("snapshot reads return independent copies or nullopt") {
@@ -134,5 +137,5 @@ TEST_CASE("snapshot reads race with recording across chunk reallocations") {
   }
   writer.join();
   REQUIRE(snapshots_match_requested_ticks);
-  REQUIRE(history.chunk().frames.size() == frame_count);
+  REQUIRE_FALSE(history.ReadSnapshot(Tick{frame_count}));
 }

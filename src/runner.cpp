@@ -1,5 +1,7 @@
 #include "football/runner.hpp"
 
+#include <stdexcept>
+
 #include "football/log/log.hpp"
 
 using namespace football::log;
@@ -28,9 +30,14 @@ void SingleRunner::Stop() {
   thread_.join();
 }
 
-Env& SingleRunner::Environment() { return env_; }
+const history::History& SingleRunner::history() const { return env_.history(); }
 
-const Env& SingleRunner::Environment() const { return env_; }
+const Env& SingleRunner::EnvironmentAfterJoin() const {
+  if (thread_.joinable()) {
+    throw std::logic_error("worker must be joined before accessing Env");
+  }
+  return env_;
+}
 
 void SingleRunner::Loop(std::stop_token token) {
   while (!token.stop_requested() && !env_.Finished()) {

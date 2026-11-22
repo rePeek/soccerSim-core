@@ -147,11 +147,13 @@ unittests/
   (`football::runner::SingleRunner`) plays `Env` to full time on a worker thread:
   it holds no play/pause state and reports nothing about the tick; `Wait()` joins
   the worker and `Stop()` ends it, both one-way.
-- Live match state is read through `Environment()` once the worker has been reaped:
-  `Wait()` joins without stopping, while `Stop()` ends the loop and joins it.
-  While the worker runs, only `Environment().history().ReadSnapshot()` is safe
-  for concurrent readers. `chunk()` returns an unprotected reference and must not
-  be used concurrently with recording. Host pacing stays outside the core.
+- `runner.history().ReadSnapshot(tick)` is the concurrent read path and returns
+  a copied frame. History exposes no raw Chunk accessor; its Chunk stays internal.
+  `EnvironmentAfterJoin()` returns only `const Env&` and throws `std::logic_error`
+  until the worker is joined by `Wait()` or `Stop()`, even if execution has already
+  finished. Lifecycle calls, environment access and destruction must be serialised
+  by the host; history reads may run concurrently while the runner stays alive.
+  Host pacing stays outside the core.
 - Match boundaries are derived from the cursor and then cached: `Env::Step()` is the
   only writer of both the tick and the `MatchPhase` it mirrors, so `Phase()` is a
   plain read that can never disagree with `Ticks()`. Both come from the single

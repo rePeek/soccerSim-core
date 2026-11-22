@@ -22,8 +22,8 @@ class SingleRunner {
 
   void Stop();
 
-  Env& Environment();
-  const Env& Environment() const;
+  const history::History& history() const;
+  const Env& EnvironmentAfterJoin() const;
 
  private:
   void Loop(std::stop_token token);

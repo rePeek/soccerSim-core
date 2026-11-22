@@ -46,13 +46,14 @@ TEST_CASE("a new environment is at tick 0 in the first half") {
 TEST_CASE("a new match records its opening frame") {
   Env env(kPitch, kBall);
 
-  const auto& frames = env.history().chunk().frames;
+  const auto frame = env.history().ReadSnapshot(Tick{0});
   REQUIRE(env.history().enabled());
-  REQUIRE(frames.size() == 1);
-  REQUIRE(frames.front().tick == Tick{0});
-  REQUIRE(frames.front().ball.position.coords[0] == Approx(0.0f));
-  REQUIRE(frames.front().ball.position.coords[1] == Approx(0.0f));
-  REQUIRE(frames.front().ball.position.coords[2] == Approx(kBall.radius));
+  REQUIRE(frame);
+  REQUIRE(frame->tick == Tick{0});
+  REQUIRE(frame->ball.position.coords[0] == Approx(0.0f));
+  REQUIRE(frame->ball.position.coords[1] == Approx(0.0f));
+  REQUIRE(frame->ball.position.coords[2] == Approx(kBall.radius));
+  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{1}));
 }
 
 TEST_CASE("every step records the tick it committed") {
@@ -61,20 +62,23 @@ TEST_CASE("every step records the tick it committed") {
   env.Step();
   env.Step();
 
-  const auto& frames = env.history().chunk().frames;
-  REQUIRE(frames.size() == 3);
-  REQUIRE(frames.back().tick == env.Ticks());
-  REQUIRE(frames.back().tick == Tick{2});
+  for (std::uint64_t tick = 0; tick <= env.Ticks().value; ++tick) {
+    const auto frame = env.history().ReadSnapshot(Tick{tick});
+    REQUIRE(frame);
+    REQUIRE(frame->tick == Tick{tick});
+  }
+  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{3}));
 }
 
 TEST_CASE("recorded frames are values, not views") {
   Env env(kPitch, kBall);
 
   env.Step();
-  const auto recorded = env.history().chunk().frames[1].ball.position;
+  const auto recorded = env.history().ReadSnapshot(Tick{1});
+  REQUIRE(recorded);
   env.Step(TickSpan{50});
 
-  REQUIRE(env.history().chunk().frames[1].ball.position == recorded);
+  REQUIRE(env.history().ReadSnapshot(Tick{1}) == recorded);
 }
 
 TEST_CASE("a match can be built without recording") {
@@ -83,7 +87,8 @@ TEST_CASE("a match can be built without recording") {
   env.Step(TickSpan{10});
 
   REQUIRE_FALSE(env.history().enabled());
-  REQUIRE(env.history().chunk().frames.empty());
+  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{0}));
+  REQUIRE_FALSE(env.history().ReadSnapshot(env.Ticks()));
   REQUIRE(env.Ticks() == Tick{10});
 }
 
@@ -96,7 +101,11 @@ TEST_CASE("equal inputs record equal frames") {
     second.Step(TickSpan{100});
   }
 
-  REQUIRE(first.history().chunk().frames == second.history().chunk().frames);
+  for (std::uint64_t tick = 0; tick <= first.Ticks().value; ++tick) {
+    const auto first_frame = first.history().ReadSnapshot(Tick{tick});
+    REQUIRE(first_frame);
+    REQUIRE(second.history().ReadSnapshot(Tick{tick}) == first_frame);
+  }
 }
 
 TEST_CASE("step advances exactly one tick") {
@@ -155,7 +164,9 @@ TEST_CASE("the bulk step stops at full time") {
   REQUIRE(env.Phase() == MatchPhase::FullTime);
   REQUIRE(env.Finished());
 
-  REQUIRE(env.history().chunk().frames.back().tick == env.Ticks());
+  const auto frame = env.history().ReadSnapshot(env.Ticks());
+  REQUIRE(frame);
+  REQUIRE(frame->tick == env.Ticks());
 }
 
 TEST_CASE("environments are independent") {

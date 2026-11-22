@@ -21,7 +21,6 @@ class History {
 
   std::optional<Snapshot> ReadSnapshot(time::Tick tick) const;
 
-  const Chunk& chunk() const { return chunk_; }
   bool enabled() const { return enabled_; }
 
  private:
