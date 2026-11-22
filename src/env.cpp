@@ -8,13 +8,13 @@ using namespace football::log;
 
 namespace football {
 
-Env::Env(pitch::PitchModel pitch_model, ball::BallModel ball_model, bool record)
+Env::Env(pitch::PitchModel pitch_model, ball::BallModel ball_model,
+         history::Recording recording)
     : pitch_(pitch_model),
       ball_(ball_model),
-      history_(record ? static_cast<std::size_t>(kFullTime.value) + 1 : 0,
-               record) {
+      history_(static_cast<std::size_t>(kFullTime.value) + 1, recording) {
   ball_.PlaceOnGround(0.0f, 0.0f);
-  history_.BuildSnapshot(tick_, ball_.get_state());
+  history_.RecordSnapshot(tick_, ball_.get_state());
   Info(Channel::env, "environment constructed");
 }
 
@@ -24,7 +24,7 @@ void Env::Step() {
   ball_.Step(pitch_);
   tick_ += time::TickSpan{1};
   phase_ = PhaseOfTick(tick_.value);
-  history_.BuildSnapshot(tick_, ball_.get_state());
+  history_.RecordSnapshot(tick_, ball_.get_state());
 }
 
 void Env::Step(time::TickSpan duration) {

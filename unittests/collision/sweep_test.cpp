@@ -1,4 +1,3 @@
-
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -40,12 +39,12 @@ Collider Wall(float x, std::string_view name) {
 
 }
 
-TEST_CASE("A sweep reports the contact time, point and normal", "[unit][collision]") {
+TEST_CASE("A sweep reports the impact fraction, center and normal", "[unit][collision]") {
   const Capsule post{Vector3(1, 0, 0), Vector3(1, 0, 2), 0.05f};
   const auto hit = Sweep(BallAt({0, 0, 1}, {100, 0, 0}), post, kDt);
 
   REQUIRE(hit.has_value());
-  CHECK(hit->toi == Approx(0.84f).margin(1e-4f));
+  CHECK(hit->impact_fraction == Approx(0.84f).margin(1e-4f));
   CHECK(hit->center.coords[0] == Approx(0.84f).margin(1e-4f));
   CHECK(hit->normal.coords[0] == Approx(-1.0f).margin(1e-4f));
   CHECK(hit->surface_velocity.GetLength() == Approx(0.0f));
@@ -72,7 +71,7 @@ TEST_CASE("FirstHit keeps the earliest contact across the set", "[unit][collisio
   REQUIRE(found.has_value());
   CHECK(found->collider == &colliders[1]);
   CHECK(found->collider->name == "near");
-  CHECK(found->hit.toi == Approx(0.39f).margin(1e-4f));
+  CHECK(found->hit.impact_fraction == Approx(0.39f).margin(1e-4f));
 }
 
 TEST_CASE("FirstHit picks the same timing when the set is reordered",
@@ -85,7 +84,7 @@ TEST_CASE("FirstHit picks the same timing when the set is reordered",
 
   REQUIRE(first.has_value());
   REQUIRE(second.has_value());
-  CHECK(first->hit.toi == Approx(second->hit.toi));
+  CHECK(first->hit.impact_fraction == Approx(second->hit.impact_fraction));
   CHECK(first->collider->name == "near");
   CHECK(second->collider->name == "near");
 }
@@ -115,7 +114,7 @@ TEST_CASE("Names never affect a query", "[unit][collision]") {
 
   REQUIRE(blank.has_value());
   REQUIRE(named.has_value());
-  CHECK(blank->hit.toi == Approx(named->hit.toi));
+  CHECK(blank->hit.impact_fraction == Approx(named->hit.impact_fraction));
   CHECK(blank->collider == &anonymous[0]);
   CHECK(named->collider == &duplicated[0]);
 }
@@ -135,7 +134,7 @@ TEST_CASE("Repeating a query is deterministic", "[unit][collision]") {
   for (int i = 0; i < 16; ++i) {
     const auto again = FirstHit(sphere, colliders, kDt);
     REQUIRE(again.has_value());
-    CHECK(again->hit.toi == first->hit.toi);
+    CHECK(again->hit.impact_fraction == first->hit.impact_fraction);
     CHECK(again->hit.normal == first->hit.normal);
     CHECK(again->collider == first->collider);
   }

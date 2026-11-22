@@ -1,12 +1,14 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <atomic>
+#include <barrier>
+#include <stdexcept>
 #include <thread>
 
 #include "football/history/history.hpp"
 
 using football::ball::BallState;
 using football::history::History;
+using football::history::Recording;
 using football::math::Vector3;
 using football::time::Tick;
 
@@ -22,61 +24,68 @@ BallState BallAt(float x) {
 
 TEST_CASE("a recorder starts empty") {
   const History history;
-
   REQUIRE(history.enabled());
   REQUIRE(history.chunk().frames.empty());
 }
 
-TEST_CASE("a record keeps its tick and a copy of the state") {
+TEST_CASE("recording stores a copy of the state") {
   History history;
   BallState state = BallAt(1.0f);
-
-  history.BuildSnapshot(Tick{7}, state);
+  history.RecordSnapshot(Tick{0}, state);
 
   REQUIRE(history.chunk().frames.size() == 1);
   const auto& frame = history.chunk().frames.front();
-  REQUIRE(frame.tick == Tick{7});
+  REQUIRE(frame.tick == Tick{0});
   REQUIRE(frame.ball == state);
 
   state.position = Vector3(2.0f, 0.0f, 0.11f);
   REQUIRE(frame.ball.position.coords[0] == 1.0f);
 }
 
-TEST_CASE("frames keep the tick they were handed, not their index") {
+TEST_CASE("recording requires consecutive ticks starting at zero") {
   History history;
+  REQUIRE_THROWS_AS(history.RecordSnapshot(Tick{100}, BallAt(0.0f)),
+                    std::invalid_argument);
+  REQUIRE(history.chunk().frames.empty());
 
-  history.BuildSnapshot(Tick{100}, BallAt(0.0f));
-  history.BuildSnapshot(Tick{250}, BallAt(1.0f));
+  history.RecordSnapshot(Tick{0}, BallAt(0.0f));
+  REQUIRE_THROWS_AS(history.RecordSnapshot(Tick{0}, BallAt(1.0f)),
+                    std::invalid_argument);
+  REQUIRE_THROWS_AS(history.RecordSnapshot(Tick{2}, BallAt(2.0f)),
+                    std::invalid_argument);
+  REQUIRE(history.chunk().frames.size() == 1);
 
-  REQUIRE(history.chunk().frames[0].tick == Tick{100});
-  REQUIRE(history.chunk().frames[1].tick == Tick{250});
+  history.RecordSnapshot(Tick{1}, BallAt(1.0f));
+  for (std::uint64_t tick = 0; tick < 2; ++tick) {
+    const auto snapshot = history.ReadSnapshot(Tick{tick});
+    REQUIRE(snapshot);
+    REQUIRE(snapshot->tick == Tick{tick});
+    REQUIRE(snapshot->ball == BallAt(static_cast<float>(tick)));
+  }
 }
 
-TEST_CASE("the capacity hint sizes the chunk up front") {
+TEST_CASE("the capacity hint reserves the chunk up front") {
   const History history(1000);
-
   REQUIRE(history.chunk().frames.capacity() >= 1000);
   REQUIRE(history.chunk().frames.empty());
 }
 
 TEST_CASE("a disabled recorder drops every frame and allocates nothing") {
-  History history(1000, false);
-
-  history.BuildSnapshot(Tick{1}, BallAt(0.0f));
-
+  History history(1000, Recording::Disabled);
+  history.RecordSnapshot(Tick{1}, BallAt(0.0f));
   REQUIRE_FALSE(history.enabled());
   REQUIRE(history.chunk().frames.empty());
   REQUIRE(history.chunk().frames.capacity() == 0);
 }
 
-TEST_CASE("snapshot reads copy consecutive ticks and return nullopt when unavailable") {
+TEST_CASE("snapshot reads return independent copies or nullopt") {
   History history;
   REQUIRE_FALSE(history.ReadSnapshot(Tick{0}));
 
   auto state = BallAt(1.0f);
   state.orientation.Set(0.1f, 0.2f, 0.3f, 0.9f);
-  history.BuildSnapshot(Tick{0}, state);
-  history.BuildSnapshot(Tick{1}, BallAt(2.0f));
+  history.RecordSnapshot(Tick{0}, state);
+  history.RecordSnapshot(Tick{1}, BallAt(2.0f));
   const History& reader = history;
   auto snapshot = reader.ReadSnapshot(Tick{0});
   REQUIRE(snapshot);
@@ -93,29 +102,37 @@ TEST_CASE("snapshot reads copy consecutive ticks and return nullopt when unavail
   REQUIRE_FALSE(reader.ReadSnapshot(Tick{2}));
   REQUIRE_FALSE(reader.ReadSnapshot(Tick{UINT64_MAX}));
 
-  const History disabled(0, false);
+  const History disabled(0, Recording::Disabled);
   REQUIRE_FALSE(disabled.ReadSnapshot(Tick{0}));
 }
 
-TEST_CASE("snapshot reads are safe while recording reallocates the chunk") {
+TEST_CASE("snapshot reads race with recording across chunk reallocations") {
+  constexpr std::uint64_t frame_count = 2000;
   History history;
-  std::atomic<bool> done{false};
+  std::barrier phase(2);
   std::jthread writer([&] {
-    for (std::uint64_t i = 0; i < 2000; ++i) {
-      history.BuildSnapshot(Tick{i}, BallAt(static_cast<float>(i)));
+    for (std::uint64_t tick = 0; tick < frame_count; ++tick) {
+      phase.arrive_and_wait();
+      history.RecordSnapshot(Tick{tick}, BallAt(static_cast<float>(tick)));
+      phase.arrive_and_wait();
     }
-    done.store(true);
   });
 
-  while (!done.load()) {
-    if (const auto snapshot = history.ReadSnapshot(Tick{1000})) {
-      REQUIRE(snapshot->tick == Tick{1000});
-      REQUIRE(snapshot->ball == BallAt(1000.0f));
-    }
+  bool snapshots_match_requested_ticks = true;
+  for (std::uint64_t tick = 0; tick < frame_count; ++tick) {
+    phase.arrive_and_wait();
+    const auto concurrent_snapshot = history.ReadSnapshot(Tick{tick});
+    phase.arrive_and_wait();
+    const auto committed_snapshot = history.ReadSnapshot(Tick{tick});
+    const auto matches = [tick](const auto& snapshot) {
+      return snapshot && snapshot->tick == Tick{tick} &&
+             snapshot->ball == BallAt(static_cast<float>(tick));
+    };
+    snapshots_match_requested_ticks &=
+        (!concurrent_snapshot || matches(concurrent_snapshot)) &&
+        matches(committed_snapshot);
   }
   writer.join();
-  const auto snapshot = history.ReadSnapshot(Tick{1999});
-  REQUIRE(snapshot);
-  REQUIRE(snapshot->tick == Tick{1999});
-  REQUIRE(snapshot->ball == BallAt(1999.0f));
+  REQUIRE(snapshots_match_requested_ticks);
+  REQUIRE(history.chunk().frames.size() == frame_count);
 }

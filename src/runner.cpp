@@ -7,8 +7,8 @@ using namespace football::log;
 namespace football::runner {
 
 SingleRunner::SingleRunner(pitch::PitchModel pitch_model,
-                           ball::BallModel ball_model, bool record)
-    : env_(pitch_model, ball_model, record) {
+                           ball::BallModel ball_model, history::Recording recording)
+    : env_(pitch_model, ball_model, recording) {
   thread_ = std::jthread([this](std::stop_token token) { Loop(token); });
   Info(Channel::env, "runner worker started");
 }

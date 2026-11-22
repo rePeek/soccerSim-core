@@ -20,7 +20,7 @@ rules that are true *now*.
   execution side. `SingleRunner` owns one match and the worker that plays it to
   full time
 - `capi.h` / `capi.cpp` — C ABI adapter for C and C#; one handle per match, model
-  values and lifecycle only
+  values, lifecycle and copied render snapshots
 - `models.h` — single C header: model layouts/defaults plus C++ aliases
 
 There is no match clock, team, player, referee, event, observation, AI or
@@ -37,8 +37,9 @@ nix develop --command bash -c 'cmake --preset debug && cmake --build --preset de
 nix develop --command bash -c 'cmake --preset release && cmake --build --preset release -j $(nproc) && ctest --preset release'
 ```
 
-The domain suites `collision_unit`, `pitch_unit`, `ball_unit` and `history_unit`
-link only their modules and declared dependencies, never `simcore`. The C11
+The domain suites `foundation_unit`, `collision_unit`, `pitch_unit`, `ball_unit`
+and `history_unit` link only their modules and declared dependencies, never
+`simcore`. The C11
 `capi_unit` consumer links `simcore` to exercise the exported C ABI, and
 `env_unit` plus `runner_unit` link it because `Env` and `SingleRunner` are
 compiled into the shared library rather than into modules of their own.
@@ -53,8 +54,8 @@ compiled into the shared library rather than into modules of their own.
   explainable state (contact geometry, ball orientation, ball velocity).
 - Each tick predicts collision-free motion first, then sweeps that path. With
   no impact it commits the prediction. At the first impact it places the ball at
-  contact and applies a passive impulse to the state integrated up to that
-  instant. The rest of the tick is not integrated, so there is no TOI-based time
+  contact and applies a passive impulse to the full-tick predicted velocity.
+  Orientation also retains the full-tick prediction. There is no TOI-based time
   split and no post-impact tail motion.
 - A rolling ball is anchored to the grass by its integrator, so the ground is
   not a candidate contact: the sweep skips it and queries only the goal
@@ -67,6 +68,14 @@ compiled into the shared library rather than into modules of their own.
 - Model values are caller-owned, unchecked configuration. Do not add implicit
   range/finiteness validation or clamping for `PitchModel` / `BallModel`.
 - Ground physics keeps the empirical friction values in `Pitch`.
+- Keep conventional mathematical names such as `dt` for integration intervals
+  in seconds; do not expand standard notation merely to make identifiers longer.
+  Collision `impact_fraction` is dimensionless, in [0, 1], not a duration.
+- The legacy Euler operations intentionally have distinct names:
+  `SetEulerAnglesYZX()` constructs qY * qZ * qX, while `GetEulerAnglesXYZ()`
+  extracts XYZ angles. Do not assume they are inverse operations or change their
+  numerical formulas as part of readability cleanup. General non-unit quaternion
+  inversion and Euler singularities remain separate mathematical audit work.
 
 ## Source layout
 
@@ -91,6 +100,7 @@ src/
 └── capi.cpp      C ABI adapter
 
 unittests/
+├── foundation/   foundation_unit
 ├── collision/    collision_unit
 ├── pitch/        pitch_unit
 ├── ball/         ball_unit
@@ -108,6 +118,9 @@ unittests/
   comments, parameter-label comments and commented-out code. Use clear names
   and structure; put necessary explanations in Markdown prose instead.
   Preserve third-party code and its required license/copyright notices.
+- Prefer semantic names and explicit construction policies (`Recording::Disabled`
+  rather than an unexplained `false`). Use designated model initializers when
+  multiple adjacent scalar fields would otherwise be ambiguous.
 - A public header includes only what it uses.
 - `src/` is never a PUBLIC include directory.
 - Do not add a dependency from a leaf module back to `env`/`simcore`.
@@ -120,21 +133,25 @@ unittests/
 - `football::history::History` records what a match looked like: the caller hands
   it the authoritative `BallState` and the committed tick, so it never pulls state
   and never depends on `Ball`, `Env` or the runner. Recording is fixed at
-  construction (`record`): a disabled recorder drops frames and allocates nothing.
+  construction (`Recording`): a disabled recorder drops frames and allocates nothing.
   Frames are 64 bytes, so a recorded match is ~33 MiB; `Env` reserves that up
   front and never allocates per frame. Keep frames fixed-size: variable-length
   data (events, sparse samples) belongs in a separate structure, not in
   `Snapshot`. Never include `env.hpp` from history; a frame stores the tick only,
   and phase stays derived.
+  `RecordSnapshot()` requires consecutive ticks starting at zero and rejects
+  gaps, duplicates and out-of-order ticks with `std::invalid_argument` before
+  appending. `ReadSnapshot()` uses that Tick/index invariant and returns a copied
+  `std::optional<Snapshot>` under the same mutex as recording.
 - The executor owns its match and nothing else. The executor
   (`football::runner::SingleRunner`) plays `Env` to full time on a worker thread:
   it holds no play/pause state and reports nothing about the tick; `Wait()` joins
   the worker and `Stop()` ends it, both one-way.
-- The match is read through `Environment()` once the worker has been reaped:
-  `Wait()` joins without stopping, so it returns when the match reaches full time,
-  while `Stop()` ends the loop and leaves the match where it stopped. Nothing is
-  published or duplicated. Pacing to real time or per-frame tick budgets belong
-  to the host, not to the core.
+- Live match state is read through `Environment()` once the worker has been reaped:
+  `Wait()` joins without stopping, while `Stop()` ends the loop and joins it.
+  While the worker runs, only `Environment().history().ReadSnapshot()` is safe
+  for concurrent readers. `chunk()` returns an unprotected reference and must not
+  be used concurrently with recording. Host pacing stays outside the core.
 - Match boundaries are derived from the cursor and then cached: `Env::Step()` is the
   only writer of both the tick and the `MatchPhase` it mirrors, so `Phase()` is a
   plain read that can never disagree with `Ticks()`. Both come from the single
@@ -149,16 +166,14 @@ unittests/
 - `Step()` does not police the horizon: it advances exactly one tick and the
   executor stops calling it once `Finished()` reports full time. `Step(duration)`
   is the bounded form and stops at full time on its own.
-- Never let two threads touch one `Env`: it is plain state with no synchronisation,
-  and time is no exception — the cursor is a plain member counted per match. The
-  loop thread is the only writer while it runs, so the runner exposes
-  `Environment()` for reading only after the worker has been reaped by `Wait()`
-  or `Stop()`. Exceptions must not cross the thread boundary: the runner logs
-  them and stops the run.
-- One match, one worker: the loop thread is the only code that touches `Env` while
-  the runner exists. `Stop()` requests stop and joins, and the destructor does the
-  same, so a live session is left where its loop stopped instead of being waited
-  for; `Env` outlives the thread and stays readable. The runner is declared after
+- Never read or mutate live `Env` state concurrently with its executor; the
+  cursor and phase are plain state. The sole concurrent read exception is the
+  synchronised `History::ReadSnapshot()` path, which does not read live state.
+  Exceptions must not cross the thread boundary: the runner logs them and stops.
+- One match, one worker: only the loop advances `Env`. `Stop()` requests stop
+  and joins, and the destructor does the same, so a live session is left where
+  its loop stopped instead of being waited for. `Env` outlives the thread and
+  stays readable. The runner is declared after
   the `Env` it owns.
 - `PitchModel` / `BallModel` alias the C structs defined once in `models.h`;
   never duplicate model layouts. Initialize every field explicitly: `{}`
@@ -173,8 +188,10 @@ unittests/
   RNG, so any number may run at once and identical inputs give identical results.
   The only process-wide piece is the log, which is thread-safe; destroying a
   session flushes it, so no separate flush call exists.
-- No frame or observation delivery exists yet. History records in-process frames;
-  the C ABI still exposes lifecycle only. Do not teach the runner or the C ABI
-  about frames until that delivery boundary is designed.
+- C ABI render reads copy Tick, position and orientation into a 40-byte
+  `football_render_snapshot`; never expose internal frame pointers or add a
+  duplicate render history. Reads return 1 on success, 0 for invalid parameters
+  or unavailable ticks, and leave output unchanged on failure. A session must
+  stay alive throughout each call; destruction must not race with reads.
 - Do not reintroduce animation, player, team, referee, event, observation or AI
   code without a deliberate architecture decision.

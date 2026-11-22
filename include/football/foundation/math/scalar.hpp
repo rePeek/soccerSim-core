@@ -1,69 +1,68 @@
 #pragma once
 
-
 #include <cassert>
 #include <cmath>
 #include <iostream>
-#include <limits>
-
-
 
 namespace football::math {
-  typedef float real;
 
-  real clamp(const real value, const real min, const real max);
-  real NormalizedClamp(const real value, const real min, const real max);
+using real = float;
 
-  constexpr real pi = 3.1415926535897932384626433832795028841972f;
-  constexpr real EPSILON = 0.000001f;
-  class radian {
-   public:
-    radian() { }
-    radian(float r) : _angle(r) { }
-    std::ostream& operator<<(std::ostream& os) {
-      os << _angle << " " << _rotated;
-      return os;
-    }
-    radian &operator+=(radian r) {
-      _angle += r._angle;
-      _rotated ^= r._rotated;
-      return *this;
-    }
-    radian &operator-=(radian r){
-      _angle -= r._angle;
-      _rotated ^= r._rotated;
-      return *this;
-    }
-    radian &operator/=(radian r) {
-      *this = radian(real(*this) / real(r));
-      return *this;
-    }
-    radian &operator*=(radian r) {
-      *this = radian(real(*this) * real(r));
-      return *this;
-    }
-    operator real() const {
-      if (_rotated) {
-        return _angle - pi;
-      }
-      return _angle;
-    }
-    void Mirror() {
-      _rotated = !_rotated;
-    }
-   private:
-    float _angle = 0.0f;
-    bool _rotated = false;
-  };
+real clamp(real value, real min, real max);
+real NormalizedClamp(real value, real min, real max);
 
-  void normalize(real v[3]);
-  signed int signSide(real n);
-  bool is_odd(int n);
+constexpr real pi = 3.1415926535897932384626433832795028841972f;
+constexpr real EPSILON = 0.000001f;
 
-  inline float curve(float source, float bias = 1.0f) {
-    return (std::sin((source - 0.5f) * pi) * 0.5f + 0.5f) * bias +
-           source * (1.0f - bias);
+class radian {
+ public:
+  radian() {}
+  radian(float angle) : angle_(angle) {}
+
+  std::ostream& operator<<(std::ostream& os) {
+    os << angle_ << " " << mirrored_;
+    return os;
+  }
+  radian& operator+=(radian other) {
+    angle_ += other.angle_;
+    mirrored_ ^= other.mirrored_;
+    return *this;
+  }
+  radian& operator-=(radian other) {
+    angle_ -= other.angle_;
+    mirrored_ ^= other.mirrored_;
+    return *this;
+  }
+  radian& operator/=(radian other) {
+    *this = radian(real(*this) / real(other));
+    return *this;
+  }
+  radian& operator*=(radian other) {
+    *this = radian(real(*this) * real(other));
+    return *this;
+  }
+  operator real() const {
+    if (mirrored_) return angle_ - pi;
+    return angle_;
+  }
+  void Mirror() {
+    mirrored_ = !mirrored_;
   }
 
-  radian ModulateIntoRange(real min, real max, radian value);
+ private:
+  float angle_ = 0.0f;
+  bool mirrored_ = false;
+};
+
+void normalize(real vector[3]);
+signed int signSide(real value);
+bool is_odd(int value);
+
+inline float curve(float source, float bias = 1.0f) {
+  return (std::sin((source - 0.5f) * pi) * 0.5f + 0.5f) * bias +
+         source * (1.0f - bias);
+}
+
+radian ModulateIntoRange(real min, real max, radian value);
+
 }

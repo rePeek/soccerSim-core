@@ -10,11 +10,14 @@
 
 namespace football::history {
 
+enum class Recording { Disabled, Enabled };
+
 class History {
  public:
-  explicit History(std::size_t expected_frames = 0, bool enabled = true);
+  explicit History(std::size_t expected_frames = 0,
+                   Recording recording = Recording::Enabled);
 
-  void BuildSnapshot(time::Tick tick, const ball::BallState& ball);
+  void RecordSnapshot(time::Tick tick, const ball::BallState& ball);
 
   std::optional<Snapshot> ReadSnapshot(time::Tick tick) const;
 

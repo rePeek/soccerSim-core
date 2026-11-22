@@ -14,7 +14,7 @@ Quaternion::Quaternion(real x, real y, real z, real w) {
   elements[3] = w;
 }
 
-Quaternion::Quaternion(real values[4]) {
+Quaternion::Quaternion(const real values[4]) {
   elements[0] = values[0];
   elements[1] = values[1];
   elements[2] = values[2];
@@ -28,288 +28,268 @@ void Quaternion::Set(real x, real y, real z, real w) {
   elements[3] = w;
 }
 
-void Quaternion::Set(const Quaternion &quat) {
-  elements[0] = quat.elements[0];
-  elements[1] = quat.elements[1];
-  elements[2] = quat.elements[2];
-  elements[3] = quat.elements[3];
+void Quaternion::Set(const Quaternion& quaternion) {
+  elements[0] = quaternion.elements[0];
+  elements[1] = quaternion.elements[1];
+  elements[2] = quaternion.elements[2];
+  elements[3] = quaternion.elements[3];
 }
 
+bool Quaternion::operator!=(const Quaternion& other) const {
+  return other.elements[0] != elements[0] || other.elements[1] != elements[1] ||
+         other.elements[2] != elements[2] || other.elements[3] != elements[3];
+}
 
+const Quaternion Quaternion::operator*(float factor) const {
+  return Quaternion(elements[0] * factor, elements[1] * factor,
+                    elements[2] * factor, elements[3] * factor);
+}
 
-  bool Quaternion::operator != (const Quaternion &fac) const {
-    if (fac.elements[0] != elements[0] || fac.elements[1] != elements[1] ||
-        fac.elements[2] != elements[2] || fac.elements[3] != elements[3]) {
-      return true;
+Vector3 Quaternion::operator*(const Vector3& vector) const {
+  Vector3 cross, double_cross;
+  Vector3 imaginary_part(elements[0], elements[1], elements[2]);
+  cross = imaginary_part.GetCrossProduct(vector);
+  double_cross = imaginary_part.GetCrossProduct(cross);
+  cross *= (2.0f * elements[3]);
+  double_cross *= 2.0f;
+  return vector + cross + double_cross;
+}
+
+Quaternion Quaternion::operator*(const Quaternion& other) const {
+  Quaternion result;
+  result.elements[0] = elements[3] * other.elements[0] + elements[0] * other.elements[3] +
+                       elements[1] * other.elements[2] - elements[2] * other.elements[1];
+  result.elements[1] = elements[3] * other.elements[1] + elements[1] * other.elements[3] +
+                       elements[2] * other.elements[0] - elements[0] * other.elements[2];
+  result.elements[2] = elements[3] * other.elements[2] + elements[2] * other.elements[3] +
+                       elements[0] * other.elements[1] - elements[1] * other.elements[0];
+  result.elements[3] = elements[3] * other.elements[3] - elements[0] * other.elements[0] -
+                       elements[1] * other.elements[1] - elements[2] * other.elements[2];
+  return result;
+}
+
+Quaternion Quaternion::operator+(const Quaternion& other) const {
+  return Quaternion(elements[0] + other.elements[0], elements[1] + other.elements[1],
+                    elements[2] + other.elements[2], elements[3] + other.elements[3]);
+}
+
+Quaternion Quaternion::operator-(const Quaternion& other) const {
+  return Quaternion(elements[0] - other.elements[0], elements[1] - other.elements[1],
+                    elements[2] - other.elements[2], elements[3] - other.elements[3]);
+}
+
+Quaternion Quaternion::operator-() const {
+  return Quaternion(-elements[0], -elements[1], -elements[2], -elements[3]);
+}
+
+Quaternion Quaternion::GetInverse() const {
+  real magnitude = GetMagnitude();
+  if (magnitude < 0.000001f) {
+    return QUATERNION_IDENTITY;
+  }
+  real inverse_magnitude = 1.0 / magnitude;
+  return Quaternion(-elements[0] * inverse_magnitude, -elements[1] * inverse_magnitude,
+                    -elements[2] * inverse_magnitude, elements[3] * inverse_magnitude);
+}
+
+void Quaternion::GetEulerAnglesXYZ(real& x_radians, real& y_radians, real& z_radians) const {
+  constexpr int x_index = 0;
+  constexpr int z_index = 2;
+  constexpr int y_index = 1;
+  float singularity = elements[x_index] * elements[z_index] + elements[y_index] * elements[3];
+  if (singularity > 0.49999 || singularity < -0.49999) {
+    if (singularity > 0) {
+      z_radians = 2 * std::atan2(elements[x_index], elements[y_index]);
+      y_radians = pi * 0.5;
+    }
+    if (singularity < 0) {
+      z_radians = -2 * std::atan2(elements[x_index], elements[y_index]);
+      y_radians = -pi * 0.5;
+    }
+    x_radians = 0;
+    return;
+  }
+  real squared_x = elements[x_index] * elements[x_index];
+  real squared_z = elements[z_index] * elements[z_index];
+  real squared_y = elements[y_index] * elements[y_index];
+  z_radians = std::atan2(
+      2 * elements[z_index] * elements[3] - 2 * elements[x_index] * elements[y_index],
+      1 - 2 * squared_z - 2 * squared_y);
+  y_radians = std::asin(2 * elements[x_index] * elements[z_index] +
+                        2 * elements[y_index] * elements[3]);
+  x_radians = std::atan2(
+      2 * elements[x_index] * elements[3] - 2 * elements[z_index] * elements[y_index],
+      1 - 2 * squared_x - 2 * squared_y);
+}
+
+void Quaternion::SetEulerAnglesYZX(real x_radians, real y_radians, real z_radians) {
+  float cos_half_y = cos(y_radians / 2.0);
+  float sin_half_y = sin(y_radians / 2.0);
+  float cos_half_z = cos(z_radians / 2.0);
+  float sin_half_z = sin(z_radians / 2.0);
+  float cos_half_x = cos(x_radians / 2.0);
+  float sin_half_x = sin(x_radians / 2.0);
+  float cos_y_cos_z = cos_half_y * cos_half_z;
+  float sin_y_sin_z = sin_half_y * sin_half_z;
+  elements[3] = cos_y_cos_z * cos_half_x - sin_y_sin_z * sin_half_x;
+  elements[0] = cos_y_cos_z * sin_half_x + sin_y_sin_z * cos_half_x;
+  elements[1] = sin_half_y * cos_half_z * cos_half_x + cos_half_y * sin_half_z * sin_half_x;
+  elements[2] = cos_half_y * sin_half_z * cos_half_x - sin_half_y * cos_half_z * sin_half_x;
+}
+
+void Quaternion::GetAngleAxis(radian& angle, Vector3& axis) const {
+  angle = 2.0f * std::acos(elements[3]);
+  double sin_half_angle = std::sqrt(1.0f - elements[3] * elements[3]);
+  if (sin_half_angle < 0.000001f) {
+    axis.coords[0] = elements[0];
+    axis.coords[1] = elements[1];
+    axis.coords[2] = elements[2];
+  } else {
+    axis.coords[0] = elements[0] / sin_half_angle;
+    axis.coords[1] = elements[1] / sin_half_angle;
+    axis.coords[2] = elements[2] / sin_half_angle;
+  }
+}
+
+void Quaternion::SetAngleAxis(const radian& angle, const Vector3& unit_axis) {
+  radian half_angle = 0.5f * angle;
+  real sin_half_angle = sinf(half_angle);
+  elements[0] = sin_half_angle * unit_axis.coords[0];
+  elements[1] = sin_half_angle * unit_axis.coords[1];
+  elements[2] = sin_half_angle * unit_axis.coords[2];
+  elements[3] = cosf(half_angle);
+}
+
+void Quaternion::Conjugate() {
+  elements[0] = -elements[0];
+  elements[1] = -elements[1];
+  elements[2] = -elements[2];
+}
+
+Quaternion Quaternion::GetConjugated() const {
+  return Quaternion(-elements[0], -elements[1], -elements[2], elements[3]);
+}
+
+void Quaternion::Scale(real factor) {
+  for (int index = 0; index < 4; index++) {
+    elements[index] *= factor;
+  }
+}
+
+real Quaternion::GetMagnitude() const {
+  if (elements[0] == 0.0f && elements[1] == 0.0f &&
+      elements[2] == 0.0f && elements[3] == 0.0f) return 0.0f;
+  real magnitude = std::sqrt(elements[0] * elements[0] + elements[1] * elements[1] +
+                             elements[2] * elements[2] + elements[3] * elements[3]);
+  if (magnitude < 0.000001) return 0.0f;
+  return magnitude;
+}
+
+void Quaternion::Normalize() {
+  double squared_magnitude = elements[0] * elements[0] + elements[1] * elements[1] +
+                             elements[2] * elements[2] + elements[3] * elements[3];
+  if (squared_magnitude < 0.000001f) {
+    Set(QUATERNION_IDENTITY[0], QUATERNION_IDENTITY[1],
+        QUATERNION_IDENTITY[2], QUATERNION_IDENTITY[3]);
+  } else {
+    if (std::fabs(1.0 - squared_magnitude) < 2.107342e-08) {
+      Scale(2.0 / (1.0 + squared_magnitude));
     } else {
-      return false;
+      Scale(1.0 / sqrt(squared_magnitude));
     }
   }
+}
 
-  const Quaternion Quaternion::operator * (float scale) const {
-    return Quaternion(elements[0] * scale, elements[1] * scale, elements[2] * scale, elements[3] * scale);
+Quaternion Quaternion::GetNormalized() const {
+  Quaternion normalized(*this);
+  normalized.Normalize();
+  return normalized;
+}
+
+float Quaternion::GetDotProduct(const Quaternion& other) const {
+  return (elements[0] * other.elements[0] + elements[1] * other.elements[1] +
+          elements[2] * other.elements[2] + elements[3] * other.elements[3]);
+}
+
+Quaternion Quaternion::GetLerped(float fraction, const Quaternion& target) const {
+  return (*this * (1 - fraction) + target * fraction).GetNormalized();
+}
+
+Quaternion Quaternion::GetSlerped(float fraction, const Quaternion& target) const {
+  Quaternion interpolated;
+  Quaternion same_hemisphere_target = target;
+  double cos_half_angle = elements[3] * same_hemisphere_target.elements[3] +
+                          elements[0] * same_hemisphere_target.elements[0] +
+                          elements[1] * same_hemisphere_target.elements[1] +
+                          elements[2] * same_hemisphere_target.elements[2];
+  if (cos_half_angle < 0) {
+    same_hemisphere_target = -same_hemisphere_target;
+    cos_half_angle = -cos_half_angle;
   }
-
-  Vector3 Quaternion::operator * (const Vector3 &fac) const {
-
-    Vector3 uv, uuv;
-    Vector3 qvec(elements[0], elements[1], elements[2]);
-    uv = qvec.GetCrossProduct(fac);
-    uuv = qvec.GetCrossProduct(uv);
-    uv *= (2.0f * elements[3]);
-    uuv *= 2.0f;
-
-    return fac + uv + uuv;
-
+  if (fabs(cos_half_angle) >= 1.0) {
+    interpolated.elements[3] = elements[3];
+    interpolated.elements[0] = elements[0];
+    interpolated.elements[1] = elements[1];
+    interpolated.elements[2] = elements[2];
+    return interpolated;
   }
-
-
-  Quaternion Quaternion::operator * (const Quaternion &fac) const {
-    Quaternion result;
-
-    result.elements[0] = elements[3] * fac.elements[0] + elements[0] * fac.elements[3] + elements[1] * fac.elements[2] - elements[2] * fac.elements[1];
-    result.elements[1] = elements[3] * fac.elements[1] + elements[1] * fac.elements[3] + elements[2] * fac.elements[0] - elements[0] * fac.elements[2];
-    result.elements[2] = elements[3] * fac.elements[2] + elements[2] * fac.elements[3] + elements[0] * fac.elements[1] - elements[1] * fac.elements[0];
-    result.elements[3] = elements[3] * fac.elements[3] - elements[0] * fac.elements[0] - elements[1] * fac.elements[1] - elements[2] * fac.elements[2];
-
-    return result;
+  double half_angle = acos(cos_half_angle);
+  double sin_half_angle = sqrt(1.0 - cos_half_angle * cos_half_angle);
+  if (fabs(sin_half_angle) < 0.000001f) {
+    interpolated.elements[3] = (elements[3] * 0.5 + same_hemisphere_target.elements[3] * 0.5);
+    interpolated.elements[0] = (elements[0] * 0.5 + same_hemisphere_target.elements[0] * 0.5);
+    interpolated.elements[1] = (elements[1] * 0.5 + same_hemisphere_target.elements[1] * 0.5);
+    interpolated.elements[2] = (elements[2] * 0.5 + same_hemisphere_target.elements[2] * 0.5);
+    return interpolated;
   }
+  double source_weight = sin((1 - fraction) * half_angle) / sin_half_angle;
+  double target_weight = sin(fraction * half_angle) / sin_half_angle;
+  interpolated.elements[3] =
+      (elements[3] * source_weight + same_hemisphere_target.elements[3] * target_weight);
+  interpolated.elements[0] =
+      (elements[0] * source_weight + same_hemisphere_target.elements[0] * target_weight);
+  interpolated.elements[1] =
+      (elements[1] * source_weight + same_hemisphere_target.elements[1] * target_weight);
+  interpolated.elements[2] =
+      (elements[2] * source_weight + same_hemisphere_target.elements[2] * target_weight);
+  return interpolated;
+}
 
-  Quaternion Quaternion::operator + (const Quaternion &q2) const {
-    return Quaternion(elements[0] + q2.elements[0], elements[1] + q2.elements[1], elements[2] + q2.elements[2], elements[3] + q2.elements[3]);
+Quaternion Quaternion::GetRotationTo(const Quaternion& target) const {
+  return target * this->GetInverse();
+}
+
+Quaternion Quaternion::GetRotationMultipliedBy(float factor) const {
+  Quaternion result;
+  Vector3 axis;
+  radian angle;
+  GetAngleAxis(angle, axis);
+  if (angle > pi) angle -= 2.0f * pi;
+  angle = std::fmod(angle * factor, 2.0f * pi);
+  result.SetAngleAxis(angle, axis);
+  return result.GetNormalized();
+}
+
+float Quaternion::MatchHemisphere(const Quaternion& reference) {
+  float dot = GetDotProduct(reference);
+  if (dot < 0) {
+    dot = -dot;
+    *this = -*this;
   }
+  return dot;
+}
 
-  Quaternion Quaternion::operator - (const Quaternion &q2) const {
-    return Quaternion(elements[0] - q2.elements[0], elements[1] - q2.elements[1], elements[2] - q2.elements[2], elements[3] - q2.elements[3]);
-  }
+std::ostream& operator<<(std::ostream& os, const Quaternion& quaternion) {
+  os << quaternion.elements[0] << " " << quaternion.elements[1] << " "
+     << quaternion.elements[2] << " " << quaternion.elements[3];
+  return os;
+}
 
-  Quaternion Quaternion::operator - () const {
-    return Quaternion(-elements[0], -elements[1], -elements[2], -elements[3]);
-  }
-
-
-
-  Quaternion Quaternion::GetInverse() const {
-    real fnorm = GetMagnitude();
-    if (fnorm < 0.000001f) {
-      return QUATERNION_IDENTITY;
-    } else {
-      real finvnorm = 1.0 / fnorm;
-      return Quaternion(-elements[0] * finvnorm, -elements[1] * finvnorm, -elements[2] * finvnorm, elements[3] * finvnorm);
-    }
-  }
-
-
-  void Quaternion::GetAngles(real &X, real &Y, real &Z) const {
-    int x = 0;
-    int y = 2;
-    int z = 1;
-
-    float singularityTest = elements[x] * elements[y] + elements[z] * elements[3];
-    if (singularityTest > 0.49999 || singularityTest < -0.49999) {
-      if (singularityTest > 0) {
-        Z = 2 * std::atan2(elements[x], elements[z]);
-        Y = pi * 0.5;
-      }
-      if (singularityTest < 0) {
-        Z = -2 * std::atan2(elements[x], elements[z]);
-        Y = -pi * 0.5;
-      }
-      X = 0;
-      return;
-    }
-    real sqx = elements[x] * elements[x];
-    real sqy = elements[y] * elements[y];
-    real sqz = elements[z] * elements[z];
-    Z = std::atan2(
-        2 * elements[y] * elements[3] - 2 * elements[x] * elements[z],
-        1 - 2 * sqy - 2 * sqz);
-    Y = std::asin(2 * elements[x] * elements[y] +
-                  2 * elements[z] * elements[3]);
-    X = std::atan2(
-        2 * elements[x] * elements[3] - 2 * elements[y] * elements[z],
-        1 - 2 * sqx - 2 * sqz);
-  }
-
-  void Quaternion::SetAngles(real X, real Y, real Z) {
-
-    float c1 = cos(Y / 2.0);
-    float s1 = sin(Y / 2.0);
-    float c2 = cos(Z / 2.0);
-    float s2 = sin(Z / 2.0);
-    float c3 = cos(X / 2.0);
-    float s3 = sin(X / 2.0);
-    float c1c2 = c1 * c2;
-    float s1s2 = s1 * s2;
-    elements[3] = c1c2 * c3 - s1s2 * s3;
-    elements[0] = c1c2 * s3 + s1s2 * c3;
-    elements[1] = s1 * c2 * c3 + c1 * s2 * s3;
-    elements[2] = c1 * s2 * c3 - s1 * c2 * s3;
-  }
-
-  void Quaternion::GetAngleAxis(radian& rfangle, Vector3& rkaxis) const {
-
-
-    rfangle = 2.0f * std::acos(elements[3]);
-
-    double div = std::sqrt(1.0f - elements[3] * elements[3]);
-    if (div < 0.000001f) {
-      rkaxis.coords[0] = elements[0];
-      rkaxis.coords[1] = elements[1];
-      rkaxis.coords[2] = elements[2];
-    } else {
-      rkaxis.coords[0] = elements[0] / div;
-      rkaxis.coords[1] = elements[1] / div;
-      rkaxis.coords[2] = elements[2] / div;
-    }
-  }
-
-  void Quaternion::SetAngleAxis(const radian &rfangle, const Vector3 &rkaxis) {
-
-    radian fhalfangle = 0.5f * rfangle;
-    real fsin = sinf(fhalfangle);
-    elements[0] = fsin * rkaxis.coords[0];
-    elements[1] = fsin * rkaxis.coords[1];
-    elements[2] = fsin * rkaxis.coords[2];
-    elements[3] = cosf(fhalfangle);
-  }
-
-  void Quaternion::conjugate() {
-    elements[0] = -elements[0];
-    elements[1] = -elements[1];
-    elements[2] = -elements[2];
-  }
-
-  Quaternion Quaternion::conjugate_get() const {
-    return Quaternion(-elements[0], -elements[1], -elements[2], elements[3]);
-  }
-
-  void Quaternion::scale(const real fac) {
-    for (int i = 0; i < 4; i++) {
-      elements[i] *= fac;
-    }
-  }
-
-  real Quaternion::GetMagnitude() const {
-    if (elements[0] == 0.0f && elements[1] == 0.0f && elements[2] == 0.0f && elements[3] == 0.0f) return 0.0f;
-    real magnitude =
-        std::sqrt(elements[0] * elements[0] + elements[1] * elements[1] +
-                  elements[2] * elements[2] + elements[3] * elements[3]);
-    if (magnitude < 0.000001) return 0.0f;
-    return magnitude;
-  }
-
-  void Quaternion::Normalize() {
-    double qmagsq = elements[0] * elements[0] + elements[1] * elements[1] + elements[2] * elements[2] + elements[3] * elements[3];
-    if (qmagsq < 0.000001f) {
-      Set(QUATERNION_IDENTITY[0], QUATERNION_IDENTITY[1], QUATERNION_IDENTITY[2], QUATERNION_IDENTITY[3]);
-    } else {
-      if (std::fabs(1.0 - qmagsq) < 2.107342e-08) {
-        scale(2.0 / (1.0 + qmagsq));
-      } else {
-        scale(1.0 / sqrt(qmagsq));
-      }
-    }
-  }
-
-  Quaternion Quaternion::GetNormalized() const {
-    Quaternion tmp(*this);
-    tmp.Normalize();
-    return tmp;
-  }
-
-  float Quaternion::GetDotProduct(const Quaternion &subject) const {
-    return (elements[0] * subject.elements[0] + elements[1] * subject.elements[1] + elements[2] * subject.elements[2] + elements[3] * subject.elements[3]);
-  }
-
-  Quaternion Quaternion::GetLerped(float bias, const Quaternion &to) const {
-    return (*this * (1 - bias) + to * bias).GetNormalized();
-  }
-
-  Quaternion Quaternion::GetSlerped(float bias, const Quaternion &to) const {
-
-
-    Quaternion qm;
-    Quaternion qb = to;
-
-    double cosHalfTheta = elements[3] * qb.elements[3] + elements[0] * qb.elements[0] + elements[1] * qb.elements[1] + elements[2] * qb.elements[2];
-
-    if (cosHalfTheta < 0) {
-      qb = -qb;
-      cosHalfTheta = -cosHalfTheta;
-    }
-
-    if (fabs(cosHalfTheta) >= 1.0) {
-      qm.elements[3] = elements[3];
-      qm.elements[0] = elements[0];
-      qm.elements[1] = elements[1];
-      qm.elements[2] = elements[2];
-      return qm;
-    }
-
-    double halfTheta = acos(cosHalfTheta);
-    double sinHalfTheta = sqrt(1.0 - cosHalfTheta * cosHalfTheta);
-
-    if (fabs(sinHalfTheta) < 0.000001f) {
-      qm.elements[3] = (elements[3] * 0.5 + qb.elements[3] * 0.5);
-      qm.elements[0] = (elements[0] * 0.5 + qb.elements[0] * 0.5);
-      qm.elements[1] = (elements[1] * 0.5 + qb.elements[1] * 0.5);
-      qm.elements[2] = (elements[2] * 0.5 + qb.elements[2] * 0.5);
-      return qm;
-    }
-
-    double ratioA = sin((1 - bias) * halfTheta) / sinHalfTheta;
-    double ratioB = sin(bias * halfTheta) / sinHalfTheta;
-
-    qm.elements[3] = (elements[3] * ratioA + qb.elements[3] * ratioB);
-    qm.elements[0] = (elements[0] * ratioA + qb.elements[0] * ratioB);
-    qm.elements[1] = (elements[1] * ratioA + qb.elements[1] * ratioB);
-    qm.elements[2] = (elements[2] * ratioA + qb.elements[2] * ratioB);
-
-    return qm;
-  }
-
-  Quaternion Quaternion::GetRotationTo(const Quaternion &to) const {
-    return to * this->GetInverse();
-  }
-
-  Quaternion Quaternion::GetRotationMultipliedBy(float factor) const {
-
-    Quaternion result;
-
-    Vector3 axis;
-    radian angle;
-    GetAngleAxis(angle, axis);
-
-    if (angle > pi) angle -= 2.0f * pi;
-
-    angle = std::fmod(angle * factor, 2.0f * pi);
-
-    result.SetAngleAxis(angle, axis);
-
-    return result.GetNormalized();
-  }
-
-  float Quaternion::MakeSameNeighborhood(const Quaternion &src) {
-    float dot = GetDotProduct(src);
-    if (dot < 0) {
-      dot = -dot;
-      *this = -*this;
-    }
-    return dot;
-  }
-
-  std::ostream& operator<<(std::ostream& os, const Quaternion& v)
-  {
-    os << v.elements[0] << " " << v.elements[1] << " " << v.elements[2] << " " << v.elements[3];
-    return os;
-  }
-
-
-  Quaternion IntegrateOrientation(const Quaternion& q, const Vector3& omega,
-                                  real dt) {
-    const Quaternion omega_q(omega.coords[0], omega.coords[1], omega.coords[2], 0.0f);
-    return (q + omega_q * q * (0.5f * dt)).GetNormalized();
-  }
+Quaternion IntegrateOrientation(const Quaternion& orientation,
+                                const Vector3& angular_velocity, real dt) {
+  const Quaternion angular_velocity_quaternion(
+      angular_velocity.coords[0], angular_velocity.coords[1], angular_velocity.coords[2], 0.0f);
+  return (orientation + angular_velocity_quaternion * orientation * (0.5f * dt)).GetNormalized();
+}
 
 }

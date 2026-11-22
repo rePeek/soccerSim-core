@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <cmath>
 #include <iostream>
 
@@ -8,62 +7,60 @@
 
 namespace football::math {
 
-  class Vector3;
+class Vector3;
 
-  static real QUATERNION_IDENTITY[4] = { 0, 0, 0, 1 };
+inline constexpr real QUATERNION_IDENTITY[4] = {0, 0, 0, 1};
 
-  class Quaternion {
+class Quaternion {
+ public:
+  Quaternion() {
+    elements[0] = 0;
+    elements[1] = 0;
+    elements[2] = 0;
+    elements[3] = 1;
+  }
+  Quaternion(real x, real y, real z, real w);
+  Quaternion(const real values[4]);
 
-    public:
-      inline Quaternion() {
-        elements[0] = 0;
-        elements[1] = 0;
-        elements[2] = 0;
-        elements[3] = 1;
-      }
-      Quaternion(real x, real y, real z, real w);
-      Quaternion(real values[4]);
+  void Set(real x, real y, real z, real w);
+  void Set(const Quaternion& quaternion);
 
-      void Set(real x, real y, real z, real w);
-      void Set(const Quaternion &quat);
+  bool operator==(const Quaternion& other) const = default;
+  bool operator!=(const Quaternion& other) const;
+  const Quaternion operator*(float factor) const;
+  Vector3 operator*(const Vector3& vector) const;
+  Quaternion operator*(const Quaternion& other) const;
+  Quaternion operator+(const Quaternion& other) const;
+  Quaternion operator-(const Quaternion& other) const;
+  Quaternion operator-() const;
 
-      bool operator == (const Quaternion &fac) const = default;
-      bool operator != (const Quaternion &fac) const;
-      const Quaternion operator * (float scale) const;
-      Vector3 operator * (const Vector3 &fac) const;
+  Quaternion GetInverse() const;
+  void GetEulerAnglesXYZ(real& x_radians, real& y_radians, real& z_radians) const;
+  void SetEulerAnglesYZX(real x_radians, real y_radians, real z_radians);
+  void GetAngleAxis(radian& angle, Vector3& axis) const;
+  void SetAngleAxis(const radian& angle, const Vector3& unit_axis);
+  void Conjugate();
+  Quaternion GetConjugated() const;
+  void Scale(real factor);
+  real GetMagnitude() const;
+  void Normalize();
+  Quaternion GetNormalized() const;
+  float GetDotProduct(const Quaternion& other) const;
+  Quaternion GetLerped(float fraction, const Quaternion& target) const;
+  Quaternion GetSlerped(float fraction, const Quaternion& target) const;
+  Quaternion GetRotationTo(const Quaternion& target) const;
+  Quaternion GetRotationMultipliedBy(float factor) const;
+  radian GetRotationAngle(const Quaternion& target) const {
+    return 2.0f * std::acos(clamp(this->GetDotProduct(target), -1.0f, 1.0f));
+  }
+  float MatchHemisphere(const Quaternion& reference);
 
-      Quaternion operator * (const Quaternion &fac) const;
-      Quaternion operator + (const Quaternion &q2) const;
-      Quaternion operator - (const Quaternion &q2) const;
-      Quaternion operator - () const;
+  real elements[4];
+};
 
-      Quaternion GetInverse() const;
-      void GetAngles(real &X, real &Y, real &Z) const;
-      void SetAngles(real X, real Y, real Z);
-      void GetAngleAxis(radian &rfangle, Vector3 &rkaxis) const;
-      void SetAngleAxis(const radian &rfangle, const Vector3 &rkaxis);
-      void conjugate();
-      Quaternion conjugate_get() const;
-      void scale(const real fac);
-      real GetMagnitude() const;
-      void Normalize();
-      Quaternion GetNormalized() const;
-      float GetDotProduct(const Quaternion &subject) const;
-      Quaternion GetLerped(float bias, const Quaternion &to) const;
-      Quaternion GetSlerped(float bias, const Quaternion &to) const;
-      Quaternion GetRotationTo(const Quaternion &to) const;
-      Quaternion GetRotationMultipliedBy(float factor) const;
-      radian GetRotationAngle(const Quaternion &to) const {
-        return 2.0f * std::acos(clamp(this->GetDotProduct(to), -1.0f, 1.0f));
-      }
-      float MakeSameNeighborhood(const Quaternion &src);
+std::ostream& operator<<(std::ostream& os, const Quaternion& quaternion);
 
-      real elements[4];
-  };
-
-  std::ostream& operator<<(std::ostream& os, const Quaternion& v);
-
-  Quaternion IntegrateOrientation(const Quaternion& q, const Vector3& omega,
-                                  real dt);
+Quaternion IntegrateOrientation(const Quaternion& orientation,
+                                const Vector3& angular_velocity, real dt);
 
 }

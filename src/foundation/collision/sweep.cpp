@@ -131,7 +131,7 @@ std::optional<CollisionHit> SweepPlane(const MovingSphere& sphere,
 
   CollisionHit hit;
   if (std::fabs(d0) <= ball_radius + kEpsilon) {
-    hit.toi = 0.0f;
+    hit.impact_fraction = 0.0f;
     hit.center = ball_position;
     hit.normal = (d0 >= 0.0f) ? n : -n;
     return hit;
@@ -140,7 +140,7 @@ std::optional<CollisionHit> SweepPlane(const MovingSphere& sphere,
   const float target = (d0 > 0.0f) ? ball_radius : -ball_radius;
   const float t = (target - d0) / dn;
   if (t < 0.0f || t > 1.0f) return std::nullopt;
-  hit.toi = t;
+  hit.impact_fraction = t;
   hit.center = ball_position + disp * t;
   hit.normal = (d0 > 0.0f) ? n : -n;
   return hit;
@@ -161,14 +161,14 @@ std::optional<CollisionHit> SweepHalfSpace(const MovingSphere& sphere,
   CollisionHit hit;
   hit.normal = n;
   if (d0 < -kEpsilon) {
-    hit.toi = 0.0f;
+    hit.impact_fraction = 0.0f;
     hit.center = ball_position;
     return hit;
   }
   if (dn >= 0.0f) return std::nullopt;
   const float t = -d0 / dn;
   if (t < 0.0f || t > 1.0f) return std::nullopt;
-  hit.toi = t;
+  hit.impact_fraction = t;
   hit.center = ball_position + disp * t;
   return hit;
 }
@@ -185,7 +185,7 @@ std::optional<CollisionHit> SweepSphere(const MovingSphere& sphere,
   CollisionHit hit;
 
   if (r0.GetLength() < radius_sum - kEpsilon) {
-    hit.toi = 0.0f;
+    hit.impact_fraction = 0.0f;
     hit.center = ball_position;
     hit.normal = NormalizedSafe(r0, {0, 0, 1});
     return hit;
@@ -201,7 +201,7 @@ std::optional<CollisionHit> SweepSphere(const MovingSphere& sphere,
   const float t = (t0 >= 0.0f) ? t0 : t1;
   if (t < 0.0f || t > 1.0f) return std::nullopt;
   const math::Vector3 center_ball = ball_position + disp * t;
-  hit.toi = t;
+  hit.impact_fraction = t;
   hit.center = center_ball;
   hit.normal = NormalizedSafe(center_ball - other.center, {0, 0, 1});
   return hit;
@@ -224,7 +224,7 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
   CollisionHit hit;
 
   if (dist0 < radius_sum - kEpsilon) {
-    hit.toi = 0.0f;
+    hit.impact_fraction = 0.0f;
     hit.center = ball_position;
     hit.normal = NormalizedSafe(r0 - closest0, {0, 0, 1});
     return hit;
@@ -269,7 +269,7 @@ std::optional<CollisionHit> SweepCapsule(const MovingSphere& sphere,
   const math::Vector3 center_ball = ball_position + disp * best;
   const math::Vector3 r_at = r0 + disp * best;
   const math::Vector3 closest = ClosestPointOnSegment(r_at, seg_a, seg_b);
-  hit.toi = best;
+  hit.impact_fraction = best;
   hit.center = center_ball;
   hit.normal = NormalizedSafe(r_at - closest, {0, 0, 1});
   return hit;
@@ -303,7 +303,7 @@ std::optional<ColliderHit> FirstHit(
   for (const Collider& collider : colliders) {
     const std::optional<CollisionHit> hit = Sweep(sphere, collider.shape, dt);
     if (!hit.has_value()) continue;
-    if (!best.has_value() || hit->toi < best->hit.toi)
+    if (!best.has_value() || hit->impact_fraction < best->hit.impact_fraction)
       best = ColliderHit{*hit, &collider};
   }
   return best;

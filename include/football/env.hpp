@@ -26,7 +26,7 @@ constexpr MatchPhase PhaseOfTick(std::uint64_t tick) {
 class Env {
  public:
   explicit Env(pitch::PitchModel pitch_model, ball::BallModel ball_model,
-               bool record = true);
+               history::Recording recording = history::Recording::Enabled);
   ~Env();
 
   Env(const Env&) = delete;

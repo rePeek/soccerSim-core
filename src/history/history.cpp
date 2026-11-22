@@ -1,14 +1,20 @@
 #include "football/history/history.hpp"
 
+#include <stdexcept>
+
 namespace football::history {
 
-History::History(std::size_t expected_frames, bool enabled) : enabled_(enabled) {
+History::History(std::size_t expected_frames, Recording recording)
+    : enabled_(recording == Recording::Enabled) {
   if (enabled_) chunk_.frames.reserve(expected_frames);
 }
 
-void History::BuildSnapshot(time::Tick tick, const ball::BallState& ball) {
+void History::RecordSnapshot(time::Tick tick, const ball::BallState& ball) {
   if (!enabled_) return;
   std::lock_guard lock(mutex_);
+  if (tick.value != chunk_.frames.size()) {
+    throw std::invalid_argument("history ticks must start at zero and be consecutive");
+  }
   chunk_.frames.push_back(Snapshot{tick, ball});
 }
 

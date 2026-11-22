@@ -6,6 +6,7 @@
 
 using football::ball::BallModel;
 using football::pitch::PitchModel;
+using football::history::Recording;
 using football::Env;
 using football::kFullTime;
 using football::kHalfTime;
@@ -17,8 +18,11 @@ using Catch::Approx;
 
 namespace {
 
-constexpr PitchModel kPitch = PitchModel{105.0f, 68.0f, 0.04f, 1.6f, 0.015f};
-constexpr BallModel kBall = BallModel{0.43f, 0.11f, 0.02f};
+constexpr PitchModel kPitch{.length = 105.0f, .width = 68.0f,
+                            .quadratic_resistance = 0.04f,
+                            .ground_deceleration = 1.6f, .air_drag = 0.015f};
+constexpr BallModel kBall{.mass = 0.43f, .radius = 0.11f,
+                          .magnus_coefficient = 0.02f};
 
 }
 
@@ -74,7 +78,7 @@ TEST_CASE("recorded frames are values, not views") {
 }
 
 TEST_CASE("a match can be built without recording") {
-  Env env(kPitch, kBall, false);
+  Env env(kPitch, kBall, Recording::Disabled);
 
   env.Step(TickSpan{10});
 

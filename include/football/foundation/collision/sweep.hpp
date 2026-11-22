@@ -1,7 +1,5 @@
 #pragma once
 
-
-
 #include <optional>
 #include <span>
 
@@ -12,8 +10,8 @@
 namespace football::collision {
 
 math::Vector3 ClosestPointOnSegment(const math::Vector3& p,
-                                       const math::Vector3& a,
-                                       const math::Vector3& b);
+                                  const math::Vector3& a,
+                                  const math::Vector3& b);
 
 math::Vector3 Depenetrate(const math::Vector3& center, float radius,
                           const geometry::ColliderShape& shape,

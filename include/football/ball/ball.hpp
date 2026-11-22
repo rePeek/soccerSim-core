@@ -16,7 +16,7 @@ using namespace football::pitch;
 class Ball {
  public:
   explicit Ball(const BallModel& model =
-      ::football_ball_model{0.43f, 0.11f, 0.02f});
+      ::football_ball_model{.mass = 0.43f, .radius = 0.11f, .magnus_coefficient = 0.02f});
 
   BallState get_state() const { return state_; }
   void set_state(const BallState& state) { state_ = state; }

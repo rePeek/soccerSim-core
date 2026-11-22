@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <array>
 #include <cstddef>
 #include <span>
@@ -13,7 +12,8 @@ namespace football::pitch {
 class Pitch {
  public:
   explicit Pitch(const PitchModel& model =
-      ::football_pitch_model{105.0f, 68.0f, 0.04f, 1.6f, 0.015f});
+      ::football_pitch_model{.length = 105.0f, .width = 68.0f, .quadratic_resistance = 0.04f,
+                             .ground_deceleration = 1.6f, .air_drag = 0.015f});
   const PitchModel& model() const { return model_; }
 
   constexpr float length() const { return model_.length; }
@@ -43,7 +43,7 @@ class Pitch {
 
   bool operator==(const Pitch& other) const;
 
-private:
+ private:
   static constexpr std::size_t kGoalParts = 6;
   static constexpr std::size_t kColliderCount = 1 + kGoalParts;
 

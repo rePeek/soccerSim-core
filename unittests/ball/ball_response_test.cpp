@@ -16,7 +16,9 @@ using Catch::Approx;
 
 namespace {
 
-BallModel TestBallModel() { return BallModel{0.5f, 0.11f, 0.02f}; }
+BallModel TestBallModel() {
+  return BallModel{.mass = 0.5f, .radius = 0.11f, .magnus_coefficient = 0.02f};
+}
 
 BallState BallAt(const Vector3& position, const Vector3& velocity) {
   BallState state;
@@ -68,7 +70,7 @@ TEST_CASE("A radial impulse changes linear velocity by J/m only",
   CHECK(next.velocity.coords[2] == Approx(-2.0f).margin(1e-5f));
   CHECK(next.angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
   CHECK(next.position == before.position);
-  CHECK_FALSE(next.orientation != before.orientation);
+  CHECK(next.orientation == before.orientation);
 }
 
 TEST_CASE("Offset impulse produces the expected spin direction",
@@ -204,7 +206,7 @@ TEST_CASE("Solving uses current state without applying the impulse",
   CHECK(ball.get_state().position == before.position);
   CHECK(ball.get_state().velocity == before.velocity);
   CHECK(ball.get_state().angular_velocity == before.angular_velocity);
-  CHECK_FALSE(ball.get_state().orientation != before.orientation);
+  CHECK(ball.get_state().orientation == before.orientation);
 
   ball.ApplyImpulseAtPoint(*impulse, point);
   CHECK_FALSE(ball.SolveContactImpulse({0, 0, 1}, point, Vector3(0, 0, 0), {0.5f, 0})
@@ -231,5 +233,5 @@ TEST_CASE("Successive impulses accumulate on the current ball state",
   CHECK(after.angular_velocity.coords[1] ==
         Approx(2.0f + arm * 1.5f / expected_inertia).margin(1e-5f));
   CHECK(after.position == initial.position);
-  CHECK_FALSE(after.orientation != initial.orientation);
+  CHECK(after.orientation == initial.orientation);
 }

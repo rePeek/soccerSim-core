@@ -28,17 +28,21 @@ BallState BallAt(const Vector3& position, const Vector3& velocity) {
   return state;
 }
 
-BallModel BallWithoutAero() { return BallModel{0.43f, 0.11f, 0.0f}; }
+BallModel BallWithoutMagnus() {
+  return BallModel{.mass = 0.43f, .radius = 0.11f, .magnus_coefficient = 0.0f};
+}
 
-Pitch FrictionlessPitch() {
-  return Pitch(football_pitch_model{105.0f, 68.0f, 0.0f, 0.0f, 0.0f});
+Pitch PitchWithoutResistance() {
+  return Pitch(football_pitch_model{.length = 105.0f, .width = 68.0f,
+                                    .quadratic_resistance = 0.0f,
+                                    .ground_deceleration = 0.0f, .air_drag = 0.0f});
 }
 
 }
 
 TEST_CASE("Free fall follows gravity", "[unit][ball][simulation]") {
-  Ball ball(BallWithoutAero());
-  const auto pitch = FrictionlessPitch();
+  Ball ball(BallWithoutMagnus());
+  const auto pitch = PitchWithoutResistance();
   ball.set_state(BallAt({0, 0, 10}, {0, 0, 0}));
   ball.Step(pitch);
 
@@ -50,8 +54,8 @@ TEST_CASE("Free fall follows gravity", "[unit][ball][simulation]") {
 
 TEST_CASE("Horizontal flight without drag keeps horizontal velocity",
           "[unit][ball][simulation]") {
-  Ball ball(BallWithoutAero());
-  const auto pitch = FrictionlessPitch();
+  Ball ball(BallWithoutMagnus());
+  const auto pitch = PitchWithoutResistance();
   ball.set_state(BallAt({0, 0, 10}, {5, 0, 0}));
   ball.Step(pitch);
 
@@ -60,8 +64,10 @@ TEST_CASE("Horizontal flight without drag keeps horizontal velocity",
 }
 
 TEST_CASE("Air drag removes kinetic energy", "[unit][ball][simulation]") {
-  Ball ball(BallWithoutAero());
-  const Pitch pitch(football_pitch_model{105.0f, 68.0f, 0.0f, 0.0f, 0.02f});
+  Ball ball(BallWithoutMagnus());
+  const Pitch pitch(football_pitch_model{.length = 105.0f, .width = 68.0f,
+                                        .quadratic_resistance = 0.0f,
+                                        .ground_deceleration = 0.0f, .air_drag = 0.02f});
   ball.set_state(BallAt({0, 0, 10}, {10, 0, 0}));
   ball.Step(pitch);
 
@@ -70,8 +76,8 @@ TEST_CASE("Air drag removes kinetic energy", "[unit][ball][simulation]") {
 }
 
 TEST_CASE("Spin bends a moving ball sideways (Magnus)", "[unit][ball][simulation]") {
-  Ball ball(BallModel{0.43f, 0.11f, 0.05f});
-  const auto pitch = FrictionlessPitch();
+  Ball ball(BallModel{.mass = 0.43f, .radius = 0.11f, .magnus_coefficient = 0.05f});
+  const auto pitch = PitchWithoutResistance();
   auto initial = BallAt({0, 0, 10}, {5, 0, 0});
   initial.angular_velocity = Vector3(0, 0, 10);
   ball.set_state(initial);
@@ -82,7 +88,7 @@ TEST_CASE("Spin bends a moving ball sideways (Magnus)", "[unit][ball][simulation
 }
 
 TEST_CASE("Grass rolling decelerates horizontal speed", "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
+  const auto config = BallWithoutMagnus();
   const Pitch pitch;
   Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius}, {5, 0, 0}));
@@ -96,8 +102,8 @@ TEST_CASE("Grass rolling decelerates horizontal speed", "[unit][ball][simulation
 
 TEST_CASE("Landing uses the pitch ground material and stops at contact",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   const float restitution = pitch.colliders().front().material.restitution;
   Ball ball(config);
   ball.set_state(BallAt({0, 0, 0.15f}, {0, 0, -5}));
@@ -114,15 +120,19 @@ TEST_CASE("Landing uses the pitch ground material and stops at contact",
 
 TEST_CASE("Initial ground penetration is repaired without an impulse",
           "[unit][ball][simulation]") {
-  Ball ball(BallWithoutAero());
-  const auto pitch = FrictionlessPitch();
-  ball.set_state(BallAt({0, 0, 0.05f}, {1, 0, 0}));
+  Ball ball(BallWithoutMagnus());
+  const auto pitch = PitchWithoutResistance();
+  auto initial = BallAt({0, 0, 0.05f}, {1, 0, 0});
+  initial.angular_velocity = Vector3(0, 0, 2);
+  ball.set_state(initial);
   ball.Step(pitch);
 
   const auto state = ball.get_state();
   CHECK(state.position.coords[2] == Approx(ball.model().radius).margin(1e-4f));
-  CHECK(state.velocity.coords[1] == Approx(0.0f));
-  CHECK(state.angular_velocity.GetLength() == Approx(0.0f).margin(1e-6f));
+  CHECK(state.velocity == initial.velocity);
+  CHECK(state.angular_velocity == initial.angular_velocity);
+  CHECK(state.orientation == football::math::IntegrateOrientation(
+                                 initial.orientation, initial.angular_velocity, kDt));
 }
 
 TEST_CASE("set_state restores the exact state", "[unit][ball][simulation]") {
@@ -139,7 +149,7 @@ TEST_CASE("set_state restores the exact state", "[unit][ball][simulation]") {
 
 TEST_CASE("ApplyImpulseAtPoint uses the ball's model and current state",
           "[unit][ball][simulation]") {
-  const BallModel config{0.43f, 0.11f, 0.02f};
+  const BallModel config{.mass = 0.43f, .radius = 0.11f, .magnus_coefficient = 0.02f};
   Ball ball(config);
   const auto initial = BallAt({0, 0, 10}, {0, 0, 0});
   ball.set_state(initial);
@@ -160,8 +170,8 @@ TEST_CASE("ApplyImpulseAtPoint uses the ball's model and current state",
 
 TEST_CASE("A struck ball carries its spin into the next tick (Magnus)",
           "[unit][ball][simulation]") {
-  const BallModel config{0.43f, 0.11f, 0.05f};
-  const auto pitch = FrictionlessPitch();
+  const BallModel config{.mass = 0.43f, .radius = 0.11f, .magnus_coefficient = 0.05f};
+  const auto pitch = PitchWithoutResistance();
   Ball ball(config);
   ball.set_state(BallAt({0, 0, 10}, {5, 0, 0}));
   ball.ApplyImpulseAtPoint({0, 0.6f, 0}, {config.radius, 0, 10});
@@ -186,8 +196,8 @@ TEST_CASE("PlaceOnGround sets ground position and clears motion",
 
 TEST_CASE("Ball flies freely through former goal net regions",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   Vector3 position(pitch.half_length() - 0.05f, 0, 1);
   Vector3 velocity(40, 0, 0);
   SECTION("goal line") {}
@@ -220,8 +230,8 @@ TEST_CASE("Ball flies freely through former goal net regions",
 }
 
 TEST_CASE("Ground kick launches on subsequent ticks", "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 10}));
   for (int i = 0; i < 100; ++i) ball.Step(pitch);
@@ -231,8 +241,8 @@ TEST_CASE("Ground kick launches on subsequent ticks", "[unit][ball][simulation]"
 }
 
 TEST_CASE("Drag-free oblique flight matches analytic trajectory", "[unit][ball][simulation]") {
-  const auto pitch = FrictionlessPitch();
-  Ball ball(BallWithoutAero());
+  const auto pitch = PitchWithoutResistance();
+  Ball ball(BallWithoutMagnus());
   ball.set_state(BallAt({0, 0, 2}, {12, 3, 8}));
   for (int i = 0; i < 50; ++i) ball.Step(pitch);
   const auto state = ball.get_state();
@@ -243,8 +253,8 @@ TEST_CASE("Drag-free oblique flight matches analytic trajectory", "[unit][ball][
 
 TEST_CASE("Successive ground bounces keep the pitch restitution and never sink",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   const float restitution = pitch.colliders().front().material.restitution;
   Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius}, {0, 0, -2}));
@@ -268,8 +278,8 @@ TEST_CASE("Successive ground bounces keep the pitch restitution and never sink",
 
 TEST_CASE("A collision tick stops at the first post, not the second",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   const auto& high = pitch.colliders()[4];
   const auto& post = std::get<Capsule>(high.shape);
   const float touching_y = pitch.goal_half_width() - post.radius - config.radius;
@@ -287,8 +297,8 @@ TEST_CASE("A collision tick stops at the first post, not the second",
 
 TEST_CASE("A tiny ground launch is absorbed as rolling",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 0.045f}));
   ball.Step(pitch);
@@ -300,8 +310,10 @@ TEST_CASE("A tiny ground launch is absorbed as rolling",
 
 TEST_CASE("Ground resistance is predicted for the full tick before a post impact",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const Pitch pitch(football_pitch_model{105, 68, 0, 1, 0.025f});
+  const auto config = BallWithoutMagnus();
+  const Pitch pitch(football_pitch_model{.length = 105, .width = 68,
+                                        .quadratic_resistance = 0,
+                                        .ground_deceleration = 1, .air_drag = 0.025f});
   const auto& collider = pitch.colliders()[3];
   const auto& post = std::get<Capsule>(collider.shape);
   const float touching_x = pitch.half_length() - post.radius - config.radius;
@@ -318,8 +330,8 @@ TEST_CASE("Ground resistance is predicted for the full tick before a post impact
 
 TEST_CASE("Step commits every state component after a collision",
           "[unit][ball][simulation]") {
-  Ball ball(BallWithoutAero());
-  const auto pitch = FrictionlessPitch();
+  Ball ball(BallWithoutMagnus());
+  const auto pitch = PitchWithoutResistance();
   auto initial = BallAt({pitch.half_length() - 0.5f, -pitch.goal_half_width(), 1}, {40, 0, 0});
   initial.angular_velocity = Vector3(0, 1, 2);
   initial.orientation.SetAngleAxis(0.3f, {1, 0, 0});
@@ -334,8 +346,8 @@ TEST_CASE("Step commits every state component after a collision",
 }
 
 TEST_CASE("Step advances exactly one fixed tick", "[unit][ball][simulation]") {
-  Ball ball(BallWithoutAero());
-  const auto pitch = FrictionlessPitch();
+  Ball ball(BallWithoutMagnus());
+  const auto pitch = PitchWithoutResistance();
   ball.set_state(BallAt({1, 2, 3}, {4, 5, 6}));
   ball.Step(pitch);
   CHECK(ball.get_state().position.coords[0] == Approx(1.0f + 4 * kDt));
@@ -347,8 +359,10 @@ TEST_CASE("Step advances exactly one fixed tick", "[unit][ball][simulation]") {
 
 TEST_CASE("Passive response applies an impulse to the predicted state",
           "[unit][ball][simulation]") {
-  const BallModel config{0.43f, 0.11f, 0.05f};
-  const Pitch pitch(football_pitch_model{105, 68, 0, 0, 0.02f});
+  const BallModel config{.mass = 0.43f, .radius = 0.11f, .magnus_coefficient = 0.05f};
+  const Pitch pitch(football_pitch_model{.length = 105, .width = 68,
+                                        .quadratic_resistance = 0,
+                                        .ground_deceleration = 0, .air_drag = 0.02f});
   auto initial = BallAt({0, 0, 0.15f}, {3, 1, -5});
   initial.angular_velocity = Vector3(0, 2, 3);
   initial.orientation.SetAngleAxis(0.3f, {1, 0, 0});
@@ -397,13 +411,13 @@ TEST_CASE("Passive response applies an impulse to the predicted state",
     CHECK(state.angular_velocity.coords[axis] ==
           Approx(expected_state.angular_velocity.coords[axis]).margin(1e-5f));
   }
-  CHECK_FALSE(state.orientation != predicted.orientation);
+  CHECK(state.orientation == predicted.orientation);
 }
 
 TEST_CASE("A fast path is swept even when both endpoints are outside a post",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   const auto& collider = pitch.colliders()[3];
   const auto& post = std::get<Capsule>(collider.shape);
   const float touching_x = pitch.half_length() - post.radius - config.radius;
@@ -419,8 +433,8 @@ TEST_CASE("A fast path is swept even when both endpoints are outside a post",
 
 TEST_CASE("A ball at rest on the grass is integrated to the same state",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   Ball ball(config);
   ball.PlaceOnGround(3, 4);
   const auto before = ball.get_state();
@@ -429,7 +443,7 @@ TEST_CASE("A ball at rest on the grass is integrated to the same state",
   CHECK(after.position == before.position);
   CHECK(after.velocity == before.velocity);
   CHECK(after.angular_velocity == before.angular_velocity);
-  CHECK_FALSE(after.orientation != before.orientation);
+  CHECK(after.orientation == before.orientation);
 
   auto spinning = before;
   spinning.angular_velocity = Vector3(0, 0, 4);
@@ -444,8 +458,8 @@ TEST_CASE("A ball at rest on the grass is integrated to the same state",
 
 TEST_CASE("A drop bounces off the predicted tick-end speed",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   const float restitution = pitch.colliders().front().material.restitution;
 
   const float drop = 3e-4f;
@@ -460,8 +474,8 @@ TEST_CASE("A drop bounces off the predicted tick-end speed",
 
 TEST_CASE("A post impact keeps the remaining tick time unspent",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   const auto& post_collider = pitch.colliders()[3];
   const auto& post = std::get<Capsule>(post_collider.shape);
   const float touching_x = pitch.half_length() - post.radius - config.radius;
@@ -480,7 +494,7 @@ TEST_CASE("A post impact keeps the remaining tick time unspent",
 
 TEST_CASE("A rolling ball is not blocked by its own ground contact",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
+  const auto config = BallWithoutMagnus();
   const Pitch pitch;
   Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius}, {4, 0, 0}));
@@ -498,8 +512,8 @@ TEST_CASE("A rolling ball is not blocked by its own ground contact",
 
 TEST_CASE("A tiny lift off the grass is absorbed as resting",
           "[unit][ball][simulation]") {
-  const auto config = BallWithoutAero();
-  const auto pitch = FrictionlessPitch();
+  const auto config = BallWithoutMagnus();
+  const auto pitch = PitchWithoutResistance();
   Ball ball(config);
   ball.set_state(BallAt({0, 0, config.radius}, {0, 0, 0.01f}));
 

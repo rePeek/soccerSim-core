@@ -1,4 +1,3 @@
-
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
@@ -74,7 +73,8 @@ TEST_CASE("Goal colliders follow the pitch geometry", "[unit][pitch]") {
 }
 
 TEST_CASE("Configuration drives the derived geometry", "[unit][pitch]") {
-  PitchModel model{90.0f, 60.0f, 0.04f, 1.6f, 0.015f};
+  PitchModel model{.length = 90.0f, .width = 60.0f, .quadratic_resistance = 0.04f,
+                   .ground_deceleration = 1.6f, .air_drag = 0.015f};
   const Pitch small(model);
   CHECK(small.model().length == model.length);
   CHECK(small.model().width == model.width);
@@ -100,12 +100,14 @@ TEST_CASE("Pitch equality compares configuration, not the collider cache",
   const Pitch b;
   CHECK(a == b);
 
-  PitchModel model{100.0f, 68.0f, 0.04f, 1.6f, 0.015f};
+  PitchModel model{.length = 100.0f, .width = 68.0f, .quadratic_resistance = 0.04f,
+                   .ground_deceleration = 1.6f, .air_drag = 0.015f};
   const Pitch other(model);
   CHECK(a != other);
   CHECK(other == Pitch(model));
 
-  model = PitchModel{105.0f, 68.0f, 0.04f, 1.6f, 0.02f};
+  model = PitchModel{.length = 105.0f, .width = 68.0f, .quadratic_resistance = 0.04f,
+                     .ground_deceleration = 1.6f, .air_drag = 0.02f};
   const Pitch more_air(model);
   CHECK(a != more_air);
   CHECK(a.air_drag() == Approx(0.015f));
@@ -113,7 +115,8 @@ TEST_CASE("Pitch equality compares configuration, not the collider cache",
 }
 
 TEST_CASE("PitchModel defaults preserve the pitch configuration", "[unit][pitch]") {
-  const PitchModel model{105.0f, 68.0f, 0.04f, 1.6f, 0.015f};
+  const PitchModel model{.length = 105.0f, .width = 68.0f, .quadratic_resistance = 0.04f,
+                         .ground_deceleration = 1.6f, .air_drag = 0.015f};
   CHECK(model.length == Approx(105.0f));
   CHECK(model.width == Approx(68.0f));
   CHECK(model.quadratic_resistance == Approx(0.04f));
@@ -134,7 +137,8 @@ TEST_CASE("PitchModel defaults preserve the pitch configuration", "[unit][pitch]
 }
 
 TEST_CASE("Pitch owns a copy of editable model values", "[unit][pitch]") {
-  PitchModel model{90.0f, 60.0f, 0.04f, 1.6f, 0.0f};
+  PitchModel model{.length = 90.0f, .width = 60.0f, .quadratic_resistance = 0.04f,
+                   .ground_deceleration = 1.6f, .air_drag = 0.0f};
   const Pitch pitch(model);
   const PitchModel held = pitch.model();
   CHECK(held.length == model.length);
