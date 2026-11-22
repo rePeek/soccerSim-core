@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <mutex>
 #include <optional>
 
@@ -18,6 +19,8 @@ class History {
   void RecordSnapshot(time::Tick tick, const ball::BallState& ball);
 
   std::optional<Snapshot> ReadSnapshot(time::Tick tick) const;
+
+  void SaveJsonl(const std::filesystem::path& path) const;
 
   bool enabled() const { return enabled_; }
 

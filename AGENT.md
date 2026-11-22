@@ -36,8 +36,10 @@ nix develop --command bash -c 'cmake --preset release && cmake --build --preset 
 ```
 
 The domain suites `foundation_unit`, `collision_unit`, `pitch_unit`, `ball_unit`
-and `history_unit` link only their modules and declared dependencies, never
-`simcore`. The C11
+`history_unit` and `trajectory_unit` link only their modules and declared
+dependencies, never `simcore`. `trajectory_unit` combines `football::ball`,
+`football::history` and nlohmann_json to simulate 1000-tick trajectories and
+verify the saved JSON Lines. The C11
 `capi_unit` consumer links `simcore` to exercise the exported C ABI, and
 `env_unit` plus `runner_unit` link it because `Env` and `SingleRunner` are
 compiled into the shared library rather than into modules of their own.
@@ -103,6 +105,7 @@ unittests/
 ├── pitch/        pitch_unit
 ├── ball/         ball_unit
 ├── history/      history_unit
+├── trajectory/   trajectory_unit (ball + history + JSON Lines)
 ├── env/          env_unit (links simcore)
 ├── runner/       runner_unit (links simcore)
 └── capi/         capi_unit (compiled as C)
@@ -143,6 +146,17 @@ unittests/
   gaps, duplicates and out-of-order ticks with `std::invalid_argument` before
   appending. `ReadSnapshot()` uses that Tick/index invariant and returns a copied
   `std::optional<Snapshot>` under the same mutex as recording.
+  `std::optional<Snapshot>` under the same mutex as recording.
+- `History::SaveJsonl(path)` writes JSON Lines: one header object holding the
+  format version and tick rate, then one object per tick with the full state
+  (position, velocity, angular velocity, orientation in x/y/z/w order). Floats
+  round-trip exactly when read back as float. It takes the History lock, writes a
+  sibling `.tmp` file and renames it into place, so a failed write leaves the
+  previous file intact and throws `std::runtime_error`. There is no loader yet;
+  replay stays a design constraint, not an implemented mode. JSON Lines is the
+  current interchange format because it is inspectable; a binary format may be
+  added later without changing Snapshot or Chunk. nlohmann_json is a PRIVATE
+  dependency of football::history and never appears in its public headers.
 - The executor owns its match and nothing else. The executor
   (`football::runner::SingleRunner`) does not advance until `Start()`, which
   launches `Env::LoopMain(tick_limit)` on a worker. Start is one-shot; Wait and

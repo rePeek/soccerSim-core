@@ -24,6 +24,7 @@ set(CPM_SOURCE_CACHE "${PROJECT_SOURCE_DIR}/.cache/CPM"
   CACHE PATH "CPM dependency source cache")
 include(cmake/CPM.cmake)
 include(cmake/bqlog.cmake)
+include(cmake/json.cmake)
 
 add_library(football_models INTERFACE)
 add_library(football::models ALIAS football_models)

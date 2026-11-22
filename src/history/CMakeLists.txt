@@ -4,6 +4,7 @@ add_library(football::history ALIAS football_history)
 target_sources(football_history
   PRIVATE
     history.cpp
+    save_jsonl.cpp
   PUBLIC FILE_SET HEADERS
     BASE_DIRS ${PROJECT_SOURCE_DIR}/include
     FILES
@@ -15,6 +16,8 @@ target_compile_features(football_history PUBLIC cxx_std_23)
 
 target_link_libraries(football_history
   PUBLIC
-    football::ball_state)
+    football::ball_state
+  PRIVATE
+    nlohmann_json::nlohmann_json)
 
 football_configure_target(football_history)

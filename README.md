@@ -111,6 +111,7 @@ unittests/
 ├── pitch/        pitch_unit
 ├── ball/         ball_unit
 ├── history/      history_unit
+├── trajectory/   trajectory_unit (1000-tick ball trajectories saved as JSON Lines)
 ├── env/          env_unit
 ├── runner/       runner_unit
 └── capi/         capi_unit (compiled as C)
@@ -134,6 +135,12 @@ unittests/
   `RecordSnapshot()` requires consecutive ticks starting at zero and rejects gaps
   or duplicates with `std::invalid_argument`; `ReadSnapshot()` returns a copied
   `std::optional<Snapshot>` indexed by Tick.
+- `History::SaveJsonl(path)` writes one header line (format version and tick rate)
+  then one JSON object per tick holding the complete state. Writes go to a
+  sibling `.tmp` file that is renamed into place, so a failed save keeps the old
+  file and throws `std::runtime_error`. Loading is not implemented yet; the design
+  keeps replay possible through the same private Chunk and `ReadSnapshot()`.
+  Examples of the format live in the history tests.
 - `SingleRunner` starts only on `Start()`. `Wait()` and the destructor join the
   worker, which executes `Env::LoopMain(tick_limit)`. There is no external Stop.
   Each LoopMain call advances additional ticks; a zero limit is a no-op.
