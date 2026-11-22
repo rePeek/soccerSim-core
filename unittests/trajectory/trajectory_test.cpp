@@ -212,8 +212,15 @@ TEST_CASE("a long pass flies across the pitch then bounces and rolls to rest") {
   ball.PlaceOnGround(-25.0f, -12.0f);
   const auto start = ball.get_state().position;
   const football::math::Vector3 impulse{8.6f, 2.58f, 5.16f};
-  const auto contact = start - impulse.GetNormalized() * kBall.radius;
+  const auto contact_direction =
+      (impulse.GetNormalized() * -1.0f + football::math::Vector3(0, 0, -0.03f)).GetNormalized();
+  const auto contact = start + contact_direction * kBall.radius;
   ball.ApplyImpulseAtPoint(impulse, contact);
+  const auto initial = ball.get_state();
+  CHECK(initial.angular_velocity.GetLength() > 5.0f);
+  CHECK(initial.angular_velocity.GetLength() < 10.0f);
+  CHECK(initial.angular_velocity.coords[1] < 0.0f);
+  CHECK(initial.angular_velocity.GetCrossProduct(initial.velocity).coords[2] > 0.0f);
 
   const Pitch pitch;
   History history;
@@ -232,6 +239,11 @@ TEST_CASE("a long pass flies across the pitch then bounces and rolls to rest") {
     highest = std::max(highest, state.position.coords[2]);
     CHECK(state.position.coords[2] >= kBall.radius - 1e-5f);
     CHECK(pitch.contains(state.position.coords[0], state.position.coords[1]));
+    if (first_landing == 0 && airborne && state.position.coords[2] > kBall.radius + 1e-4f) {
+      CHECK(state.angular_velocity.GetLength() < previous->ball.angular_velocity.GetLength());
+      CHECK(state.angular_velocity.GetDotProduct(initial.angular_velocity) > 0.0f);
+      CHECK(state.orientation != previous->ball.orientation);
+    }
     if (state.position.coords[2] > kBall.radius + 1e-4f) airborne = true;
     if (airborne && first_landing == 0 &&
         state.position.coords[2] <= kBall.radius + 1e-4f) {

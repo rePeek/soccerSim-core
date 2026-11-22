@@ -67,6 +67,14 @@ math::Vector3 ApplyGrassSpinResistance(const BallModel& model,
   return angular_velocity * speed_scale;
 }
 
+math::Vector3 ApplyAirSpinResistance(const BallModel& model,
+                                   const math::Vector3& angular_velocity,
+                                   float dt, const Pitch& pitch) {
+  const float surface_speed = angular_velocity.GetLength() * model.radius;
+  const float speed_scale = 1.0f / (1.0f + pitch.air_drag() * surface_speed * dt);
+  return angular_velocity * speed_scale;
+}
+
 math::Vector3 LaunchVelocity(const BallModel& model, const BallState& state,
                              float dt, const Pitch& pitch) {
   if (state.position.coords[2] <= model.radius + kGroundContactDistanceTolerance &&
@@ -116,6 +124,7 @@ BallState IntegrateMotion(const BallModel& model, const BallState& state,
     next.position = state.position +
                     (launch_velocity + acceleration * (0.5f * dt)) * dt;
     next.velocity = launch_velocity + acceleration * dt;
+    next.angular_velocity = ApplyAirSpinResistance(model, state.angular_velocity, dt, pitch);
   }
   next.orientation =
       IntegrateOrientation(state.orientation, next.angular_velocity, dt);

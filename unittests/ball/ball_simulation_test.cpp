@@ -375,10 +375,11 @@ TEST_CASE("Passive response applies an impulse to the predicted state",
   BallState predicted = initial;
   predicted.position = initial.position + (v + accel * (0.5f * kDt)) * kDt;
   predicted.velocity = v + accel * kDt;
-  const football::math::Quaternion omega_q(
-      omega.coords[0], omega.coords[1], omega.coords[2], 0);
-  predicted.orientation =
-      (initial.orientation + omega_q * initial.orientation * (0.5f * kDt)).GetNormalized();
+  const float spin_scale =
+      1.0f / (1.0f + pitch.air_drag() * config.radius * omega.GetLength() * kDt);
+  predicted.angular_velocity = omega * spin_scale;
+  predicted.orientation = football::math::IntegrateOrientation(
+      initial.orientation, predicted.angular_velocity, kDt);
 
   const float fraction = (config.radius - initial.position.coords[2]) /
                          (predicted.position.coords[2] - initial.position.coords[2]);
@@ -569,7 +570,10 @@ TEST_CASE("Grass spin resistance does not damp airborne spin",
   auto state = BallAt({0, 0, 10}, {1, 0, 0});
   state.angular_velocity = Vector3(1, -3, 5);
   ball.set_state(state);
-  ball.Step(Pitch{});
+  const Pitch pitch(football_pitch_model{.length = 105, .width = 68,
+                                        .quadratic_resistance = 0.04f,
+                                        .ground_deceleration = 1.6f, .air_drag = 0});
+  ball.Step(pitch);
   CHECK(ball.get_state().angular_velocity == state.angular_velocity);
 }
 
@@ -584,4 +588,56 @@ TEST_CASE("Sub-tick ground rebounds settle and stop spinning",
   CHECK(ball.get_state().position.coords[2] == Approx(config.radius));
   CHECK(ball.get_state().velocity == Vector3(0, 0, 0));
   CHECK(ball.get_state().angular_velocity == Vector3(0, 0, 0));
+}
+
+TEST_CASE("Air spin resistance decays spin without changing its axis",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutMagnus();
+  const Pitch pitch;
+  Ball ball(config);
+  auto initial = BallAt({0, 0, 100}, {5, 0, 0});
+  initial.angular_velocity = Vector3(3, -4, 0);
+  ball.set_state(initial);
+  float previous_speed = initial.angular_velocity.GetLength();
+  for (int tick = 1; tick <= 100; ++tick) {
+    ball.Step(pitch);
+    const auto state = ball.get_state();
+    const float speed = state.angular_velocity.GetLength();
+    CHECK(speed < previous_speed);
+    CHECK(state.angular_velocity.GetDotProduct(initial.angular_velocity) > 0.0f);
+    CHECK(state.angular_velocity.GetNormalized().GetDotProduct(
+        initial.angular_velocity.GetNormalized()) == Approx(1.0f).margin(1e-6f));
+    const float expected_speed = initial.angular_velocity.GetLength() /
+        (1.0f + pitch.air_drag() * config.radius * initial.angular_velocity.GetLength() * tick * kDt);
+    CHECK(speed == Approx(expected_speed).margin(1e-4f));
+    previous_speed = speed;
+  }
+  CHECK(ball.get_state().orientation != initial.orientation);
+}
+
+TEST_CASE("Air spin resistance preserves zero spin and drag-free spin",
+          "[unit][ball][simulation]") {
+  Ball ball(BallWithoutMagnus());
+  auto initial = BallAt({0, 0, 100}, {20, 0, 0});
+  ball.set_state(initial);
+  ball.Step(Pitch{});
+  CHECK(ball.get_state().angular_velocity == Vector3(0, 0, 0));
+  CHECK(ball.get_state().orientation == initial.orientation);
+  initial.angular_velocity = Vector3(0, -8, 2);
+  ball.set_state(initial);
+  for (int tick = 0; tick < 100; ++tick) ball.Step(PitchWithoutResistance());
+  CHECK(ball.get_state().angular_velocity == initial.angular_velocity);
+}
+
+TEST_CASE("Air spin resistance remains passive for large surface speeds",
+          "[unit][ball][simulation]") {
+  const auto config = BallWithoutMagnus();
+  Ball ball(config);
+  auto initial = BallAt({0, 0, 100}, {0, 0, 0});
+  initial.angular_velocity = Vector3(0, 0, 1000000);
+  ball.set_state(initial);
+  ball.Step(Pitch{});
+  const auto spin = ball.get_state().angular_velocity;
+  CHECK(spin.coords[2] > 0.0f);
+  CHECK(spin.GetSquaredLength() < initial.angular_velocity.GetSquaredLength());
 }
