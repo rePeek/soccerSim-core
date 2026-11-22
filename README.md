@@ -4,8 +4,8 @@ A minimal deterministic C++23 football **ball-physics core**:
 
 - `Pitch` owns the pitch description and the static physics scene.
 - `Ball` owns the authoritative ball state, integration and contact response.
-- `football::Env` is one match: the ball, the pitch, the tick cursor and the
-  derived match phase, advanced only by `LoopMain()`.
+- `football::Env` owns the ball, pitch, history and tick cursor, advanced only
+  by `LoopMain(tick_limit)`. There is no match phase or fixed match duration.
 - `football::runner::SingleRunner` owns one match and the worker that plays it.
 - `football::history` records 64-byte state frames of a match in-process.
 - The C ABI is one handle over one runner.
@@ -43,7 +43,7 @@ int main(void) {
   football_ball_model ball = {
       .mass = 0.43f, .radius = 0.11f, .magnus_coefficient = 0.02f};
 
-  football_session* session = football_session_create(&pitch, &ball, 0);
+  football_session* session = football_session_create(&pitch, &ball, 100);
   if (session == NULL) return 1;
 
   football_session_start(session);
@@ -59,13 +59,14 @@ int main(void) {
 }
 ```
 
-A handle owns one match and its loop thread: `football_session_create` prepares
-the match and copies the models, `football_session_start` begins the loop once,
-and `football_session_destroy` joins that loop - so it returns once the run ends -
-releases the match and writes the buffered log. The third argument bounds the
-run: the loop stops after that many ticks or at full time, whichever comes first;
-zero plays the whole match. A match is always 90 minutes at 100 Hz (540000 ticks)
-with half time at 45, and a NULL model makes creation return NULL.
+`football_session_create` prepares the environment and copies the models.
+`football_session_start` launches its loop once, and `football_session_destroy`
+waits for completion before releasing the environment and flushing the log.
+The third creation argument specifies how many ticks to advance: zero advances
+no ticks and keeps the initial snapshot. Positive limits run that many ticks
+unless execution fails. There is no fixed match duration or external stop.
+History grows as needed; callers should choose tick limits that fit their
+memory budget. A NULL model makes creation return NULL.
 
 `football_get_render_snapshot(session, tick, output)` copies one recorded pose
 while the worker runs. It returns 1 on success, or 0 for a NULL argument or an
@@ -100,7 +101,7 @@ src/
 ├── pitch/        football::pitch
 ├── ball/         football::ball
 ├── history/      football::history
-├── env.cpp       Env: the ball, the pitch, the cursor and the phase
+├── env.cpp       Env: the ball, the pitch, the history and the cursor
 ├── runner.cpp    SingleRunner: the worker that plays one match
 └── capi.cpp      C ABI adapter
 
@@ -126,16 +127,17 @@ unittests/
 - `Env` holds no thread, lock or play state: one executor owns it and only
   `LoopMain()` advances it; its one-tick `Step()` is private.
 - `football::history` records 64-byte `Snapshot` frames of state handed to it by
-  `Env`; a full match is ~33 MiB, reserved up front, never allocated per frame.
+  `Env`. History retains every tick in a growing vector; there is no fixed-duration
+  reservation or retention limit.
   Recording is fixed at construction; a disabled recorder allocates nothing.
   `Recording::Enabled` and `Recording::Disabled` make that choice explicit.
   `RecordSnapshot()` requires consecutive ticks starting at zero and rejects gaps
   or duplicates with `std::invalid_argument`; `ReadSnapshot()` returns a copied
   `std::optional<Snapshot>` indexed by Tick.
-- One match, one worker: `SingleRunner` does not play until `Start()`, and `Wait()`
-  or the destructor joins it, so a running match is always played out before it
-  dies. There is no external stop.
-- The C ABI exposes model values, start, lifecycle and copied render snapshots;
+- `SingleRunner` starts only on `Start()`. `Wait()` and the destructor join the
+  worker, which executes `Env::LoopMain(tick_limit)`. There is no external Stop.
+  Each LoopMain call advances additional ticks; a zero limit is a no-op.
+- The C ABI exposes model values, explicit start and copied render snapshots;
   `src/` is never a public include directory.
 - `Chunk` remains private storage inside History, with no raw accessors.
   `runner.history().ReadSnapshot(tick)` copies recorded frames safely while the

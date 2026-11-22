@@ -13,12 +13,10 @@ rules that are true *now*.
 - `history` — `football::history`: records fixed-size `Snapshot` frames of match
   state into a `Chunk`; callers hand it state values, so it never depends on
   `Ball`, `Env` or the runner
-- `env.cpp` / `include/football/env.hpp` — `football::Env`: one match's state and
-  rules — one Ball on one Pitch, the tick cursor and the derived match boundaries;
-  it advances only through `LoopMain()`
-- `src/runner.cpp` / `include/football/runner.hpp` — `football::runner`: the
-  execution side. `SingleRunner` owns one match and the worker that plays it to
-  its tick limit or full time
+- `env.cpp` / `include/football/env.hpp` — `football::Env`: Ball, Pitch, History
+  and the tick cursor, advanced through `LoopMain(tick_limit)`
+- `src/runner.cpp` / `include/football/runner.hpp` — `football::runner`: owns
+  one environment and starts its bounded loop on a worker explicitly
 - `capi.h` / `capi.cpp` — C ABI adapter for C and C#; one handle per match, model
   values, start, lifecycle and copied render snapshots
 - `models.h` — single C header: model layouts/defaults plus C++ aliases
@@ -135,45 +133,30 @@ unittests/
   it the authoritative `BallState` and the committed tick, so it never pulls state
   and never depends on `Ball`, `Env` or the runner. Recording is fixed at
   construction (`Recording`): a disabled recorder drops frames and allocates nothing.
-  Frames are 64 bytes, so a recorded match is ~33 MiB; `Env` reserves that up
-  front and never allocates per frame. Keep frames fixed-size: variable-length
-  data (events, sparse samples) belongs in a separate structure, not in
-  `Snapshot`. Never include `env.hpp` from history; a frame stores the tick only,
-  and phase stays derived.
+  Frames are 64 bytes and live in a private Chunk's vector. Env records from tick
+  zero without a fixed-duration capacity reservation; the vector grows as needed.
+  Recording has no retention limit, so callers must choose tick limits that fit
+  their memory budget. History callers may supply an expected-frame reserve hint. Keep frames
+  fixed-size: variable-length data belongs in separate structures. Never include
+  `env.hpp` from history.
   `RecordSnapshot()` requires consecutive ticks starting at zero and rejects
   gaps, duplicates and out-of-order ticks with `std::invalid_argument` before
   appending. `ReadSnapshot()` uses that Tick/index invariant and returns a copied
   `std::optional<Snapshot>` under the same mutex as recording.
 - The executor owns its match and nothing else. The executor
-  (`football::runner::SingleRunner`) does not play until `Start()`; then it runs
-  `Env::LoopMain(tick_limit)` on a worker thread and has no stepping loop of its
-  own. It holds no play/pause state and reports nothing about the tick; `Wait()`
-  and the destructor join the worker, so a running match always finishes before
-  its `Env` is destroyed, and `Start()` is one-shot.
-- `runner.history().ReadSnapshot(tick)` is the concurrent read path and returns
-  a copied frame. History exposes no raw Chunk accessor; its Chunk stays internal.
-  `EnvironmentAfterJoin()` returns only `const Env&` and throws `std::logic_error`
-  while the worker is running, even if execution has already finished; it is
-  readable before `Start()` and after `Wait()`. Lifecycle calls, environment
-  access and destruction must be serialised by the host; history reads may run
-  concurrently while the runner stays alive. Host pacing stays outside the core.
-- Match boundaries are derived from the cursor and then cached: the one-tick
-  `Step()` is the only writer of both the tick and the `MatchPhase` it mirrors,
-  so `Phase()` is a plain read that can never disagree with `Ticks()`. Both come
-  from the `PhaseOfTick()` rule, which yields `FirstHalf`, the single tick of
-  `HalfTime` at `kHalfTime`, `SecondHalf`, and `FullTime` from `kFullTime`
-  onwards (saturating, so it stays full time past the horizon). A host that
-  wants a break to last simply holds the match at the half-time tick.
-  A match is always 90 minutes at 100 Hz (540000 ticks) with half time at 45
-  (270000), both fixed constants rather than configuration. There is no clock,
-  break, ceremony, change of ends or added time: half time is only the tick where
-  the halves meet, and the last simulated tick is `kFullTime - 1`.
-- `Step()` is private: it advances exactly one tick and does not police the
-  horizon. `LoopMain(tick_limit)` is the only public advance; it stops at full
-  time or after `tick_limit` ticks, whichever comes first, and a zero limit
-  plays the whole match.
+  (`football::runner::SingleRunner`) does not advance until `Start()`, which
+  launches `Env::LoopMain(tick_limit)` on a worker. Start is one-shot; Wait and
+  the destructor join without stopping it. There is no external Stop API.
+- `runner.history().ReadSnapshot(tick)` copies frames safely during execution.
+  Chunk stays private. `EnvironmentAfterJoin()` returns `const Env&` before
+  Start or after Wait, and throws `std::logic_error` while the thread is joinable.
+  The host serialises lifecycle calls and keeps the runner alive during reads.
+- There are no match phases, fixed match durations or Finished state.
+  `Step()` is private. `LoopMain(tick_limit)` advances that many ticks unless
+  execution fails; zero means no advancement, not an unbounded run. Each call
+  counts additional ticks from the current cursor.
 - Never read or mutate live `Env` state concurrently with its executor; the
-  cursor and phase are plain state. The sole concurrent read exception is the
+  cursor is plain state. The sole concurrent read exception is the
   synchronised `History::ReadSnapshot()` path, which does not read live state.
   Exceptions must not cross the thread boundary: the match logs them and the
   loop stops.

@@ -4,14 +4,10 @@
 #include <type_traits>
 #include <utility>
 
-#include "football/env.hpp"
-#include "football/foundation/time/tick.hpp"
 #include "football/runner.hpp"
 
 using football::ball::BallModel;
 using football::history::Recording;
-using football::kFullTime;
-using football::MatchPhase;
 using football::pitch::PitchModel;
 using football::runner::SingleRunner;
 using football::time::Tick;
@@ -32,89 +28,68 @@ constexpr BallModel kBall{.mass = 0.43f, .radius = 0.11f,
 
 }
 
-TEST_CASE("a runner does not play until it is started") {
-  SingleRunner runner(kPitch, kBall);
-
+TEST_CASE("a runner does not advance before Start") {
+  SingleRunner runner(kPitch, kBall, Recording::Enabled, TickSpan{100});
+  runner.Wait();
   REQUIRE(runner.EnvironmentAfterJoin().Ticks() == Tick{0});
-  REQUIRE_FALSE(runner.EnvironmentAfterJoin().Finished());
   const auto opening = runner.history().ReadSnapshot(Tick{0});
   REQUIRE(opening);
   REQUIRE(opening->ball.position.coords[2] == kBall.radius);
 }
 
-TEST_CASE("a runner exposes history but rejects live environment access while running") {
-  SingleRunner runner(kPitch, kBall);
+TEST_CASE("a started runner executes its tick limit and rejects access until joined") {
+  SingleRunner runner(kPitch, kBall, Recording::Enabled, TickSpan{100});
   const SingleRunner& reader = runner;
-
   runner.Start();
   REQUIRE_THROWS_AS(reader.EnvironmentAfterJoin(), std::logic_error);
-  const auto opening = reader.history().ReadSnapshot(Tick{0});
-  REQUIRE(opening);
-  REQUIRE(opening->tick == Tick{0});
-
+  REQUIRE(reader.history().ReadSnapshot(Tick{0}));
   runner.Wait();
+  REQUIRE(reader.EnvironmentAfterJoin().Ticks() == Tick{100});
+  const auto final_frame = reader.history().ReadSnapshot(Tick{100});
+  REQUIRE(final_frame);
+  REQUIRE(final_frame->tick == Tick{100});
+  REQUIRE_FALSE(reader.history().ReadSnapshot(Tick{101}));
   REQUIRE(&reader.history() == &reader.EnvironmentAfterJoin().history());
 }
 
-TEST_CASE("a started runner plays its match to full time") {
+TEST_CASE("Start is one-shot and Wait is idempotent") {
+  SingleRunner runner(kPitch, kBall, Recording::Disabled, TickSpan{100});
+  runner.Start();
+  runner.Start();
+  runner.Wait();
+  runner.Start();
+  runner.Wait();
+  runner.Wait();
+  REQUIRE(runner.EnvironmentAfterJoin().Ticks() == Tick{100});
+}
+
+TEST_CASE("a zero tick limit keeps only the opening frame") {
   SingleRunner runner(kPitch, kBall);
   runner.Start();
   runner.Wait();
-
-  const auto& env = runner.EnvironmentAfterJoin();
-  REQUIRE(env.Ticks() == kFullTime);
-  REQUIRE(env.Phase() == MatchPhase::FullTime);
-  REQUIRE(env.Finished());
-  const auto final_frame = runner.history().ReadSnapshot(kFullTime);
-  REQUIRE(final_frame);
-  REQUIRE(final_frame->tick == kFullTime);
-  REQUIRE_FALSE(runner.history().ReadSnapshot(Tick{kFullTime.value + 1}));
-}
-
-TEST_CASE("starting twice is harmless") {
-  SingleRunner runner(kPitch, kBall, Recording::Disabled);
-  runner.Start();
-  runner.Start();
-  runner.Wait();
-  REQUIRE(runner.EnvironmentAfterJoin().Ticks() == kFullTime);
-}
-
-TEST_CASE("waiting before start returns immediately") {
-  SingleRunner runner(kPitch, kBall, Recording::Disabled);
-  runner.Wait();
   REQUIRE(runner.EnvironmentAfterJoin().Ticks() == Tick{0});
+  REQUIRE(runner.history().ReadSnapshot(Tick{0}));
+  REQUIRE_FALSE(runner.history().ReadSnapshot(Tick{1}));
 }
 
-TEST_CASE("a tick limit stops the run") {
-  SingleRunner runner(kPitch, kBall, Recording::Enabled, TickSpan{100});
-  runner.Start();
-  runner.Wait();
-
-  const auto& env = runner.EnvironmentAfterJoin();
-  REQUIRE(env.Ticks() == Tick{100});
-  REQUIRE_FALSE(env.Finished());
-  REQUIRE(runner.history().ReadSnapshot(Tick{100}));
-  REQUIRE_FALSE(runner.history().ReadSnapshot(Tick{101}));
-}
-
-TEST_CASE("runners own independent matches") {
-  SingleRunner first(kPitch, kBall, Recording::Disabled);
-  SingleRunner second(kPitch, kBall, Recording::Disabled);
+TEST_CASE("runners own independent matches and tick limits") {
+  SingleRunner first(kPitch, kBall, Recording::Disabled, TickSpan{100});
+  SingleRunner second(kPitch, kBall, Recording::Disabled, TickSpan{200});
   first.Start();
   second.Start();
   first.Wait();
   second.Wait();
-  REQUIRE(first.EnvironmentAfterJoin().Ticks() == kFullTime);
-  REQUIRE(second.EnvironmentAfterJoin().Ticks() == kFullTime);
+  REQUIRE(first.EnvironmentAfterJoin().Ticks() == Tick{100});
+  REQUIRE(second.EnvironmentAfterJoin().Ticks() == Tick{200});
   REQUIRE(&first.EnvironmentAfterJoin() != &second.EnvironmentAfterJoin());
 }
 
-TEST_CASE("a runner can play without recording") {
-  SingleRunner runner(kPitch, kBall, Recording::Disabled);
-  REQUIRE_FALSE(runner.history().enabled());
-  REQUIRE_FALSE(runner.history().ReadSnapshot(Tick{0}));
+TEST_CASE("a runner can advance without recording") {
+  SingleRunner runner(kPitch, kBall, Recording::Disabled, TickSpan{100});
   runner.Start();
   runner.Wait();
-  REQUIRE_FALSE(runner.history().ReadSnapshot(kFullTime));
-  REQUIRE(runner.EnvironmentAfterJoin().Ticks() == kFullTime);
+  REQUIRE(runner.EnvironmentAfterJoin().Ticks() == Tick{100});
+  REQUIRE_FALSE(runner.history().enabled());
+  REQUIRE_FALSE(runner.history().ReadSnapshot(Tick{0}));
+  REQUIRE_FALSE(runner.history().ReadSnapshot(Tick{100}));
 }

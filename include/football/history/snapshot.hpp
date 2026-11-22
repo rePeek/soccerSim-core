@@ -12,6 +12,6 @@ struct Snapshot {
   bool operator==(const Snapshot&) const = default;
 };
 
-static_assert(sizeof(Snapshot) == 64, "64 bytes per frame: ~33 MiB per match");
+static_assert(sizeof(Snapshot) == 64, "snapshot layout must remain 64 bytes");
 
 }
