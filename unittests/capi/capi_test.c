@@ -40,8 +40,8 @@ static int TestNullArguments(void) {
 
   football_session_destroy(NULL);
   football_session_start(NULL);
-  REQUIRE(football_session_create(NULL, &ball, 0, NULL) == NULL);
-  REQUIRE(football_session_create(&pitch, NULL, 0, NULL) == NULL);
+  REQUIRE(football_session_create(NULL, &ball, NULL) == NULL);
+  REQUIRE(football_session_create(&pitch, NULL, NULL) == NULL);
   REQUIRE(football_get_render_snapshot(NULL, 0, &snapshot) == 0);
   REQUIRE(memcmp(&snapshot, &original, sizeof(snapshot)) == 0);
   return 1;
@@ -52,8 +52,8 @@ static int TestSessionsHaveIndependentSnapshotCopies(void) {
   football_ball_model first_ball = DefaultBall();
   football_ball_model second_ball = DefaultBall();
   second_ball.radius = 0.2f;
-  football_session* first_session = football_session_create(&pitch, &first_ball, 0, NULL);
-  football_session* second_session = football_session_create(&pitch, &second_ball, 100, NULL);
+  football_session* first_session = football_session_create(&pitch, &first_ball, NULL);
+  football_session* second_session = football_session_create(&pitch, &second_ball, NULL);
   REQUIRE(first_session != NULL);
   REQUIRE(second_session != NULL);
   REQUIRE(first_session != second_session);
@@ -92,7 +92,7 @@ static int TestSessionCopiesCallerOwnedModels(void) {
   football_pitch_model pitch = DefaultPitch();
   football_ball_model ball = DefaultBall();
   const float original_radius = ball.radius;
-  football_session* session = football_session_create(&pitch, &ball, 0, NULL);
+  football_session* session = football_session_create(&pitch, &ball, NULL);
   REQUIRE(session != NULL);
   memset(&pitch, 0, sizeof(pitch));
   memset(&ball, 0, sizeof(ball));
@@ -102,7 +102,7 @@ static int TestSessionCopiesCallerOwnedModels(void) {
   REQUIRE(snapshot.pz == original_radius);
   football_session_destroy(session);
 
-  football_session* zero_model_session = football_session_create(&pitch, &ball, 0, NULL);
+  football_session* zero_model_session = football_session_create(&pitch, &ball, NULL);
   REQUIRE(zero_model_session != NULL);
   football_session_destroy(zero_model_session);
   return 1;
@@ -125,7 +125,7 @@ static int TestReplaySessionReadsHistoryFile(void) {
 
   football_pitch_model pitch = DefaultPitch();
   football_ball_model ball = DefaultBall();
-  football_session* session = football_session_create(&pitch, &ball, 0, path);
+  football_session* session = football_session_create(&pitch, &ball, path);
   REQUIRE(session != NULL);
   football_session_start(session);
 
@@ -150,14 +150,14 @@ static int TestReplaySessionReadsHistoryFile(void) {
 static int TestReplaySessionRejectsUnusableFiles(void) {
   football_pitch_model pitch = DefaultPitch();
   football_ball_model ball = DefaultBall();
-  REQUIRE(football_session_create(&pitch, &ball, 0, "football_capi_absent.jsonl") == NULL);
+  REQUIRE(football_session_create(&pitch, &ball, "football_capi_absent.jsonl") == NULL);
 
   const char* path = "football_capi_broken.jsonl";
   FILE* file = fopen(path, "wb");
   REQUIRE(file != NULL);
   fputs("{\"type\":\"header\",\"version\":9,\"ticks_per_second\":100}\n", file);
   fclose(file);
-  REQUIRE(football_session_create(&pitch, &ball, 0, path) == NULL);
+  REQUIRE(football_session_create(&pitch, &ball, path) == NULL);
   remove(path);
   return 1;
 }
@@ -165,7 +165,7 @@ static int TestReplaySessionRejectsUnusableFiles(void) {
 static int TestEmptyHistoryPathRecords(void) {
   football_pitch_model pitch = DefaultPitch();
   football_ball_model ball = DefaultBall();
-  football_session* session = football_session_create(&pitch, &ball, 0, "");
+  football_session* session = football_session_create(&pitch, &ball, "");
   REQUIRE(session != NULL);
   football_render_snapshot snapshot = {0};
   REQUIRE(football_get_render_snapshot(session, 0, &snapshot) == 1);

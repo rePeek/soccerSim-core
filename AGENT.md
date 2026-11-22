@@ -145,8 +145,7 @@ unittests/
   special case.
   Frames are 64 bytes and live in a private Chunk's vector. Env records from tick
   zero without a fixed-duration capacity reservation; the vector grows as needed.
-  Recording has no retention limit, so callers must choose tick limits that fit
-  their memory budget. There is no capacity-reservation parameter. Keep frames
+  Recording has no retention limit, so a run length must fit the memory budget. There is no capacity-reservation parameter. Keep frames
   fixed-size: variable-length data belongs in separate structures. Never include
   `env.hpp` from history.
   `RecordSnapshot()` requires consecutive ticks starting at zero and rejects
@@ -185,9 +184,10 @@ unittests/
   while the worker records. Mutation stays private to `Step()`.
 - There are no match phases, fixed match durations or Finished state.
   `Step()` is private. `LoopMain(tick_limit)` advances that many ticks unless
-  execution fails; zero means no advancement, not an unbounded run. Each call
-  counts additional ticks from the current cursor.
-`History` itself has no lock: it is a plain value that `Env` owns and guards.
+  execution fails; zero means no advancement, not an unbounded run, and the default
+  is `kDefaultRunTicks` (50000 ticks). Each call counts additional ticks from the
+  current cursor.
+- `History` itself has no lock: it is a plain value that `Env` owns and guards.
   Never reach a History directly while its Env is running; go through
   `Env::ReadSnapshot()`, which locks. `Env` never exposes mutable state while the
   worker runs, and its `Step()` is private.
@@ -209,9 +209,11 @@ unittests/
   RNG, so any number may run at once and identical inputs give identical results.
   The only process-wide piece is the log, which is thread-safe; destroying a
   session flushes it, so no separate flush call exists.
-`football_session_create` takes a models pair, a tick limit and an optional
-  JSON Lines path: a NULL or empty path records a new match, otherwise the file is
-  loaded and the session only replays it, without simulating.
+`football_session_create` takes a models pair and an optional JSON Lines path: a
+  NULL or empty path records a new match, otherwise the file is loaded and the
+  session only replays it, without simulating. The C ABI exposes no run length:
+  the built-in `kDefaultRunTicks` (50000 ticks, 500 s) is internal policy, and
+  `Env::LoopMain()` uses it as its default while tests may pass an explicit span.
 - C ABI render reads copy Tick, position and orientation into a 40-byte
   `football_render_snapshot`; never expose internal frame pointers or add a
   duplicate render history. Reads return 1 on success, 0 for invalid parameters

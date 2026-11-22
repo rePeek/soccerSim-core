@@ -21,8 +21,8 @@ std::filesystem::path HistoryPath(const char* history_path) {
 struct football_session {
   football_session(const football_pitch_model& pitch_model,
                    const football_ball_model& ball_model,
-                   std::uint64_t tick_limit, const char* history_path)
-      : runner(pitch_model, ball_model, football::time::TickSpan{tick_limit},
+                   const char* history_path)
+      : runner(pitch_model, ball_model, football::kDefaultRunTicks,
                HistoryPath(history_path)) {}
 
   football::runner::SingleRunner runner;
@@ -33,7 +33,7 @@ extern "C" {
 football_session* FOOTBALL_CALL football_session_create(
     const football_pitch_model* pitch_model,
     const football_ball_model* ball_model,
-    uint64_t tick_limit, const char* history_path) noexcept {
+    const char* history_path) noexcept {
   if (pitch_model == nullptr || ball_model == nullptr) {
     Warning(Channel::capi, "football_session_create ignored a NULL model");
     return nullptr;
@@ -41,7 +41,7 @@ football_session* FOOTBALL_CALL football_session_create(
 
   try {
     auto* handle =
-        new football_session(*pitch_model, *ball_model, tick_limit, history_path);
+        new football_session(*pitch_model, *ball_model, history_path);
     Info(Channel::capi, "football_session_create completed");
     return handle;
   } catch (...) {

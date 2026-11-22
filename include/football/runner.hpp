@@ -11,7 +11,8 @@ namespace football::runner {
 class SingleRunner {
  public:
   SingleRunner(pitch::PitchModel pitch_model, ball::BallModel ball_model,
-               time::TickSpan tick_limit = {}, std::filesystem::path history_path = {});
+               time::TickSpan tick_limit = kDefaultRunTicks,
+               std::filesystem::path history_path = {});
   ~SingleRunner();
 
   SingleRunner(const SingleRunner&) = delete;

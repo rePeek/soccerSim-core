@@ -91,8 +91,8 @@ TEST_CASE("Start is one-shot and Wait is idempotent") {
   REQUIRE(runner.Environment().Ticks() == Tick{100});
 }
 
-TEST_CASE("a zero tick limit keeps only the opening frame") {
-  SingleRunner runner(kPitch, kBall);
+TEST_CASE("an explicit zero tick limit keeps only the opening frame") {
+  SingleRunner runner(kPitch, kBall, TickSpan{});
   runner.Start();
   runner.Wait();
   REQUIRE(runner.Environment().Ticks() == Tick{0});
@@ -131,4 +131,13 @@ TEST_CASE("a runner given a replay history does not advance the match") {
   REQUIRE_FALSE(env.ReadSnapshot(Tick{1}));
 
   std::filesystem::remove(path);
+}
+
+TEST_CASE("the default run limit advances the built-in tick horizon") {
+  SingleRunner runner(kPitch, kBall);
+  runner.Start();
+  runner.Wait();
+  REQUIRE(football::kDefaultRunTicks == TickSpan{50000});
+  REQUIRE(runner.Environment().Ticks() == Tick{50000});
+  REQUIRE(runner.Environment().frame_count() == 50001);
 }

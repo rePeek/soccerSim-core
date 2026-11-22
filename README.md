@@ -43,7 +43,7 @@ int main(void) {
   football_ball_model ball = {
       .mass = 0.43f, .radius = 0.11f, .magnus_coefficient = 0.02f};
 
-  football_session* session = football_session_create(&pitch, &ball, 100, NULL);
+  football_session* session = football_session_create(&pitch, &ball, NULL);
   if (session == NULL) return 1;
 
   football_session_start(session);
@@ -62,14 +62,12 @@ int main(void) {
 `football_session_create` prepares the environment, copies the models and builds
 the history. `football_session_start` launches the loop once, and
 `football_session_destroy` waits for completion before releasing the environment
-and flushing the log. The third argument specifies how many ticks to advance:
-zero advances no ticks and keeps the initial snapshot, positive limits run that
-many ticks unless execution fails. The fourth argument names a JSON Lines history
-to replay: when it is NULL or empty the session records a new match, otherwise it
-loads that file and never simulates, so ticks stay at zero and the loaded frames
-are only read. There is no fixed match duration or external stop. History grows
-as needed; callers should choose tick limits that fit their memory budget. A NULL
-model makes creation return NULL.
+and flushing the log. The third argument names a JSON Lines history to replay:
+when it is NULL or empty the session records a new match and advances
+`kDefaultRunTicks` (50000 ticks, 500 s) before stopping, otherwise it loads that
+file and never simulates, so ticks stay at zero and the loaded frames are only
+read. The run length is an internal policy, not a C ABI parameter, so hosts never
+pass numbers. History grows as needed and a NULL model makes creation return NULL.
 
 `football_get_render_snapshot(session, tick, output)` copies one recorded pose
 while the worker runs. It returns 1 on success, or 0 for a NULL argument or an

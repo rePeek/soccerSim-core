@@ -11,6 +11,8 @@
 
 namespace football {
 
+inline constexpr time::TickSpan kDefaultRunTicks{50000};
+
 class Env {
  public:
   explicit Env(pitch::PitchModel pitch_model, ball::BallModel ball_model,
@@ -22,7 +24,7 @@ class Env {
   Env(Env&&) = delete;
   Env& operator=(Env&&) = delete;
 
-  void LoopMain(time::TickSpan tick_limit);
+  void LoopMain(time::TickSpan tick_limit = kDefaultRunTicks);
 
   std::optional<history::Snapshot> ReadSnapshot(time::Tick tick) const;
   history::HistoryMode history_mode() const;
