@@ -128,12 +128,14 @@ unittests/
 - Keep `Pitch` free of match/rules/actor concepts; it owns geometry and the
   static physics scene only.
 - `Ball` is the only authority for ball state. `football::Env` is one match: the
-  ball, the pitch, the tick cursor and an injected `History`, advanced only by
-  `LoopMain()` (its one-tick `Step()` is private). It holds no thread, lock, flag
-  or notion of playing, so the same object works for a live host, a batch run and
-  a future branch search alike. `Env` takes its History by value and moves it in;
-  with a `Replay` history it records nothing and `LoopMain()` returns without
-  advancing, so a loaded trajectory can be hosted without simulating.
+  ball, the pitch, the tick cursor and the `History` it builds itself, advanced only by
+  `LoopMain()` (its one-tick `Step()` is private). It owns the mutex that guards
+  its cursor, history and reads, but holds no thread, flag or notion of playing,
+  so the same object works for a live host, a batch run and a future branch
+  search alike. `Env` builds its History from an optional JSON Lines path: an empty
+  path records a new match, a path loads that file in `Replay` mode, which records
+  nothing and makes `LoopMain()` return without advancing, so a loaded trajectory
+  can be hosted without simulating. `History` never appears in the C ABI.
 - `football::history::History` records what a match looked like: the caller hands
   it the authoritative `BallState` and the committed tick, so it never pulls state
   and never depends on `Ball`, `Env` or the runner. Its mode is fixed at
@@ -151,16 +153,15 @@ unittests/
   gaps, duplicates and out-of-order ticks with `std::invalid_argument` before
   appending; in `Replay` mode it throws `std::logic_error` instead of mutating a
   loaded trajectory. `ReadSnapshot()` uses that Tick/index invariant and returns a
-  copied `std::optional<Snapshot>` under the same mutex as recording.
-- `History` is movable and owns its Chunk through an internal state pointer, so
-  `Env` and `SingleRunner` take one by value and move it in; the recording lock
-  travels with that state. `History::SaveJsonl(path)` writes JSON Lines: one
-  header object holding the format version and tick rate, then one object per
-  tick with the full state (position, velocity, angular velocity, orientation in
-  x/y/z/w order). Floats
-  round-trip exactly when read back as float. It takes the History lock, writes a
-  sibling `.tmp` file and renames it into place, so a failed write leaves the
-  previous file intact and throws `std::runtime_error`.
+  copied `std::optional<Snapshot>`; it holds no lock, because `Env` guards it.
+- `History` is a movable value type. Only `Env` constructs it, from the history path
+  it is given; the C ABI passes a path string and never names the type.
+  `History::SaveJsonl(path)` writes JSON Lines: one header object holding the
+  format version and tick rate, then one object per tick with the full state
+  (position, velocity, angular velocity, orientation in x/y/z/w order). Floats
+  round-trip exactly when read back as float. It writes a sibling `.tmp` file and
+  renames it into place, so a failed write leaves the previous file intact and
+  throws `std::runtime_error`.
 - `History::LoadJsonl(path)` is the read-only entry: it validates the header
   (type, format version, tick rate) and every frame (type, consecutive ticks from
   zero, array lengths of 3/3/3/4), then builds the Chunk and returns a History in
@@ -178,17 +179,18 @@ unittests/
   (`football::runner::SingleRunner`) does not advance until `Start()`, which
   launches `Env::LoopMain(tick_limit)` on a worker. Start is one-shot; Wait and
   the destructor join without stopping it. There is no external Stop API.
-- `runner.history().ReadSnapshot(tick)` copies frames safely during execution.
-  Chunk stays private. `EnvironmentAfterJoin()` returns `const Env&` before
-  Start or after Wait, and throws `std::logic_error` while the thread is joinable.
-  The host serialises lifecycle calls and keeps the runner alive during reads.
+- `SingleRunner::Environment()` returns `const Env&` at any time; `Env` owns the
+  mutex that guards its cursor, its history and every snapshot read, so
+  `ReadSnapshot(tick)`, `Ticks()`, `frame_count()` and `history_mode()` are safe
+  while the worker records. Mutation stays private to `Step()`.
 - There are no match phases, fixed match durations or Finished state.
   `Step()` is private. `LoopMain(tick_limit)` advances that many ticks unless
   execution fails; zero means no advancement, not an unbounded run. Each call
   counts additional ticks from the current cursor.
-- Never read or mutate live `Env` state concurrently with its executor; the
-  cursor is plain state. The sole concurrent read exception is the
-  synchronised `History::ReadSnapshot()` path, which does not read live state.
+`History` itself has no lock: it is a plain value that `Env` owns and guards.
+  Never reach a History directly while its Env is running; go through
+  `Env::ReadSnapshot()`, which locks. `Env` never exposes mutable state while the
+  worker runs, and its `Step()` is private.
   Exceptions must not cross the thread boundary: the match logs them and the
   loop stops.
 - One match, one worker: only the loop advances `Env`, and there is no external

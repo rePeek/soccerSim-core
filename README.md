@@ -128,10 +128,13 @@ unittests/
   RNG-free.
 - `Ball` is the only authority for ball state.
 - `Pitch` owns geometry and the static scene only; no rules or actors.
-- `Env` holds no thread, lock or play state: one executor owns it and only
-  `LoopMain()` advances it; its one-tick `Step()` is private.
+- `Env` holds no thread or play state: one executor owns it and only `LoopMain()`
+  advances it; its one-tick `Step()` is private. `Env` owns the mutex that guards
+  its cursor, its history and the copied snapshot reads.
 - `football::history` records 64-byte `Snapshot` frames of state handed to it by
-  `Env`. History retains every tick in a growing vector; there is no fixed-duration
+  `Env`, which builds it from an optional JSON Lines path: empty means record,
+  a path loads that file for replay. `History` never appears in the C ABI.
+  History retains every tick in a growing vector; there is no fixed-duration
   reservation or retention limit.
   Construction is fixed: `History()` records, while `HistoryMode::Replay` comes only
   from `LoadJsonl()` and rejects recording with `std::logic_error`. `mode()` reports
@@ -154,13 +157,12 @@ unittests/
   Each LoopMain call advances additional ticks; a zero limit is a no-op.
 - The C ABI exposes model values, explicit start and copied render snapshots;
   `src/` is never a public include directory.
-- `Chunk` remains private storage inside History, with no raw accessors.
-  `runner.history().ReadSnapshot(tick)` copies recorded frames safely while the
-  worker runs. `runner.EnvironmentAfterJoin()` returns only `const Env&` before
-  `Start()` or after `Wait()` joins the worker, and throws `std::logic_error`
-  while the worker runs. Lifecycle operations, environment access and destruction
-  must be serialised by the host; concurrent history reads require the runner to
-  remain alive.
+- `Chunk` remains private storage inside History, with no raw accessors, and
+  History carries no lock of its own. `Env` owns the mutex: `Step()` writes under
+  it, and `ReadSnapshot()`, `Ticks()`, `frame_count()` and `history_mode()` read
+  under it. `SingleRunner::Environment()` returns `const Env&` at any time, so the
+  worker and the host may read and record concurrently. Lifecycle calls and
+  destruction must still be serialised by the host.
 
 ## Math conventions
 

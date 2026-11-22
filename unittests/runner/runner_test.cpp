@@ -1,24 +1,24 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <atomic>
 #include <filesystem>
-#include <stdexcept>
+#include <thread>
 #include <type_traits>
 #include <utility>
 
 #include "football/runner.hpp"
 
 using football::ball::BallModel;
+using football::history::HistoryMode;
 using football::pitch::PitchModel;
 using football::runner::SingleRunner;
-using Catch::Approx;
 using football::time::Tick;
 using football::time::TickSpan;
+using Catch::Approx;
 
-static_assert(std::is_same_v<decltype(std::declval<SingleRunner&>().EnvironmentAfterJoin()),
+static_assert(std::is_same_v<decltype(std::declval<const SingleRunner&>().Environment()),
                              const football::Env&>);
-static_assert(std::is_same_v<decltype(std::declval<const SingleRunner&>().history()),
-                             const football::history::History&>);
 
 namespace {
 
@@ -33,25 +33,51 @@ constexpr BallModel kBall{.mass = 0.43f, .radius = 0.11f,
 TEST_CASE("a runner does not advance before Start") {
   SingleRunner runner(kPitch, kBall, TickSpan{100});
   runner.Wait();
-  REQUIRE(runner.EnvironmentAfterJoin().Ticks() == Tick{0});
-  const auto opening = runner.history().ReadSnapshot(Tick{0});
+  REQUIRE(runner.Environment().Ticks() == Tick{0});
+  const auto opening = runner.Environment().ReadSnapshot(Tick{0});
   REQUIRE(opening);
   REQUIRE(opening->ball.position.coords[2] == kBall.radius);
 }
 
-TEST_CASE("a started runner executes its tick limit and rejects access until joined") {
+TEST_CASE("a started runner executes its tick limit") {
   SingleRunner runner(kPitch, kBall, TickSpan{100});
-  const SingleRunner& reader = runner;
   runner.Start();
-  REQUIRE_THROWS_AS(reader.EnvironmentAfterJoin(), std::logic_error);
-  REQUIRE(reader.history().ReadSnapshot(Tick{0}));
+  REQUIRE(runner.Environment().ReadSnapshot(Tick{0}));
   runner.Wait();
-  REQUIRE(reader.EnvironmentAfterJoin().Ticks() == Tick{100});
-  const auto final_frame = reader.history().ReadSnapshot(Tick{100});
+  REQUIRE(runner.Environment().Ticks() == Tick{100});
+  const auto final_frame = runner.Environment().ReadSnapshot(Tick{100});
   REQUIRE(final_frame);
   REQUIRE(final_frame->tick == Tick{100});
-  REQUIRE_FALSE(reader.history().ReadSnapshot(Tick{101}));
-  REQUIRE(&reader.history() == &reader.EnvironmentAfterJoin().history());
+  REQUIRE_FALSE(runner.Environment().ReadSnapshot(Tick{101}));
+  REQUIRE(runner.Environment().frame_count() == 101);
+}
+
+TEST_CASE("snapshots stay readable while the worker records across reallocations") {
+  SingleRunner runner(kPitch, kBall, TickSpan{400});
+  std::atomic<bool> finished{false};
+  std::atomic<bool> consistent{true};
+  std::jthread reader([&] {
+    while (!finished.load()) {
+      const auto opening = runner.Environment().ReadSnapshot(Tick{0});
+      if (!opening || opening->tick != Tick{0} ||
+          opening->ball.position.coords[2] != kBall.radius) {
+        consistent.store(false);
+        return;
+      }
+      if (const auto final_frame = runner.Environment().ReadSnapshot(Tick{400})) {
+        if (final_frame->tick != Tick{400}) consistent.store(false);
+      }
+    }
+  });
+
+  runner.Start();
+  runner.Wait();
+  finished.store(true);
+  reader.join();
+
+  REQUIRE(consistent.load());
+  REQUIRE(runner.Environment().Ticks() == Tick{400});
+  REQUIRE(runner.Environment().frame_count() == 401);
 }
 
 TEST_CASE("Start is one-shot and Wait is idempotent") {
@@ -62,16 +88,16 @@ TEST_CASE("Start is one-shot and Wait is idempotent") {
   runner.Start();
   runner.Wait();
   runner.Wait();
-  REQUIRE(runner.EnvironmentAfterJoin().Ticks() == Tick{100});
+  REQUIRE(runner.Environment().Ticks() == Tick{100});
 }
 
 TEST_CASE("a zero tick limit keeps only the opening frame") {
   SingleRunner runner(kPitch, kBall);
   runner.Start();
   runner.Wait();
-  REQUIRE(runner.EnvironmentAfterJoin().Ticks() == Tick{0});
-  REQUIRE(runner.history().ReadSnapshot(Tick{0}));
-  REQUIRE_FALSE(runner.history().ReadSnapshot(Tick{1}));
+  REQUIRE(runner.Environment().Ticks() == Tick{0});
+  REQUIRE(runner.Environment().ReadSnapshot(Tick{0}));
+  REQUIRE_FALSE(runner.Environment().ReadSnapshot(Tick{1}));
 }
 
 TEST_CASE("runners own independent matches and tick limits") {
@@ -81,9 +107,9 @@ TEST_CASE("runners own independent matches and tick limits") {
   second.Start();
   first.Wait();
   second.Wait();
-  REQUIRE(first.EnvironmentAfterJoin().Ticks() == Tick{100});
-  REQUIRE(second.EnvironmentAfterJoin().Ticks() == Tick{200});
-  REQUIRE(&first.EnvironmentAfterJoin() != &second.EnvironmentAfterJoin());
+  REQUIRE(first.Environment().Ticks() == Tick{100});
+  REQUIRE(second.Environment().Ticks() == Tick{200});
+  REQUIRE(&first.Environment() != &second.Environment());
 }
 
 TEST_CASE("a runner given a replay history does not advance the match") {
@@ -94,16 +120,15 @@ TEST_CASE("a runner given a replay history does not advance the match") {
   recording.RecordSnapshot(Tick{0}, state);
   recording.SaveJsonl(path);
 
-  SingleRunner runner(kPitch, kBall, TickSpan{100},
-                      football::history::History::LoadJsonl(path));
+  SingleRunner runner(kPitch, kBall, TickSpan{100}, path);
   runner.Start();
   runner.Wait();
 
-  const auto& env = runner.EnvironmentAfterJoin();
+  const auto& env = runner.Environment();
   REQUIRE(env.Ticks() == Tick{0});
-  REQUIRE(runner.history().mode() == football::history::HistoryMode::Replay);
-  REQUIRE(runner.history().ReadSnapshot(Tick{0})->ball.position.coords[1] == Approx(4.0f));
-  REQUIRE_FALSE(runner.history().ReadSnapshot(Tick{1}));
+  REQUIRE(env.history_mode() == HistoryMode::Replay);
+  REQUIRE(env.ReadSnapshot(Tick{0})->ball.position.coords[1] == Approx(4.0f));
+  REQUIRE_FALSE(env.ReadSnapshot(Tick{1}));
 
   std::filesystem::remove(path);
 }

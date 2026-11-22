@@ -1,9 +1,9 @@
 #include "football/capi.h"
 
 #include <cstdint>
+#include <filesystem>
 #include <new>
 
-#include "football/history/history.hpp"
 #include "football/log/log.hpp"
 #include "football/runner.hpp"
 
@@ -11,15 +11,9 @@ using namespace football::log;
 
 namespace {
 
-bool HasHistoryPath(const char* history_path) {
-  return history_path != nullptr && history_path[0] != '\0';
-}
-
-football::history::History MakeHistory(const char* history_path) {
-  if (HasHistoryPath(history_path)) {
-    return football::history::History::LoadJsonl(history_path);
-  }
-  return football::history::History{};
+std::filesystem::path HistoryPath(const char* history_path) {
+  if (history_path == nullptr || history_path[0] == '\0') return {};
+  return history_path;
 }
 
 }
@@ -29,7 +23,7 @@ struct football_session {
                    const football_ball_model& ball_model,
                    std::uint64_t tick_limit, const char* history_path)
       : runner(pitch_model, ball_model, football::time::TickSpan{tick_limit},
-               MakeHistory(history_path)) {}
+               HistoryPath(history_path)) {}
 
   football::runner::SingleRunner runner;
 };
@@ -75,7 +69,7 @@ int FOOTBALL_CALL football_get_render_snapshot(
 
   try {
     const auto snapshot =
-        session->runner.history().ReadSnapshot(football::time::Tick{tick});
+        session->runner.Environment().ReadSnapshot(football::time::Tick{tick});
     if (!snapshot) return 0;
 
     const auto& position = snapshot->ball.position.coords;

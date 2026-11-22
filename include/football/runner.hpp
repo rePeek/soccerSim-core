@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <thread>
 
 #include "football/env.hpp"
@@ -10,7 +11,7 @@ namespace football::runner {
 class SingleRunner {
  public:
   SingleRunner(pitch::PitchModel pitch_model, ball::BallModel ball_model,
-               time::TickSpan tick_limit = {}, history::History history = {});
+               time::TickSpan tick_limit = {}, std::filesystem::path history_path = {});
   ~SingleRunner();
 
   SingleRunner(const SingleRunner&) = delete;
@@ -22,9 +23,7 @@ class SingleRunner {
 
   void Wait();
 
-  const history::History& history() const;
-
-  const Env& EnvironmentAfterJoin() const;
+  const Env& Environment() const;
 
  private:
   Env env_;

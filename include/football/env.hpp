@@ -1,5 +1,9 @@
 #pragma once
 
+#include <filesystem>
+#include <mutex>
+#include <optional>
+
 #include "football/ball/ball.hpp"
 #include "football/foundation/time/tick.hpp"
 #include "football/history/history.hpp"
@@ -10,7 +14,7 @@ namespace football {
 class Env {
  public:
   explicit Env(pitch::PitchModel pitch_model, ball::BallModel ball_model,
-               history::History history = {});
+               std::filesystem::path history_path = {});
   ~Env();
 
   Env(const Env&) = delete;
@@ -20,7 +24,9 @@ class Env {
 
   void LoopMain(time::TickSpan tick_limit);
 
-  const history::History& history() const { return history_; }
+  std::optional<history::Snapshot> ReadSnapshot(time::Tick tick) const;
+  history::HistoryMode history_mode() const;
+  std::size_t frame_count() const;
 
   time::Tick Ticks() const;
 
@@ -31,6 +37,7 @@ class Env {
   ball::Ball ball_;
   history::History history_;
   time::Tick tick_{0};
+  mutable std::mutex mutex_;
 };
 
 }

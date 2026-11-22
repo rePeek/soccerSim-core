@@ -1,6 +1,5 @@
 #include "football/runner.hpp"
 
-#include <stdexcept>
 #include <utility>
 
 #include "football/log/log.hpp"
@@ -11,8 +10,10 @@ namespace football::runner {
 
 SingleRunner::SingleRunner(pitch::PitchModel pitch_model,
                            ball::BallModel ball_model,
-                           time::TickSpan tick_limit, history::History history)
-    : env_(pitch_model, ball_model, std::move(history)), tick_limit_(tick_limit) {}
+                           time::TickSpan tick_limit,
+                           std::filesystem::path history_path)
+    : env_(pitch_model, ball_model, std::move(history_path)),
+      tick_limit_(tick_limit) {}
 
 SingleRunner::~SingleRunner() {
   Wait();
@@ -30,13 +31,6 @@ void SingleRunner::Wait() {
   if (thread_.joinable()) thread_.join();
 }
 
-const history::History& SingleRunner::history() const { return env_.history(); }
-
-const Env& SingleRunner::EnvironmentAfterJoin() const {
-  if (thread_.joinable()) {
-    throw std::logic_error("worker must be joined before accessing Env");
-  }
-  return env_;
-}
+const Env& SingleRunner::Environment() const { return env_; }
 
 }

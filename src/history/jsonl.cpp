@@ -186,11 +186,9 @@ History History::LoadJsonl(const std::filesystem::path& path) {
 }
 
 void History::SaveJsonl(const std::filesystem::path& path) const {
-  std::lock_guard lock(state_->mutex);
-
   const std::filesystem::path temporary = TemporaryPathFor(path);
   try {
-    WriteLines(temporary, state_->chunk);
+    WriteLines(temporary, chunk_);
     ReplaceFile(temporary, path);
   } catch (...) {
     RemoveQuietly(temporary);

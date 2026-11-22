@@ -26,7 +26,7 @@ constexpr BallModel kBall{.mass = 0.43f, .radius = 0.11f,
 TEST_CASE("a new environment starts at tick zero with an opening frame") {
   Env env(kPitch, kBall);
   REQUIRE(env.Ticks() == Tick{0});
-  const auto opening = env.history().ReadSnapshot(Tick{0});
+  const auto opening = env.ReadSnapshot(Tick{0});
   REQUIRE(opening);
   REQUIRE(opening->tick == Tick{0});
   REQUIRE(opening->ball.position.coords[0] == Approx(0.0f));
@@ -37,24 +37,24 @@ TEST_CASE("a new environment starts at tick zero with an opening frame") {
 TEST_CASE("LoopMain records every committed tick and preserves earlier frames") {
   Env env(kPitch, kBall);
   env.LoopMain(TickSpan{1});
-  const auto recorded = env.history().ReadSnapshot(Tick{1});
+  const auto recorded = env.ReadSnapshot(Tick{1});
   REQUIRE(recorded);
   env.LoopMain(TickSpan{50});
   REQUIRE(env.Ticks() == Tick{51});
-  REQUIRE(env.history().ReadSnapshot(Tick{1}) == recorded);
+  REQUIRE(env.ReadSnapshot(Tick{1}) == recorded);
   for (std::uint64_t tick = 0; tick <= 51; ++tick) {
-    const auto frame = env.history().ReadSnapshot(Tick{tick});
+    const auto frame = env.ReadSnapshot(Tick{tick});
     REQUIRE(frame);
     REQUIRE(frame->tick == Tick{tick});
   }
-  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{52}));
+  REQUIRE_FALSE(env.ReadSnapshot(Tick{52}));
 }
 
 TEST_CASE("LoopMain advances exactly the requested ticks including zero") {
   Env env(kPitch, kBall);
   env.LoopMain(TickSpan{});
   REQUIRE(env.Ticks() == Tick{0});
-  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{1}));
+  REQUIRE_FALSE(env.ReadSnapshot(Tick{1}));
   env.LoopMain(TickSpan{500});
   REQUIRE(env.Ticks() == Tick{500});
   env.LoopMain(TickSpan{});
@@ -69,9 +69,9 @@ TEST_CASE("equal inputs record equal frames") {
   first.LoopMain(TickSpan{600});
   second.LoopMain(TickSpan{600});
   for (std::uint64_t tick = 0; tick <= 600; ++tick) {
-    const auto frame = first.history().ReadSnapshot(Tick{tick});
+    const auto frame = first.ReadSnapshot(Tick{tick});
     REQUIRE(frame);
-    REQUIRE(second.history().ReadSnapshot(Tick{tick}) == frame);
+    REQUIRE(second.ReadSnapshot(Tick{tick}) == frame);
   }
 }
 
@@ -102,13 +102,13 @@ TEST_CASE("an environment given a replay history does not simulate") {
   recording.RecordSnapshot(Tick{0}, state);
   recording.SaveJsonl(path);
 
-  Env env(kPitch, kBall, football::history::History::LoadJsonl(path));
-  REQUIRE(env.history().mode() == football::history::HistoryMode::Replay);
+  Env env(kPitch, kBall, path);
+  REQUIRE(env.history_mode() == football::history::HistoryMode::Replay);
   env.LoopMain(TickSpan{100});
   REQUIRE(env.Ticks() == Tick{0});
-  REQUIRE(env.history().ReadSnapshot(Tick{0}));
-  REQUIRE(env.history().ReadSnapshot(Tick{0})->ball.position.coords[0] == Approx(1.0f));
-  REQUIRE_FALSE(env.history().ReadSnapshot(Tick{1}));
+  REQUIRE(env.ReadSnapshot(Tick{0}));
+  REQUIRE(env.ReadSnapshot(Tick{0})->ball.position.coords[0] == Approx(1.0f));
+  REQUIRE_FALSE(env.ReadSnapshot(Tick{1}));
 
   std::filesystem::remove(path);
 }
